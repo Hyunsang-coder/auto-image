@@ -5,6 +5,7 @@ import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { PropertiesPanel } from './properties/PropertiesPanel'
 import type { Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../types/project'
+import { deleteImage } from '../../lib/imageStore'
 
 export function EditorLayout() {
   const project = useProjectStore((s) => s.project)
@@ -62,6 +63,10 @@ export function EditorLayout() {
 
   function handleScreenshotChange(screenshot: ScreenshotImage | null) {
     if (!activeSlideId) return
+    const oldKey = slide?.screenshot?.imageKey
+    if (oldKey && oldKey !== screenshot?.imageKey) {
+      deleteImage(oldKey)
+    }
     updateSlide(activeSlideId, { screenshot })
   }
 

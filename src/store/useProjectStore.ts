@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Project, Slide, Step } from '../types/project'
 import { makeProject, makeSlide } from '../constants/defaults'
+import { deleteImage } from '../lib/imageStore'
 
 interface ProjectState {
   project: Project | null
@@ -48,8 +49,15 @@ export const useProjectStore = create<ProjectState>()(
         })
       },
 
-      resetProject: () =>
-        set({ project: null, step: 1, activeSlideId: null }),
+      resetProject: () => {
+        const cur = get().project
+        if (cur) {
+          cur.slides.forEach(s => {
+            if (s.screenshot?.imageKey) deleteImage(s.screenshot.imageKey)
+          })
+        }
+        set({ project: null, step: 1, activeSlideId: null })
+      },
 
       updateProject: (patch) => {
         const cur = get().project
@@ -104,6 +112,8 @@ export const useProjectStore = create<ProjectState>()(
         const cur = get().project
         if (!cur) return
         if (cur.slides.length <= 1) return
+        const removed = cur.slides.find(s => s.id === slideId)
+        if (removed?.screenshot?.imageKey) deleteImage(removed.screenshot.imageKey)
         const filtered = cur.slides
           .filter((s) => s.id !== slideId)
           .map((s, i) => ({ ...s, index: i }))

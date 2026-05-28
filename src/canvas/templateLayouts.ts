@@ -30,8 +30,10 @@ function getFrameBounds(
   ch: number,
   device: { w: number; h: number },
 ): FrameBounds | null {
+  if (slide.template === 'hero') {
+    return { left: 0, top: 0, w: cw, h: ch }
+  }
   if (!slide.deviceFrame.show) return null
-
   if (slide.template === 'text-top') {
     return { left: cw / 2 - device.w / 2, top: ch * 0.32, w: device.w, h: device.h }
   }
@@ -43,7 +45,7 @@ function getFrameBounds(
     const deviceH = Math.round((deviceW / device.w) * device.h)
     return { left: cw * 0.73 - deviceW / 2, top: (ch - deviceH) / 2, w: deviceW, h: deviceH }
   }
-  return null // hero has no device frame
+  return null
 }
 
 async function renderScreenshotLayer(
@@ -60,11 +62,10 @@ async function renderScreenshotLayer(
   const { originalWidth: srcW, originalHeight: srcH } = screenshot
   const imgScale = Math.max(bounds.w / srcW, bounds.h / srcH)
   const scaledW = srcW * imgScale
-  const scaledH = srcH * imgScale
 
   img.set({
     left: bounds.left + (bounds.w - scaledW) / 2,
-    top: bounds.top + (bounds.h - scaledH) / 2,
+    top: bounds.top,
     scaleX: imgScale,
     scaleY: imgScale,
     originX: 'left',
@@ -114,7 +115,8 @@ export async function applyTemplate(
   if (slide.screenshot) {
     const bounds = getFrameBounds(slide, cw, ch, device)
     if (bounds) {
-      await renderScreenshotLayer(canvas, slide.screenshot, bounds, rx)
+      const screenshotRx = slide.template === 'hero' ? 0 : rx
+      await renderScreenshotLayer(canvas, slide.screenshot, bounds, screenshotRx)
     }
   }
 

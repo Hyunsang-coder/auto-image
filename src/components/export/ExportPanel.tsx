@@ -1,11 +1,20 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide } from '../../lib/renderSlide'
-import type { DeviceType } from '../../types/project'
+import type { DeviceType, Project } from '../../types/project'
 
 type Status = 'idle' | 'running' | 'done' | 'error'
+
+function getUntranslatedLocales(project: Project): string[] {
+  return project.targetLocales.filter(locale =>
+    project.slides.some(slide =>
+      (slide.headline.text && !slide.headline.translations[locale]) ||
+      (slide.subheadline.text && !slide.subheadline.translations[locale])
+    )
+  )
+}
 
 export function ExportPanel() {
   const project = useProjectStore((s) => s.project)
@@ -14,14 +23,17 @@ export function ExportPanel() {
   const [status, setStatus] = useState<Status>('idle')
   const [done, setDone] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const cancelledRef = useRef(false)
 
   if (!project) return null
 
   const allLocales = [project.sourceLocale, ...project.targetLocales]
   const total = project.slides.length * project.devices.length * allLocales.length
+  const untranslated = getUntranslatedLocales(project)
 
   async function handleExport() {
     if (!project) return
+    cancelledRef.current = false
     setStatus('running')
     setError(null)
     setDone(0)
@@ -33,6 +45,10 @@ export function ExportPanel() {
       for (const locale of allLocales) {
         for (const device of project.devices as DeviceType[]) {
           for (const slide of project.slides) {
+            if (cancelledRef.current) {
+              setStatus('idle')
+              return
+            }
             const renderLocale = locale === project.sourceLocale ? null : locale
             const blob = await renderSlide(slide, device, renderLocale)
             const name = String(slide.index + 1).padStart(2, '0')
@@ -52,6 +68,10 @@ export function ExportPanel() {
     }
   }
 
+  function handleCancel() {
+    cancelledRef.current = true
+  }
+
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   return (
@@ -68,6 +88,13 @@ export function ExportPanel() {
 
       <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-md space-y-6 px-6">
+          {untranslated.length > 0 && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-300">
+              번역 미완료 로케일 {untranslated.length}개: {untranslated.join(', ')} —
+              소스 텍스트로 내보내집니다.
+            </div>
+          )}
+
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <h3 className="mb-3 text-sm font-semibold text-white">렌더링 범위</h3>
             <div className="space-y-1.5 text-sm text-[var(--color-text-dim)]">
@@ -115,17 +142,27 @@ export function ExportPanel() {
             </p>
           )}
 
-          <button
-            onClick={handleExport}
-            disabled={status === 'running'}
-            className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {status === 'running'
-              ? `렌더링 중… (${done}/${total})`
-              : status === 'done'
-              ? 'ZIP 다시 다운로드'
-              : `ZIP 내보내기 · ${total}개 PNG`}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExport}
+              disabled={status === 'running'}
+              className="flex-1 rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {status === 'running'
+                ? `렌더링 중… (${done}/${total})`
+                : status === 'done'
+                ? 'ZIP 다시 다운로드'
+                : `ZIP 내보내기 · ${total}개 PNG`}
+            </button>
+            {status === 'running' && (
+              <button
+                onClick={handleCancel}
+                className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-dim)] hover:text-white"
+              >
+                취소
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
