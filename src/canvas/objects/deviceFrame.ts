@@ -7,6 +7,7 @@ export interface DeviceFrameOptions {
   top: number
   width: number
   height: number
+  rx?: number
 }
 
 export function renderDeviceFrame(
@@ -15,6 +16,7 @@ export function renderDeviceFrame(
 ): Rect | null {
   if (!deviceFrame.show) return null
 
+  const rx = opts.rx ?? 24
   const rect = new Rect({
     left: opts.left,
     top: opts.top,
@@ -23,8 +25,8 @@ export function renderDeviceFrame(
     fill: 'transparent',
     stroke: deviceFrame.color === 'silver' ? '#C0C0C0' : '#1a1a1a',
     strokeWidth: 3,
-    rx: 24,
-    ry: 24,
+    rx,
+    ry: rx,
     originX: 'center',
     originY: 'top',
     selectable: false,

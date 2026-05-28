@@ -149,7 +149,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       undoStack.current = []
       redoStack.current = []
-      applyTemplate(canvas, activeSlide)
+      ;(async () => { await applyTemplate(canvas, activeSlide!) })()
     }, [activeSlide])
 
     // Re-render when slide data changes (without switching slide)
@@ -166,11 +166,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         headline: activeSlide.headline,
         subheadline: activeSlide.subheadline,
         deviceFrame: activeSlide.deviceFrame,
+        screenshotKey: activeSlide.screenshot?.imageKey ?? null,
       })
       if (prevSlideDataRef.current === serialized) return
       prevSlideDataRef.current = serialized
 
-      applyTemplate(canvas, activeSlide)
+      ;(async () => { await applyTemplate(canvas, activeSlide!) })()
     }, [activeSlide])
 
     return (

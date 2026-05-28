@@ -113,8 +113,10 @@ export function useFabricCanvas(
     undoStack.current = []
     redoStack.current = []
 
-    applyTemplate(canvas, opts.activeSlide)
-    pushHistory(canvas)
+    ;(async () => {
+      await applyTemplate(canvas, opts.activeSlide!)
+      pushHistory(canvas)
+    })()
   }, [opts.activeSlide])
 
   return { canvasRef, undo, redo }

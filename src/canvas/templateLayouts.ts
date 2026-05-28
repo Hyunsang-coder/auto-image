@@ -1,10 +1,11 @@
-import type { Canvas } from 'fabric'
-import type { Slide } from '../types/project'
+import { Canvas, FabricImage, Rect } from 'fabric'
+import type { Slide, ScreenshotImage } from '../types/project'
 import { EDITOR_CANVAS_WIDTH, deviceSpecOf } from '../constants/deviceSpecs'
 import { renderBackground } from './objects/background'
 import { renderCaption } from './objects/caption'
 import { renderDeviceFrame } from './objects/deviceFrame'
 import { LAYER_NAMES } from './layerNames'
+import { loadImageObjectUrl } from '../lib/imageStore'
 
 function getCanvasHeight(): number {
   // Use iphone as default aspect ratio
@@ -14,36 +15,118 @@ function getCanvasHeight(): number {
   )
 }
 
-function getDeviceDimensions(slide: Slide): { w: number; h: number } {
+function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h: number } {
   const spec = deviceSpecOf(slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone')
-  const w = EDITOR_CANVAS_WIDTH * 0.6
+  const w = canvasWidth * 0.6
   const h = Math.round((w / spec.exportWidth) * spec.exportHeight)
   return { w, h }
 }
 
-export function applyTemplate(canvas: Canvas, slide: Slide): void {
+type FrameBounds = { left: number; top: number; w: number; h: number }
+
+function getFrameBounds(
+  slide: Slide,
+  cw: number,
+  ch: number,
+  device: { w: number; h: number },
+): FrameBounds | null {
+  if (!slide.deviceFrame.show) return null
+
+  if (slide.template === 'text-top') {
+    return { left: cw / 2 - device.w / 2, top: ch * 0.32, w: device.w, h: device.h }
+  }
+  if (slide.template === 'text-bottom') {
+    return { left: cw / 2 - device.w / 2, top: ch * 0.03, w: device.w, h: device.h }
+  }
+  if (slide.template === 'split') {
+    const deviceW = cw * 0.45
+    const deviceH = Math.round((deviceW / device.w) * device.h)
+    return { left: cw * 0.73 - deviceW / 2, top: (ch - deviceH) / 2, w: deviceW, h: deviceH }
+  }
+  return null // hero has no device frame
+}
+
+async function renderScreenshotLayer(
+  canvas: Canvas,
+  screenshot: ScreenshotImage,
+  bounds: FrameBounds,
+  rx: number,
+): Promise<void> {
+  const url = await loadImageObjectUrl(screenshot.imageKey)
+  if (!url) return
+
+  const img = await FabricImage.fromURL(url)
+
+  const { originalWidth: srcW, originalHeight: srcH } = screenshot
+  const imgScale = Math.max(bounds.w / srcW, bounds.h / srcH)
+  const scaledW = srcW * imgScale
+  const scaledH = srcH * imgScale
+
+  img.set({
+    left: bounds.left + (bounds.w - scaledW) / 2,
+    top: bounds.top + (bounds.h - scaledH) / 2,
+    scaleX: imgScale,
+    scaleY: imgScale,
+    originX: 'left',
+    originY: 'top',
+    selectable: false,
+    evented: false,
+    hoverCursor: 'default',
+  })
+
+  img.clipPath = new Rect({
+    left: bounds.left,
+    top: bounds.top,
+    width: bounds.w,
+    height: bounds.h,
+    rx,
+    ry: rx,
+    originX: 'left',
+    originY: 'top',
+    absolutePositioned: true,
+  })
+
+  ;(img as FabricImage & { layerName: string }).layerName = LAYER_NAMES.SCREENSHOT
+  canvas.add(img)
+}
+
+export async function applyTemplate(
+  canvas: Canvas,
+  slide: Slide,
+  dims?: { width: number; height: number },
+): Promise<void> {
   canvas.clear()
 
-  const cw = EDITOR_CANVAS_WIDTH
-  const ch = getCanvasHeight()
+  const cw = dims?.width ?? EDITOR_CANVAS_WIDTH
+  const ch = dims?.height ?? getCanvasHeight()
+  const scale = cw / EDITOR_CANVAS_WIDTH
+  const rx = Math.round(24 * scale)
 
   canvas.setDimensions({ width: cw, height: ch })
 
   const { template } = slide
-  const device = getDeviceDimensions(slide)
+  const device = getDeviceDimensions(slide, cw)
 
-  // Background always present
-  const bg = renderBackground(cw, ch, slide.background)
-  canvas.add(bg)
+  // 1. Background
+  canvas.add(renderBackground(cw, ch, slide.background))
 
+  // 2. Screenshot clipped to device frame area (async)
+  if (slide.screenshot) {
+    const bounds = getFrameBounds(slide, cw, ch, device)
+    if (bounds) {
+      await renderScreenshotLayer(canvas, slide.screenshot, bounds, rx)
+    }
+  }
+
+  // 3. Text + device frame border (screenshot sits beneath)
   if (template === 'hero') {
     applyHero(canvas, slide, cw, ch)
   } else if (template === 'text-top') {
-    applyTextTop(canvas, slide, cw, ch, device)
+    applyTextTop(canvas, slide, cw, ch, device, rx)
   } else if (template === 'text-bottom') {
-    applyTextBottom(canvas, slide, cw, ch, device)
+    applyTextBottom(canvas, slide, cw, ch, device, rx)
   } else if (template === 'split') {
-    applySplit(canvas, slide, cw, ch, device)
+    applySplit(canvas, slide, cw, ch, device, rx)
   }
 
   canvas.renderAll()
@@ -55,7 +138,6 @@ function applyHero(
   cw: number,
   ch: number,
 ): void {
-  // headline at 40% vertical, centered horizontally
   const headlineTop = ch * 0.4
   const headline = renderCaption(slide.headline, {
     left: cw / 2,
@@ -65,7 +147,6 @@ function applyHero(
   })
   canvas.add(headline)
 
-  // subheadline just below headline
   const subTop = headlineTop + slide.headline.style.fontSize * 1.15 + 12
   const subheadline = renderCaption(slide.subheadline, {
     left: cw / 2,
@@ -82,8 +163,8 @@ function applyTextTop(
   cw: number,
   ch: number,
   device: { w: number; h: number },
+  rx: number,
 ): void {
-  // headline/sub at top 25%
   const headlineTop = ch * 0.05
   const headline = renderCaption(slide.headline, {
     left: cw / 2,
@@ -102,14 +183,13 @@ function applyTextTop(
   })
   canvas.add(subheadline)
 
-  // device frame at bottom
   if (slide.deviceFrame.show) {
-    const deviceTop = ch * 0.32
     const frame = renderDeviceFrame(slide.deviceFrame, {
       left: cw / 2,
-      top: deviceTop,
+      top: ch * 0.32,
       width: device.w,
       height: device.h,
+      rx,
     })
     if (frame) canvas.add(frame)
   }
@@ -121,20 +201,19 @@ function applyTextBottom(
   cw: number,
   ch: number,
   device: { w: number; h: number },
+  rx: number,
 ): void {
-  // device frame at top
   if (slide.deviceFrame.show) {
-    const deviceTop = ch * 0.03
     const frame = renderDeviceFrame(slide.deviceFrame, {
       left: cw / 2,
-      top: deviceTop,
+      top: ch * 0.03,
       width: device.w,
       height: device.h,
+      rx,
     })
     if (frame) canvas.add(frame)
   }
 
-  // headline/sub at bottom 20%
   const headlineTop = ch * 0.78
   const headline = renderCaption(slide.headline, {
     left: cw / 2,
@@ -160,8 +239,8 @@ function applySplit(
   cw: number,
   ch: number,
   device: { w: number; h: number },
+  rx: number,
 ): void {
-  // headline/sub on left half
   const leftCenterX = cw * 0.25
   const headlineTop = ch * 0.35
   const headline = renderCaption(slide.headline, {
@@ -183,17 +262,15 @@ function applySplit(
   subheadline.set('textAlign', slide.subheadline.style.textAlign ?? 'left')
   canvas.add(subheadline)
 
-  // device on right half
   if (slide.deviceFrame.show) {
     const deviceW = cw * 0.45
     const deviceH = Math.round((deviceW / device.w) * device.h)
-    const deviceLeft = cw * 0.73
-    const deviceTop = (ch - deviceH) / 2
     const frame = renderDeviceFrame(slide.deviceFrame, {
-      left: deviceLeft,
-      top: deviceTop,
+      left: cw * 0.73,
+      top: (ch - deviceH) / 2,
       width: deviceW,
       height: deviceH,
+      rx,
     })
     if (frame) canvas.add(frame)
   }
