@@ -1,5 +1,5 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Canvas, IText } from 'fabric'
+import { Canvas, Textbox } from 'fabric'
 import type { Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
 import { LAYER_NAMES } from '../../canvas/layerNames'
@@ -54,9 +54,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const slidePatch: Partial<Slide> = {}
 
       for (const obj of objects) {
-        const ln = (obj as IText & { layerName?: string }).layerName
+        const ln = (obj as Textbox & { layerName?: string }).layerName
         if (ln === LAYER_NAMES.HEADLINE || ln === LAYER_NAMES.SUBHEADLINE) {
-          const itext = obj as IText
+          const itext = obj as Textbox
           const captionKey = ln === LAYER_NAMES.HEADLINE ? 'headline' : 'subheadline'
           const existing = slide[captionKey]
           slidePatch[captionKey] = {

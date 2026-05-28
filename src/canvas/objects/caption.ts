@@ -1,4 +1,4 @@
-import { IText } from 'fabric'
+import { Textbox } from 'fabric'
 import type { Caption } from '../../types/project'
 import type { LayerName } from '../layerNames'
 
@@ -12,11 +12,11 @@ export interface CaptionOptions {
 export function renderCaption(
   caption: Caption,
   opts: CaptionOptions,
-): IText {
+): Textbox {
   const { style } = caption
   const textAlign = style.textAlign ?? 'center'
 
-  const obj = new IText(caption.text, {
+  const obj = new Textbox(caption.text, {
     left: opts.left,
     top: opts.top,
     width: opts.width,
@@ -34,7 +34,7 @@ export function renderCaption(
     selectable: true,
     hasControls: true,
   })
-  ;(obj as IText & { layerName: string }).layerName = opts.layerName
+  ;(obj as Textbox & { layerName: string }).layerName = opts.layerName
 
   return obj
 }

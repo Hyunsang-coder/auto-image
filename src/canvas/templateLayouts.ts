@@ -44,7 +44,7 @@ function getFrameBounds(
   if (slide.template === 'split') {
     const deviceW = cw * 0.45
     const deviceH = Math.round((deviceW / device.w) * device.h)
-    return { left: cw * 0.73 - deviceW / 2, top: (ch - deviceH) / 2, w: deviceW, h: deviceH }
+    return { left: cw * 0.76 - deviceW / 2, top: (ch - deviceH) / 2, w: deviceW, h: deviceH }
   }
   return null
 }
@@ -245,12 +245,13 @@ function applySplit(
   device: { w: number; h: number },
   rx: number,
 ): void {
-  const leftCenterX = cw * 0.25
+  const leftCenterX = cw * 0.21
+  const textWidth = cw * 0.37
   const headlineTop = ch * 0.35
   const headline = renderCaption(slide.headline, {
     left: leftCenterX,
     top: headlineTop,
-    width: cw * 0.42,
+    width: textWidth,
     layerName: LAYER_NAMES.HEADLINE,
   })
   headline.set('textAlign', slide.headline.style.textAlign ?? 'left')
@@ -260,7 +261,7 @@ function applySplit(
   const subheadline = renderCaption(slide.subheadline, {
     left: leftCenterX,
     top: subTop,
-    width: cw * 0.42,
+    width: textWidth,
     layerName: LAYER_NAMES.SUBHEADLINE,
   })
   subheadline.set('textAlign', slide.subheadline.style.textAlign ?? 'left')
@@ -269,7 +270,7 @@ function applySplit(
   const deviceW = cw * 0.45
   const deviceH = Math.round((deviceW / device.w) * device.h)
   renderDeviceFrame(slide.deviceFrame, {
-    left: cw * 0.73,
+    left: cw * 0.76,
     top: (ch - deviceH) / 2,
     width: deviceW,
     height: deviceH,
