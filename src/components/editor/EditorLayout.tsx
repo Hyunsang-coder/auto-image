@@ -1,68 +1,102 @@
+import { useRef, useEffect } from 'react'
 import { useProjectStore } from '../../store/useProjectStore'
+import { SlideList } from './SlideList'
+import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
+import { CanvasToolbar } from './CanvasToolbar'
+import { PropertiesPanel } from './properties/PropertiesPanel'
+import type { Slide, TemplateType, Background, Caption } from '../../types/project'
 
 export function EditorLayout() {
   const project = useProjectStore((s) => s.project)
   const activeSlideId = useProjectStore((s) => s.activeSlideId)
   const setActiveSlide = useProjectStore((s) => s.setActiveSlide)
+  const updateSlide = useProjectStore((s) => s.updateSlide)
+
+  const canvasRef = useRef<FabricCanvasHandle>(null)
+
+  // Keyboard undo/redo wired to canvas handle
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const isMac = navigator.platform.toUpperCase().includes('MAC')
+      const ctrl = isMac ? e.metaKey : e.ctrlKey
+      if (!ctrl) return
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        canvasRef.current?.undo()
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault()
+        canvasRef.current?.redo()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   if (!project) return null
-  const slide = project.slides.find((s) => s.id === activeSlideId)
+  const slide = project.slides.find((s) => s.id === activeSlideId) ?? null
+
+  function handleSlideChange(patch: Partial<Slide>) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, patch)
+  }
+
+  function handleTemplateChange(t: TemplateType) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { template: t })
+  }
+
+  function handleBackgroundChange(bg: Background) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { background: bg })
+  }
+
+  function handleHeadlineChange(c: Caption) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { headline: c })
+  }
+
+  function handleSubheadlineChange(c: Caption) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { subheadline: c })
+  }
 
   return (
-    <div className="grid h-full grid-cols-[200px_1fr_320px] gap-0 border-t border-[var(--color-border)]">
-      <aside className="overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-          슬라이드
-        </h3>
-        <ul className="flex flex-col gap-2">
-          {project.slides.map((s, i) => {
-            const active = s.id === activeSlideId
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => setActiveSlide(s.id)}
-                  className={[
-                    'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition',
-                    active
-                      ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-white'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
-                  ].join(' ')}
-                >
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-bg)] text-xs font-semibold text-[var(--color-text-dim)]">
-                    {i + 1}
-                  </span>
-                  <span className="truncate">
-                    {s.headline.text || `슬라이드 ${i + 1}`}
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </aside>
+    <div className="grid h-full grid-cols-[200px_1fr_280px] gap-0 border-t border-[var(--color-border)] overflow-hidden">
+      <SlideList
+        slides={project.slides}
+        activeSlideId={activeSlideId}
+        onSelect={setActiveSlide}
+      />
 
-      <main className="flex items-center justify-center bg-[var(--color-bg)] p-6">
-        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-10 text-center text-[var(--color-text-dim)]">
-          <p className="text-sm">
-            Phase 2: Fabric.js 캔버스 영역 (이후 구현)
-          </p>
-          {slide && (
-            <p className="mt-2 text-xs">
-              현재 슬라이드: <span className="text-white">{slide.headline.text}</span>
-            </p>
-          )}
+      <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
+        <div className="sticky top-0 z-10 flex w-full justify-center border-b border-[var(--color-border)] bg-[var(--color-bg)] py-2">
+          <CanvasToolbar
+            onUndo={() => canvasRef.current?.undo()}
+            onRedo={() => canvasRef.current?.redo()}
+          />
+        </div>
+        <div className="flex flex-1 items-start justify-center p-6">
+          <FabricCanvas
+            ref={canvasRef}
+            activeSlide={slide}
+            onSlideChange={handleSlideChange}
+          />
         </div>
       </main>
 
-      <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-          속성
-        </h3>
-        <p className="text-sm text-[var(--color-text-dim)]">
-          Phase 2~3에서 템플릿/배경/캡션/배지/하이라이트 패널이 들어갑니다.
-        </p>
-      </aside>
+      {slide ? (
+        <PropertiesPanel
+          slide={slide}
+          onTemplateChange={handleTemplateChange}
+          onBackgroundChange={handleBackgroundChange}
+          onHeadlineChange={handleHeadlineChange}
+          onSubheadlineChange={handleSubheadlineChange}
+        />
+      ) : (
+        <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <p className="text-sm text-[var(--color-text-dim)]">슬라이드를 선택하세요</p>
+        </aside>
+      )}
     </div>
   )
 }
