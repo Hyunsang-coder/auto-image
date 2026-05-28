@@ -1,17 +1,19 @@
 import { useState } from 'react'
-import type { Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../../types/project'
+import type { Badge, Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../../types/project'
 import { TemplateSelector } from './TemplateSelector'
 import { BackgroundPanel } from './BackgroundPanel'
+import { BadgePanel } from './BadgePanel'
 import { CaptionPanel } from './CaptionPanel'
 import { ScreenshotPanel } from './ScreenshotPanel'
 
-type PanelTab = 'template' | 'background' | 'caption' | 'screenshot'
+type PanelTab = 'template' | 'background' | 'caption' | 'screenshot' | 'badge'
 
 const TABS: { id: PanelTab; label: string }[] = [
   { id: 'template', label: '템플릿' },
   { id: 'background', label: '배경' },
   { id: 'caption', label: '캡션' },
   { id: 'screenshot', label: '스크린샷' },
+  { id: 'badge', label: '배지' },
 ]
 
 interface Props {
@@ -21,6 +23,7 @@ interface Props {
   onHeadlineChange: (c: Caption) => void
   onSubheadlineChange: (c: Caption) => void
   onScreenshotChange: (screenshot: ScreenshotImage | null) => void
+  onBadgeChange: (badge: Badge | null) => void
 }
 
 export function PropertiesPanel({
@@ -30,13 +33,14 @@ export function PropertiesPanel({
   onHeadlineChange,
   onSubheadlineChange,
   onScreenshotChange,
+  onBadgeChange,
 }: Props) {
   const [tab, setTab] = useState<PanelTab>('template')
 
   return (
     <aside className="flex flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)]">
       {/* Tab bar */}
-      <div className="flex border-b border-[var(--color-border)]">
+      <div className="flex flex-wrap border-b border-[var(--color-border)]">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -75,6 +79,9 @@ export function PropertiesPanel({
             value={slide.screenshot}
             onChange={onScreenshotChange}
           />
+        )}
+        {tab === 'badge' && (
+          <BadgePanel value={slide.badge} onChange={onBadgeChange} />
         )}
       </div>
     </aside>

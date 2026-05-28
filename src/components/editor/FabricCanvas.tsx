@@ -167,6 +167,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         subheadline: activeSlide.subheadline,
         deviceFrame: activeSlide.deviceFrame,
         screenshotKey: activeSlide.screenshot?.imageKey ?? null,
+        badge: activeSlide.badge,
       })
       if (prevSlideDataRef.current === serialized) return
       prevSlideDataRef.current = serialized

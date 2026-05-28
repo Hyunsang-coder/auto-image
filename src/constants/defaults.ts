@@ -1,4 +1,6 @@
 import type {
+  Badge,
+  BadgeStyle,
   Background,
   Caption,
   DeviceFrame,
@@ -44,6 +46,24 @@ export const SUBHEADLINE_STYLE: TextStyle = {
   textAlign: 'center',
   letterSpacing: -0.5,
   lineHeight: 1.25,
+}
+
+export const DEFAULT_BADGE_STYLE: BadgeStyle = {
+  backgroundColor: '#FFFFFF',
+  textColor: '#1A1A2E',
+  borderRadius: 100,
+  paddingX: 16,
+  paddingY: 8,
+  fontSize: 48,
+  fontWeight: 600,
+}
+
+export function makeBadge(text = '새 기능'): Badge {
+  const id =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `badge-${Date.now()}`
+  return { id, text, translations: {}, style: { ...DEFAULT_BADGE_STYLE }, top: 0.03 }
 }
 
 export function defaultDeviceFrame(): DeviceFrame {

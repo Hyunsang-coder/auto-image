@@ -78,6 +78,7 @@ export interface Badge {
   text: string
   translations: Record<string, string>
   style: BadgeStyle
+  top: number  // 0–1, fraction of canvas height
 }
 
 export interface BadgeStyle {

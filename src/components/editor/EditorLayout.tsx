@@ -4,7 +4,7 @@ import { SlideList } from './SlideList'
 import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { PropertiesPanel } from './properties/PropertiesPanel'
-import type { Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../types/project'
+import type { Badge, Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../types/project'
 import { deleteImage } from '../../lib/imageStore'
 
 export function EditorLayout() {
@@ -70,6 +70,11 @@ export function EditorLayout() {
     updateSlide(activeSlideId, { screenshot })
   }
 
+  function handleBadgeChange(badge: Badge | null) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { badge })
+  }
+
   return (
     <div className="grid h-full grid-cols-[200px_1fr_280px] gap-0 border-t border-[var(--color-border)] overflow-hidden">
       <SlideList
@@ -102,6 +107,7 @@ export function EditorLayout() {
           onHeadlineChange={handleHeadlineChange}
           onSubheadlineChange={handleSubheadlineChange}
           onScreenshotChange={handleScreenshotChange}
+          onBadgeChange={handleBadgeChange}
         />
       ) : (
         <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">

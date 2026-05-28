@@ -1,7 +1,8 @@
 import { Canvas, FabricImage, Rect } from 'fabric'
 import type { Slide, ScreenshotImage } from '../types/project'
-import { EDITOR_CANVAS_WIDTH, deviceSpecOf } from '../constants/deviceSpecs'
+import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, deviceSpecOf } from '../constants/deviceSpecs'
 import { renderBackground } from './objects/background'
+import { renderBadge } from './objects/badge'
 import { renderCaption } from './objects/caption'
 import { renderDeviceFrame } from './objects/deviceFrame'
 import { LAYER_NAMES } from './layerNames'
@@ -100,8 +101,8 @@ export async function applyTemplate(
 
   const cw = dims?.width ?? EDITOR_CANVAS_WIDTH
   const ch = dims?.height ?? getCanvasHeight()
-  const scale = cw / EDITOR_CANVAS_WIDTH
-  const rx = Math.round(24 * scale)
+  const spec = DEVICE_SPECS[slide.deviceFrame.model]
+  const rx = Math.round(spec.cornerRadius * cw / spec.exportWidth)
 
   canvas.setDimensions({ width: cw, height: ch })
 
@@ -129,6 +130,13 @@ export async function applyTemplate(
     applyTextBottom(canvas, slide, cw, ch, device, rx)
   } else if (template === 'split') {
     applySplit(canvas, slide, cw, ch, device, rx)
+  }
+
+  // 4. Badge (always on top)
+  if (slide.badge) {
+    renderBadge(slide.badge, { centerX: cw / 2, top: ch * slide.badge.top }).forEach((obj) =>
+      canvas.add(obj),
+    )
   }
 
   canvas.renderAll()
@@ -185,16 +193,13 @@ function applyTextTop(
   })
   canvas.add(subheadline)
 
-  if (slide.deviceFrame.show) {
-    const frame = renderDeviceFrame(slide.deviceFrame, {
-      left: cw / 2,
-      top: ch * 0.32,
-      width: device.w,
-      height: device.h,
-      rx,
-    })
-    if (frame) canvas.add(frame)
-  }
+  renderDeviceFrame(slide.deviceFrame, {
+    left: cw / 2,
+    top: ch * 0.32,
+    width: device.w,
+    height: device.h,
+    rx,
+  }).forEach((obj) => canvas.add(obj))
 }
 
 function applyTextBottom(
@@ -205,16 +210,13 @@ function applyTextBottom(
   device: { w: number; h: number },
   rx: number,
 ): void {
-  if (slide.deviceFrame.show) {
-    const frame = renderDeviceFrame(slide.deviceFrame, {
-      left: cw / 2,
-      top: ch * 0.03,
-      width: device.w,
-      height: device.h,
-      rx,
-    })
-    if (frame) canvas.add(frame)
-  }
+  renderDeviceFrame(slide.deviceFrame, {
+    left: cw / 2,
+    top: ch * 0.03,
+    width: device.w,
+    height: device.h,
+    rx,
+  }).forEach((obj) => canvas.add(obj))
 
   const headlineTop = ch * 0.78
   const headline = renderCaption(slide.headline, {
@@ -264,16 +266,13 @@ function applySplit(
   subheadline.set('textAlign', slide.subheadline.style.textAlign ?? 'left')
   canvas.add(subheadline)
 
-  if (slide.deviceFrame.show) {
-    const deviceW = cw * 0.45
-    const deviceH = Math.round((deviceW / device.w) * device.h)
-    const frame = renderDeviceFrame(slide.deviceFrame, {
-      left: cw * 0.73,
-      top: (ch - deviceH) / 2,
-      width: deviceW,
-      height: deviceH,
-      rx,
-    })
-    if (frame) canvas.add(frame)
-  }
+  const deviceW = cw * 0.45
+  const deviceH = Math.round((deviceW / device.w) * device.h)
+  renderDeviceFrame(slide.deviceFrame, {
+    left: cw * 0.73,
+    top: (ch - deviceH) / 2,
+    width: deviceW,
+    height: deviceH,
+    rx,
+  }).forEach((obj) => canvas.add(obj))
 }
