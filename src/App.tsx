@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StepIndicator } from './components/common/StepIndicator'
 import { ProjectSetup } from './components/setup/ProjectSetup'
 import { EditorLayout } from './components/editor/EditorLayout'
 import { LocalizeEditor } from './components/localize/LocalizeEditor'
 import { ExportPanel } from './components/export/ExportPanel'
 import { useProjectStore } from './store/useProjectStore'
+import { pruneOrphanImages } from './lib/imageStore'
+import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
 
 function App() {
   const step = useProjectStore((s) => s.step)
@@ -12,10 +14,31 @@ function App() {
   const project = useProjectStore((s) => s.project)
   const resetProject = useProjectStore((s) => s.resetProject)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [storageError, setStorageError] = useState(false)
+  const prunedRef = useRef(false)
 
   useEffect(() => {
     if (!project && step !== 1) setStep(1)
   }, [project, step, setStep])
+
+  // Sweep image blobs left orphaned by interrupted sessions, once on startup.
+  // Skip when there's no project so we never wipe blobs before hydration.
+  useEffect(() => {
+    if (prunedRef.current) return
+    const current = useProjectStore.getState().project
+    if (!current) return
+    prunedRef.current = true
+    const referenced = current.slides
+      .map((s) => s.screenshot?.imageKey)
+      .filter((k): k is string => !!k)
+    pruneOrphanImages(referenced)
+  }, [project])
+
+  useEffect(() => {
+    const onError = () => setStorageError(true)
+    window.addEventListener(STORAGE_ERROR_EVENT, onError)
+    return () => window.removeEventListener(STORAGE_ERROR_EVENT, onError)
+  }, [])
 
   function handleReset() {
     resetProject()
@@ -55,6 +78,22 @@ function App() {
           )}
         </div>
       </header>
+
+      {storageError && (
+        <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-6 py-2 text-xs text-amber-200">
+          <span>
+            저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다.
+            슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.
+          </span>
+          <button
+            type="button"
+            onClick={() => setStorageError(false)}
+            className="shrink-0 rounded border border-amber-500/40 px-2 py-0.5 hover:bg-amber-500/20"
+          >
+            닫기
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         {step === 1 && <ProjectSetup />}
