@@ -1,8 +1,16 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Canvas, Textbox } from 'fabric'
+import type { FabricObject } from 'fabric'
 import type { Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
 import { LAYER_NAMES } from '../../canvas/layerNames'
+
+// Custom props we stash on the device-body Path so we can compute its offset
+// from drag end position without re-deriving template anchors.
+interface DeviceAnchorProps {
+  _baseLeft?: number
+  _baseTop?: number
+}
 
 export interface FabricCanvasHandle {
   undo: () => void
@@ -46,6 +54,18 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       redoStack.current = []
     }
 
+    function findDeviceBody(canvas: Canvas): (FabricObject & DeviceAnchorProps) | null {
+      // The selectable body path is the first device-frame object we tagged with
+      // _baseLeft/_baseTop in templateLayouts.
+      for (const obj of canvas.getObjects()) {
+        const o = obj as FabricObject & DeviceAnchorProps & { layerName?: string }
+        if (o.layerName === LAYER_NAMES.DEVICE_FRAME && typeof o._baseLeft === 'number') {
+          return o
+        }
+      }
+      return null
+    }
+
     function syncToZustand(canvas: Canvas) {
       const slide = activeSlideRef.current
       if (!slide) return
@@ -72,9 +92,87 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         }
       }
 
+      const body = findDeviceBody(canvas)
+      if (body && body._baseLeft !== undefined && body._baseTop !== undefined) {
+        const nextOffsetX = Math.round((body.left ?? 0) - body._baseLeft)
+        const nextOffsetY = Math.round((body.top ?? 0) - body._baseTop)
+        const curX = slide.deviceFrame.offsetX ?? 0
+        const curY = slide.deviceFrame.offsetY ?? 0
+        if (nextOffsetX !== curX || nextOffsetY !== curY) {
+          slidePatch.deviceFrame = {
+            ...slide.deviceFrame,
+            offsetX: nextOffsetX,
+            offsetY: nextOffsetY,
+          }
+        }
+      }
+
+      // Sync ornament positions/rotations after drag/scale/rotate.
+      const ornamentsOnCanvas = objects.filter(
+        (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.ORNAMENT,
+      )
+      if (ornamentsOnCanvas.length > 0 && slide.ornaments) {
+        const w = canvas.width ?? 1
+        const h = canvas.height ?? 1
+        let dirty = false
+        const next = slide.ornaments.map((orn) => {
+          const fab = ornamentsOnCanvas.find(
+            (o) => (o as FabricObject & { ornamentId?: string }).ornamentId === orn.id,
+          )
+          if (!fab) return orn
+          const left = fab.left ?? 0
+          const top = fab.top ?? 0
+          const newX = left / w
+          const newY = top / h
+          const newRot = Math.round(fab.angle ?? 0)
+          // Size: fabric scaleX × original viewBox 100 / canvasW = ratio
+          const scaleX = fab.scaleX ?? 1
+          const newSize = (100 * scaleX) / w
+          if (
+            Math.abs(newX - orn.x) > 0.001 ||
+            Math.abs(newY - orn.y) > 0.001 ||
+            newRot !== orn.rotation ||
+            Math.abs(newSize - orn.size) > 0.002
+          ) {
+            dirty = true
+            return { ...orn, x: newX, y: newY, rotation: newRot, size: newSize }
+          }
+          return orn
+        })
+        if (dirty) slidePatch.ornaments = next
+      }
+
       if (Object.keys(slidePatch).length > 0) {
         onSlideChangeRef.current(slidePatch)
       }
+    }
+
+    // Track last body position while dragging so we can translate the rest of
+    // the device (decorative paths + screenshot + clip) along with it without
+    // having to re-render the whole template every mousemove.
+    const lastBodyPos = useRef<{ left: number; top: number } | null>(null)
+
+    function handleDeviceMove(canvas: Canvas, body: FabricObject) {
+      const last = lastBodyPos.current
+      if (!last) {
+        lastBodyPos.current = { left: body.left ?? 0, top: body.top ?? 0 }
+        return
+      }
+      const dx = (body.left ?? 0) - last.left
+      const dy = (body.top ?? 0) - last.top
+      if (dx === 0 && dy === 0) return
+      for (const obj of canvas.getObjects()) {
+        if (obj === body) continue
+        const ln = (obj as FabricObject & { layerName?: string }).layerName
+        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT) continue
+        obj.set({ left: (obj.left ?? 0) + dx, top: (obj.top ?? 0) + dy })
+        const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
+        if (clip) {
+          clip.set({ left: (clip.left ?? 0) + dx, top: (clip.top ?? 0) + dy })
+        }
+        obj.setCoords()
+      }
+      lastBodyPos.current = { left: body.left ?? 0, top: body.top ?? 0 }
     }
 
     useImperativeHandle(ref, () => ({
@@ -120,8 +218,52 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         preserveObjectStacking: true,
       })
       fabricRef.current = canvas
+      // Expose a small, stable inspection surface for automated browser tests
+      // (Playwright / Claude-in-Chrome). Keep it tiny and read-only-shaped.
+      ;(window as unknown as { __editor: object }).__editor = {
+        canvas,
+        getState: () => ({
+          width: canvas.width,
+          height: canvas.height,
+          objects: canvas.getObjects().map((o) => {
+            const ln = (o as FabricObject & { layerName?: string }).layerName
+            const base = o as FabricObject & DeviceAnchorProps
+            return {
+              type: o.type,
+              layerName: ln,
+              left: o.left,
+              top: o.top,
+              width: o.width,
+              height: o.height,
+              text: (o as Textbox).text,
+              selectable: o.selectable,
+              evented: o.evented,
+              baseLeft: base._baseLeft,
+              baseTop: base._baseTop,
+            }
+          }),
+        }),
+        findByLayer: (name: string) =>
+          canvas.getObjects().find(
+            (o) => (o as FabricObject & { layerName?: string }).layerName === name,
+          ) ?? null,
+      }
+
+      canvas.on('mouse:down', () => {
+        lastBodyPos.current = null
+      })
+
+      canvas.on('object:moving', (e) => {
+        const target = e.target
+        if (!target) return
+        const ln = (target as FabricObject & { layerName?: string }).layerName
+        if (ln === LAYER_NAMES.DEVICE_FRAME) {
+          handleDeviceMove(canvas, target)
+        }
+      })
 
       canvas.on('object:modified', () => {
+        lastBodyPos.current = null
         pushHistory(canvas)
         syncToZustand(canvas)
       })
@@ -135,30 +277,23 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       return () => {
         canvas.dispose()
         fabricRef.current = null
+        // Reset render-state refs so a fresh canvas (e.g. StrictMode remount)
+        // doesn't bail out of the apply effect because the refs still match.
+        prevSlideId.current = null
+        prevSlideDataRef.current = ''
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Apply template when slide switches
-    useEffect(() => {
-      const canvas = fabricRef.current
-      if (!canvas || !activeSlide) return
-
-      if (prevSlideId.current === activeSlide.id) return
-      prevSlideId.current = activeSlide.id
-
-      undoStack.current = []
-      redoStack.current = []
-      ;(async () => { await applyTemplate(canvas, activeSlide!) })()
-    }, [activeSlide])
-
-    // Re-render when slide data changes (without switching slide)
+    // Single source of truth for re-rendering the canvas.
+    // Re-applies the template whenever the slide id changes OR when any
+    // rendered-into-canvas field changes for the same slide. The two used to
+    // be separate effects with the same [activeSlide] dependency, which raced
+    // and produced ghosted/double renders.
     const prevSlideDataRef = useRef<string>('')
     useEffect(() => {
       const canvas = fabricRef.current
       if (!canvas || !activeSlide) return
-      // Only re-render if this is the same slide but data changed
-      if (prevSlideId.current !== activeSlide.id) return
 
       const serialized = JSON.stringify({
         background: activeSlide.background,
@@ -167,9 +302,20 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         subheadline: activeSlide.subheadline,
         deviceFrame: activeSlide.deviceFrame,
         screenshotKey: activeSlide.screenshot?.imageKey ?? null,
+        screenshotStyle: activeSlide.screenshotStyle,
         badge: activeSlide.badge,
+        ornaments: activeSlide.ornaments,
       })
-      if (prevSlideDataRef.current === serialized) return
+
+      const slideChanged = prevSlideId.current !== activeSlide.id
+      const dataChanged = prevSlideDataRef.current !== serialized
+      if (!slideChanged && !dataChanged) return
+
+      if (slideChanged) {
+        undoStack.current = []
+        redoStack.current = []
+      }
+      prevSlideId.current = activeSlide.id
       prevSlideDataRef.current = serialized
 
       ;(async () => { await applyTemplate(canvas, activeSlide!) })()

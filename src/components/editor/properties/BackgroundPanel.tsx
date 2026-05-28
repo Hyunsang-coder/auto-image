@@ -1,16 +1,29 @@
 import { useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Background } from '../../../types/project'
+import { THEME_PRESETS, type ThemePreset } from '../../../constants/defaults'
 
 interface Props {
   value: Background
   onChange: (bg: Background) => void
+  onApplyPreset?: (preset: ThemePreset) => void
 }
 
-export function BackgroundPanel({ value, onChange }: Props) {
+export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
   const [activeTab, setActiveTab] = useState<'solid' | 'gradient'>(
     value.type === 'gradient' ? 'gradient' : 'solid',
   )
+
+  function previewStyle(preset: ThemePreset): React.CSSProperties {
+    const bg = preset.background
+    if (bg.type === 'gradient' && bg.gradient) {
+      const stops = bg.gradient.stops
+        .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
+        .join(', ')
+      return { background: `linear-gradient(${bg.gradient.direction}deg, ${stops})` }
+    }
+    return { background: bg.color ?? '#888' }
+  }
 
   function switchTab(tab: 'solid' | 'gradient') {
     setActiveTab(tab)
@@ -35,6 +48,30 @@ export function BackgroundPanel({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {onApplyPreset && (
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+            테마 프리셋
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {THEME_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onApplyPreset(p)}
+                className="group rounded-lg border border-[var(--color-border)] p-1.5 text-left transition hover:border-[var(--color-accent)]"
+              >
+                <div
+                  className="mb-1 h-10 w-full rounded"
+                  style={previewStyle(p)}
+                />
+                <div className="text-xs font-medium text-white">{p.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tab toggle */}
       <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden">
         {(['solid', 'gradient'] as const).map((tab) => (

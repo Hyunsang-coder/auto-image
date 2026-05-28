@@ -1,10 +1,11 @@
 import type { TemplateType } from '../../../types/project'
 
 const TEMPLATES: { id: TemplateType; label: string; desc: string }[] = [
-  { id: 'hero', label: 'Hero', desc: '텍스트만, 중앙' },
-  { id: 'text-top', label: 'Text Top', desc: '텍스트 상단, 기기 하단' },
-  { id: 'text-bottom', label: 'Text Bottom', desc: '기기 상단, 텍스트 하단' },
-  { id: 'split', label: 'Split', desc: '텍스트 좌측, 기기 우측' },
+  { id: 'hero',         label: 'Hero',        desc: '텍스트만, 중앙' },
+  { id: 'hero-bleed',   label: 'Hero Bleed',  desc: '텍스트 좌측 + 이미지 우측 블리드' },
+  { id: 'text-top',     label: 'Text Top',    desc: '텍스트 상단, 기기 하단' },
+  { id: 'text-bottom',  label: 'Text Bottom', desc: '기기 상단, 텍스트 하단' },
+  { id: 'split',        label: 'Split',       desc: '텍스트 좌측, 기기 우측' },
 ]
 
 interface Props {

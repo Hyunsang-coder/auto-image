@@ -12,6 +12,10 @@ export function renderBackground(
     top: 0,
     width: canvasWidth,
     height: canvasHeight,
+    // Fabric v7 defaults originX/originY to 'center', so we'd render only the
+    // bottom-right quadrant of the rect inside the canvas. Anchor to top-left.
+    originX: 'left',
+    originY: 'top',
     selectable: false,
     evented: false,
     hoverCursor: 'default',

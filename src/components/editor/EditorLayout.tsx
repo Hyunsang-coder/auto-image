@@ -4,8 +4,18 @@ import { SlideList } from './SlideList'
 import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { PropertiesPanel } from './properties/PropertiesPanel'
-import type { Badge, Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../types/project'
-import { TEMPLATE_FONT_SIZES } from '../../constants/defaults'
+import type {
+  Badge,
+  Slide,
+  TemplateType,
+  Background,
+  Caption,
+  DeviceFrame,
+  Ornament,
+  ScreenshotImage,
+  ScreenshotStyle,
+} from '../../types/project'
+import { TEMPLATE_FONT_SIZES, type ThemePreset } from '../../constants/defaults'
 import { deleteImage } from '../../lib/imageStore'
 
 export function EditorLayout() {
@@ -81,6 +91,36 @@ export function EditorLayout() {
     updateSlide(activeSlideId, { badge })
   }
 
+  function handleDeviceFrameChange(df: DeviceFrame) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { deviceFrame: df })
+  }
+
+  function handleScreenshotStyleChange(style: ScreenshotStyle) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { screenshotStyle: style })
+  }
+
+  function handleOrnamentsChange(ornaments: Ornament[]) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { ornaments })
+  }
+
+  function handleApplyThemePreset(preset: ThemePreset) {
+    if (!activeSlideId || !slide) return
+    updateSlide(activeSlideId, {
+      background: preset.background,
+      headline: {
+        ...slide.headline,
+        style: { ...slide.headline.style, color: preset.headlineColor },
+      },
+      subheadline: {
+        ...slide.subheadline,
+        style: { ...slide.subheadline.style, color: preset.subheadlineColor },
+      },
+    })
+  }
+
   return (
     <div className="grid h-full grid-cols-[200px_1fr_280px] gap-0 border-t border-[var(--color-border)] overflow-hidden">
       <SlideList
@@ -114,6 +154,10 @@ export function EditorLayout() {
           onSubheadlineChange={handleSubheadlineChange}
           onScreenshotChange={handleScreenshotChange}
           onBadgeChange={handleBadgeChange}
+          onDeviceFrameChange={handleDeviceFrameChange}
+          onScreenshotStyleChange={handleScreenshotStyleChange}
+          onOrnamentsChange={handleOrnamentsChange}
+          onApplyThemePreset={handleApplyThemePreset}
         />
       ) : (
         <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">

@@ -1,5 +1,4 @@
 import { Path } from 'fabric'
-import type { FabricObject } from 'fabric'
 import type { DeviceFrame } from '../../types/project'
 import { LAYER_NAMES } from '../layerNames'
 
@@ -9,6 +8,19 @@ export interface DeviceFrameOptions {
   width: number
   height: number
   rx?: number
+}
+
+export interface ScreenBounds {
+  left: number
+  top: number
+  width: number
+  height: number
+  rx: number
+}
+
+export interface DeviceFrameRender {
+  paths: Path[]
+  screen: ScreenBounds
 }
 
 function rrPath(x: number, y: number, w: number, h: number, r: number): string {
@@ -42,8 +54,13 @@ function makePath(d: string, opts: object): Path {
 export function renderDeviceFrame(
   deviceFrame: DeviceFrame,
   opts: DeviceFrameOptions,
-): FabricObject[] {
-  if (!deviceFrame.show) return []
+): DeviceFrameRender {
+  if (!deviceFrame.show) {
+    return {
+      paths: [],
+      screen: { left: opts.left - opts.width / 2, top: opts.top, width: opts.width, height: opts.height, rx: opts.rx ?? 0 },
+    }
+  }
 
   const fw = opts.width
   const fh = opts.height
@@ -72,7 +89,7 @@ export function renderDeviceFrame(
     fillRule: 'evenodd',
   })
 
-  const result: FabricObject[] = [body]
+  const paths: Path[] = [body]
 
   if (isIphone) {
     const islandH = fh * 0.028
@@ -80,7 +97,7 @@ export function renderDeviceFrame(
     const islandX = fl + sideBezel + (screenW - islandW) / 2
     const islandY = ft + topBezel + fh * 0.010
 
-    result.push(
+    paths.push(
       makePath(rrPath(0, 0, islandW, islandH, islandH / 2), {
         left: islandX,
         top: islandY,
@@ -93,7 +110,7 @@ export function renderDeviceFrame(
     const camX = fl + fw / 2 - camD / 2
     const camY = ft + topBezel / 2 - camD / 2
 
-    result.push(
+    paths.push(
       makePath(rrPath(0, 0, camD, camD, camD / 2), {
         left: camX,
         top: camY,
@@ -102,5 +119,14 @@ export function renderDeviceFrame(
     )
   }
 
-  return result
+  return {
+    paths,
+    screen: {
+      left: fl + sideBezel,
+      top: ft + topBezel,
+      width: screenW,
+      height: screenH,
+      rx: screenRx,
+    },
+  }
 }

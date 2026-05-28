@@ -1,5 +1,6 @@
 export const LAYER_NAMES = {
   BACKGROUND: 'background',
+  ORNAMENT: 'ornament',
   SCREENSHOT: 'screenshot',
   DEVICE_FRAME: 'device-frame',
   HEADLINE: 'headline',

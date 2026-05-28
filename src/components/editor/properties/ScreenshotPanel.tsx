@@ -1,13 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ScreenshotImage } from '../../../types/project'
+import type { DeviceFrame, ScreenshotImage, ScreenshotStyle } from '../../../types/project'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 
 interface Props {
   value: ScreenshotImage | null
   onChange: (screenshot: ScreenshotImage | null) => void
+  deviceFrame: DeviceFrame
+  onDeviceFrameChange: (next: DeviceFrame) => void
+  screenshotStyle: ScreenshotStyle
+  onScreenshotStyleChange: (next: ScreenshotStyle) => void
 }
 
-export function ScreenshotPanel({ value, onChange }: Props) {
+export function ScreenshotPanel({
+  value,
+  onChange,
+  deviceFrame,
+  onDeviceFrameChange,
+  screenshotStyle,
+  onScreenshotStyleChange,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
 
@@ -94,6 +105,57 @@ export function ScreenshotPanel({ value, onChange }: Props) {
           e.target.value = ''
         }}
       />
+
+      <div className="space-y-3 rounded-lg border border-[var(--color-border)] p-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+          렌더링 모드
+        </p>
+        <label className="flex cursor-pointer items-center justify-between text-xs text-white">
+          <span>기기 프레임 표시</span>
+          <input
+            type="checkbox"
+            checked={deviceFrame.show}
+            onChange={(e) => onDeviceFrameChange({ ...deviceFrame, show: e.target.checked })}
+            className="accent-[var(--color-accent)]"
+          />
+        </label>
+
+        {!deviceFrame.show && (
+          <>
+            <div>
+              <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+                <span>모서리 둥글기</span>
+                <span>{Math.round(screenshotStyle.cornerRadiusRatio * 100)}%</span>
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={0.2}
+                step={0.005}
+                value={screenshotStyle.cornerRadiusRatio}
+                onChange={(e) =>
+                  onScreenshotStyleChange({
+                    ...screenshotStyle,
+                    cornerRadiusRatio: Number(e.target.value),
+                  })
+                }
+                className="w-full accent-[var(--color-accent)]"
+              />
+            </div>
+            <label className="flex cursor-pointer items-center justify-between text-xs text-white">
+              <span>그림자</span>
+              <input
+                type="checkbox"
+                checked={screenshotStyle.shadow}
+                onChange={(e) =>
+                  onScreenshotStyleChange({ ...screenshotStyle, shadow: e.target.checked })
+                }
+                className="accent-[var(--color-accent)]"
+              />
+            </label>
+          </>
+        )}
+      </div>
     </div>
   )
 }

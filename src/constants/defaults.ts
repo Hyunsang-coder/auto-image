@@ -4,7 +4,10 @@ import type {
   Background,
   Caption,
   DeviceFrame,
+  Ornament,
+  OrnamentShape,
   Project,
+  ScreenshotStyle,
   Slide,
   TemplateType,
   TextStyle,
@@ -31,33 +34,40 @@ export const SUPPORTED_LOCALES = [
 
 export const HEADLINE_STYLE: TextStyle = {
   fontFamily: 'Inter',
-  fontSize: 72,
-  fontWeight: 800,
+  fontSize: 76,
+  fontWeight: 900,
   color: '#FFFFFF',
   textAlign: 'center',
-  letterSpacing: -1.5,
-  lineHeight: 1.05,
+  letterSpacing: -2.2,
+  lineHeight: 1.02,
 }
 
 export const SUBHEADLINE_STYLE: TextStyle = {
   fontFamily: 'Inter',
-  fontSize: 36,
+  fontSize: 34,
   fontWeight: 500,
   color: '#E6E8EE',
   textAlign: 'center',
-  letterSpacing: -0.3,
-  lineHeight: 1.25,
+  letterSpacing: -0.4,
+  lineHeight: 1.22,
 }
 
 // 템플릿별 적정 폰트 크기 (에디터 캔버스 440px 기준)
+// 레퍼런스 톤에 맞춰 헤드라인을 더 묵직하게, 스플릿/히어로블리드는 좌측 컬럼에서 줄바꿈을 의도.
 export const TEMPLATE_FONT_SIZES: Record<
   TemplateType,
   { headline: number; subheadline: number }
 > = {
-  hero:          { headline: 80, subheadline: 40 },
-  'text-top':    { headline: 56, subheadline: 30 },
-  'text-bottom': { headline: 56, subheadline: 30 },
-  split:         { headline: 44, subheadline: 24 },
+  hero:          { headline: 84, subheadline: 38 },
+  'hero-bleed':  { headline: 58, subheadline: 26 },
+  'text-top':    { headline: 54, subheadline: 28 },
+  'text-bottom': { headline: 54, subheadline: 28 },
+  split:         { headline: 46, subheadline: 24 },
+}
+
+export const DEFAULT_SCREENSHOT_STYLE: ScreenshotStyle = {
+  cornerRadiusRatio: 0.06,
+  shadow: true,
 }
 
 export const DEFAULT_BADGE_STYLE: BadgeStyle = {
@@ -95,6 +105,115 @@ export function defaultBackground(themeColor: string): Background {
   }
 }
 
+export interface ThemePreset {
+  id: string
+  label: string
+  background: Background
+  headlineColor: string
+  subheadlineColor: string
+  /** Optional accent for badges or decorative bits. */
+  accentColor: string
+}
+
+// 레퍼런스에서 추출한 톤. 라벤더(ADHD), 민트(Dogo), 탄(Claude), 그리고 기존 다크.
+export const THEME_PRESETS: ThemePreset[] = [
+  {
+    id: 'lavender',
+    label: 'Lavender',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 180,
+        stops: [
+          { color: '#E6E4F8', position: 0 },
+          { color: '#D5D1F0', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#101232',
+    subheadlineColor: '#3A3D5C',
+    accentColor: '#3F3DC7',
+  },
+  {
+    id: 'mint',
+    label: 'Mint',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 200,
+        stops: [
+          { color: '#2BBE60', position: 0 },
+          { color: '#14843C', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#FFFFFF',
+    subheadlineColor: '#E8FFEF',
+    accentColor: '#FFD84D',
+  },
+  {
+    id: 'tan',
+    label: 'Tan',
+    background: {
+      type: 'solid',
+      color: '#C99973',
+    },
+    headlineColor: '#1B0F08',
+    subheadlineColor: '#3C271C',
+    accentColor: '#FF5722',
+  },
+  {
+    id: 'midnight',
+    label: 'Midnight',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 180,
+        stops: [
+          { color: '#6366F1', position: 0 },
+          { color: '#3730A3', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#FFFFFF',
+    subheadlineColor: '#E6E8EE',
+    accentColor: '#F472B6',
+  },
+]
+
+export function findThemePreset(id: string): ThemePreset | undefined {
+  return THEME_PRESETS.find((p) => p.id === id)
+}
+
+export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>): Ornament {
+  const id =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `orn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  // 모양별로 기본 위치/크기를 다르게 잡아서 추가하자마자 바로 보이게 한다.
+  const defaultsByShape: Record<OrnamentShape, Partial<Ornament>> = {
+    'laurel-left':  { x: 0.22, y: 0.5,  size: 0.30, rotation: 0,  color: '#1B1B1B', opacity: 1 },
+    'laurel-right': { x: 0.78, y: 0.5,  size: 0.30, rotation: 0,  color: '#1B1B1B', opacity: 1 },
+    'star':         { x: 0.5,  y: 0.32, size: 0.10, rotation: 0,  color: '#FFB400', opacity: 1 },
+    'paw':          { x: 0.85, y: 0.18, size: 0.12, rotation: 15, color: '#FFFFFF', opacity: 0.9 },
+    'sparkle':      { x: 0.86, y: 0.16, size: 0.14, rotation: 12, color: '#FFFFFF', opacity: 0.95 },
+    'flower':       { x: 0.10, y: 0.92, size: 0.12, rotation: 0,  color: '#FF5722', opacity: 1 },
+    'dot-grid':     { x: 0.5,  y: 0.5,  size: 0.7,  rotation: 0,  color: '#FFFFFF', opacity: 0.18 },
+  }
+  const base = defaultsByShape[shape]
+  return {
+    id,
+    shape,
+    x: base.x ?? 0.5,
+    y: base.y ?? 0.5,
+    size: base.size ?? 0.1,
+    rotation: base.rotation ?? 0,
+    color: base.color ?? '#FFFFFF',
+    opacity: base.opacity ?? 1,
+    ...overrides,
+  }
+}
+
 export function defaultCaption(text: string, style: TextStyle): Caption {
   return { text, translations: {}, style: { ...style } }
 }
@@ -104,7 +223,7 @@ export function makeSlide(index: number, themeColor: string): Slide {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `slide-${index}-${Date.now()}`
-  const template: TemplateType = index === 0 ? 'hero' : 'text-top'
+  const template: TemplateType = index === 0 ? 'hero-bleed' : 'text-top'
   const sizes = TEMPLATE_FONT_SIZES[template]
   return {
     id,
@@ -120,6 +239,8 @@ export function makeSlide(index: number, themeColor: string): Slide {
     ),
     badge: null,
     highlights: [],
+    ornaments: [],
+    screenshotStyle: { ...DEFAULT_SCREENSHOT_STYLE },
   }
 }
 

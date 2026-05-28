@@ -1,10 +1,23 @@
 export type DeviceType = 'iphone' | 'ipad'
-export type TemplateType = 'hero' | 'text-top' | 'text-bottom' | 'split'
+export type TemplateType =
+  | 'hero'
+  | 'hero-bleed'
+  | 'text-top'
+  | 'text-bottom'
+  | 'split'
 export type DeviceModel = 'iphone-16-pro' | 'ipad-pro-13'
 export type DeviceColor = 'black' | 'silver'
 export type HighlightShape = 'rect' | 'circle'
 export type BackgroundType = 'solid' | 'gradient' | 'image'
 export type TranslationAPI = 'claude' | 'openai' | 'gemini'
+export type OrnamentShape =
+  | 'laurel-left'
+  | 'laurel-right'
+  | 'star'
+  | 'paw'
+  | 'sparkle'
+  | 'flower'
+  | 'dot-grid'
 
 export interface Project {
   id: string
@@ -31,6 +44,29 @@ export interface Slide {
   subheadline: Caption
   badge: Badge | null
   highlights: Highlight[]
+  /** Decorative SVG ornaments rendered above background, below screenshot. */
+  ornaments?: Ornament[]
+  /** When deviceFrame.show is false, controls how the screenshot floats. */
+  screenshotStyle?: ScreenshotStyle
+}
+
+export interface ScreenshotStyle {
+  /** 0–1 fraction of screenshot width; 0 = sharp corners. */
+  cornerRadiusRatio: number
+  shadow: boolean
+}
+
+export interface Ornament {
+  id: string
+  shape: OrnamentShape
+  /** Canvas-relative anchor, 0..1 on each axis. */
+  x: number
+  y: number
+  /** Width as fraction of canvas width (0..1). */
+  size: number
+  rotation: number
+  color: string
+  opacity: number
 }
 
 export interface Background {
@@ -48,6 +84,13 @@ export interface DeviceFrame {
   show: boolean
   model: DeviceModel
   color: DeviceColor
+  /**
+   * User-applied translation of the device within the editor canvas,
+   * relative to the template's default placement. Stored in editor-canvas
+   * pixels so it persists independently of canvas resizing for export.
+   */
+  offsetX?: number
+  offsetY?: number
 }
 
 export interface ScreenshotImage {
