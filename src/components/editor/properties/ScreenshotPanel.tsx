@@ -24,18 +24,17 @@ export function ScreenshotPanel({
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!value) {
-      setThumbUrl(null)
-      return
-    }
     let objectUrl: string | null = null
-    loadImageObjectUrl(value.imageKey).then(url => {
-      if (url) {
-        objectUrl = url
-        setThumbUrl(url)
-      }
-    })
+    if (value) {
+      loadImageObjectUrl(value.imageKey).then(url => {
+        if (url) {
+          objectUrl = url
+          setThumbUrl(url)
+        }
+      })
+    }
     return () => {
+      setThumbUrl(null)
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [value?.imageKey])
