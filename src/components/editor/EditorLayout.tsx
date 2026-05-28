@@ -4,7 +4,7 @@ import { SlideList } from './SlideList'
 import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { PropertiesPanel } from './properties/PropertiesPanel'
-import type { Slide, TemplateType, Background, Caption } from '../../types/project'
+import type { Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../types/project'
 
 export function EditorLayout() {
   const project = useProjectStore((s) => s.project)
@@ -60,6 +60,11 @@ export function EditorLayout() {
     updateSlide(activeSlideId, { subheadline: c })
   }
 
+  function handleScreenshotChange(screenshot: ScreenshotImage | null) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { screenshot })
+  }
+
   return (
     <div className="grid h-full grid-cols-[200px_1fr_280px] gap-0 border-t border-[var(--color-border)] overflow-hidden">
       <SlideList
@@ -91,6 +96,7 @@ export function EditorLayout() {
           onBackgroundChange={handleBackgroundChange}
           onHeadlineChange={handleHeadlineChange}
           onSubheadlineChange={handleSubheadlineChange}
+          onScreenshotChange={handleScreenshotChange}
         />
       ) : (
         <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">

@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import type { Slide, TemplateType, Background, Caption } from '../../../types/project'
+import type { Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../../types/project'
 import { TemplateSelector } from './TemplateSelector'
 import { BackgroundPanel } from './BackgroundPanel'
 import { CaptionPanel } from './CaptionPanel'
+import { ScreenshotPanel } from './ScreenshotPanel'
 
-type PanelTab = 'template' | 'background' | 'caption'
+type PanelTab = 'template' | 'background' | 'caption' | 'screenshot'
 
 const TABS: { id: PanelTab; label: string }[] = [
   { id: 'template', label: '템플릿' },
   { id: 'background', label: '배경' },
   { id: 'caption', label: '캡션' },
+  { id: 'screenshot', label: '스크린샷' },
 ]
 
 interface Props {
@@ -18,6 +20,7 @@ interface Props {
   onBackgroundChange: (bg: Background) => void
   onHeadlineChange: (c: Caption) => void
   onSubheadlineChange: (c: Caption) => void
+  onScreenshotChange: (screenshot: ScreenshotImage | null) => void
 }
 
 export function PropertiesPanel({
@@ -26,6 +29,7 @@ export function PropertiesPanel({
   onBackgroundChange,
   onHeadlineChange,
   onSubheadlineChange,
+  onScreenshotChange,
 }: Props) {
   const [tab, setTab] = useState<PanelTab>('template')
 
@@ -64,6 +68,12 @@ export function PropertiesPanel({
             subheadline={slide.subheadline}
             onHeadlineChange={onHeadlineChange}
             onSubheadlineChange={onSubheadlineChange}
+          />
+        )}
+        {tab === 'screenshot' && (
+          <ScreenshotPanel
+            value={slide.screenshot}
+            onChange={onScreenshotChange}
           />
         )}
       </div>
