@@ -16,9 +16,16 @@ function getCanvasHeight(): number {
   )
 }
 
+// Base device width as a fraction of canvas width. App Store marketing
+// screenshots typically have the device taking up the majority of the frame —
+// 0.6 left the phone looking small. Per-template overrides still apply
+// (split/hero-bleed use their own widths). User scale is layered on top inside
+// getDeviceLayout so every template scales consistently.
+const DEVICE_WIDTH_RATIO = 0.78
+
 function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h: number } {
   const spec = deviceSpecOf(slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone')
-  const w = canvasWidth * 0.6
+  const w = canvasWidth * DEVICE_WIDTH_RATIO
   const h = Math.round((w / spec.exportWidth) * spec.exportHeight)
   return { w, h }
 }
@@ -105,32 +112,26 @@ function getDeviceLayout(
   device: { w: number; h: number },
   rx: number,
 ): DeviceLayout | null {
-  const { offsetX = 0, offsetY = 0 } = slide.deviceFrame
+  const { offsetX = 0, offsetY = 0, scale = 1 } = slide.deviceFrame
+  let baseW: number
+  let centerX: number
+  let topMode: 'fixed' | 'vcenter'
+  let topFixed = 0
   if (slide.template === 'text-top') {
-    return { centerX: cw / 2 + offsetX, top: ch * 0.30 + offsetY, width: device.w, height: device.h, rx }
+    baseW = device.w; centerX = cw / 2; topMode = 'fixed'; topFixed = ch * 0.30
+  } else if (slide.template === 'text-bottom') {
+    baseW = device.w; centerX = cw / 2; topMode = 'fixed'; topFixed = ch * 0.05
+  } else if (slide.template === 'split') {
+    baseW = cw * 0.45; centerX = cw * 0.76; topMode = 'vcenter'
+  } else if (slide.template === 'hero-bleed') {
+    baseW = cw * 0.75; centerX = cw * 0.7; topMode = 'fixed'; topFixed = ch * 0.28
+  } else {
+    return null
   }
-  if (slide.template === 'text-bottom') {
-    return { centerX: cw / 2 + offsetX, top: ch * 0.05 + offsetY, width: device.w, height: device.h, rx }
-  }
-  if (slide.template === 'split') {
-    const deviceW = cw * 0.45
-    const deviceH = Math.round((deviceW / device.w) * device.h)
-    return { centerX: cw * 0.76 + offsetX, top: (ch - deviceH) / 2 + offsetY, width: deviceW, height: deviceH, rx }
-  }
-  if (slide.template === 'hero-bleed') {
-    // 우측에서 캔버스 밖으로 살짝 흘려보내 임팩트 있는 컴포지션 만들기.
-    // 디바이스 폭은 캔버스의 75%, 상단은 25%에서 시작 → 우측 컬럼을 꽉 채움.
-    const deviceW = cw * 0.75
-    const deviceH = Math.round((deviceW / device.w) * device.h)
-    return {
-      centerX: cw * 0.7 + offsetX,
-      top: ch * 0.28 + offsetY,
-      width: deviceW,
-      height: deviceH,
-      rx,
-    }
-  }
-  return null
+  const width = baseW * scale
+  const height = Math.round((width / device.w) * device.h)
+  const top = topMode === 'vcenter' ? (ch - height) / 2 : topFixed
+  return { centerX: centerX + offsetX, top: top + offsetY, width, height, rx }
 }
 
 export function getDeviceBaseAnchor(
@@ -245,9 +246,8 @@ export async function applyTemplate(
 
   // 5. Badge (always on top)
   if (slide.badge) {
-    renderBadge(slide.badge, { centerX: cw / 2, top: ch * slide.badge.top }).forEach((obj) =>
-      canvas.add(obj),
-    )
+    const badgeCenterX = cw * (slide.badge.left ?? 0.5)
+    canvas.add(renderBadge(slide.badge, { centerX: badgeCenterX, top: ch * slide.badge.top }))
   }
 
   canvas.renderAll()
@@ -326,15 +326,19 @@ function addDeviceFrame(
       obj.set({
         selectable: true,
         evented: true,
-        hasControls: false,
+        hasControls: true,
         hasBorders: true,
         borderColor: '#6366F1',
         cornerColor: '#6366F1',
         hoverCursor: 'move',
         lockRotation: true,
-        lockScalingX: true,
-        lockScalingY: true,
+        lockSkewingX: true,
+        lockSkewingY: true,
+        lockUniScaling: true,
+        centeredScaling: true,
       })
+      // Only corner handles — middle handles would let the user break aspect.
+      obj.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: false })
       ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseLeft = baseLeft
       ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseTop = baseTop
     }

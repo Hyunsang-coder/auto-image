@@ -94,15 +94,71 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       const body = findDeviceBody(canvas)
       if (body && body._baseLeft !== undefined && body._baseTop !== undefined) {
-        const nextOffsetX = Math.round((body.left ?? 0) - body._baseLeft)
-        const nextOffsetY = Math.round((body.top ?? 0) - body._baseTop)
+        // Uniform scale only — lockUniScaling guarantees scaleX === scaleY.
+        // With centeredScaling, Fabric shifts body.left/top by -deltaW/2/-deltaH/2
+        // so the visual *center* stays fixed during a resize. That shift is
+        // NOT a user translation — it's a side-effect of growing the box. Add
+        // deltaW/2 / deltaH/2 back so offset captures only the user's drag.
+        const scaleX = body.scaleX ?? 1
+        const baseW = body.width ?? 0
+        const baseH = body.height ?? 0
+        const deltaW = baseW * (scaleX - 1)
+        const deltaH = baseH * (scaleX - 1)
+        const nextOffsetX = Math.round((body.left ?? 0) - body._baseLeft + deltaW / 2)
+        const nextOffsetY = Math.round((body.top ?? 0) - body._baseTop + deltaH / 2)
+        const curScale = slide.deviceFrame.scale ?? 1
+        const proposedScale = curScale * scaleX
+        // Keep the device within a sane range so users can't accidentally
+        // make it vanish or overflow the canvas during a wild drag.
+        const nextScale = Math.round(Math.max(0.3, Math.min(2.0, proposedScale)) * 100) / 100
+
         const curX = slide.deviceFrame.offsetX ?? 0
         const curY = slide.deviceFrame.offsetY ?? 0
-        if (nextOffsetX !== curX || nextOffsetY !== curY) {
+        const scaleChanged = Math.abs(nextScale - curScale) > 0.001
+        if (nextOffsetX !== curX || nextOffsetY !== curY || scaleChanged) {
           slidePatch.deviceFrame = {
             ...slide.deviceFrame,
             offsetX: nextOffsetX,
             offsetY: nextOffsetY,
+            scale: nextScale,
+          }
+        }
+      }
+
+      // Sync badge position/scale. Group's originX:'center', originY:'top' means
+      // group.left = center X, group.top = top edge of world bbox. We bake any
+      // user scale into fontSize/padding so the next render starts fresh.
+      const badgeOnCanvas = objects.find(
+        (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.BADGE,
+      )
+      if (badgeOnCanvas && slide.badge) {
+        const w = canvas.width ?? 1
+        const h = canvas.height ?? 1
+        const scaleX = badgeOnCanvas.scaleX ?? 1
+        const newLeft = (badgeOnCanvas.left ?? 0) / w
+        const newTop = (badgeOnCanvas.top ?? 0) / h
+        const curLeft = slide.badge.left ?? 0.5
+        const curTop = slide.badge.top
+        const styleScale = Math.max(0.4, Math.min(3.0, scaleX))
+        const scaleChanged = Math.abs(styleScale - 1) > 0.01
+        if (
+          Math.abs(newLeft - curLeft) > 0.001 ||
+          Math.abs(newTop - curTop) > 0.001 ||
+          scaleChanged
+        ) {
+          slidePatch.badge = {
+            ...slide.badge,
+            left: newLeft,
+            top: newTop,
+            style: scaleChanged
+              ? {
+                  ...slide.badge.style,
+                  fontSize: Math.round(slide.badge.style.fontSize * styleScale),
+                  paddingX: Math.round(slide.badge.style.paddingX * styleScale),
+                  paddingY: Math.round(slide.badge.style.paddingY * styleScale),
+                  borderRadius: Math.round(slide.badge.style.borderRadius * styleScale),
+                }
+              : slide.badge.style,
           }
         }
       }

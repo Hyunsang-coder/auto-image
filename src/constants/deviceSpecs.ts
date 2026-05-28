@@ -19,7 +19,7 @@ export const DEVICE_SPECS: Record<DeviceModel, DeviceSpec> = {
     exportWidth: 1320,
     exportHeight: 2868,
     cornerRadius: 200,
-    screenInsetRatio: 0.024,
+    screenInsetRatio: 0.020,
     hasIsland: true,
   },
   'ipad-pro-13': {
@@ -29,7 +29,7 @@ export const DEVICE_SPECS: Record<DeviceModel, DeviceSpec> = {
     exportWidth: 2064,
     exportHeight: 2752,
     cornerRadius: 80,
-    screenInsetRatio: 0.018,
+    screenInsetRatio: 0.046,
     hasIsland: false,
   },
 }

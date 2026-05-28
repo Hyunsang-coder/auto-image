@@ -1,5 +1,6 @@
 import { Path } from 'fabric'
 import type { DeviceFrame } from '../../types/project'
+import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { LAYER_NAMES } from '../layerNames'
 
 export interface DeviceFrameOptions {
@@ -23,17 +24,20 @@ export interface DeviceFrameRender {
   screen: ScreenBounds
 }
 
+// Uses elliptical arcs (A) instead of quadratic beziers so the corner curve
+// matches Fabric's Rect rx/ry geometry — otherwise the frame cutout and the
+// screenshot clipPath disagree at corners and a hairline gap shows through.
 function rrPath(x: number, y: number, w: number, h: number, r: number): string {
   const cr = Math.min(r, w / 2, h / 2)
   return (
     `M ${x + cr} ${y} L ${x + w - cr} ${y} ` +
-    `Q ${x + w} ${y} ${x + w} ${y + cr} ` +
+    `A ${cr} ${cr} 0 0 1 ${x + w} ${y + cr} ` +
     `L ${x + w} ${y + h - cr} ` +
-    `Q ${x + w} ${y + h} ${x + w - cr} ${y + h} ` +
+    `A ${cr} ${cr} 0 0 1 ${x + w - cr} ${y + h} ` +
     `L ${x + cr} ${y + h} ` +
-    `Q ${x} ${y + h} ${x} ${y + h - cr} ` +
+    `A ${cr} ${cr} 0 0 1 ${x} ${y + h - cr} ` +
     `L ${x} ${y + cr} ` +
-    `Q ${x} ${y} ${x + cr} ${y} Z`
+    `A ${cr} ${cr} 0 0 1 ${x + cr} ${y} Z`
   )
 }
 
@@ -72,16 +76,18 @@ export function renderDeviceFrame(
   const isIphone = deviceFrame.model === 'iphone-16-pro'
   const frameColor = deviceFrame.color === 'silver' ? '#E2E2E2' : '#1C1C1E'
 
-  const sideBezel = isIphone ? fw * 0.038 : fw * 0.026
-  const topBezel = isIphone ? fh * 0.020 : fh * 0.026
-  const bottomBezel = isIphone ? fh * 0.038 : fh * 0.026
-  const screenW = fw - sideBezel * 2
-  const screenH = fh - topBezel - bottomBezel
-  const screenRx = Math.max(outerRx * 0.82, 2)
+  // Symmetric bezel — real iPhone 16 Pro / iPad Pro 13" have uniform bezels on
+  // all 4 sides. Ratio is taken from the spec (fraction of device width) so the
+  // editor matches Apple's published device dimensions.
+  const spec = DEVICE_SPECS[deviceFrame.model]
+  const bezel = fw * spec.screenInsetRatio
+  const screenW = fw - bezel * 2
+  const screenH = fh - bezel * 2
+  const screenRx = Math.max(outerRx - bezel, 2)
 
   // Frame body with screen cutout via evenodd fill rule
   const outerD = rrPath(0, 0, fw, fh, outerRx)
-  const innerD = rrPath(sideBezel, topBezel, screenW, screenH, screenRx)
+  const innerD = rrPath(bezel, bezel, screenW, screenH, screenRx)
   const body = makePath(`${outerD} ${innerD}`, {
     left: fl,
     top: ft,
@@ -92,10 +98,12 @@ export function renderDeviceFrame(
   const paths: Path[] = [body]
 
   if (isIphone) {
+    // Dynamic Island: real iPhone 16 Pro has it at ~25% of screen width.
+    // Was 0.30 which made the phone look toy-ish in reference comparisons.
     const islandH = fh * 0.028
-    const islandW = screenW * 0.30
-    const islandX = fl + sideBezel + (screenW - islandW) / 2
-    const islandY = ft + topBezel + fh * 0.010
+    const islandW = screenW * 0.25
+    const islandX = fl + bezel + (screenW - islandW) / 2
+    const islandY = ft + bezel + fh * 0.012
 
     paths.push(
       makePath(rrPath(0, 0, islandW, islandH, islandH / 2), {
@@ -108,7 +116,7 @@ export function renderDeviceFrame(
     // iPad front camera
     const camD = Math.max(fw * 0.018, 3)
     const camX = fl + fw / 2 - camD / 2
-    const camY = ft + topBezel / 2 - camD / 2
+    const camY = ft + bezel / 2 - camD / 2
 
     paths.push(
       makePath(rrPath(0, 0, camD, camD, camD / 2), {
@@ -122,8 +130,8 @@ export function renderDeviceFrame(
   return {
     paths,
     screen: {
-      left: fl + sideBezel,
-      top: ft + topBezel,
+      left: fl + bezel,
+      top: ft + bezel,
       width: screenW,
       height: screenH,
       rx: screenRx,

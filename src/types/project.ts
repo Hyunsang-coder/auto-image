@@ -91,6 +91,8 @@ export interface DeviceFrame {
    */
   offsetX?: number
   offsetY?: number
+  /** Uniform scale factor applied on top of the template's default size. 1 = default. */
+  scale?: number
 }
 
 export interface ScreenshotImage {
@@ -121,7 +123,8 @@ export interface Badge {
   text: string
   translations: Record<string, string>
   style: BadgeStyle
-  top: number  // 0–1, fraction of canvas height
+  top: number  // 0–1, fraction of canvas height (top edge)
+  left?: number  // 0–1, fraction of canvas width (center X). Defaults to 0.5.
 }
 
 export interface BadgeStyle {
