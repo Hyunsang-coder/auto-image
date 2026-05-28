@@ -40,4 +40,13 @@ export function deviceSpecOf(type: DeviceType): DeviceSpec {
     : DEVICE_SPECS['ipad-pro-13']
 }
 
+// iPhone 16 Pro Max aspect ≈ 0.460; iPad Pro 13" ≈ 0.750.
+// Midpoint at ~0.60 cleanly separates portrait phones (always < 0.55) from
+// tablets and near-square shots (≥ 0.65). Anything wider than 1 is landscape
+// and gets bucketed as iPad — iPhone landscape isn't a target.
+export function detectDeviceFromAspect(width: number, height: number): DeviceModel {
+  const aspect = width / height
+  return aspect < 0.6 ? 'iphone-16-pro' : 'ipad-pro-13'
+}
+
 export const EDITOR_CANVAS_WIDTH = 440

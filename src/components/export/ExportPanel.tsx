@@ -4,7 +4,11 @@ import { saveAs } from 'file-saver'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide } from '../../lib/renderSlide'
 import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
-import type { DeviceType, Project } from '../../types/project'
+import type { DeviceType, Project, Slide } from '../../types/project'
+
+function deviceOf(slide: Slide): DeviceType {
+  return slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone'
+}
 
 type Status = 'idle' | 'running' | 'done' | 'error'
 
@@ -28,7 +32,6 @@ export function ExportPanel() {
 
   const [previewSlideIdx, setPreviewSlideIdx] = useState(0)
   const [previewLocale, setPreviewLocale] = useState<string>('')
-  const [previewDevice, setPreviewDevice] = useState<DeviceType>('iphone')
   const [previewSrc, setPreviewSrc] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const prevUrlRef = useRef<string | null>(null)
@@ -36,13 +39,15 @@ export function ExportPanel() {
   if (!project) return null
 
   const allLocales = [project.sourceLocale, ...project.targetLocales]
-  const total = project.slides.length * project.devices.length * allLocales.length
+  // Each slide exports to exactly one device — the one its screenshot belongs
+  // to (auto-detected on upload). project.devices is no longer multiplied in.
+  const total = project.slides.length * allLocales.length
   const untranslated = getUntranslatedLocales(project)
+  const devicesInUse = Array.from(new Set(project.slides.map(deviceOf)))
 
-  // initialise preview defaults lazily once we have project data
   const effectiveLocale = previewLocale || project.sourceLocale
-  const effectiveDevice: DeviceType =
-    project.devices.includes(previewDevice) ? previewDevice : (project.devices[0] as DeviceType)
+  const previewSlide = project.slides[previewSlideIdx]
+  const effectiveDevice: DeviceType = previewSlide ? deviceOf(previewSlide) : 'iphone'
 
   async function handleExport() {
     if (!project) return
@@ -56,19 +61,18 @@ export function ExportPanel() {
       let count = 0
 
       for (const locale of allLocales) {
-        for (const device of project.devices as DeviceType[]) {
-          for (const slide of project.slides) {
-            if (cancelledRef.current) {
-              setStatus('idle')
-              return
-            }
-            const renderLocale = locale === project.sourceLocale ? null : locale
-            const blob = await renderSlide(slide, device, renderLocale)
-            const name = String(slide.index + 1).padStart(2, '0')
-            zip.file(`${locale}/${device}/${name}.png`, blob)
-            count++
-            setDone(count)
+        for (const slide of project.slides) {
+          if (cancelledRef.current) {
+            setStatus('idle')
+            return
           }
+          const device = deviceOf(slide)
+          const renderLocale = locale === project.sourceLocale ? null : locale
+          const blob = await renderSlide(slide, device, renderLocale)
+          const name = String(slide.index + 1).padStart(2, '0')
+          zip.file(`${locale}/${device}/${name}.png`, blob)
+          count++
+          setDone(count)
         }
       }
 
@@ -135,7 +139,7 @@ export function ExportPanel() {
         {/* Preview section */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <h3 className="mb-3 text-sm font-semibold text-white">미리보기</h3>
-          <div className="mb-3 grid grid-cols-3 gap-2">
+          <div className="mb-3 grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-xs text-[var(--color-text-dim)]">슬라이드</label>
               <select
@@ -144,7 +148,9 @@ export function ExportPanel() {
                 className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-white"
               >
                 {project.slides.map((s, i) => (
-                  <option key={s.id} value={i}>{i + 1}번</option>
+                  <option key={s.id} value={i}>
+                    {i + 1}번 ({deviceOf(s) === 'iphone' ? 'iPhone' : 'iPad'})
+                  </option>
                 ))}
               </select>
             </div>
@@ -157,18 +163,6 @@ export function ExportPanel() {
               >
                 {allLocales.map((l) => (
                   <option key={l} value={l}>{l}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">디바이스</label>
-              <select
-                value={effectiveDevice}
-                onChange={(e) => setPreviewDevice(e.target.value as DeviceType)}
-                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-white"
-              >
-                {(project.devices as DeviceType[]).map((d) => (
-                  <option key={d} value={d}>{d === 'iphone' ? 'iPhone' : 'iPad'}</option>
                 ))}
               </select>
             </div>
@@ -208,7 +202,9 @@ export function ExportPanel() {
             <div className="flex justify-between">
               <span>디바이스</span>
               <span className="text-white">
-                {project.devices.map((d) => (d === 'iphone' ? 'iPhone' : 'iPad')).join(', ')}
+                {devicesInUse.length > 0
+                  ? devicesInUse.map((d) => (d === 'iphone' ? 'iPhone' : 'iPad')).join(', ')
+                  : '—'}
               </span>
             </div>
             <div className="flex justify-between">

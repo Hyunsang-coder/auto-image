@@ -4,6 +4,8 @@ import type {
   Background,
   Caption,
   DeviceFrame,
+  DeviceType,
+  Highlight,
   Ornament,
   OrnamentShape,
   Project,
@@ -80,6 +82,29 @@ export const DEFAULT_BADGE_STYLE: BadgeStyle = {
   fontWeight: 600,
 }
 
+export function makeHighlight(): Highlight {
+  const id =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `hl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  // Default: sample the middle band of the screenshot, float a 1.5×-ish
+  // magnified card just below the device's vertical center. Users move both.
+  return {
+    id,
+    sourceRegion: { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
+    shape: 'rect',
+    borderColor: '#FFFFFF',
+    borderWidth: 0,
+    popup: {
+      x: 0.5,
+      y: 0.66,
+      width: 0.78,
+      zoom: 1.4,
+      showConnectorLine: false,
+    },
+  }
+}
+
 export function makeBadge(text = '새 기능'): Badge {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -88,8 +113,9 @@ export function makeBadge(text = '새 기능'): Badge {
   return { id, text, translations: {}, style: { ...DEFAULT_BADGE_STYLE }, top: 0.03 }
 }
 
-export function defaultDeviceFrame(): DeviceFrame {
-  return { show: true, model: 'iphone-16-pro', color: 'black' }
+export function defaultDeviceFrame(device: DeviceType = 'iphone'): DeviceFrame {
+  const model = device === 'ipad' ? 'ipad-pro-13' : 'iphone-16-pro'
+  return { show: true, model, color: 'black' }
 }
 
 export function defaultBackground(themeColor: string): Background {
@@ -218,7 +244,7 @@ export function defaultCaption(text: string, style: TextStyle): Caption {
   return { text, translations: {}, style: { ...style } }
 }
 
-export function makeSlide(index: number, themeColor: string): Slide {
+export function makeSlide(index: number, themeColor: string, device: DeviceType = 'iphone'): Slide {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -230,7 +256,7 @@ export function makeSlide(index: number, themeColor: string): Slide {
     index,
     template,
     background: defaultBackground(themeColor),
-    deviceFrame: defaultDeviceFrame(),
+    deviceFrame: defaultDeviceFrame(device),
     screenshot: null,
     headline: defaultCaption('당신의 헤드라인', { ...HEADLINE_STYLE, fontSize: sizes.headline }),
     subheadline: defaultCaption(
@@ -267,7 +293,7 @@ export function makeProject(input: {
     targetLocales: [...DEFAULT_TARGET_LOCALES],
     translationApi: DEFAULT_TRANSLATION_API,
     slides: Array.from({ length: input.screenshotCount }, (_, i) =>
-      makeSlide(i, input.themeColor),
+      makeSlide(i, input.themeColor, input.devices[0]),
     ),
   }
 }

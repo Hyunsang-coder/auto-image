@@ -1,16 +1,17 @@
 import { Canvas, FabricImage, Rect, Shadow } from 'fabric'
 import type { Slide, ScreenshotImage, ScreenshotStyle } from '../types/project'
-import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, deviceSpecOf } from '../constants/deviceSpecs'
+import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../constants/deviceSpecs'
 import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
 import { renderCaption } from './objects/caption'
 import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
+import { renderHighlight } from './objects/highlight'
 import { renderOrnament } from './objects/ornament'
 import { LAYER_NAMES } from './layerNames'
 import { loadImageObjectUrl } from '../lib/imageStore'
 
-function getCanvasHeight(): number {
-  const spec = deviceSpecOf('iphone')
+function getCanvasHeight(slide: Slide): number {
+  const spec = DEVICE_SPECS[slide.deviceFrame.model]
   return Math.round(
     (EDITOR_CANVAS_WIDTH / spec.exportWidth) * spec.exportHeight,
   )
@@ -24,7 +25,7 @@ function getCanvasHeight(): number {
 const DEVICE_WIDTH_RATIO = 0.78
 
 function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h: number } {
-  const spec = deviceSpecOf(slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone')
+  const spec = DEVICE_SPECS[slide.deviceFrame.model]
   const w = canvasWidth * DEVICE_WIDTH_RATIO
   const h = Math.round((w / spec.exportWidth) * spec.exportHeight)
   return { w, h }
@@ -110,7 +111,6 @@ function getDeviceLayout(
   cw: number,
   ch: number,
   device: { w: number; h: number },
-  rx: number,
 ): DeviceLayout | null {
   const { offsetX = 0, offsetY = 0, scale = 1 } = slide.deviceFrame
   let baseW: number
@@ -131,6 +131,11 @@ function getDeviceLayout(
   const width = baseW * scale
   const height = Math.round((width / device.w) * device.h)
   const top = topMode === 'vcenter' ? (ch - height) / 2 : topFixed
+  // rx must scale with the rendered device width, not the canvas width —
+  // otherwise templates that shrink the device (split, hero-bleed) get
+  // exaggerated corner radii that don't match the device's real proportions.
+  const spec = DEVICE_SPECS[slide.deviceFrame.model]
+  const rx = Math.round((spec.cornerRadius * width) / spec.exportWidth)
   return { centerX: centerX + offsetX, top: top + offsetY, width, height, rx }
 }
 
@@ -191,15 +196,13 @@ export async function applyTemplate(
   canvas.clear()
 
   const cw = dims?.width ?? EDITOR_CANVAS_WIDTH
-  const ch = dims?.height ?? getCanvasHeight()
-  const spec = DEVICE_SPECS[slide.deviceFrame.model]
-  const rx = Math.round(spec.cornerRadius * cw / spec.exportWidth)
+  const ch = dims?.height ?? getCanvasHeight(slide)
 
   canvas.setDimensions({ width: cw, height: ch })
 
   const { template } = slide
   const device = getDeviceDimensions(slide, cw)
-  const deviceLayout = getDeviceLayout(slide, cw, ch, device, rx)
+  const deviceLayout = getDeviceLayout(slide, cw, ch, device)
   const baseAnchor = getDeviceBaseAnchor(slide, cw, ch)
 
   // 1. Background
@@ -213,19 +216,20 @@ export async function applyTemplate(
   }
 
   // 3. Screenshot — device-inset if frame is shown, floating w/ shadow otherwise.
+  // Hoist screenBounds so highlights below can sample the same region.
+  let screenBounds: ScreenBounds | null = null
   if (slide.screenshot) {
     const shotStyle = effectiveShotStyle(slide)
-    let bounds: ScreenBounds | null = null
     if (template === 'hero') {
-      bounds = heroScreenBounds(cw, ch)
+      screenBounds = heroScreenBounds(cw, ch)
     } else if (deviceLayout) {
-      bounds = slide.deviceFrame.show
+      screenBounds = slide.deviceFrame.show
         ? deviceScreenBounds(deviceLayout, slide)
         : floatingScreenBounds(deviceLayout, shotStyle)
     }
-    if (bounds) {
+    if (screenBounds) {
       const floating = template !== 'hero' && !slide.deviceFrame.show
-      await renderScreenshotLayer(canvas, slide.screenshot, bounds, {
+      await renderScreenshotLayer(canvas, slide.screenshot, screenBounds, {
         withShadow: floating && shotStyle.shadow,
       })
     }
@@ -244,7 +248,23 @@ export async function applyTemplate(
     applySplit(canvas, slide, cw, ch, deviceLayout, baseAnchor)
   }
 
-  // 5. Badge (always on top)
+  // 5. Highlights — magnified pop-out cards. Rendered after the device so they
+  // can float above the bezel, but before the badge so the badge stays the
+  // top-most attention element.
+  if (slide.highlights && slide.highlights.length > 0 && slide.screenshot && screenBounds) {
+    for (const h of slide.highlights) {
+      const { source, popup } = await renderHighlight(h, {
+        canvasWidth: cw,
+        canvasHeight: ch,
+        screenBounds,
+        screenshot: slide.screenshot,
+      })
+      if (source) canvas.add(source)
+      if (popup) canvas.add(popup)
+    }
+  }
+
+  // 6. Badge (always on top)
   if (slide.badge) {
     const badgeCenterX = cw * (slide.badge.left ?? 0.5)
     canvas.add(renderBadge(slide.badge, { centerX: badgeCenterX, top: ch * slide.badge.top }))

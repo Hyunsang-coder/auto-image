@@ -1,7 +1,7 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Canvas, Textbox } from 'fabric'
+import { Canvas, FabricImage, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
-import type { Slide } from '../../types/project'
+import type { Highlight, Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 
@@ -23,6 +23,10 @@ interface Props {
 }
 
 const HISTORY_LIMIT = 50
+
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n))
+}
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
   function FabricCanvas({ activeSlide, onSlideChange }, ref) {
@@ -161,6 +165,85 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               : slide.badge.style,
           }
         }
+      }
+
+      // Sync highlight source rect + popup positions/sizes. Each highlight has
+      // up to two canvas objects (source rect + popup image) tagged with
+      // highlightId. We rebuild the slide.highlights array by reading current
+      // positions back out and normalizing to fractions.
+      const hlSourceObjs = objects.filter(
+        (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.HIGHLIGHT_SOURCE,
+      )
+      const hlPopupObjs = objects.filter(
+        (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.HIGHLIGHT_POPUP,
+      )
+      if ((hlSourceObjs.length > 0 || hlPopupObjs.length > 0) && slide.highlights) {
+        // Find screen bounds by inspecting the screenshot's clipPath (it tracks
+        // the visible window). Falls back to canvas if no screenshot.
+        const shotObj = objects.find(
+          (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.SCREENSHOT,
+        ) as (FabricImage & { clipPath?: Rect }) | undefined
+        const clip = shotObj?.clipPath
+        const cw = canvas.width ?? 1
+        const ch = canvas.height ?? 1
+        const sb = clip
+          ? {
+              left: clip.left ?? 0,
+              top: clip.top ?? 0,
+              width: (clip.width ?? cw) * (clip.scaleX ?? 1),
+              height: (clip.height ?? ch) * (clip.scaleY ?? 1),
+            }
+          : { left: 0, top: 0, width: cw, height: ch }
+
+        let dirty = false
+        const next: Highlight[] = slide.highlights.map((h) => {
+          let n: Highlight = h
+          const src = hlSourceObjs.find(
+            (o) => (o as FabricObject & { highlightId?: string }).highlightId === h.id,
+          )
+          if (src) {
+            const sLeft = src.left ?? 0
+            const sTop = src.top ?? 0
+            const sW = (src.width ?? 0) * (src.scaleX ?? 1)
+            const sH = (src.height ?? 0) * (src.scaleY ?? 1)
+            const nx = clamp01((sLeft - sb.left) / sb.width)
+            const ny = clamp01((sTop - sb.top) / sb.height)
+            const nw = clamp01(sW / sb.width)
+            const nh = clamp01(sH / sb.height)
+            const sr = h.sourceRegion
+            if (
+              Math.abs(nx - sr.x) > 0.001 ||
+              Math.abs(ny - sr.y) > 0.001 ||
+              Math.abs(nw - sr.w) > 0.001 ||
+              Math.abs(nh - sr.h) > 0.001
+            ) {
+              n = { ...n, sourceRegion: { x: nx, y: ny, w: nw, h: nh } }
+              dirty = true
+            }
+          }
+          const pop = hlPopupObjs.find(
+            (o) => (o as FabricObject & { highlightId?: string }).highlightId === h.id,
+          )
+          if (pop) {
+            const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
+            const pH = (pop.height ?? 0) * (pop.scaleY ?? 1)
+            const pCx = (pop.left ?? 0) + pW / 2
+            const pCy = (pop.top ?? 0) + pH / 2
+            const nx = clamp01(pCx / cw)
+            const ny = clamp01(pCy / ch)
+            const nWidth = clamp01(pW / cw)
+            if (
+              Math.abs(nx - h.popup.x) > 0.001 ||
+              Math.abs(ny - h.popup.y) > 0.001 ||
+              Math.abs(nWidth - h.popup.width) > 0.002
+            ) {
+              n = { ...n, popup: { ...n.popup, x: nx, y: ny, width: nWidth } }
+              dirty = true
+            }
+          }
+          return n
+        })
+        if (dirty) slidePatch.highlights = next
       }
 
       // Sync ornament positions/rotations after drag/scale/rotate.
@@ -315,7 +398,39 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const ln = (target as FabricObject & { layerName?: string }).layerName
         if (ln === LAYER_NAMES.DEVICE_FRAME) {
           handleDeviceMove(canvas, target)
+        } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
+          // Popup uses an absolutely-positioned clipPath; keep it pinned to the
+          // image's current position so the rounded mask doesn't lag behind
+          // during the drag.
+          const clip = (target as FabricObject & { clipPath?: Rect }).clipPath
+          if (clip) {
+            clip.set({ left: target.left ?? 0, top: target.top ?? 0 })
+          }
         }
+      })
+
+      // Same clipPath fix as object:moving but for scale operations — the popup
+      // mask needs to grow/shrink with the image.
+      canvas.on('object:scaling', (e) => {
+        const target = e.target
+        if (!target) return
+        const ln = (target as FabricObject & { layerName?: string }).layerName
+        if (ln !== LAYER_NAMES.HIGHLIGHT_POPUP) return
+        const clip = (target as FabricObject & { clipPath?: Rect }).clipPath
+        if (!clip) return
+        const w = (target.width ?? 0) * (target.scaleX ?? 1)
+        const h = (target.height ?? 0) * (target.scaleY ?? 1)
+        const r = Math.min(w, h) * 0.06
+        clip.set({
+          left: target.left ?? 0,
+          top: target.top ?? 0,
+          width: w,
+          height: h,
+          rx: r,
+          ry: r,
+          scaleX: 1,
+          scaleY: 1,
+        })
       })
 
       canvas.on('object:modified', () => {
@@ -361,6 +476,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         screenshotStyle: activeSlide.screenshotStyle,
         badge: activeSlide.badge,
         ornaments: activeSlide.ornaments,
+        highlights: activeSlide.highlights,
       })
 
       const slideChanged = prevSlideId.current !== activeSlide.id

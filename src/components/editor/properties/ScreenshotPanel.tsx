@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DeviceFrame, ScreenshotImage, ScreenshotStyle } from '../../../types/project'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
+import { detectDeviceFromAspect } from '../../../constants/deviceSpecs'
 
 interface Props {
   value: ScreenshotImage | null
@@ -47,6 +48,13 @@ export function ScreenshotPanel({
       originalWidth: width,
       originalHeight: height,
     })
+    // Lock the slide's device to the screenshot's aspect — an iPhone screenshot
+    // belongs in an iPhone frame, an iPad shot in an iPad frame. Avoids the
+    // cover-mode center-crop that used to silently chop off content.
+    const detected = detectDeviceFromAspect(width, height)
+    if (detected !== deviceFrame.model) {
+      onDeviceFrameChange({ ...deviceFrame, model: detected })
+    }
   }
 
   return (
@@ -65,7 +73,11 @@ export function ScreenshotPanel({
             />
           )}
           <p className="text-xs text-[var(--color-text-dim)]">
-            {value.originalWidth} × {value.originalHeight}px
+            {value.originalWidth} × {value.originalHeight}px ·{' '}
+            {detectDeviceFromAspect(value.originalWidth, value.originalHeight) === 'iphone-16-pro'
+              ? 'iPhone'
+              : 'iPad'}{' '}
+            스크린샷
           </p>
           <div className="flex gap-3">
             <button

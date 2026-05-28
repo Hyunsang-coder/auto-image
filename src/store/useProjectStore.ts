@@ -97,7 +97,7 @@ export const useProjectStore = create<ProjectState>()(
         const cur = get().project
         if (!cur) return
         if (cur.slides.length >= 10) return
-        const newSlide = makeSlide(cur.slides.length, cur.themeColor)
+        const newSlide = makeSlide(cur.slides.length, cur.themeColor, cur.devices[0])
         set({
           project: touch({
             ...cur,

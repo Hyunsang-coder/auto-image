@@ -6,6 +6,7 @@ import { CanvasToolbar } from './CanvasToolbar'
 import { PropertiesPanel } from './properties/PropertiesPanel'
 import type {
   Badge,
+  Highlight,
   Slide,
   TemplateType,
   Background,
@@ -106,6 +107,11 @@ export function EditorLayout() {
     updateSlide(activeSlideId, { ornaments })
   }
 
+  function handleHighlightsChange(highlights: Highlight[]) {
+    if (!activeSlideId) return
+    updateSlide(activeSlideId, { highlights })
+  }
+
   function handleApplyThemePreset(preset: ThemePreset) {
     if (!activeSlideId || !slide) return
     updateSlide(activeSlideId, {
@@ -157,6 +163,7 @@ export function EditorLayout() {
           onDeviceFrameChange={handleDeviceFrameChange}
           onScreenshotStyleChange={handleScreenshotStyleChange}
           onOrnamentsChange={handleOrnamentsChange}
+          onHighlightsChange={handleHighlightsChange}
           onApplyThemePreset={handleApplyThemePreset}
         />
       ) : (

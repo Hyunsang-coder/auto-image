@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type {
   Badge,
+  Highlight,
   Slide,
   TemplateType,
   Background,
@@ -17,6 +18,7 @@ import { BadgePanel } from './BadgePanel'
 import { CaptionPanel } from './CaptionPanel'
 import { ScreenshotPanel } from './ScreenshotPanel'
 import { OrnamentPanel } from './OrnamentPanel'
+import { HighlightPanel } from './HighlightPanel'
 
 type PanelTab =
   | 'template'
@@ -25,12 +27,14 @@ type PanelTab =
   | 'screenshot'
   | 'badge'
   | 'ornaments'
+  | 'highlights'
 
 const TABS: { id: PanelTab; label: string }[] = [
   { id: 'template',    label: '템플릿' },
   { id: 'background',  label: '배경' },
   { id: 'caption',     label: '캡션' },
   { id: 'screenshot',  label: '스크린샷' },
+  { id: 'highlights',  label: '하이라이트' },
   { id: 'ornaments',   label: '장식' },
   { id: 'badge',       label: '배지' },
 ]
@@ -46,6 +50,7 @@ interface Props {
   onDeviceFrameChange: (df: DeviceFrame) => void
   onScreenshotStyleChange: (style: ScreenshotStyle) => void
   onOrnamentsChange: (next: Ornament[]) => void
+  onHighlightsChange: (next: Highlight[]) => void
   onApplyThemePreset: (preset: ThemePreset) => void
 }
 
@@ -60,6 +65,7 @@ export function PropertiesPanel({
   onDeviceFrameChange,
   onScreenshotStyleChange,
   onOrnamentsChange,
+  onHighlightsChange,
   onApplyThemePreset,
 }: Props) {
   const [tab, setTab] = useState<PanelTab>('template')
@@ -114,6 +120,13 @@ export function PropertiesPanel({
             onDeviceFrameChange={onDeviceFrameChange}
             screenshotStyle={screenshotStyle}
             onScreenshotStyleChange={onScreenshotStyleChange}
+          />
+        )}
+        {tab === 'highlights' && (
+          <HighlightPanel
+            value={slide.highlights ?? []}
+            hasScreenshot={!!slide.screenshot}
+            onChange={onHighlightsChange}
           />
         )}
         {tab === 'ornaments' && (
