@@ -6,6 +6,7 @@ import type {
   DeviceFrame,
   Project,
   Slide,
+  TemplateType,
   TextStyle,
   TranslationAPI,
 } from '../types/project'
@@ -30,22 +31,33 @@ export const SUPPORTED_LOCALES = [
 
 export const HEADLINE_STYLE: TextStyle = {
   fontFamily: 'Inter',
-  fontSize: 110,
+  fontSize: 72,
   fontWeight: 800,
   color: '#FFFFFF',
   textAlign: 'center',
-  letterSpacing: -2,
+  letterSpacing: -1.5,
   lineHeight: 1.05,
 }
 
 export const SUBHEADLINE_STYLE: TextStyle = {
   fontFamily: 'Inter',
-  fontSize: 56,
+  fontSize: 36,
   fontWeight: 500,
   color: '#E6E8EE',
   textAlign: 'center',
-  letterSpacing: -0.5,
+  letterSpacing: -0.3,
   lineHeight: 1.25,
+}
+
+// 템플릿별 적정 폰트 크기 (에디터 캔버스 440px 기준)
+export const TEMPLATE_FONT_SIZES: Record<
+  TemplateType,
+  { headline: number; subheadline: number }
+> = {
+  hero:          { headline: 80, subheadline: 40 },
+  'text-top':    { headline: 56, subheadline: 30 },
+  'text-bottom': { headline: 56, subheadline: 30 },
+  split:         { headline: 44, subheadline: 24 },
 }
 
 export const DEFAULT_BADGE_STYLE: BadgeStyle = {
@@ -92,17 +104,19 @@ export function makeSlide(index: number, themeColor: string): Slide {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `slide-${index}-${Date.now()}`
+  const template: TemplateType = index === 0 ? 'hero' : 'text-top'
+  const sizes = TEMPLATE_FONT_SIZES[template]
   return {
     id,
     index,
-    template: index === 0 ? 'hero' : 'text-top',
+    template,
     background: defaultBackground(themeColor),
     deviceFrame: defaultDeviceFrame(),
     screenshot: null,
-    headline: defaultCaption('당신의 헤드라인', HEADLINE_STYLE),
+    headline: defaultCaption('당신의 헤드라인', { ...HEADLINE_STYLE, fontSize: sizes.headline }),
     subheadline: defaultCaption(
       '한 문장으로 가치 제안을 전달하세요',
-      SUBHEADLINE_STYLE,
+      { ...SUBHEADLINE_STYLE, fontSize: sizes.subheadline },
     ),
     badge: null,
     highlights: [],

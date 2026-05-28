@@ -5,6 +5,7 @@ import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { PropertiesPanel } from './properties/PropertiesPanel'
 import type { Badge, Slide, TemplateType, Background, Caption, ScreenshotImage } from '../../types/project'
+import { TEMPLATE_FONT_SIZES } from '../../constants/defaults'
 import { deleteImage } from '../../lib/imageStore'
 
 export function EditorLayout() {
@@ -42,8 +43,13 @@ export function EditorLayout() {
   }
 
   function handleTemplateChange(t: TemplateType) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { template: t })
+    if (!activeSlideId || !slide) return
+    const sizes = TEMPLATE_FONT_SIZES[t]
+    updateSlide(activeSlideId, {
+      template: t,
+      headline: { ...slide.headline, style: { ...slide.headline.style, fontSize: sizes.headline } },
+      subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style, fontSize: sizes.subheadline } },
+    })
   }
 
   function handleBackgroundChange(bg: Background) {
