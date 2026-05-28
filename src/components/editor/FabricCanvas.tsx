@@ -536,7 +536,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const h = getEditorCanvasHeight(activeSlide!)
         if (isGrouped) {
           const w = EDITOR_CANVAS_WIDTH * 2
-          await applyTemplate(canvas, activeSlide!, { width: w, height: h })
+          await applyTemplate(canvas, activeSlide!, { width: w, height: h }, { spanCentered: true })
           addSpanSeamGuide(canvas, w / 2, h)
         } else {
           await applyTemplate(canvas, activeSlide!)

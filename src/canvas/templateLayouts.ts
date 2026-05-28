@@ -111,6 +111,7 @@ function getDeviceLayout(
   cw: number,
   ch: number,
   device: { w: number; h: number },
+  spanCentered = false,
 ): DeviceLayout | null {
   const { offsetX = 0, offsetY = 0, scale = 1 } = slide.deviceFrame
   let baseW: number
@@ -128,6 +129,10 @@ function getDeviceLayout(
   } else {
     return null
   }
+  // In a 2-page span the device should straddle the seam (canvas center)
+  // regardless of the template's single-slide horizontal bias, otherwise
+  // off-center templates (split, hero-bleed) push the device onto one page.
+  if (spanCentered) centerX = cw / 2
   const width = baseW * scale
   const height = Math.round((width / device.w) * device.h)
   const top = topMode === 'vcenter' ? (ch - height) / 2 : topFixed
@@ -143,17 +148,19 @@ export function getDeviceBaseAnchor(
   slide: Slide,
   cw: number,
   ch: number,
+  spanCentered = false,
 ): { centerX: number; top: number } | null {
   const device = getDeviceDimensions(slide, cw)
+  const seam = cw / 2
   if (slide.template === 'text-top') return { centerX: cw / 2, top: ch * 0.30 }
   if (slide.template === 'text-bottom') return { centerX: cw / 2, top: ch * 0.05 }
   if (slide.template === 'split') {
     const deviceW = cw * 0.45
     const deviceH = Math.round((deviceW / device.w) * device.h)
-    return { centerX: cw * 0.76, top: (ch - deviceH) / 2 }
+    return { centerX: spanCentered ? seam : cw * 0.76, top: (ch - deviceH) / 2 }
   }
   if (slide.template === 'hero-bleed') {
-    return { centerX: cw * 0.7, top: ch * 0.28 }
+    return { centerX: spanCentered ? seam : cw * 0.7, top: ch * 0.28 }
   }
   return null
 }
@@ -192,18 +199,20 @@ export async function applyTemplate(
   canvas: Canvas,
   slide: Slide,
   dims?: { width: number; height: number },
+  opts?: { spanCentered?: boolean },
 ): Promise<void> {
   canvas.clear()
 
   const cw = dims?.width ?? EDITOR_CANVAS_WIDTH
   const ch = dims?.height ?? getCanvasHeight(slide)
+  const spanCentered = opts?.spanCentered ?? false
 
   canvas.setDimensions({ width: cw, height: ch })
 
   const { template } = slide
   const device = getDeviceDimensions(slide, cw)
-  const deviceLayout = getDeviceLayout(slide, cw, ch, device)
-  const baseAnchor = getDeviceBaseAnchor(slide, cw, ch)
+  const deviceLayout = getDeviceLayout(slide, cw, ch, device, spanCentered)
+  const baseAnchor = getDeviceBaseAnchor(slide, cw, ch, spanCentered)
 
   // 1. Background
   canvas.add(renderBackground(cw, ch, slide.background))
