@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { useProjectStore } from '../../store/useProjectStore'
-import { renderSlide } from '../../lib/renderSlide'
+import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
 import type { DeviceType, Project, Slide } from '../../types/project'
 
@@ -13,8 +13,11 @@ function deviceOf(slide: Slide): DeviceType {
 type Status = 'idle' | 'running' | 'done' | 'error'
 
 function getUntranslatedLocales(project: Project): string[] {
+  // Followers in a span group inherit text from the leader — their own text
+  // fields aren't rendered, so skip them when computing "missing translations".
+  const owners = project.slides.filter((s) => s.spanRole !== 'follower')
   return project.targetLocales.filter(locale =>
-    project.slides.some(slide =>
+    owners.some(slide =>
       (slide.headline.text && !slide.headline.translations[locale]) ||
       (slide.subheadline.text && !slide.subheadline.translations[locale])
     )
@@ -61,18 +64,49 @@ export function ExportPanel() {
       let count = 0
 
       for (const locale of allLocales) {
-        for (const slide of project.slides) {
+        let i = 0
+        while (i < project.slides.length) {
           if (cancelledRef.current) {
             setStatus('idle')
             return
           }
+          const slide = project.slides[i]
           const device = deviceOf(slide)
           const renderLocale = locale === project.sourceLocale ? null : locale
+
+          // Span leader → render the 2× canvas once, slice into both PNGs.
+          // Skip the follower in the next iteration since it's already done.
+          if (slide.spanGroupId && slide.spanRole === 'leader') {
+            const follower = project.slides[i + 1]
+            if (follower && follower.spanGroupId === slide.spanGroupId) {
+              const { leader: leftBlob, follower: rightBlob } = await renderSpanGroup(
+                slide,
+                device,
+                renderLocale,
+              )
+              const lName = String(slide.index + 1).padStart(2, '0')
+              const rName = String(follower.index + 1).padStart(2, '0')
+              zip.file(`${locale}/${device}/${lName}.png`, leftBlob)
+              zip.file(`${locale}/${device}/${rName}.png`, rightBlob)
+              count += 2
+              setDone(count)
+              i += 2
+              continue
+            }
+          }
+          // Defensive: stray follower with no preceding leader. Skip — its
+          // content was consumed by the leader pass or is genuinely orphaned.
+          if (slide.spanRole === 'follower') {
+            i++
+            continue
+          }
+
           const blob = await renderSlide(slide, device, renderLocale)
           const name = String(slide.index + 1).padStart(2, '0')
           zip.file(`${locale}/${device}/${name}.png`, blob)
           count++
           setDone(count)
+          i++
         }
       }
 
@@ -103,7 +137,23 @@ export function ExportPanel() {
 
     try {
       const renderLocale = effectiveLocale === project.sourceLocale ? null : effectiveLocale
-      const blob = await renderSlide(slide, effectiveDevice, renderLocale, EDITOR_CANVAS_WIDTH)
+      let blob: Blob
+      if (slide.spanGroupId) {
+        // Show the half corresponding to whichever side the user picked. The
+        // leader owns the canvas; for a follower-pick we still render from the
+        // leader and return the right half.
+        const isLeader = slide.spanRole === 'leader'
+        const leader = isLeader
+          ? slide
+          : project.slides.find(
+              (s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'leader',
+            )
+        if (!leader) throw new Error('span leader not found')
+        const halves = await renderSpanGroup(leader, effectiveDevice, renderLocale, EDITOR_CANVAS_WIDTH)
+        blob = isLeader ? halves.leader : halves.follower
+      } else {
+        blob = await renderSlide(slide, effectiveDevice, renderLocale, EDITOR_CANVAS_WIDTH)
+      }
       const url = URL.createObjectURL(blob)
       prevUrlRef.current = url
       setPreviewSrc(url)

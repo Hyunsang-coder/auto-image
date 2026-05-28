@@ -48,6 +48,15 @@ export interface Slide {
   ornaments?: Ornament[]
   /** When deviceFrame.show is false, controls how the screenshot floats. */
   screenshotStyle?: ScreenshotStyle
+  /**
+   * Span-group membership. When set, this slide is one half of a 2-page
+   * App-Store-style spanning composition. Leader owns all layers (rendered on
+   * a 2×-wide canvas); follower is a pointer whose own layer fields are
+   * ignored while grouped. Adjacency (leader.index + 1 === follower.index) is
+   * a structural invariant enforced by the store.
+   */
+  spanGroupId?: string
+  spanRole?: 'leader' | 'follower'
 }
 
 export interface ScreenshotStyle {

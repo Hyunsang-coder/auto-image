@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react'
-import { useProjectStore } from '../../store/useProjectStore'
+import { useProjectStore, spanLeaderOf } from '../../store/useProjectStore'
 import { SlideList } from './SlideList'
 import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
@@ -46,17 +46,23 @@ export function EditorLayout() {
   }, [])
 
   if (!project) return null
-  const slide = project.slides.find((s) => s.id === activeSlideId) ?? null
+  const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
+  // When the clicked slide is part of a span group, the leader owns all the
+  // layer data — route both the canvas render and every update target there.
+  // `clickedSlide` is still useful for SlideList highlighting (kept in store).
+  const slide = spanLeaderOf(project.slides, clickedSlide)
+  const editTargetId = slide?.id ?? null
+  const isGrouped = !!slide?.spanGroupId
 
   function handleSlideChange(patch: Partial<Slide>) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, patch)
+    if (!editTargetId) return
+    updateSlide(editTargetId, patch)
   }
 
   function handleTemplateChange(t: TemplateType) {
-    if (!activeSlideId || !slide) return
+    if (!editTargetId || !slide) return
     const sizes = TEMPLATE_FONT_SIZES[t]
-    updateSlide(activeSlideId, {
+    updateSlide(editTargetId, {
       template: t,
       headline: { ...slide.headline, style: { ...slide.headline.style, fontSize: sizes.headline } },
       subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style, fontSize: sizes.subheadline } },
@@ -64,57 +70,57 @@ export function EditorLayout() {
   }
 
   function handleBackgroundChange(bg: Background) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { background: bg })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { background: bg })
   }
 
   function handleHeadlineChange(c: Caption) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { headline: c })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { headline: c })
   }
 
   function handleSubheadlineChange(c: Caption) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { subheadline: c })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { subheadline: c })
   }
 
   function handleScreenshotChange(screenshot: ScreenshotImage | null) {
-    if (!activeSlideId) return
+    if (!editTargetId) return
     const oldKey = slide?.screenshot?.imageKey
     if (oldKey && oldKey !== screenshot?.imageKey) {
       deleteImage(oldKey)
     }
-    updateSlide(activeSlideId, { screenshot })
+    updateSlide(editTargetId, { screenshot })
   }
 
   function handleBadgeChange(badge: Badge | null) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { badge })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { badge })
   }
 
   function handleDeviceFrameChange(df: DeviceFrame) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { deviceFrame: df })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { deviceFrame: df })
   }
 
   function handleScreenshotStyleChange(style: ScreenshotStyle) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { screenshotStyle: style })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { screenshotStyle: style })
   }
 
   function handleOrnamentsChange(ornaments: Ornament[]) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { ornaments })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { ornaments })
   }
 
   function handleHighlightsChange(highlights: Highlight[]) {
-    if (!activeSlideId) return
-    updateSlide(activeSlideId, { highlights })
+    if (!editTargetId) return
+    updateSlide(editTargetId, { highlights })
   }
 
   function handleApplyThemePreset(preset: ThemePreset) {
-    if (!activeSlideId || !slide) return
-    updateSlide(activeSlideId, {
+    if (!editTargetId || !slide) return
+    updateSlide(editTargetId, {
       background: preset.background,
       headline: {
         ...slide.headline,
@@ -146,6 +152,7 @@ export function EditorLayout() {
           <FabricCanvas
             ref={canvasRef}
             activeSlide={slide}
+            isGrouped={isGrouped}
             onSlideChange={handleSlideChange}
           />
         </div>

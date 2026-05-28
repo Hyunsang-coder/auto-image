@@ -1,9 +1,36 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Canvas, FabricImage, Rect, Textbox } from 'fabric'
+import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Highlight, Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
 import { LAYER_NAMES } from '../../canvas/layerNames'
+import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
+
+const SEAM_LAYER = 'span-seam-guide'
+
+function getEditorCanvasHeight(slide: Slide): number {
+  const spec = DEVICE_SPECS[slide.deviceFrame.model]
+  return Math.round((EDITOR_CANVAS_WIDTH / spec.exportWidth) * spec.exportHeight)
+}
+
+/**
+ * Editor-only vertical dashed line marking the seam between the two halves of
+ * a 2-page span. Non-selectable, non-evented, tagged with a distinct
+ * layerName so sync code never mistakes it for content.
+ */
+function addSpanSeamGuide(canvas: Canvas, midX: number, height: number): void {
+  const line = new Line([midX, 0, midX, height], {
+    stroke: 'rgba(99, 102, 241, 0.6)',
+    strokeWidth: 1,
+    strokeDashArray: [6, 6],
+    selectable: false,
+    evented: false,
+    hoverCursor: 'default',
+    excludeFromExport: true,
+  })
+  ;(line as unknown as { layerName: string }).layerName = SEAM_LAYER
+  canvas.add(line)
+}
 
 // Custom props we stash on the device-body Path so we can compute its offset
 // from drag end position without re-deriving template anchors.
@@ -19,6 +46,12 @@ export interface FabricCanvasHandle {
 
 interface Props {
   activeSlide: Slide | null
+  /**
+   * True when the active slide is part of a 2-page span group. Doubles the
+   * canvas width and overlays a seam guide. `activeSlide` is expected to be
+   * the *leader* — EditorLayout resolves it.
+   */
+  isGrouped?: boolean
   onSlideChange: (patch: Partial<Slide>) => void
 }
 
@@ -29,7 +62,7 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, onSlideChange }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, onSlideChange }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
     // History stacks store canvas object snapshots (with custom props)
@@ -462,6 +495,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     // be separate effects with the same [activeSlide] dependency, which raced
     // and produced ghosted/double renders.
     const prevSlideDataRef = useRef<string>('')
+    const prevGroupedRef = useRef<boolean>(false)
     useEffect(() => {
       const canvas = fabricRef.current
       if (!canvas || !activeSlide) return
@@ -477,21 +511,38 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         badge: activeSlide.badge,
         ornaments: activeSlide.ornaments,
         highlights: activeSlide.highlights,
+        // Include grouped state in the cache key so toggling link/unlink
+        // forces a re-render even when the slide data didn't change.
+        isGrouped,
       })
 
       const slideChanged = prevSlideId.current !== activeSlide.id
       const dataChanged = prevSlideDataRef.current !== serialized
-      if (!slideChanged && !dataChanged) return
+      const groupedChanged = prevGroupedRef.current !== isGrouped
+      if (!slideChanged && !dataChanged && !groupedChanged) return
 
-      if (slideChanged) {
+      if (slideChanged || groupedChanged) {
         undoStack.current = []
         redoStack.current = []
       }
       prevSlideId.current = activeSlide.id
       prevSlideDataRef.current = serialized
+      prevGroupedRef.current = isGrouped
 
-      ;(async () => { await applyTemplate(canvas, activeSlide!) })()
-    }, [activeSlide])
+      ;(async () => {
+        // Span groups: render leader's data onto a 2× wide canvas and lay a
+        // dashed seam guide on top. Editor-only — export takes a different
+        // code path that crops the wide render into L/R halves.
+        const h = getEditorCanvasHeight(activeSlide!)
+        if (isGrouped) {
+          const w = EDITOR_CANVAS_WIDTH * 2
+          await applyTemplate(canvas, activeSlide!, { width: w, height: h })
+          addSpanSeamGuide(canvas, w / 2, h)
+        } else {
+          await applyTemplate(canvas, activeSlide!)
+        }
+      })()
+    }, [activeSlide, isGrouped])
 
     return (
       <div className="relative flex items-start justify-center">

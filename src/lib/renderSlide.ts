@@ -85,3 +85,52 @@ export async function renderSlide(
   if (!blob) throw new Error('toBlob returned null')
   return blob
 }
+
+/**
+ * Render a 2-page span group: produces a single 2×-wide canvas from the
+ * leader's data, then slices it into two device-sized PNGs. Sequential render
+ * → cheaper than two separate full renders, and guarantees objects crossing
+ * the seam (device frame, text) line up pixel-perfect across the split.
+ */
+export async function renderSpanGroup(
+  leader: Slide,
+  deviceType: DeviceType,
+  locale: string | null,
+  previewHalfWidth?: number,
+): Promise<{ leader: Blob; follower: Blob }> {
+  const spec = deviceSpecOf(deviceType)
+  const halfWidth = previewHalfWidth ?? spec.exportWidth
+  const fullWidth = halfWidth * 2
+  const height = previewHalfWidth
+    ? Math.round(previewHalfWidth * spec.exportHeight / spec.exportWidth)
+    : spec.exportHeight
+  // The editor renders grouped slides on a 2× canvas (880px wide); each axis
+  // scales by the same single-slide ratio (halfWidth / EDITOR_CANVAS_WIDTH).
+  const scale = halfWidth / EDITOR_CANVAS_WIDTH
+  const exportSlide = withScaledFonts(withLocaleText(leader, locale), scale)
+
+  const el = document.createElement('canvas')
+  const canvas = new Canvas(el, { enableRetinaScaling: false })
+
+  await applyTemplate(canvas, exportSlide, { width: fullWidth, height })
+  await document.fonts.ready
+  canvas.renderAll()
+
+  // Slice — read pixel data from the wide DOM canvas (Fabric writes its render
+  // there) into two half-size canvases, then toBlob each.
+  const makeHalf = async (sourceOffset: number): Promise<Blob> => {
+    const half = document.createElement('canvas')
+    half.width = halfWidth
+    half.height = height
+    const ctx = half.getContext('2d')!
+    ctx.drawImage(el, -sourceOffset, 0)
+    return new Promise<Blob>((resolve, reject) => {
+      half.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))), 'image/png')
+    })
+  }
+  const leftBlob = await makeHalf(0)
+  const rightBlob = await makeHalf(halfWidth)
+
+  canvas.dispose()
+  return { leader: leftBlob, follower: rightBlob }
+}

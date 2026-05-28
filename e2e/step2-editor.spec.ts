@@ -17,8 +17,10 @@ test('에디터 레이아웃이 3-컬럼으로 렌더됨', async ({ page }) => {
 })
 
 test('슬라이드 목록에 생성된 슬라이드 수만큼 표시됨', async ({ page }) => {
-  const slideButtons = page.locator('aside').first().getByRole('button')
-  await expect(slideButtons).toHaveCount(3)
+  // Each row is a <li> — that maps to "one slide tile" regardless of whether
+  // it's a single slide or a 2-page span group (which renders as one row).
+  const slideRows = page.locator('aside').first().locator('ul > li')
+  await expect(slideRows).toHaveCount(3)
 })
 
 test('슬라이드 클릭으로 활성 슬라이드 변경', async ({ page }) => {

@@ -14,12 +14,18 @@ type GridRow = {
   field: FieldKey
   label: string
   sourceText: string
+  /** True when this row's slide is a span leader — the cell label should
+   * indicate the translation covers both halves. */
+  isSpanLeader: boolean
 }
 
 function buildRows(slides: Slide[]): GridRow[] {
   const rows: GridRow[] = []
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
+    // Followers in a span group inherit text from the leader. Don't emit any
+    // rows for them — the leader's rows govern both halves.
+    if (slide.spanRole === 'follower') continue
     const fields: { field: FieldKey; label: string; sourceText: string }[] = []
     if (slide.headline.text)
       fields.push({ field: 'headline', label: '헤드라인', sourceText: slide.headline.text })
@@ -27,8 +33,15 @@ function buildRows(slides: Slide[]): GridRow[] {
       fields.push({ field: 'subheadline', label: '서브', sourceText: slide.subheadline.text })
     if (slide.badge?.text)
       fields.push({ field: 'badge', label: '배지', sourceText: slide.badge.text })
+    const isSpanLeader = slide.spanRole === 'leader'
     fields.forEach((f, j) =>
-      rows.push({ slideId: slide.id, slideIndex: i, slideRowSpan: j === 0 ? fields.length : 0, ...f }),
+      rows.push({
+        slideId: slide.id,
+        slideIndex: i,
+        slideRowSpan: j === 0 ? fields.length : 0,
+        isSpanLeader,
+        ...f,
+      }),
     )
   }
   return rows
@@ -290,8 +303,11 @@ export function LocalizeEditor() {
                     <td
                       rowSpan={row.slideRowSpan}
                       className="border-r border-[var(--color-border)] px-3 py-2 text-center text-xs font-semibold text-[var(--color-text-dim)]"
+                      title={row.isSpanLeader ? '2-page span — 양쪽 슬라이드에 적용됩니다' : undefined}
                     >
-                      {row.slideIndex + 1}
+                      {row.isSpanLeader
+                        ? `${row.slideIndex + 1}·${row.slideIndex + 2}`
+                        : row.slideIndex + 1}
                     </td>
                   )}
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)]">
