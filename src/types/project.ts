@@ -120,6 +120,12 @@ export interface Caption {
   text: string
   translations: Record<string, string>
   style: TextStyle
+  /**
+   * User-dragged position override, normalized to the canvas (x = center X /
+   * width, y = top / height) so it scales between editor and export. Absent =
+   * use the template's default placement.
+   */
+  pos?: { x: number; y: number }
 }
 
 export interface TextStyle {

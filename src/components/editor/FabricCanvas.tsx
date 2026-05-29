@@ -127,12 +127,14 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       return null
     }
 
-    function syncToZustand(canvas: Canvas) {
+    function syncToZustand(canvas: Canvas, movedTarget?: FabricObject) {
       const slide = activeSlideRef.current
       if (!slide) return
 
       const objects = canvas.getObjects()
       const slidePatch: Partial<Slide> = {}
+      const cw = canvas.width ?? 1
+      const ch = canvas.height ?? 1
 
       for (const obj of objects) {
         const ln = (obj as Textbox & { layerName?: string }).layerName
@@ -149,6 +151,16 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               color: typeof itext.fill === 'string' ? itext.fill : existing.style.color,
               textAlign: (itext.textAlign as 'left' | 'center' | 'right') ?? existing.style.textAlign,
             },
+          }
+          // Persist position only when the user actually dragged THIS caption.
+          // Capturing it on every sync would pin text that's still meant to
+          // follow the template (e.g. after a device move or template switch).
+          if (obj === movedTarget) {
+            const c = itext.getCenterPoint()
+            slidePatch[captionKey] = {
+              ...slidePatch[captionKey]!,
+              pos: { x: c.x / cw, y: (itext.top ?? 0) / ch },
+            }
           }
         }
       }
@@ -643,7 +655,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         })
       })
 
-      canvas.on('object:modified', () => {
+      canvas.on('object:modified', (e) => {
         lastBodyPos.current = null
         // Inside an ActiveSelection, child left/top are relative to the group
         // center — syncToZustand reads them as absolute and would corrupt the
@@ -653,7 +665,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           canvas.discardActiveObject()
         }
         pushHistory(canvas)
-        syncToZustand(canvas)
+        syncToZustand(canvas, e.target)
       })
 
       // Sync text edits when editing exits

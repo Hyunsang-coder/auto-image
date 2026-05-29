@@ -209,6 +209,56 @@ test('다중선택 드래그가 양쪽 객체를 올바르게 이동 (그룹 상
   expect(after[1].top).toBeGreaterThan(0)
 })
 
+test('드래그한 헤드라인 위치가 슬라이드 전환 후에도 유지됨', async ({ page }) => {
+  type Ed = {
+    getState: () => { width: number; objects: { layerName?: string; left: number; top: number; width: number; height: number }[] }
+  }
+  const headline = () =>
+    page.evaluate(() => {
+      const o = (window as unknown as { __editor: Ed }).__editor
+        .getState()
+        .objects.find((x) => x.layerName === 'headline')!
+      return { left: o.left, top: o.top, width: o.width, height: o.height }
+    })
+
+  // Give the headline real text so it has a clickable footprint.
+  await page.getByRole('button', { name: '캡션' }).click()
+  await page.locator('textarea').first().fill('내 헤드라인')
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.getState().objects.some((o) => o.layerName === 'headline'))
+
+  const box = (await page.locator('canvas').last().boundingBox())!
+  const st = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.getState())
+  const scale = box.width / st.width
+  const orig = await headline()
+
+  // drag the headline up by 90px (click the bbox center, not its left edge)
+  const cx = box.x + (orig.left + orig.width / 2) * scale
+  const cy = box.y + (orig.top + orig.height / 2) * scale
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  await page.mouse.move(cx, cy - 90, { steps: 6 })
+  await page.mouse.up()
+  await page.waitForFunction(
+    (t) => {
+      const o = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((x) => x.layerName === 'headline')!
+      return o.top < t - 40
+    },
+    orig.top,
+  )
+  const moved = await headline()
+
+  // switch to slide 2 and back to slide 1 → forces a re-render from the store
+  const slides = page.locator('aside').first().getByRole('button')
+  await slides.nth(1).click()
+  await slides.nth(0).click()
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.getState().objects.some((o) => o.layerName === 'headline'))
+
+  const afterSwitch = await headline()
+  // Headline must stay where it was dragged, not snap back to the template top.
+  expect(Math.abs(afterSwitch.top - moved.top)).toBeLessThan(8)
+  expect(afterSwitch.top).toBeLessThan(orig.top - 40)
+})
+
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
   // 로컬라이즈 에디터 헤더 확인

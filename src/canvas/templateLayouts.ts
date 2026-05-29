@@ -332,6 +332,8 @@ function addHeadlineAndSubheadline(
   canvas: Canvas,
   slide: Slide,
   opts: {
+    cw: number
+    ch: number
     headlineCenterX: number
     headlineTop: number
     width: number
@@ -340,31 +342,32 @@ function addHeadlineAndSubheadline(
   },
 ): void {
   const align = opts.align ?? 'center'
-  const headline = renderCaption(slide.headline, {
-    left: opts.headlineCenterX,
-    top: opts.headlineTop,
-    width: opts.width,
-    layerName: LAYER_NAMES.HEADLINE,
-  })
-  // Layout-default align always wins — the slide's stored textAlign is a
-  // user-facing toggle that should round-trip via the caption panel, not
-  // silently override the template's intended composition.
-  headline.set('textAlign', align)
-  if (align === 'left') headline.set({ originX: 'left', left: opts.headlineCenterX - opts.width / 2 })
-  else if (align === 'right') headline.set({ originX: 'right', left: opts.headlineCenterX + opts.width / 2 })
-  canvas.add(headline)
 
+  // A caption with a user-dragged `pos` overrides the template anchor; the
+  // stored fractions are denormalized against the current canvas so the same
+  // placement holds in the editor and at full export resolution.
+  const place = (
+    caption: typeof slide.headline,
+    layerName: typeof LAYER_NAMES.HEADLINE | typeof LAYER_NAMES.SUBHEADLINE,
+    defaultCenterX: number,
+    defaultTop: number,
+  ) => {
+    const centerX = caption.pos ? caption.pos.x * opts.cw : defaultCenterX
+    const top = caption.pos ? caption.pos.y * opts.ch : defaultTop
+    const obj = renderCaption(caption, { left: centerX, top, width: opts.width, layerName })
+    // Layout-default align always wins — the slide's stored textAlign is a
+    // user-facing toggle that should round-trip via the caption panel, not
+    // silently override the template's intended composition.
+    obj.set('textAlign', align)
+    if (align === 'left') obj.set({ originX: 'left', left: centerX - opts.width / 2 })
+    else if (align === 'right') obj.set({ originX: 'right', left: centerX + opts.width / 2 })
+    canvas.add(obj)
+    return obj
+  }
+
+  const headline = place(slide.headline, LAYER_NAMES.HEADLINE, opts.headlineCenterX, opts.headlineTop)
   const subTop = opts.headlineTop + headline.height + (opts.gap ?? 12)
-  const subheadline = renderCaption(slide.subheadline, {
-    left: opts.headlineCenterX,
-    top: subTop,
-    width: opts.width,
-    layerName: LAYER_NAMES.SUBHEADLINE,
-  })
-  subheadline.set('textAlign', align)
-  if (align === 'left') subheadline.set({ originX: 'left', left: opts.headlineCenterX - opts.width / 2 })
-  else if (align === 'right') subheadline.set({ originX: 'right', left: opts.headlineCenterX + opts.width / 2 })
-  canvas.add(subheadline)
+  place(slide.subheadline, LAYER_NAMES.SUBHEADLINE, opts.headlineCenterX, subTop)
 }
 
 function applyHero(
@@ -374,6 +377,8 @@ function applyHero(
   ch: number,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
+    cw,
+    ch,
     headlineCenterX: cw / 2,
     headlineTop: ch * 0.42,
     width: cw * 0.85,
@@ -440,6 +445,8 @@ function applyTextTop(
   baseAnchor: { centerX: number; top: number } | null,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
+    cw,
+    ch,
     headlineCenterX: cw / 2,
     headlineTop: ch * 0.05,
     width: cw * 0.85,
@@ -458,6 +465,8 @@ function applyTextBottom(
 ): void {
   addDeviceFrame(canvas, slide, layout, baseAnchor)
   addHeadlineAndSubheadline(canvas, slide, {
+    cw,
+    ch,
     headlineCenterX: cw / 2,
     headlineTop: ch * 0.74,
     width: cw * 0.85,
@@ -474,6 +483,8 @@ function applySplit(
   baseAnchor: { centerX: number; top: number } | null,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
+    cw,
+    ch,
     headlineCenterX: cw * 0.21,
     headlineTop: ch * 0.32,
     width: cw * 0.37,
@@ -496,6 +507,8 @@ function applyHeroBleed(
   baseAnchor: { centerX: number; top: number } | null,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
+    cw,
+    ch,
     headlineCenterX: cw * 0.25,
     headlineTop: ch * 0.06,
     width: cw * 0.46,
