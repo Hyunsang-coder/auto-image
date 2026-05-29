@@ -131,6 +131,24 @@ export function ScreenshotPanel({
           />
         </label>
 
+        <div>
+          <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+            <span>기기 회전</span>
+            <span>{Math.round(deviceFrame.rotation ?? 0)}°</span>
+          </label>
+          <input
+            type="range"
+            min={-180}
+            max={180}
+            step={1}
+            value={deviceFrame.rotation ?? 0}
+            onChange={(e) =>
+              onDeviceFrameChange({ ...deviceFrame, rotation: Number(e.target.value) })
+            }
+            className="w-full accent-[var(--color-accent)]"
+          />
+        </div>
+
         {!deviceFrame.show && (
           <>
             <div>
