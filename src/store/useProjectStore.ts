@@ -159,6 +159,7 @@ export const useProjectStore = create<ProjectState>()(
         if (cur) {
           cur.slides.forEach(s => {
             if (s.screenshot?.imageKey) deleteImage(s.screenshot.imageKey)
+            if (s.background.imageKey) deleteImage(s.background.imageKey)
           })
         }
         set({ project: null, step: 1, activeSlideId: null })
@@ -232,6 +233,7 @@ export const useProjectStore = create<ProjectState>()(
         if (!after) return
         const target = after.slides.find((s) => s.id === slideId)
         if (target?.screenshot?.imageKey) deleteImage(target.screenshot.imageKey)
+        if (target?.background.imageKey) deleteImage(target.background.imageKey)
         const filtered = after.slides
           .filter((s) => s.id !== slideId)
           .map((s, i) => ({ ...s, index: i }))

@@ -249,7 +249,9 @@ export async function applyTemplate(
   const baseAnchor = getDeviceBaseAnchor(slide, cw, ch, spanCentered)
 
   // 1. Background
-  canvas.add(renderBackground(cw, ch, slide.background))
+  for (const obj of await renderBackground(cw, ch, slide.background, resolveUrl)) {
+    canvas.add(obj)
+  }
 
   // 2. Ornaments (above bg, below content). 우리가 화면 어디서든 dragging 할 수 있도록 selectable로 둔다.
   if (slide.ornaments) {

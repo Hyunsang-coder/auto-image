@@ -13,6 +13,15 @@ export async function uploadScreenshot(page: Page, name: string) {
   await page.locator('input[type="file"]').setInputFiles(`${fixturesDir}/${name}`)
 }
 
+/**
+ * Upload a background image fixture via the 배경 → 이미지 tab's file input.
+ */
+export async function uploadBackgroundImage(page: Page, name: string) {
+  await page.getByRole('button', { name: '배경', exact: true }).click()
+  await page.getByRole('button', { name: '이미지', exact: true }).click()
+  await page.locator('input[type="file"]').setInputFiles(`${fixturesDir}/${name}`)
+}
+
 export async function clearAppState(page: Page) {
   await page.addInitScript(() => {
     localStorage.removeItem('auto-image:project')

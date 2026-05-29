@@ -29,7 +29,7 @@ function App() {
     if (!current) return
     prunedRef.current = true
     const referenced = current.slides
-      .map((s) => s.screenshot?.imageKey)
+      .flatMap((s) => [s.screenshot?.imageKey, s.background.imageKey])
       .filter((k): k is string => !!k)
     pruneOrphanImages(referenced)
   }, [project])
