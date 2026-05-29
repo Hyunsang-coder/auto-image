@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Project, Slide, Step, ScreenshotImage, Badge } from '../types/project'
 import { makeProject, makeSlide } from '../constants/defaults'
-import { deleteImage, loadImageBlob, saveImage } from '../lib/imageStore'
+import { loadImageBlob, saveImage } from '../lib/imageStore'
+import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
 
 function newId(prefix: string): string {
@@ -157,14 +158,10 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       resetProject: () => {
-        const cur = get().project
-        if (cur) {
-          cur.slides.forEach(s => {
-            if (s.screenshot?.imageKey) deleteImage(s.screenshot.imageKey)
-            if (s.background.imageKey) deleteImage(s.background.imageKey)
-          })
-        }
         set({ project: null, step: 1, activeSlideId: null })
+        // Reference-checked: only sweep blobs no saved project/preset/template
+        // still points at (the cleared project may have shared keys with them).
+        gcImages()
       },
 
       loadProject: (project) => {
@@ -242,9 +239,6 @@ export const useProjectStore = create<ProjectState>()(
         // Re-read after potential dissolve.
         const after = get().project
         if (!after) return
-        const target = after.slides.find((s) => s.id === slideId)
-        if (target?.screenshot?.imageKey) deleteImage(target.screenshot.imageKey)
-        if (target?.background.imageKey) deleteImage(target.background.imageKey)
         const filtered = after.slides
           .filter((s) => s.id !== slideId)
           .map((s, i) => ({ ...s, index: i }))
@@ -259,6 +253,9 @@ export const useProjectStore = create<ProjectState>()(
             ? (filtered[0]?.id ?? null)
             : get().activeSlideId,
         })
+        // Sweep the removed slide's blobs only if nothing else references them
+        // (a saved project, preset, template, or sibling slide may share keys).
+        gcImages()
       },
 
       reorderSlides: (orderedIds) => {

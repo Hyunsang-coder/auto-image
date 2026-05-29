@@ -2,6 +2,7 @@ import type { Background, Project } from '../types/project'
 import { useProjectStore } from '../store/useProjectStore'
 import { useLibraryStore } from '../store/useLibraryStore'
 import { useCustomStore } from '../store/useCustomStore'
+import { pruneOrphanImages } from './imageStore'
 
 function bgImageKey(bg: Background): string | undefined {
   return bg.type === 'image' ? bg.imageKey : undefined
@@ -36,4 +37,15 @@ export function allReferencedImageKeys(): Set<string> {
     if (k) keys.add(k)
   }
   return keys
+}
+
+/**
+ * Reference-checked image cleanup: sweep every IndexedDB blob no longer
+ * referenced by ANY store. Call this AFTER a state mutation (slide/screenshot
+ * removal, project reset, load) instead of deleting specific keys directly —
+ * a key shared with a saved project, preset, or sibling slide must survive.
+ * Fire-and-forget; a failed sweep is harmless (re-runs on next startup).
+ */
+export function gcImages(): void {
+  void pruneOrphanImages(allReferencedImageKeys())
 }

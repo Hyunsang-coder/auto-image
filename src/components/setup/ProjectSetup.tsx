@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import type { DeviceType } from '../../types/project'
+import type { DeviceType, Project } from '../../types/project'
 import { DEFAULT_THEME_COLOR } from '../../constants/defaults'
 import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useLibraryStore } from '../../store/useLibraryStore'
-import { allReferencedImageKeys } from '../../lib/imageRefs'
+import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
 import { ColorPickerPopover } from '../common/ColorPickerPopover'
 
@@ -19,6 +19,7 @@ export function ProjectSetup() {
   const savedProjects = useLibraryStore((s) => s.projects)
   const removeProject = useLibraryStore((s) => s.removeProject)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [confirmLoad, setConfirmLoad] = useState<Project | null>(null)
 
   const [name, setName] = useState(existingProject?.name ?? '내 앱')
   const [devices, setDevices] = useState<DeviceType[]>(
@@ -55,6 +56,23 @@ export function ProjectSetup() {
     setPendingDelete(null)
     // Sweep any image blobs the deleted project no longer keeps alive.
     pruneOrphanImages(allReferencedImageKeys())
+  }
+
+  function handleLoad(p: Project) {
+    // Loading replaces the active project. Confirm first if there's current
+    // work that hasn't been explicitly saved into the library as-is.
+    if (existingProject) {
+      setConfirmLoad(p)
+      return
+    }
+    doLoad(p)
+  }
+
+  function doLoad(p: Project) {
+    loadProject(p)
+    setConfirmLoad(null)
+    // The outgoing project's blobs are swept if nothing else references them.
+    gcImages()
   }
 
   return (
@@ -204,7 +222,7 @@ export function ProjectSetup() {
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => loadProject(p)}
+                    onClick={() => handleLoad(p)}
                     className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
                   >
                     불러오기
@@ -240,6 +258,41 @@ export function ProjectSetup() {
             ))}
           </ul>
         </Section>
+      )}
+
+      {confirmLoad && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setConfirmLoad(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text)]">프로젝트 불러오기</h3>
+            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+              현재 편집 중인 작업을{' '}
+              <span className="font-medium text-[var(--color-text)]">{confirmLoad.name}</span>
+              (으)로 교체합니다. 저장하지 않은 변경 사항은 사라집니다.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmLoad(null)}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => doLoad(confirmLoad)}
+                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                불러오기
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

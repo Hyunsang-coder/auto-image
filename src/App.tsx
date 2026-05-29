@@ -141,7 +141,7 @@ function App() {
           >
             <h3 className="text-lg font-semibold text-[var(--color-text)]">프로젝트 저장</h3>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              현재 작업을 이 이름으로 보관합니다. 같은 이름의 기존 저장본이 있으면 갱신됩니다.
+              현재 작업을 보관합니다. 이미 저장한 프로젝트라면 이 이름으로 갱신됩니다.
             </p>
             <input
               value={saveName}

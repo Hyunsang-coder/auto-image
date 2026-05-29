@@ -259,30 +259,34 @@ export function findThemePreset(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find((p) => p.id === id)
 }
 
-/** Capture the current slide's background + text colors as a reusable preset. */
+/** Capture the current slide's background + text colors as a reusable preset.
+ *  Background is deep-cloned so the stored preset never aliases the live slide. */
 export function presetFromSlide(slide: Slide, label: string): ThemePreset {
   return {
     id: newId('preset'),
     label,
-    background: slide.background,
+    background: structuredClone(slide.background),
     headlineColor: slide.headline.style.color,
     subheadlineColor: slide.subheadline.style.color,
     accentColor: slide.badges[0]?.style.backgroundColor ?? slide.headline.style.color,
   }
 }
 
-/** Capture the current slide's full styling/composition as a reusable template. */
+/** Capture the current slide's full styling/composition as a reusable template.
+ *  Everything captured is deep-cloned so the stored template never shares a
+ *  mutable object (background, caption translations, badge styles) with the
+ *  live slide. */
 export function templateFromSlide(slide: Slide, label: string): SlideTemplate {
   return {
     id: newId('tpl'),
     label,
     template: slide.template,
-    background: slide.background,
+    background: structuredClone(slide.background),
     deviceFrame: { ...slide.deviceFrame },
-    headline: { ...slide.headline, style: { ...slide.headline.style } },
-    subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style } },
-    badges: slide.badges.map((b) => ({ ...b, style: { ...b.style } })),
-    ornaments: (slide.ornaments ?? []).map((o) => ({ ...o })),
+    headline: structuredClone(slide.headline),
+    subheadline: structuredClone(slide.subheadline),
+    badges: structuredClone(slide.badges),
+    ornaments: structuredClone(slide.ornaments ?? []),
     screenshotStyle: slide.screenshotStyle ? { ...slide.screenshotStyle } : undefined,
   }
 }
@@ -296,21 +300,24 @@ export function templateFromSlide(slide: Slide, label: string): SlideTemplate {
 export function applyTemplateToSlide(slide: Slide, tpl: SlideTemplate): Partial<Slide> {
   return {
     template: tpl.template,
-    background: tpl.background,
+    background: structuredClone(tpl.background),
     deviceFrame: { ...tpl.deviceFrame, model: slide.deviceFrame.model },
     headline: {
       ...slide.headline,
       style: { ...tpl.headline.style },
-      pos: tpl.headline.pos,
+      pos: tpl.headline.pos ? { ...tpl.headline.pos } : undefined,
       boxWidth: tpl.headline.boxWidth,
     },
     subheadline: {
       ...slide.subheadline,
       style: { ...tpl.subheadline.style },
-      pos: tpl.subheadline.pos,
+      pos: tpl.subheadline.pos ? { ...tpl.subheadline.pos } : undefined,
       boxWidth: tpl.subheadline.boxWidth,
     },
-    badges: tpl.badges.map((b) => ({ ...b, id: newId('badge'), style: { ...b.style } })),
+    badges: tpl.badges.map((b) => ({
+      ...structuredClone(b),
+      id: newId('badge'),
+    })),
     ornaments: tpl.ornaments.map((o) => ({ ...o, id: newId('orn') })),
     screenshotStyle: tpl.screenshotStyle ? { ...tpl.screenshotStyle } : slide.screenshotStyle,
   }

@@ -25,7 +25,7 @@ import {
   applyTemplateToSlide,
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
-import { deleteImage } from '../../lib/imageStore'
+import { gcImages } from '../../lib/imageRefs'
 
 export function EditorLayout() {
   const project = useProjectStore((s) => s.project)
@@ -124,11 +124,10 @@ export function EditorLayout() {
 
   function handleScreenshotChange(screenshot: ScreenshotImage | null) {
     if (!editTargetId) return
-    const oldKey = slide?.screenshot?.imageKey
-    if (oldKey && oldKey !== screenshot?.imageKey) {
-      deleteImage(oldKey)
-    }
     updateSlide(editTargetId, { screenshot })
+    // Reference-checked: the replaced screenshot's blob is swept only if no
+    // saved project/preset/template still points at it.
+    gcImages()
   }
 
   function handleBadgesChange(badges: Badge[]) {
@@ -159,7 +158,7 @@ export function EditorLayout() {
   function handleApplyThemePreset(preset: ThemePreset) {
     if (!editTargetId || !slide) return
     updateSlide(editTargetId, {
-      background: preset.background,
+      background: structuredClone(preset.background),
       headline: {
         ...slide.headline,
         style: { ...slide.headline.style, color: preset.headlineColor },
