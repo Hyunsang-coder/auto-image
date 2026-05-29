@@ -108,6 +108,8 @@ interface ProjectState {
     themeColor: string
   }) => void
   resetProject: () => void
+  /** Replace the active project with a saved one (deep-cloned), jump to editor. */
+  loadProject: (project: Project) => void
   updateProject: (patch: Partial<Project>) => void
 
   setStep: (step: Step) => void
@@ -163,6 +165,15 @@ export const useProjectStore = create<ProjectState>()(
           })
         }
         set({ project: null, step: 1, activeSlideId: null })
+      },
+
+      loadProject: (project) => {
+        const clone = structuredClone(project)
+        set({
+          project: clone,
+          step: 2,
+          activeSlideId: clone.slides[0]?.id ?? null,
+        })
       },
 
       updateProject: (patch) => {

@@ -3,6 +3,9 @@ import type { DeviceType } from '../../types/project'
 import { DEFAULT_THEME_COLOR } from '../../constants/defaults'
 import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { useProjectStore } from '../../store/useProjectStore'
+import { useLibraryStore } from '../../store/useLibraryStore'
+import { allReferencedImageKeys } from '../../lib/imageRefs'
+import { pruneOrphanImages } from '../../lib/imageStore'
 import { ColorPickerPopover } from '../common/ColorPickerPopover'
 
 const MIN_SLIDES = 1
@@ -12,6 +15,10 @@ export function ProjectSetup() {
   const createProject = useProjectStore((s) => s.createProject)
   const existingProject = useProjectStore((s) => s.project)
   const setStep = useProjectStore((s) => s.setStep)
+  const loadProject = useProjectStore((s) => s.loadProject)
+  const savedProjects = useLibraryStore((s) => s.projects)
+  const removeProject = useLibraryStore((s) => s.removeProject)
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   const [name, setName] = useState(existingProject?.name ?? '내 앱')
   const [devices, setDevices] = useState<DeviceType[]>(
@@ -41,6 +48,13 @@ export function ProjectSetup() {
       screenshotCount: count,
       themeColor: themeColor.toUpperCase(),
     })
+  }
+
+  function handleDelete(id: string) {
+    removeProject(id)
+    setPendingDelete(null)
+    // Sweep any image blobs the deleted project no longer keeps alive.
+    pruneOrphanImages(allReferencedImageKeys())
   }
 
   return (
@@ -169,6 +183,63 @@ export function ProjectSetup() {
             계속 편집하기 →
           </button>
         </div>
+      )}
+
+      {savedProjects.length > 0 && (
+        <Section title="저장된 프로젝트" hint="헤더의 '저장'으로 보관한 프로젝트입니다.">
+          <ul className="flex flex-col gap-2">
+            {savedProjects.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                    {p.name}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-dim)]">
+                    {p.slides.length}장 · {formatTime(p.updatedAt)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => loadProject(p)}
+                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
+                  >
+                    불러오기
+                  </button>
+                  {pendingDelete === p.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p.id)}
+                        className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                      >
+                        삭제 확인
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(null)}
+                        className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
+                      >
+                        취소
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete(p.id)}
+                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-red-400 hover:text-red-400"
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
       )}
     </div>
   )

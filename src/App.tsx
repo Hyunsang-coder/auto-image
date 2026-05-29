@@ -5,7 +5,9 @@ import { EditorLayout } from './components/editor/EditorLayout'
 import { LocalizeEditor } from './components/localize/LocalizeEditor'
 import { ExportPanel } from './components/export/ExportPanel'
 import { useProjectStore } from './store/useProjectStore'
+import { useLibraryStore } from './store/useLibraryStore'
 import { pruneOrphanImages } from './lib/imageStore'
+import { allReferencedImageKeys } from './lib/imageRefs'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
 
 function App() {
@@ -13,7 +15,12 @@ function App() {
   const setStep = useProjectStore((s) => s.setStep)
   const project = useProjectStore((s) => s.project)
   const resetProject = useProjectStore((s) => s.resetProject)
+  const updateProject = useProjectStore((s) => s.updateProject)
+  const saveProject = useLibraryStore((s) => s.saveProject)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [justSaved, setJustSaved] = useState(false)
   const [storageError, setStorageError] = useState(false)
   const prunedRef = useRef(false)
 
@@ -28,10 +35,7 @@ function App() {
     const current = useProjectStore.getState().project
     if (!current) return
     prunedRef.current = true
-    const referenced = current.slides
-      .flatMap((s) => [s.screenshot?.imageKey, s.background.imageKey])
-      .filter((k): k is string => !!k)
-    pruneOrphanImages(referenced)
+    pruneOrphanImages(allReferencedImageKeys())
   }, [project])
 
   useEffect(() => {
@@ -43,6 +47,21 @@ function App() {
   function handleReset() {
     resetProject()
     setShowResetConfirm(false)
+  }
+
+  function openSaveModal() {
+    setSaveName(project?.name ?? '')
+    setShowSaveModal(true)
+  }
+
+  function handleSaveProject() {
+    const name = saveName.trim() || project?.name || '제목 없음'
+    updateProject({ name })
+    const current = useProjectStore.getState().project
+    if (current) saveProject(current)
+    setShowSaveModal(false)
+    setJustSaved(true)
+    window.setTimeout(() => setJustSaved(false), 1600)
   }
 
   return (
@@ -66,6 +85,15 @@ function App() {
             <span className="text-xs text-[var(--color-text-dim)]">
               {project.name} · {project.slides.length}장
             </span>
+          )}
+          {project && (
+            <button
+              type="button"
+              onClick={openSaveModal}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+            >
+              {justSaved ? '저장됨 ✓' : '저장'}
+            </button>
           )}
           {project && (
             <button
@@ -101,6 +129,50 @@ function App() {
         {step === 3 && <LocalizeEditor />}
         {step === 4 && <ExportPanel />}
       </div>
+
+      {showSaveModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setShowSaveModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text)]">프로젝트 저장</h3>
+            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+              현재 작업을 이 이름으로 보관합니다. 같은 이름의 기존 저장본이 있으면 갱신됩니다.
+            </p>
+            <input
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveProject()
+              }}
+              maxLength={60}
+              className="mt-4 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+              placeholder="프로젝트 이름"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProject}
+                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showResetConfirm && (
         <div
