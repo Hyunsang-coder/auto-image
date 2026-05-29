@@ -168,9 +168,6 @@ export interface Highlight {
     x: number
     y: number
     width: number
-    zoom: number
-    showConnectorLine: boolean
-    connectorStyle?: 'straight' | 'curved'
     borderRadius?: number
     shadowColor?: string
   }

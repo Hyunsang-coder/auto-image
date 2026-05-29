@@ -114,8 +114,6 @@ export function makeHighlight(): Highlight {
       x: 0.5,
       y: 0.66,
       width: 0.78,
-      zoom: 1.4,
-      showConnectorLine: false,
     },
   }
 }
