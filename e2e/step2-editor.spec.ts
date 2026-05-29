@@ -52,6 +52,44 @@ test('Undo/Redo 버튼이 존재함', async ({ page }) => {
   await expect(page.getByRole('button', { name: /redo|다시 실행/i })).toBeVisible()
 })
 
+test('초기 진입 시 Undo/Redo 버튼이 비활성화됨', async ({ page }) => {
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Redo' })).toBeDisabled()
+})
+
+test('편집(object:modified) 후 Undo 버튼이 활성화됨', async ({ page }) => {
+  await page.waitForFunction(() => (window as { __editor?: unknown }).__editor != null)
+  await page.evaluate(() => {
+    ;(window as unknown as { __editor: { canvas: { fire: (e: string) => void } } }).__editor.canvas.fire(
+      'object:modified',
+    )
+  })
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
+})
+
+test('Delete 키로 선택된 배지가 삭제됨', async ({ page }) => {
+  await page.getByRole('button', { name: '배지' }).click()
+  await page.getByRole('button', { name: '추가', exact: true }).click()
+
+  type Ed = { findByLayer: (n: string) => unknown; canvas: { setActiveObject: (o: unknown) => void; requestRenderAll: () => void } }
+
+  // Badge group lands on the canvas, then select it programmatically.
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge') != null)
+  await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor
+    e.canvas.setActiveObject(e.findByLayer('badge'))
+    e.canvas.requestRenderAll()
+  })
+
+  await page.keyboard.press('Delete')
+
+  // Store-driven delete re-renders the canvas without the badge.
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge') == null)
+  expect(
+    await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge')),
+  ).toBeNull()
+})
+
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
   // 로컬라이즈 에디터 헤더 확인

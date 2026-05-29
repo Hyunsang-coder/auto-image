@@ -44,6 +44,8 @@ interface DeviceAnchorProps {
 export interface FabricCanvasHandle {
   undo: () => void
   redo: () => void
+  deleteSelected: () => void
+  discardSelection: () => void
 }
 
 interface Props {
@@ -55,6 +57,7 @@ interface Props {
    */
   isGrouped?: boolean
   onSlideChange: (patch: Partial<Slide>) => void
+  onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
 }
 
 const HISTORY_LIMIT = 50
@@ -64,7 +67,7 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, onSlideChange }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, onSlideChange, onHistoryChange }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
     // History stacks store canvas object snapshots (with custom props)
@@ -78,6 +81,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const urlCacheRef = useRef<ImageUrlCache>(createImageUrlCache())
     const onSlideChangeRef = useRef(onSlideChange)
     const activeSlideRef = useRef(activeSlide)
+    const onHistoryChangeRef = useRef(onHistoryChange)
 
     useEffect(() => {
       onSlideChangeRef.current = onSlideChange
@@ -85,6 +89,16 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     useEffect(() => {
       activeSlideRef.current = activeSlide
     })
+    useEffect(() => {
+      onHistoryChangeRef.current = onHistoryChange
+    })
+
+    function notifyHistory() {
+      onHistoryChangeRef.current?.({
+        canUndo: undoStack.current.length > 0,
+        canRedo: redoStack.current.length > 0,
+      })
+    }
 
     function pushHistory(canvas: Canvas) {
       if (isApplyingHistory.current) return
@@ -95,6 +109,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         undoStack.current.shift()
       }
       redoStack.current = []
+      notifyHistory()
     }
 
     function findDeviceBody(canvas: Canvas): (FabricObject & DeviceAnchorProps) | null {
@@ -375,6 +390,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         canvas.loadFromJSON(snapshot).then(() => {
           canvas.renderAll()
           isApplyingHistory.current = false
+          notifyHistory()
           syncToZustand(canvas)
         })
       },
@@ -390,8 +406,52 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         canvas.loadFromJSON(snapshot).then(() => {
           canvas.renderAll()
           isApplyingHistory.current = false
+          notifyHistory()
           syncToZustand(canvas)
         })
+      },
+      deleteSelected() {
+        const canvas = fabricRef.current
+        const slide = activeSlideRef.current
+        if (!canvas || !slide) return
+        const active = canvas.getActiveObject()
+        if (!active || (active as Textbox).isEditing) return
+        const ln = (active as FabricObject & { layerName?: string }).layerName
+
+        // syncToZustand only reads back objects that still exist on the canvas,
+        // so a delete has to remove the store entry directly — same path the
+        // properties-panel delete buttons use. Only per-instance content layers
+        // are deletable; text / device / background are structural.
+        const a = active as FabricObject & {
+          badgeId?: string
+          ornamentId?: string
+          highlightId?: string
+        }
+        let patch: Partial<Slide> | null = null
+        if (ln === LAYER_NAMES.BADGE && a.badgeId) {
+          patch = { badges: (slide.badges ?? []).filter((b) => b.id !== a.badgeId) }
+        } else if (ln === LAYER_NAMES.ORNAMENT && a.ornamentId) {
+          patch = { ornaments: (slide.ornaments ?? []).filter((o) => o.id !== a.ornamentId) }
+        } else if (
+          (ln === LAYER_NAMES.HIGHLIGHT_SOURCE || ln === LAYER_NAMES.HIGHLIGHT_POPUP) &&
+          a.highlightId
+        ) {
+          patch = { highlights: (slide.highlights ?? []).filter((h) => h.id !== a.highlightId) }
+        }
+        if (!patch) return
+        canvas.discardActiveObject()
+        canvas.renderAll()
+        onSlideChangeRef.current(patch)
+      },
+      discardSelection() {
+        const canvas = fabricRef.current
+        if (!canvas) return
+        const active = canvas.getActiveObject()
+        if (active && (active as Textbox).isEditing) {
+          ;(active as Textbox).exitEditing()
+        }
+        canvas.discardActiveObject()
+        canvas.renderAll()
       },
     }))
 
@@ -541,6 +601,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       if (slideChanged || groupedChanged) {
         undoStack.current = []
         redoStack.current = []
+        notifyHistory()
         // History (which embeds these blob URLs in its snapshots) is gone, so
         // the cached URLs from the previous slide/grouping are now unreachable.
         urlCacheRef.current.revokeAll()

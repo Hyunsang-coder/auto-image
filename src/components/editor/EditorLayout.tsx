@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useProjectStore, spanLeaderOf } from '../../store/useProjectStore'
 import { SlideList } from './SlideList'
 import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
@@ -26,10 +26,28 @@ export function EditorLayout() {
   const updateSlide = useProjectStore((s) => s.updateSlide)
 
   const canvasRef = useRef<FabricCanvasHandle>(null)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
 
-  // Keyboard undo/redo wired to canvas handle
+  // Canvas keyboard shortcuts wired to the canvas handle.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null
+      const typing =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable === true
+
+      if (e.key === 'Escape') {
+        canvasRef.current?.discardSelection()
+        return
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
+        e.preventDefault()
+        canvasRef.current?.deleteSelected()
+        return
+      }
+
       const isMac = navigator.platform.toUpperCase().includes('MAC')
       const ctrl = isMac ? e.metaKey : e.ctrlKey
       if (!ctrl) return
@@ -144,6 +162,8 @@ export function EditorLayout() {
       <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
         <div className="sticky top-0 z-10 flex w-full justify-center border-b border-[var(--color-border)] bg-[var(--color-bg)] py-2">
           <CanvasToolbar
+            canUndo={canUndo}
+            canRedo={canRedo}
             onUndo={() => canvasRef.current?.undo()}
             onRedo={() => canvasRef.current?.redo()}
           />
@@ -154,6 +174,10 @@ export function EditorLayout() {
             activeSlide={slide}
             isGrouped={isGrouped}
             onSlideChange={handleSlideChange}
+            onHistoryChange={({ canUndo, canRedo }) => {
+              setCanUndo(canUndo)
+              setCanRedo(canRedo)
+            }}
           />
         </div>
       </main>
