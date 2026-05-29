@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Env files (may contain API keys)
+.env
+.env.*
+
 # Playwright
 test-results
 playwright-report
