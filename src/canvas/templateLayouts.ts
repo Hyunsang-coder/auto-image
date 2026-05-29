@@ -25,7 +25,7 @@ function getCanvasHeight(slide: Slide): number {
 // getDeviceLayout so every template scales consistently.
 const DEVICE_WIDTH_RATIO = 0.78
 
-function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h: number } {
+export function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h: number } {
   const spec = DEVICE_SPECS[slide.deviceFrame.model]
   const w = canvasWidth * DEVICE_WIDTH_RATIO
   const h = Math.round((w / spec.exportWidth) * spec.exportHeight)
@@ -135,7 +135,7 @@ interface DeviceLayout {
  * template, even when deviceFrame.show is false — that way the floating
  * screenshot still has a place to live.
  */
-function getDeviceLayout(
+export function getDeviceLayout(
   slide: Slide,
   cw: number,
   ch: number,
@@ -171,27 +171,6 @@ function getDeviceLayout(
   const spec = DEVICE_SPECS[slide.deviceFrame.model]
   const rx = Math.round((spec.cornerRadius * width) / spec.exportWidth)
   return { centerX: centerX + offsetX, top: top + offsetY, width, height, rx }
-}
-
-export function getDeviceBaseAnchor(
-  slide: Slide,
-  cw: number,
-  ch: number,
-  spanCentered = false,
-): { centerX: number; top: number } | null {
-  const device = getDeviceDimensions(slide, cw)
-  const seam = cw / 2
-  if (slide.template === 'text-top') return { centerX: cw / 2, top: ch * 0.30 }
-  if (slide.template === 'text-bottom') return { centerX: cw / 2, top: ch * 0.05 }
-  if (slide.template === 'split') {
-    const deviceW = cw * 0.45
-    const deviceH = Math.round((deviceW / device.w) * device.h)
-    return { centerX: spanCentered ? seam : cw * 0.76, top: (ch - deviceH) / 2 }
-  }
-  if (slide.template === 'hero-bleed') {
-    return { centerX: spanCentered ? seam : cw * 0.7, top: ch * 0.28 }
-  }
-  return null
 }
 
 function heroScreenBounds(cw: number, ch: number): ScreenBounds {
@@ -246,7 +225,6 @@ export async function applyTemplate(
   const { template } = slide
   const device = getDeviceDimensions(slide, cw)
   const deviceLayout = getDeviceLayout(slide, cw, ch, device, spanCentered)
-  const baseAnchor = getDeviceBaseAnchor(slide, cw, ch, spanCentered)
 
   // 1. Background
   for (const obj of await renderBackground(cw, ch, slide.background, resolveUrl)) {
@@ -293,13 +271,13 @@ export async function applyTemplate(
   if (template === 'hero') {
     applyHero(canvas, slide, cw, ch)
   } else if (template === 'hero-bleed') {
-    applyHeroBleed(canvas, slide, cw, ch, deviceLayout, baseAnchor)
+    applyHeroBleed(canvas, slide, cw, ch, deviceLayout)
   } else if (template === 'text-top') {
-    applyTextTop(canvas, slide, cw, ch, deviceLayout, baseAnchor)
+    applyTextTop(canvas, slide, cw, ch, deviceLayout)
   } else if (template === 'text-bottom') {
-    applyTextBottom(canvas, slide, cw, ch, deviceLayout, baseAnchor)
+    applyTextBottom(canvas, slide, cw, ch, deviceLayout)
   } else if (template === 'split') {
-    applySplit(canvas, slide, cw, ch, deviceLayout, baseAnchor)
+    applySplit(canvas, slide, cw, ch, deviceLayout)
   }
 
   // 5. Highlights — magnified pop-out cards. Rendered after the device so they
@@ -390,7 +368,6 @@ function addDeviceFrame(
   canvas: Canvas,
   slide: Slide,
   layout: DeviceLayout | null,
-  baseAnchor: { centerX: number; top: number } | null,
 ): void {
   if (!layout || !slide.deviceFrame.show) return
   const { paths } = renderDeviceFrame(slide.deviceFrame, {
@@ -400,16 +377,23 @@ function addDeviceFrame(
     height: layout.height,
     rx: layout.rx,
   })
-  const baseLeft = baseAnchor ? baseAnchor.centerX - layout.width / 2 : layout.centerX - layout.width / 2
-  const baseTop = baseAnchor ? baseAnchor.top : layout.top
+  // The body's offset-free position, derived from the actual layout minus the
+  // user's drag offset. Deriving it this way (rather than from a separately
+  // computed anchor) keeps syncToZustand's `body.left - _baseLeft` exactly equal
+  // to offsetX/offsetY for every template and scale — including vertically
+  // centered templates whose anchor would otherwise use the unscaled device
+  // height and inject a vertical jump on drag-release.
+  const { offsetX = 0, offsetY = 0 } = slide.deviceFrame
+  const baseLeft = (layout.centerX - offsetX) - layout.width / 2
+  const baseTop = layout.top - offsetY
   const angle = slide.deviceFrame.rotation ?? 0
   const pivotX = layout.centerX
   const pivotY = layout.top + layout.height / 2
   // Offset-free pivot, used to store the body's _baseLeft/_baseTop already
   // rotated — that keeps syncToZustand's `body.left - _baseLeft` capturing only
   // the user's drag offset even when the device is tilted.
-  const basePivotX = baseAnchor ? baseAnchor.centerX : layout.centerX
-  const basePivotY = (baseAnchor ? baseAnchor.top : layout.top) + layout.height / 2
+  const basePivotX = layout.centerX - offsetX
+  const basePivotY = baseTop + layout.height / 2
   paths.forEach((obj, i) => {
     if (i === 0) {
       obj.set({
@@ -443,7 +427,6 @@ function applyTextTop(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
-  baseAnchor: { centerX: number; top: number } | null,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
@@ -453,7 +436,7 @@ function applyTextTop(
     width: cw * 0.85,
     gap: 8,
   })
-  addDeviceFrame(canvas, slide, layout, baseAnchor)
+  addDeviceFrame(canvas, slide, layout)
 }
 
 function applyTextBottom(
@@ -462,9 +445,8 @@ function applyTextBottom(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
-  baseAnchor: { centerX: number; top: number } | null,
 ): void {
-  addDeviceFrame(canvas, slide, layout, baseAnchor)
+  addDeviceFrame(canvas, slide, layout)
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
     ch,
@@ -481,7 +463,6 @@ function applySplit(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
-  baseAnchor: { centerX: number; top: number } | null,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
@@ -492,7 +473,7 @@ function applySplit(
     align: 'left',
     gap: 10,
   })
-  addDeviceFrame(canvas, slide, layout, baseAnchor)
+  addDeviceFrame(canvas, slide, layout)
 }
 
 /**
@@ -505,7 +486,6 @@ function applyHeroBleed(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
-  baseAnchor: { centerX: number; top: number } | null,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
@@ -516,5 +496,5 @@ function applyHeroBleed(
     align: 'left',
     gap: 10,
   })
-  addDeviceFrame(canvas, slide, layout, baseAnchor)
+  addDeviceFrame(canvas, slide, layout)
 }

@@ -1,45 +1,31 @@
-import { describe, expect, it } from 'vitest'
-import type { Slide, TemplateType } from '../types/project'
-import { getDeviceBaseAnchor } from './templateLayouts'
+import { describe, it, expect } from 'vitest'
+import { getDeviceDimensions, getDeviceLayout } from './templateLayouts'
+import type { Slide } from '../types/project'
 
-// getDeviceBaseAnchor only reads slide.template + slide.deviceFrame.model, so a
-// thin stub is enough — building a full Slide would only add noise.
-function slideWith(template: TemplateType): Slide {
+function makeSlide(template: Slide['template']): Slide {
   return {
+    id: 's1',
     template,
-    deviceFrame: { model: 'iphone-16-pro' },
-  } as unknown as Slide
+    deviceFrame: { model: 'iphone-16-pro', show: true, color: 'graphite', scale: 1 },
+    headline: { text: '', style: { fontSize: 10, color: '#000', textAlign: 'center' } },
+    subheadline: { text: '', style: { fontSize: 10, color: '#000', textAlign: 'center' } },
+    background: { type: 'solid', color: '#fff' },
+  } as Slide
 }
 
-const CW = 880 // span-group canvas width (2× the 440 single-slide width)
-const CH = 956
-const SEAM = CW / 2
+function layout(template: Slide['template'], cw: number, ch: number, spanCentered: boolean) {
+  const slide = makeSlide(template)
+  return getDeviceLayout(slide, cw, ch, getDeviceDimensions(slide, cw), spanCentered)
+}
 
-describe('getDeviceBaseAnchor — seam centering (TESTING.md §3)', () => {
-  it('hero-bleed biases off-center on a single slide', () => {
-    expect(getDeviceBaseAnchor(slideWith('hero-bleed'), CW, CH, false)?.centerX).toBe(CW * 0.7)
-  })
-
+describe('device layout span centering', () => {
   it('hero-bleed snaps to the seam when spanCentered', () => {
-    expect(getDeviceBaseAnchor(slideWith('hero-bleed'), CW, CH, true)?.centerX).toBe(SEAM)
-  })
-
-  it('split biases off-center on a single slide', () => {
-    expect(getDeviceBaseAnchor(slideWith('split'), CW, CH, false)?.centerX).toBe(CW * 0.76)
+    const cw = 1000
+    const seam = cw / 2
+    expect(layout('hero-bleed', cw, 2000, true)?.centerX).toBe(seam)
   })
 
   it('split snaps to the seam when spanCentered', () => {
-    expect(getDeviceBaseAnchor(slideWith('split'), CW, CH, true)?.centerX).toBe(SEAM)
-  })
-
-  it('text templates are already centered regardless of spanCentered', () => {
-    for (const t of ['text-top', 'text-bottom'] as const) {
-      expect(getDeviceBaseAnchor(slideWith(t), CW, CH, false)?.centerX).toBe(CW / 2)
-      expect(getDeviceBaseAnchor(slideWith(t), CW, CH, true)?.centerX).toBe(CW / 2)
-    }
-  })
-
-  it('returns null for templates without a device area (hero)', () => {
-    expect(getDeviceBaseAnchor(slideWith('hero'), CW, CH, false)).toBeNull()
+    expect(layout('split', 1000, 2000, true)?.centerX).toBe(500)
   })
 })
