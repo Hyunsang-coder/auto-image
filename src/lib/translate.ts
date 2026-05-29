@@ -6,8 +6,11 @@ const LOCALE_NAME = Object.fromEntries(SUPPORTED_LOCALES.map(l => [l.code, l.lab
 function buildPrompt(texts: string[], src: string, tgt: string): string {
   const srcName = LOCALE_NAME[src] ?? src
   const tgtName = LOCALE_NAME[tgt] ?? tgt
-  return `Translate the following App Store screenshot captions from ${srcName} to ${tgtName}.
-Keep each translation concise and natural. Preserve line breaks. Return ONLY a valid JSON array of strings with exactly ${texts.length} elements.
+  return `You are a native ${tgtName} app-marketing copywriter. Rewrite these App Store screenshot captions from ${srcName} into ${tgtName} (${tgt}).
+
+Make them sound natural and idiomatic — how a native speaker would actually say it, never a literal translation. Keep them short and punchy: same length as the source or shorter, never more wordy. Use the correct regional variant for ${tgt}. Preserve line breaks; keep brand/product names, numbers, %, and emoji unchanged.
+
+Return ONLY a JSON array of exactly ${texts.length} strings in the same order, nothing else.
 
 Input: ${JSON.stringify(texts)}`
 }
