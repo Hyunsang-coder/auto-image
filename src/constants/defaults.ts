@@ -154,25 +154,8 @@ export interface ThemePreset {
   accentColor: string
 }
 
-// 레퍼런스에서 추출한 톤. 라벤더(ADHD), 민트(Dogo), 탄(Claude), 그리고 기존 다크.
+// 파스텔 + 선명 믹스. 시커먼 다크 톤은 두지 않는다.
 export const THEME_PRESETS: ThemePreset[] = [
-  {
-    id: 'lavender',
-    label: 'Lavender',
-    background: {
-      type: 'gradient',
-      gradient: {
-        direction: 180,
-        stops: [
-          { color: '#E6E4F8', position: 0 },
-          { color: '#D5D1F0', position: 1 },
-        ],
-      },
-    },
-    headlineColor: '#101232',
-    subheadlineColor: '#3A3D5C',
-    accentColor: '#3F3DC7',
-  },
   {
     id: 'mint',
     label: 'Mint',
@@ -202,21 +185,72 @@ export const THEME_PRESETS: ThemePreset[] = [
     accentColor: '#FF5722',
   },
   {
-    id: 'midnight',
-    label: 'Midnight',
+    id: 'blush',
+    label: 'Blush',
     background: {
       type: 'gradient',
       gradient: {
         direction: 180,
         stops: [
-          { color: '#6366F1', position: 0 },
-          { color: '#3730A3', position: 1 },
+          { color: '#FCE4EC', position: 0 },
+          { color: '#F6C9D8', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#3B1721',
+    subheadlineColor: '#6E3A45',
+    accentColor: '#E0457B',
+  },
+  {
+    id: 'sky',
+    label: 'Sky',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 180,
+        stops: [
+          { color: '#DEEDFB', position: 0 },
+          { color: '#C2DBF6', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#0F2440',
+    subheadlineColor: '#38506E',
+    accentColor: '#2563EB',
+  },
+  {
+    id: 'coral',
+    label: 'Coral',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 200,
+        stops: [
+          { color: '#FF9A6B', position: 0 },
+          { color: '#F4602E', position: 1 },
         ],
       },
     },
     headlineColor: '#FFFFFF',
-    subheadlineColor: '#E6E8EE',
-    accentColor: '#F472B6',
+    subheadlineColor: '#FFF0EA',
+    accentColor: '#FFD27A',
+  },
+  {
+    id: 'azure',
+    label: 'Azure',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 180,
+        stops: [
+          { color: '#4D90F5', position: 0 },
+          { color: '#1F5FD6', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#FFFFFF',
+    subheadlineColor: '#E7EFFF',
+    accentColor: '#FFD166',
   },
 ]
 
