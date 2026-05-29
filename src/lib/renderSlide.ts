@@ -3,6 +3,7 @@ import type { Slide, DeviceType } from '../types/project'
 import { deviceSpecOf, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 import { applyTemplate } from '../canvas/templateLayouts'
 import { createImageUrlCache } from './imageStore'
+import { encodeOpaquePng } from './encodePng'
 
 function withLocaleText(slide: Slide, locale: string | null): Slide {
   if (!locale) return slide
@@ -78,12 +79,7 @@ export async function renderSlide(
     await document.fonts.ready
     canvas.renderAll()
 
-    const blob = await new Promise<Blob | null>((resolve) => {
-      el.toBlob((b) => resolve(b), 'image/png')
-    })
-
-    if (!blob) throw new Error('toBlob returned null')
-    return blob
+    return encodeOpaquePng(el)
   } finally {
     canvas.dispose()
     urls.revokeAll()
@@ -124,18 +120,16 @@ export async function renderSpanGroup(
 
     // Slice — read pixel data from the wide DOM canvas (Fabric writes its render
     // there) into two half-size canvases, then toBlob each.
-    const makeHalf = async (sourceOffset: number): Promise<Blob> => {
+    const makeHalf = (sourceOffset: number): Blob => {
       const half = document.createElement('canvas')
       half.width = halfWidth
       half.height = height
       const ctx = half.getContext('2d')!
       ctx.drawImage(el, -sourceOffset, 0)
-      return new Promise<Blob>((resolve, reject) => {
-        half.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))), 'image/png')
-      })
+      return encodeOpaquePng(half)
     }
-    const leftBlob = await makeHalf(0)
-    const rightBlob = await makeHalf(halfWidth)
+    const leftBlob = makeHalf(0)
+    const rightBlob = makeHalf(halfWidth)
 
     return { leader: leftBlob, follower: rightBlob }
   } finally {
