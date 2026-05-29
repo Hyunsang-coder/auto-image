@@ -11,12 +11,12 @@ export type HighlightShape = 'rect' | 'circle'
 export type BackgroundType = 'solid' | 'gradient' | 'image'
 export type TranslationAPI = 'claude' | 'openai' | 'gemini'
 export type OrnamentShape =
-  | 'laurel-left'
-  | 'laurel-right'
   | 'star'
-  | 'paw'
-  | 'sparkle'
+  | 'sparkles'
+  | 'heart'
   | 'flower'
+  | 'leaf'
+  | 'paw'
   | 'dot-grid'
 
 export interface Project {

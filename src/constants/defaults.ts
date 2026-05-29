@@ -218,13 +218,13 @@ export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>
       : `orn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
   // 모양별로 기본 위치/크기를 다르게 잡아서 추가하자마자 바로 보이게 한다.
   const defaultsByShape: Record<OrnamentShape, Partial<Ornament>> = {
-    'laurel-left':  { x: 0.22, y: 0.5,  size: 0.30, rotation: 0,  color: '#1B1B1B', opacity: 1 },
-    'laurel-right': { x: 0.78, y: 0.5,  size: 0.30, rotation: 0,  color: '#1B1B1B', opacity: 1 },
-    'star':         { x: 0.5,  y: 0.32, size: 0.10, rotation: 0,  color: '#FFB400', opacity: 1 },
-    'paw':          { x: 0.85, y: 0.18, size: 0.12, rotation: 15, color: '#FFFFFF', opacity: 0.9 },
-    'sparkle':      { x: 0.86, y: 0.16, size: 0.14, rotation: 12, color: '#FFFFFF', opacity: 0.95 },
-    'flower':       { x: 0.10, y: 0.92, size: 0.12, rotation: 0,  color: '#FF5722', opacity: 1 },
-    'dot-grid':     { x: 0.5,  y: 0.5,  size: 0.7,  rotation: 0,  color: '#FFFFFF', opacity: 0.18 },
+    'star':      { x: 0.5,  y: 0.30, size: 0.12, rotation: 0,  color: '#FFB400', opacity: 1 },
+    'sparkles':  { x: 0.85, y: 0.16, size: 0.14, rotation: 0,  color: '#FFFFFF', opacity: 0.95 },
+    'heart':     { x: 0.85, y: 0.16, size: 0.12, rotation: 0,  color: '#FF4D6D', opacity: 1 },
+    'flower':    { x: 0.12, y: 0.90, size: 0.14, rotation: 0,  color: '#EC4899', opacity: 1 },
+    'leaf':      { x: 0.14, y: 0.5,  size: 0.20, rotation: 0,  color: '#34A853', opacity: 1 },
+    'paw':       { x: 0.85, y: 0.18, size: 0.14, rotation: 15, color: '#FFFFFF', opacity: 0.9 },
+    'dot-grid':  { x: 0.5,  y: 0.5,  size: 0.7,  rotation: 0,  color: '#FFFFFF', opacity: 0.18 },
   }
   const base = defaultsByShape[shape]
   return {

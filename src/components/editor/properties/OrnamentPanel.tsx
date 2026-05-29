@@ -8,13 +8,13 @@ interface Props {
 }
 
 const SHAPES: { id: OrnamentShape; label: string; emoji: string }[] = [
-  { id: 'laurel-left',  label: '월계관(좌)', emoji: '🌿' },
-  { id: 'laurel-right', label: '월계관(우)', emoji: '🌿' },
-  { id: 'star',         label: '별',         emoji: '★' },
-  { id: 'sparkle',      label: '스파클',     emoji: '✦' },
-  { id: 'paw',          label: '발자국',     emoji: '🐾' },
-  { id: 'flower',       label: '꽃',         emoji: '✿' },
-  { id: 'dot-grid',     label: '도트',       emoji: '⋮⋮' },
+  { id: 'star',     label: '별',     emoji: '★' },
+  { id: 'sparkles', label: '스파클', emoji: '✦' },
+  { id: 'heart',    label: '하트',   emoji: '♥' },
+  { id: 'flower',   label: '꽃',     emoji: '✿' },
+  { id: 'leaf',     label: '잎',     emoji: '🍃' },
+  { id: 'paw',      label: '발자국', emoji: '🐾' },
+  { id: 'dot-grid', label: '도트',   emoji: '⋮⋮' },
 ]
 
 export function OrnamentPanel({ value, onChange }: Props) {

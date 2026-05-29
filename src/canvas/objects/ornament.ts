@@ -1,87 +1,77 @@
 import { Path } from 'fabric'
-import type { Ornament } from '../../types/project'
+import type { Ornament, OrnamentShape } from '../../types/project'
 import { LAYER_NAMES } from '../layerNames'
 
-// 모든 SVG 경로는 100x100 박스 기준으로 그려져 있고, 렌더 시 size + canvas 폭으로 스케일된다.
-const SVG_PATHS: Record<Ornament['shape'], { d: string; viewBox: number }> = {
-  // 5점 star (단일 패스, 윗점부터 시계방향)
+interface ShapeDef {
+  d: string
+  /** Coordinate box the path is drawn in; render scales `size`×canvasW to it. */
+  viewBox: number
+  /** Stroke line-art (Lucide) vs solid fill (dot texture). */
+  fill: boolean
+}
+
+// Lucide 아이콘(MIT)의 path 데이터를 그대로 사용한다 — 24×24 박스, 2px stroke 라인아트.
+// circle/line 요소는 Fabric Path가 못 받으므로 arc/line 커맨드로 합쳐 단일 d로 만든다.
+const circle = (cx: number, cy: number, r: number) =>
+  `M ${cx - r} ${cy} a ${r} ${r} 0 1 0 ${2 * r} 0 a ${r} ${r} 0 1 0 ${-2 * r} 0`
+
+const SVG_PATHS: Record<OrnamentShape, ShapeDef> = {
   star: {
-    viewBox: 100,
-    d:
-      'M50 5 L61 38 L96 38 L67 58 L78 92 L50 71 L22 92 L33 58 L4 38 L39 38 Z',
+    viewBox: 24,
+    fill: false,
+    d: 'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z',
   },
-  // 4점 sparkle (다이아몬드 + 가는 십자)
-  sparkle: {
-    viewBox: 100,
+  sparkles: {
+    viewBox: 24,
+    fill: false,
     d:
-      'M50 5 ' +
-      'C 53 35, 65 47, 95 50 ' +
-      'C 65 53, 53 65, 50 95 ' +
-      'C 47 65, 35 53, 5 50 ' +
-      'C 35 47, 47 35, 50 5 Z',
+      'M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z ' +
+      'M20 2v4 M22 4h-4 ' +
+      circle(4, 20, 2),
   },
-  // 강아지 발자국: 큰 발바닥 + 네 개의 작은 발가락 (한 패스, even-odd 안씀)
-  paw: {
-    viewBox: 100,
-    d:
-      // 발바닥 (둥근 사각)
-      'M50 95 C 28 95, 18 80, 22 65 C 26 53, 38 47, 50 47 C 62 47, 74 53, 78 65 C 82 80, 72 95, 50 95 Z ' +
-      // 왼쪽 외측 발가락
-      'M14 60 C 10 50, 14 40, 22 38 C 30 36, 36 44, 34 54 C 32 62, 22 66, 14 60 Z ' +
-      // 왼쪽 내측 발가락
-      'M30 30 C 26 20, 32 10, 40 10 C 48 10, 52 20, 48 28 C 44 36, 36 36, 30 30 Z ' +
-      // 오른쪽 내측 발가락
-      'M70 30 C 74 20, 68 10, 60 10 C 52 10, 48 20, 52 28 C 56 36, 64 36, 70 30 Z ' +
-      // 오른쪽 외측 발가락
-      'M86 60 C 90 50, 86 40, 78 38 C 70 36, 64 44, 66 54 C 68 62, 78 66, 86 60 Z',
+  heart: {
+    viewBox: 24,
+    fill: false,
+    d: 'M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5',
   },
-  // 5장 꽃잎의 데이지
   flower: {
-    viewBox: 100,
+    viewBox: 24,
+    fill: false,
     d:
-      // 꽃잎 5개 (50,50 중심으로 별 배치)
-      'M50 8  C 60 8, 62 30, 50 42  C 38 30, 40 8, 50 8 Z ' +
-      'M88 32 C 92 41, 76 56, 60 50  C 64 34, 78 23, 88 32 Z ' +
-      'M76 88 C 66 92, 50 76, 56 60  C 70 64, 80 78, 76 88 Z ' +
-      'M24 88 C 14 84, 20 64, 34 60  C 40 76, 24 88, 24 88 Z ' +
-      'M12 32 C 22 23, 36 34, 40 50  C 24 56, 8 41, 12 32 Z ' +
-      'M50 38 C 58 38, 62 46, 58 54 C 54 60, 46 60, 42 54 C 38 46, 42 38, 50 38 Z',
+      circle(12, 12, 3) +
+      ' M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5 ' +
+      'M12 7.5V9 M7.5 12H9 M16.5 12H15 M12 16.5V15 ' +
+      'm8 8 1.88 1.88 M14.12 9.88 16 8 m8 16 1.88-1.88 M14.12 14.12 16 16',
   },
-  // 왼쪽 반월 월계관 — 큰 아몬드 잎이 줄기 바깥쪽으로 휘어져 나가는 형태.
-  // 줄기는 viewBox의 오른쪽 가장자리(x≈90)에 두고 잎이 왼쪽으로 뻗어나가도록 디자인.
-  'laurel-left': {
-    viewBox: 100,
+  leaf: {
+    viewBox: 24,
+    fill: false,
     d:
-      // 줄기 (얇은 곡선)
-      'M88 6 C 76 28, 76 72, 88 94 L 90 94 C 78 72, 78 28, 90 6 Z ' +
-      // 5개의 큰 잎 — 각 잎이 위→아래로 회전하면서 줄기에서 갈라져 나간다.
-      // 잎 1 (가장 위, 거의 수평)
-      'M86 14 C 60 10, 28 14, 8 24 C 24 30, 50 32, 70 28 C 80 24, 86 18, 86 14 Z ' +
-      // 잎 2
-      'M86 30 C 56 28, 18 32, 4 44 C 22 48, 48 48, 68 44 C 80 38, 86 32, 86 30 Z ' +
-      // 잎 3 (가운데, 가장 큼)
-      'M88 48 C 56 48, 14 52, 2 64 C 22 68, 48 68, 70 62 C 82 56, 88 50, 88 48 Z ' +
-      // 잎 4
-      'M88 66 C 60 68, 22 70, 10 80 C 26 84, 52 82, 72 76 C 84 72, 88 68, 88 66 Z ' +
-      // 잎 5 (가장 아래)
-      'M88 84 C 64 86, 38 88, 22 92 C 36 96, 60 94, 78 90 C 86 88, 88 86, 88 84 Z',
+      'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z ' +
+      'M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12',
   },
-  'laurel-right': {
-    viewBox: 100,
+  paw: {
+    viewBox: 24,
+    fill: false,
     d:
-      // 줄기 (오른쪽 미러)
-      'M12 6 C 24 28, 24 72, 12 94 L 10 94 C 22 72, 22 28, 10 6 Z ' +
-      'M14 14 C 40 10, 72 14, 92 24 C 76 30, 50 32, 30 28 C 20 24, 14 18, 14 14 Z ' +
-      'M14 30 C 44 28, 82 32, 96 44 C 78 48, 52 48, 32 44 C 20 38, 14 32, 14 30 Z ' +
-      'M12 48 C 44 48, 86 52, 98 64 C 78 68, 52 68, 30 62 C 18 56, 12 50, 12 48 Z ' +
-      'M12 66 C 40 68, 78 70, 90 80 C 74 84, 48 82, 28 76 C 16 72, 12 68, 12 66 Z ' +
-      'M12 84 C 36 86, 62 88, 78 92 C 64 96, 40 94, 22 90 C 14 88, 12 86, 12 84 Z',
+      circle(11, 4, 2) +
+      ' ' +
+      circle(18, 8, 2) +
+      ' ' +
+      circle(20, 16, 2) +
+      ' M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z',
   },
-  // 도트 그리드 (4x4)
+  // 도트 그리드 (7x7) — 유일한 fill 텍스처.
   'dot-grid': {
     viewBox: 100,
+    fill: true,
     d: dotGridPath(7, 7, 3),
   },
+}
+
+/** Inverse of the render scale: lets the canvas sync recover `size` from scaleX. */
+export function getOrnamentViewBox(shape: OrnamentShape): number {
+  return SVG_PATHS[shape]?.viewBox ?? 24
 }
 
 function dotGridPath(cols: number, rows: number, r: number): string {
@@ -107,8 +97,10 @@ export interface OrnamentRenderCtx {
   canvasHeight: number
 }
 
-export function renderOrnament(orn: Ornament, ctx: OrnamentRenderCtx): Path {
+export function renderOrnament(orn: Ornament, ctx: OrnamentRenderCtx): Path | null {
   const def = SVG_PATHS[orn.shape]
+  // 영속화된 옛 프로젝트가 제거된 shape(월계관 등)를 들고 있을 수 있다 — 조용히 건너뛴다.
+  if (!def) return null
   const targetW = ctx.canvasWidth * orn.size
   const scale = targetW / def.viewBox
 
@@ -121,9 +113,12 @@ export function renderOrnament(orn: Ornament, ctx: OrnamentRenderCtx): Path {
     originY: 'center',
     scaleX: scale,
     scaleY: scale,
-    fill: orn.color,
-    stroke: undefined,
-    strokeWidth: 0,
+    fill: def.fill ? orn.color : '',
+    stroke: def.fill ? undefined : orn.color,
+    // 2px(=Lucide 기준) 선폭. scaleX와 함께 스케일되어 아이콘 크기에 비례한다.
+    strokeWidth: def.fill ? 0 : 2,
+    strokeLineCap: 'round',
+    strokeLineJoin: 'round',
     angle: orn.rotation,
     opacity: orn.opacity,
     selectable: true,
@@ -133,8 +128,8 @@ export function renderOrnament(orn: Ornament, ctx: OrnamentRenderCtx): Path {
     lockRotation: false,
     lockScalingX: false,
     lockScalingY: false,
-    borderColor: '#6366F1',
-    cornerColor: '#6366F1',
+    borderColor: '#0D99FF',
+    cornerColor: '#0D99FF',
     hoverCursor: 'move',
   })
   ;(path as Path & { layerName: string; ornamentId: string }).layerName =

@@ -4,6 +4,7 @@ import type { FabricObject } from 'fabric'
 import type { Highlight, Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
 import { LAYER_NAMES } from '../../canvas/layerNames'
+import { getOrnamentViewBox } from '../../canvas/objects/ornament'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
 
 const SEAM_LAYER = 'span-seam-guide'
@@ -297,9 +298,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           const newX = left / w
           const newY = top / h
           const newRot = Math.round(fab.angle ?? 0)
-          // Size: fabric scaleX × original viewBox 100 / canvasW = ratio
+          // Size: fabric scaleX × shape viewBox / canvasW = ratio
           const scaleX = fab.scaleX ?? 1
-          const newSize = (100 * scaleX) / w
+          const newSize = (getOrnamentViewBox(orn.shape) * scaleX) / w
           if (
             Math.abs(newX - orn.x) > 0.001 ||
             Math.abs(newY - orn.y) > 0.001 ||
