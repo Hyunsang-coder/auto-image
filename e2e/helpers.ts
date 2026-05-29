@@ -1,4 +1,17 @@
+import { fileURLToPath } from 'node:url'
 import type { Page } from '@playwright/test'
+
+const fixturesDir = fileURLToPath(new URL('./fixtures', import.meta.url))
+
+/**
+ * Upload a screenshot fixture into the active slide via the (hidden) file
+ * input in ScreenshotPanel. Opens the 스크린샷 tab first so the input is mounted.
+ * `name` is a file under e2e/fixtures (e.g. 'iphone_home.png').
+ */
+export async function uploadScreenshot(page: Page, name: string) {
+  await page.getByRole('button', { name: '스크린샷' }).click()
+  await page.locator('input[type="file"]').setInputFiles(`${fixturesDir}/${name}`)
+}
 
 export async function clearAppState(page: Page) {
   await page.addInitScript(() => {

@@ -1,5 +1,16 @@
 import { test, expect } from '@playwright/test'
-import { createProject } from './helpers'
+import { createProject, uploadScreenshot } from './helpers'
+
+function hasScreenshotOnCanvas(page: import('@playwright/test').Page) {
+  return page.waitForFunction(() => {
+    const editor = (
+      window as unknown as {
+        __editor?: { canvas: { getObjects(): { layerName?: string }[] } }
+      }
+    ).__editor
+    return !!editor?.canvas.getObjects().some((o) => o.layerName === 'screenshot')
+  })
+}
 
 // NOTE: we deliberately do NOT use clearAppState here. It installs an
 // addInitScript that wipes localStorage on *every* document load — including
@@ -36,6 +47,19 @@ test('2-page span 그룹이 새로고침 후에도 유지됨', async ({ page }) 
   await page.reload()
 
   await expect(page.getByText('2-page span')).toBeVisible()
+})
+
+test('업로드한 스크린샷이 새로고침 후에도 유지됨 (IndexedDB)', async ({ page }) => {
+  await createProject(page, { name: 'Persist Shot', slideCount: 1 })
+
+  await uploadScreenshot(page, 'iphone_decks.png')
+  await hasScreenshotOnCanvas(page)
+
+  await page.reload()
+
+  // imageKey는 localStorage(project)에, 이미지 바이트는 IndexedDB에 — 둘 다 살아남아
+  // 새로고침 후 캔버스에 스크린샷이 다시 그려져야 함.
+  await hasScreenshotOnCanvas(page)
 })
 
 test('초기화 후 새로고침하면 프로젝트가 사라진 채 유지됨', async ({ page }) => {
