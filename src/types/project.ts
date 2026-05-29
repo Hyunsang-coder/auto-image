@@ -84,6 +84,7 @@ export interface Background {
   type: BackgroundType
   color?: string
   gradient?: {
+    kind?: 'linear' | 'radial'
     direction: number
     stops: Array<{ color: string; position: number }>
   }

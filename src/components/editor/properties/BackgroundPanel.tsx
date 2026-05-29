@@ -40,15 +40,53 @@ export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
     }
   }, [value.type, value.imageKey])
 
+  function gradientCss(g: NonNullable<Background['gradient']>): React.CSSProperties {
+    const stops = [...g.stops]
+      .sort((a, b) => a.position - b.position)
+      .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
+      .join(', ')
+    return {
+      background:
+        g.kind === 'radial'
+          ? `radial-gradient(circle, ${stops})`
+          : `linear-gradient(${g.direction}deg, ${stops})`,
+    }
+  }
+
   function previewStyle(preset: ThemePreset): React.CSSProperties {
     const bg = preset.background
-    if (bg.type === 'gradient' && bg.gradient) {
-      const stops = bg.gradient.stops
-        .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
-        .join(', ')
-      return { background: `linear-gradient(${bg.gradient.direction}deg, ${stops})` }
-    }
+    if (bg.type === 'gradient' && bg.gradient) return gradientCss(bg.gradient)
     return { background: bg.color ?? '#888' }
+  }
+
+  const g = value.gradient
+  function updateGradient(patch: Partial<NonNullable<Background['gradient']>>) {
+    if (!g) return
+    onChange({ type: 'gradient', gradient: { ...g, ...patch } })
+  }
+  function updateStop(i: number, patch: Partial<{ color: string; position: number }>) {
+    if (!g) return
+    updateGradient({ stops: g.stops.map((s, idx) => (idx === i ? { ...s, ...patch } : s)) })
+  }
+  function addStop() {
+    if (!g) return
+    const sorted = [...g.stops].sort((a, b) => a.position - b.position)
+    let newPos = 0.5
+    let newColor = sorted[0]?.color ?? '#6366F1'
+    let maxGap = -1
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const gap = sorted[i + 1].position - sorted[i].position
+      if (gap > maxGap) {
+        maxGap = gap
+        newPos = (sorted[i].position + sorted[i + 1].position) / 2
+        newColor = sorted[i].color
+      }
+    }
+    updateGradient({ stops: [...g.stops, { color: newColor, position: newPos }] })
+  }
+  function removeStop(i: number) {
+    if (!g || g.stops.length <= 2) return
+    updateGradient({ stops: g.stops.filter((_, idx) => idx !== i) })
   }
 
   function switchTab(tab: Tab) {
@@ -152,67 +190,91 @@ export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
         </div>
       )}
 
-      {activeTab === 'gradient' && value.gradient && (
+      {activeTab === 'gradient' && g && (
         <div className="flex flex-col gap-3">
-          <div>
-            <label className="mb-2 block text-xs text-[var(--color-text-dim)]">시작 색상</label>
-            <ColorPickerPopover
-              color={value.gradient.stops[0]?.color ?? '#6366F1'}
-              onChange={(c) =>
-                onChange({
-                  type: 'gradient',
-                  gradient: {
-                    ...value.gradient!,
-                    stops: [
-                      { color: c, position: 0 },
-                      value.gradient!.stops[1] ?? { color: '#4F46E5', position: 1 },
-                    ],
-                  },
-                })
-              }
-              label="시작 색상"
-            />
+          <div
+            className="h-8 w-full rounded border border-[var(--color-border)]"
+            style={gradientCss(g)}
+          />
+
+          {/* Linear / radial toggle */}
+          <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden">
+            {(['linear', 'radial'] as const).map((k) => {
+              const active = (g.kind ?? 'linear') === k
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => updateGradient({ kind: k })}
+                  className={[
+                    'flex-1 py-1.5 text-xs font-medium transition',
+                    active
+                      ? 'bg-[var(--color-accent)] text-white'
+                      : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
+                  ].join(' ')}
+                >
+                  {k === 'linear' ? '선형' : '방사형'}
+                </button>
+              )
+            })}
           </div>
-          <div>
-            <label className="mb-2 block text-xs text-[var(--color-text-dim)]">끝 색상</label>
-            <ColorPickerPopover
-              color={value.gradient.stops[1]?.color ?? '#4F46E5'}
-              onChange={(c) =>
-                onChange({
-                  type: 'gradient',
-                  gradient: {
-                    ...value.gradient!,
-                    stops: [
-                      value.gradient!.stops[0] ?? { color: '#6366F1', position: 0 },
-                      { color: c, position: 1 },
-                    ],
-                  },
-                })
-              }
-              label="끝 색상"
-            />
+
+          {/* Color stops */}
+          <div className="flex flex-col gap-2">
+            <label className="block text-xs text-[var(--color-text-dim)]">색상 스톱</label>
+            {g.stops.map((s, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <ColorPickerPopover
+                  color={s.color}
+                  onChange={(c) => updateStop(i, { color: c })}
+                  label={`스톱 ${i + 1} 색상`}
+                />
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(s.position * 100)}
+                  onChange={(e) => updateStop(i, { position: Number(e.target.value) / 100 })}
+                  className="min-w-0 flex-1 accent-[var(--color-accent)]"
+                />
+                <span className="w-9 shrink-0 text-right text-xs tabular-nums text-[var(--color-text-dim)]">
+                  {Math.round(s.position * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeStop(i)}
+                  disabled={g.stops.length <= 2}
+                  className="shrink-0 px-1 text-sm text-[var(--color-text-dim)] transition enabled:hover:text-[var(--color-text)] disabled:opacity-30"
+                  aria-label={`스톱 ${i + 1} 삭제`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addStop}
+              className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-1.5 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+            >
+              + 색상 추가
+            </button>
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-[var(--color-text-dim)]">
-              방향: {value.gradient.direction}°
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={360}
-              value={value.gradient.direction}
-              onChange={(e) =>
-                onChange({
-                  type: 'gradient',
-                  gradient: {
-                    ...value.gradient!,
-                    direction: Number(e.target.value),
-                  },
-                })
-              }
-              className="w-full accent-[var(--color-accent)]"
-            />
-          </div>
+
+          {(g.kind ?? 'linear') === 'linear' && (
+            <div>
+              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">
+                방향: {g.direction}°
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={360}
+                value={g.direction}
+                onChange={(e) => updateGradient({ direction: Number(e.target.value) })}
+                className="w-full accent-[var(--color-accent)]"
+              />
+            </div>
+          )}
         </div>
       )}
 

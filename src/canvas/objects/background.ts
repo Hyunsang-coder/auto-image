@@ -29,24 +29,38 @@ function solidOrGradientRect(
   })
 
   if (background.type === 'gradient' && background.gradient) {
-    const { stops, direction } = background.gradient
-    // direction is degrees: 0 = top-to-bottom vertical, 90 = left-to-right horizontal
-    const rad = (direction * Math.PI) / 180
-    const x1 = 0.5 - Math.sin(rad) * 0.5
-    const y1 = 0.5 - Math.cos(rad) * 0.5
-    const x2 = 0.5 + Math.sin(rad) * 0.5
-    const y2 = 0.5 + Math.cos(rad) * 0.5
+    const { stops, direction, kind } = background.gradient
+    const colorStops = stops.map((s) => ({ offset: s.position, color: s.color }))
 
-    const gradient = new Gradient({
-      type: 'linear',
-      coords: {
-        x1: x1 * canvasWidth,
-        y1: y1 * canvasHeight,
-        x2: x2 * canvasWidth,
-        y2: y2 * canvasHeight,
-      },
-      colorStops: stops.map((s) => ({ offset: s.position, color: s.color })),
-    })
+    let gradient: Gradient<'linear'> | Gradient<'radial'>
+    if (kind === 'radial') {
+      const cx = canvasWidth / 2
+      const cy = canvasHeight / 2
+      // Radius reaches the corners so the final stop fully covers the frame.
+      const r = Math.sqrt(canvasWidth ** 2 + canvasHeight ** 2) / 2
+      gradient = new Gradient({
+        type: 'radial',
+        coords: { x1: cx, y1: cy, r1: 0, x2: cx, y2: cy, r2: r },
+        colorStops,
+      })
+    } else {
+      // direction is degrees: 0 = top-to-bottom vertical, 90 = left-to-right horizontal
+      const rad = (direction * Math.PI) / 180
+      const x1 = 0.5 - Math.sin(rad) * 0.5
+      const y1 = 0.5 - Math.cos(rad) * 0.5
+      const x2 = 0.5 + Math.sin(rad) * 0.5
+      const y2 = 0.5 + Math.cos(rad) * 0.5
+      gradient = new Gradient({
+        type: 'linear',
+        coords: {
+          x1: x1 * canvasWidth,
+          y1: y1 * canvasHeight,
+          x2: x2 * canvasWidth,
+          y2: y2 * canvasHeight,
+        },
+        colorStops,
+      })
+    }
     rect.set('fill', gradient)
   } else {
     rect.set('fill', background.color ?? '#6366F1')
