@@ -45,11 +45,14 @@ export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
       .sort((a, b) => a.position - b.position)
       .map((s) => `${s.color} ${Math.round(s.position * 100)}%`)
       .join(', ')
+    // Canvas maps direction 0 → top-to-bottom; CSS 0deg is bottom-to-top.
+    // Convert so the preview matches the rendered gradient.
+    const cssAngle = (540 - g.direction) % 360
     return {
       background:
         g.kind === 'radial'
           ? `radial-gradient(circle, ${stops})`
-          : `linear-gradient(${g.direction}deg, ${stops})`,
+          : `linear-gradient(${cssAngle}deg, ${stops})`,
     }
   }
 
