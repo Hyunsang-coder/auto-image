@@ -47,6 +47,15 @@ export function EditorLayout() {
         canvasRef.current?.deleteSelected()
         return
       }
+      if (!typing && e.key.startsWith('Arrow')) {
+        const step = e.shiftKey ? 10 : 1
+        const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key]
+        if (d) {
+          e.preventDefault()
+          canvasRef.current?.nudgeSelected(d[0], d[1])
+        }
+        return
+      }
 
       const isMac = navigator.platform.toUpperCase().includes('MAC')
       const ctrl = isMac ? e.metaKey : e.ctrlKey

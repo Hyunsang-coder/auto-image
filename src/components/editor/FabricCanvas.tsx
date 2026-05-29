@@ -46,6 +46,7 @@ export interface FabricCanvasHandle {
   redo: () => void
   deleteSelected: () => void
   discardSelection: () => void
+  nudgeSelected: (dx: number, dy: number) => void
 }
 
 interface Props {
@@ -452,6 +453,44 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         }
         canvas.discardActiveObject()
         canvas.renderAll()
+      },
+      nudgeSelected(dx, dy) {
+        const canvas = fabricRef.current
+        if (!canvas) return
+        const active = canvas.getActiveObject()
+        if (!active || (active as Textbox).isEditing) return
+        const ln = (active as FabricObject & { layerName?: string }).layerName
+
+        // Only layers whose position syncToZustand reads back can be nudged.
+        // Caption text is template-positioned (its position is never synced, so
+        // it would snap back) and the background isn't movable.
+        const NUDGEABLE: string[] = [
+          LAYER_NAMES.DEVICE_FRAME,
+          LAYER_NAMES.BADGE,
+          LAYER_NAMES.ORNAMENT,
+          LAYER_NAMES.HIGHLIGHT_SOURCE,
+          LAYER_NAMES.HIGHLIGHT_POPUP,
+        ]
+        if (!ln || !NUDGEABLE.includes(ln)) return
+
+        if (ln === LAYER_NAMES.DEVICE_FRAME) {
+          // Drag siblings (screenshot, decorative paths, clip) along with the
+          // body, reusing the same delta logic as a pointer drag.
+          lastBodyPos.current = { left: active.left ?? 0, top: active.top ?? 0 }
+          active.set({ left: (active.left ?? 0) + dx, top: (active.top ?? 0) + dy })
+          handleDeviceMove(canvas, active)
+        } else {
+          active.set({ left: (active.left ?? 0) + dx, top: (active.top ?? 0) + dy })
+          const clip = (active as FabricObject & { clipPath?: FabricObject }).clipPath
+          if (clip && (clip as FabricObject & { absolutePositioned?: boolean }).absolutePositioned) {
+            clip.set({ left: (clip.left ?? 0) + dx, top: (clip.top ?? 0) + dy })
+          }
+        }
+        active.setCoords()
+        lastBodyPos.current = null
+        canvas.renderAll()
+        pushHistory(canvas)
+        syncToZustand(canvas)
       },
     }))
 

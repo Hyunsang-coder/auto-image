@@ -90,6 +90,34 @@ test('Delete 키로 선택된 배지가 삭제됨', async ({ page }) => {
   ).toBeNull()
 })
 
+test('화살표 키로 선택된 배지를 미세 이동 (Shift=10px)', async ({ page }) => {
+  await page.getByRole('button', { name: '배지' }).click()
+  await page.getByRole('button', { name: '추가', exact: true }).click()
+
+  type Ed = {
+    findByLayer: (n: string) => { left: number } | null
+    canvas: { setActiveObject: (o: unknown) => void; requestRenderAll: () => void }
+  }
+
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge') != null)
+  await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor
+    e.canvas.setActiveObject(e.findByLayer('badge'))
+    e.canvas.requestRenderAll()
+  })
+
+  const before = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge')!.left)
+  await page.keyboard.press('Shift+ArrowRight')
+  await page.waitForFunction(
+    (b) => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge')!.left > b + 5,
+    before,
+  )
+  const after = await page.evaluate(
+    () => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge')!.left,
+  )
+  expect(after).toBeGreaterThan(before)
+})
+
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
   // 로컬라이즈 에디터 헤더 확인
