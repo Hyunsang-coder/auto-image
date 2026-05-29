@@ -23,6 +23,39 @@ export async function loadImageObjectUrl(
   return blob ? URL.createObjectURL(blob) : undefined
 }
 
+export type ImageUrlResolver = (key: string) => Promise<string | undefined>
+
+export interface ImageUrlCache {
+  get: ImageUrlResolver
+  revokeAll: () => void
+}
+
+/**
+ * A scoped object-URL cache. Each distinct image key maps to a single
+ * `blob:` URL that is reused for the cache's lifetime, so re-rendering the
+ * same slide many times allocates one URL per image instead of one per
+ * render (the canvas editor re-renders on every edit). Call `revokeAll` when
+ * the scope ends — slide switch in the editor, after dispose in export — to
+ * free the underlying blobs. Reusing one stable URL also keeps undo/redo
+ * snapshots (which embed the image `src`) valid for the slide's lifetime.
+ */
+export function createImageUrlCache(): ImageUrlCache {
+  const cache = new Map<string, string>()
+  return {
+    async get(key) {
+      const cached = cache.get(key)
+      if (cached) return cached
+      const url = await loadImageObjectUrl(key)
+      if (url) cache.set(key, url)
+      return url
+    },
+    revokeAll() {
+      for (const url of cache.values()) URL.revokeObjectURL(url)
+      cache.clear()
+    },
+  }
+}
+
 export async function deleteImage(key: string): Promise<void> {
   // Callers fire-and-forget this; a failed delete is non-critical (the blob is
   // already unreferenced and pruneOrphanImages will sweep it on next startup),
@@ -62,8 +95,11 @@ export async function fileToImageKey(file: File): Promise<{
   width: number
   height: number
 }> {
-  const key = await saveImage(file)
+  // Decode first so an undecodable file (HEIC, corrupt, mis-typed) rejects
+  // before we persist anything — otherwise a failed upload would leave an
+  // orphan blob in IndexedDB.
   const dims = await readImageDimensions(file)
+  const key = await saveImage(file)
   return { key, ...dims }
 }
 

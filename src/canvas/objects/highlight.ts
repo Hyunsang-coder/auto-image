@@ -1,7 +1,7 @@
 import { FabricImage, Rect, Shadow } from 'fabric'
 import type { Highlight, ScreenshotImage } from '../../types/project'
 import { LAYER_NAMES } from '../layerNames'
-import { loadImageObjectUrl } from '../../lib/imageStore'
+import type { ImageUrlResolver } from '../../lib/imageStore'
 import type { ScreenBounds } from './deviceFrame'
 
 export interface HighlightRenderCtx {
@@ -9,6 +9,7 @@ export interface HighlightRenderCtx {
   canvasHeight: number
   screenBounds: ScreenBounds
   screenshot: ScreenshotImage
+  resolveUrl: ImageUrlResolver
 }
 
 export interface HighlightRender {
@@ -62,7 +63,7 @@ async function makePopupImage(
   highlight: Highlight,
   ctx: HighlightRenderCtx,
 ): Promise<FabricImage | null> {
-  const url = await loadImageObjectUrl(ctx.screenshot.imageKey)
+  const url = await ctx.resolveUrl(ctx.screenshot.imageKey)
   if (!url) return null
   const img = await FabricImage.fromURL(url)
 

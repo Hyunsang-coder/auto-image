@@ -22,6 +22,7 @@ export function ScreenshotPanel({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     let objectUrl: string | null = null
@@ -40,7 +41,15 @@ export function ScreenshotPanel({
   }, [value?.imageKey])
 
   async function handleFile(file: File) {
-    const { key, width, height } = await fileToImageKey(file)
+    setUploadError(null)
+    let result
+    try {
+      result = await fileToImageKey(file)
+    } catch {
+      setUploadError('이미지를 읽을 수 없습니다. 다른 파일(PNG/JPG)을 올려주세요.')
+      return
+    }
+    const { key, width, height } = result
     onChange({
       id: key,
       imageKey: key,
@@ -103,6 +112,10 @@ export function ScreenshotPanel({
         >
           클릭하여 이미지 업로드
         </button>
+      )}
+
+      {uploadError && (
+        <p className="text-xs text-red-600">{uploadError}</p>
       )}
 
       <input

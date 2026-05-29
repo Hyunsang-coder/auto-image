@@ -3,6 +3,7 @@ import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Highlight, Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
+import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { getOrnamentViewBox } from '../../canvas/objects/ornament'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
@@ -71,6 +72,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const redoStack = useRef<object[]>([])
     const isApplyingHistory = useRef(false)
     const prevSlideId = useRef<string | null>(null)
+    // One blob URL per image for the current slide's lifetime — reused across
+    // the many re-renders an editing session triggers, revoked on slide switch
+    // and canvas dispose so screenshots don't leak memory until a tab crash.
+    const urlCacheRef = useRef<ImageUrlCache>(createImageUrlCache())
     const onSlideChangeRef = useRef(onSlideChange)
     const activeSlideRef = useRef(activeSlide)
 
@@ -395,6 +400,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const el = canvasElRef.current
       if (!el) return
 
+      const urlCache = urlCacheRef.current
       const canvas = new Canvas(el, {
         selection: true,
         preserveObjectStacking: true,
@@ -490,6 +496,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       return () => {
         canvas.dispose()
+        urlCache.revokeAll()
         fabricRef.current = null
         // Reset render-state refs so a fresh canvas (e.g. StrictMode remount)
         // doesn't bail out of the apply effect because the refs still match.
@@ -534,6 +541,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       if (slideChanged || groupedChanged) {
         undoStack.current = []
         redoStack.current = []
+        // History (which embeds these blob URLs in its snapshots) is gone, so
+        // the cached URLs from the previous slide/grouping are now unreachable.
+        urlCacheRef.current.revokeAll()
       }
       prevSlideId.current = activeSlide.id
       prevSlideDataRef.current = serialized
@@ -544,12 +554,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // dashed seam guide on top. Editor-only — export takes a different
         // code path that crops the wide render into L/R halves.
         const h = getEditorCanvasHeight(activeSlide!)
+        const resolveUrl = urlCacheRef.current.get
         if (isGrouped) {
           const w = EDITOR_CANVAS_WIDTH * 2
-          await applyTemplate(canvas, activeSlide!, { width: w, height: h }, { spanCentered: true })
+          await applyTemplate(canvas, activeSlide!, { width: w, height: h }, { spanCentered: true, resolveUrl })
           addSpanSeamGuide(canvas, w / 2, h)
         } else {
-          await applyTemplate(canvas, activeSlide!)
+          await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
       })()
     }, [activeSlide, isGrouped])

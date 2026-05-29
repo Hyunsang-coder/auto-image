@@ -2,6 +2,7 @@ import { Canvas } from 'fabric'
 import type { Slide, DeviceType } from '../types/project'
 import { deviceSpecOf, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 import { applyTemplate } from '../canvas/templateLayouts'
+import { createImageUrlCache } from './imageStore'
 
 function withLocaleText(slide: Slide, locale: string | null): Slide {
   if (!locale) return slide
@@ -70,19 +71,23 @@ export async function renderSlide(
 
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })
+  const urls = createImageUrlCache()
 
-  await applyTemplate(canvas, exportSlide, { width, height })
-  await document.fonts.ready
-  canvas.renderAll()
+  try {
+    await applyTemplate(canvas, exportSlide, { width, height }, { resolveUrl: urls.get })
+    await document.fonts.ready
+    canvas.renderAll()
 
-  const blob = await new Promise<Blob | null>((resolve) => {
-    el.toBlob((b) => resolve(b), 'image/png')
-  })
+    const blob = await new Promise<Blob | null>((resolve) => {
+      el.toBlob((b) => resolve(b), 'image/png')
+    })
 
-  canvas.dispose()
-
-  if (!blob) throw new Error('toBlob returned null')
-  return blob
+    if (!blob) throw new Error('toBlob returned null')
+    return blob
+  } finally {
+    canvas.dispose()
+    urls.revokeAll()
+  }
 }
 
 /**
@@ -110,26 +115,31 @@ export async function renderSpanGroup(
 
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })
+  const urls = createImageUrlCache()
 
-  await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, { spanCentered: true })
-  await document.fonts.ready
-  canvas.renderAll()
+  try {
+    await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, { spanCentered: true, resolveUrl: urls.get })
+    await document.fonts.ready
+    canvas.renderAll()
 
-  // Slice — read pixel data from the wide DOM canvas (Fabric writes its render
-  // there) into two half-size canvases, then toBlob each.
-  const makeHalf = async (sourceOffset: number): Promise<Blob> => {
-    const half = document.createElement('canvas')
-    half.width = halfWidth
-    half.height = height
-    const ctx = half.getContext('2d')!
-    ctx.drawImage(el, -sourceOffset, 0)
-    return new Promise<Blob>((resolve, reject) => {
-      half.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))), 'image/png')
-    })
+    // Slice — read pixel data from the wide DOM canvas (Fabric writes its render
+    // there) into two half-size canvases, then toBlob each.
+    const makeHalf = async (sourceOffset: number): Promise<Blob> => {
+      const half = document.createElement('canvas')
+      half.width = halfWidth
+      half.height = height
+      const ctx = half.getContext('2d')!
+      ctx.drawImage(el, -sourceOffset, 0)
+      return new Promise<Blob>((resolve, reject) => {
+        half.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))), 'image/png')
+      })
+    }
+    const leftBlob = await makeHalf(0)
+    const rightBlob = await makeHalf(halfWidth)
+
+    return { leader: leftBlob, follower: rightBlob }
+  } finally {
+    canvas.dispose()
+    urls.revokeAll()
   }
-  const leftBlob = await makeHalf(0)
-  const rightBlob = await makeHalf(halfWidth)
-
-  canvas.dispose()
-  return { leader: leftBlob, follower: rightBlob }
 }

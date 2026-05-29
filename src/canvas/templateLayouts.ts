@@ -9,7 +9,7 @@ import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
 import { renderHighlight } from './objects/highlight'
 import { renderOrnament } from './objects/ornament'
 import { LAYER_NAMES } from './layerNames'
-import { loadImageObjectUrl } from '../lib/imageStore'
+import { loadImageObjectUrl, type ImageUrlResolver } from '../lib/imageStore'
 
 function getCanvasHeight(slide: Slide): number {
   const spec = DEVICE_SPECS[slide.deviceFrame.model]
@@ -62,9 +62,10 @@ async function renderScreenshotLayer(
   canvas: Canvas,
   screenshot: ScreenshotImage,
   bounds: ScreenBounds,
+  resolveUrl: ImageUrlResolver,
   opts?: { withShadow?: boolean; rotation?: number; pivot?: { x: number; y: number } },
 ): Promise<void> {
-  const url = await loadImageObjectUrl(screenshot.imageKey)
+  const url = await resolveUrl(screenshot.imageKey)
   if (!url) return
 
   const img = await FabricImage.fromURL(url)
@@ -227,9 +228,14 @@ export async function applyTemplate(
   canvas: Canvas,
   slide: Slide,
   dims?: { width: number; height: number },
-  opts?: { spanCentered?: boolean },
+  opts?: { spanCentered?: boolean; resolveUrl?: ImageUrlResolver },
 ): Promise<void> {
   canvas.clear()
+
+  // Default to a one-shot loader if no scoped resolver is supplied. Long-lived
+  // callers (the editor) MUST pass a cache-backed resolver so repeated renders
+  // don't leak a blob URL per render.
+  const resolveUrl = opts?.resolveUrl ?? loadImageObjectUrl
 
   const cw = dims?.width ?? EDITOR_CANVAS_WIDTH
   const ch = dims?.height ?? getCanvasHeight(slide)
@@ -273,7 +279,7 @@ export async function applyTemplate(
       const pivot = deviceLayout
         ? { x: deviceLayout.centerX, y: deviceLayout.top + deviceLayout.height / 2 }
         : undefined
-      await renderScreenshotLayer(canvas, slide.screenshot, screenBounds, {
+      await renderScreenshotLayer(canvas, slide.screenshot, screenBounds, resolveUrl, {
         withShadow: floating && shotStyle.shadow,
         rotation,
         pivot,
@@ -304,6 +310,7 @@ export async function applyTemplate(
         canvasHeight: ch,
         screenBounds,
         screenshot: slide.screenshot,
+        resolveUrl,
       })
       if (source) canvas.add(source)
       if (popup) canvas.add(popup)
