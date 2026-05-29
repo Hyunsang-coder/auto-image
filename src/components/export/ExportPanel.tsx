@@ -13,6 +13,25 @@ function deviceOf(slide: Slide): DeviceType {
 
 type Status = 'idle' | 'running' | 'done' | 'error'
 
+// 'default' = human-organized {locale}/{device}/NN.png.
+// 'fastlane' = `deliver` layout: screenshots/{ascLocale}/{device}_NN.png, flat
+// under each locale (deliver doesn't recurse and infers the device from image
+// resolution), so `fastlane deliver` can upload the folder as-is.
+type ExportLayout = 'default' | 'fastlane'
+
+const FASTLANE_README = `fastlane deliver — screenshot upload
+
+1. Drop this "screenshots" folder into your fastlane project (default path:
+   fastlane/screenshots/), or point deliver at it: screenshots_path("./screenshots").
+2. Authenticate with an App Store Connect API key (.p8):
+   https://docs.fastlane.tools/app-store-connect-api/
+3. Upload screenshots only:
+   fastlane deliver --skip_binary_upload --skip_metadata --overwrite_screenshots
+
+Folder names are App Store Connect locale codes; the device is auto-detected
+from each image's resolution. Your .p8 key never leaves your machine.
+`
+
 function getUntranslatedLocales(project: Project): string[] {
   // Followers in a span group inherit text from the leader — their own text
   // fields aren't rendered, so skip them when computing "missing translations".
@@ -53,12 +72,15 @@ export function ExportPanel() {
   const previewSlide = project.slides[previewSlideIdx]
   const effectiveDevice: DeviceType = previewSlide ? deviceOf(previewSlide) : 'iphone'
 
-  async function handleExport() {
+  async function handleExport(layout: ExportLayout = 'default') {
     if (!project) return
     cancelledRef.current = false
     setStatus('running')
     setError(null)
     setDone(0)
+
+    const filePath = (loc: string, dev: string, n: string) =>
+      layout === 'fastlane' ? `screenshots/${loc}/${dev}_${n}.png` : `${loc}/${dev}/${n}.png`
 
     try {
       const zip = new JSZip()
@@ -88,8 +110,8 @@ export function ExportPanel() {
               )
               const lName = String(slide.index + 1).padStart(2, '0')
               const rName = String(follower.index + 1).padStart(2, '0')
-              zip.file(`${localeDir}/${device}/${lName}.png`, leftBlob)
-              zip.file(`${localeDir}/${device}/${rName}.png`, rightBlob)
+              zip.file(filePath(localeDir, device, lName), leftBlob)
+              zip.file(filePath(localeDir, device, rName), rightBlob)
               count += 2
               setDone(count)
               i += 2
@@ -105,15 +127,18 @@ export function ExportPanel() {
 
           const blob = await renderSlide(slide, device, renderLocale)
           const name = String(slide.index + 1).padStart(2, '0')
-          zip.file(`${localeDir}/${device}/${name}.png`, blob)
+          zip.file(filePath(localeDir, device, name), blob)
           count++
           setDone(count)
           i++
         }
       }
 
+      if (layout === 'fastlane') zip.file('screenshots/README.txt', FASTLANE_README)
+
       const zipBlob = await zip.generateAsync({ type: 'blob' })
-      saveAs(zipBlob, `${project.name}-screenshots.zip`)
+      const suffix = layout === 'fastlane' ? '-fastlane-screenshots' : '-screenshots'
+      saveAs(zipBlob, `${project.name}${suffix}.zip`)
       setStatus('done')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -295,7 +320,15 @@ export function ExportPanel() {
 
         <div className="flex gap-2">
           <button
-            onClick={handleExport}
+            onClick={() => handleExport('fastlane')}
+            disabled={status === 'running'}
+            title="screenshots/<locale>/<device>_NN.png — fastlane deliver로 바로 업로드"
+            className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-semibold text-[var(--color-text)] hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            fastlane용 ZIP
+          </button>
+          <button
+            onClick={() => handleExport('default')}
             disabled={status === 'running'}
             className="flex-1 rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
