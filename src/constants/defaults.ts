@@ -11,6 +11,7 @@ import type {
   Project,
   ScreenshotStyle,
   Slide,
+  SlideTemplate,
   TemplateType,
   TextStyle,
   TranslationAPI,
@@ -256,6 +257,63 @@ export const THEME_PRESETS: ThemePreset[] = [
 
 export function findThemePreset(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find((p) => p.id === id)
+}
+
+/** Capture the current slide's background + text colors as a reusable preset. */
+export function presetFromSlide(slide: Slide, label: string): ThemePreset {
+  return {
+    id: newId('preset'),
+    label,
+    background: slide.background,
+    headlineColor: slide.headline.style.color,
+    subheadlineColor: slide.subheadline.style.color,
+    accentColor: slide.badges[0]?.style.backgroundColor ?? slide.headline.style.color,
+  }
+}
+
+/** Capture the current slide's full styling/composition as a reusable template. */
+export function templateFromSlide(slide: Slide, label: string): SlideTemplate {
+  return {
+    id: newId('tpl'),
+    label,
+    template: slide.template,
+    background: slide.background,
+    deviceFrame: { ...slide.deviceFrame },
+    headline: { ...slide.headline, style: { ...slide.headline.style } },
+    subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style } },
+    badges: slide.badges.map((b) => ({ ...b, style: { ...b.style } })),
+    ornaments: (slide.ornaments ?? []).map((o) => ({ ...o })),
+    screenshotStyle: slide.screenshotStyle ? { ...slide.screenshotStyle } : undefined,
+  }
+}
+
+/**
+ * Build the patch that applies a template's look onto `slide`, preserving the
+ * slide's content (screenshot, caption text/translations, highlights) and its
+ * device model (so an iPhone-saved look can't flip an iPad slide's frame).
+ * Badges/ornaments get fresh IDs so the two slides stay independent.
+ */
+export function applyTemplateToSlide(slide: Slide, tpl: SlideTemplate): Partial<Slide> {
+  return {
+    template: tpl.template,
+    background: tpl.background,
+    deviceFrame: { ...tpl.deviceFrame, model: slide.deviceFrame.model },
+    headline: {
+      ...slide.headline,
+      style: { ...tpl.headline.style },
+      pos: tpl.headline.pos,
+      boxWidth: tpl.headline.boxWidth,
+    },
+    subheadline: {
+      ...slide.subheadline,
+      style: { ...tpl.subheadline.style },
+      pos: tpl.subheadline.pos,
+      boxWidth: tpl.subheadline.boxWidth,
+    },
+    badges: tpl.badges.map((b) => ({ ...b, id: newId('badge'), style: { ...b.style } })),
+    ornaments: tpl.ornaments.map((o) => ({ ...o, id: newId('orn') })),
+    screenshotStyle: tpl.screenshotStyle ? { ...tpl.screenshotStyle } : slide.screenshotStyle,
+  }
 }
 
 export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>): Ornament {

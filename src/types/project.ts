@@ -184,6 +184,26 @@ export interface Highlight {
   }
 }
 
+/**
+ * A user-saved slide "look" — everything that defines a slide's styling and
+ * composition, minus its content (screenshot image, caption text/translations,
+ * highlights). Applying one onto a slide keeps that slide's content and device
+ * model; only the look is overwritten. Captions are stored whole for type
+ * simplicity but only their style/pos/boxWidth are applied.
+ */
+export interface SlideTemplate {
+  id: string
+  label: string
+  template: TemplateType
+  background: Background
+  deviceFrame: DeviceFrame
+  headline: Caption
+  subheadline: Caption
+  badges: Badge[]
+  ornaments: Ornament[]
+  screenshotStyle?: ScreenshotStyle
+}
+
 export interface ApiConfig {
   claude?: { apiKey: string }
   openai?: { apiKey: string }

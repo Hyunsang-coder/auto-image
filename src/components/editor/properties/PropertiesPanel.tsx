@@ -10,6 +10,7 @@ import type {
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
+  SlideTemplate,
 } from '../../../types/project'
 import type { ThemePreset } from '../../../constants/defaults'
 import { TemplateSelector } from './TemplateSelector'
@@ -52,6 +53,9 @@ interface Props {
   onOrnamentsChange: (next: Ornament[]) => void
   onHighlightsChange: (next: Highlight[]) => void
   onApplyThemePreset: (preset: ThemePreset) => void
+  onSavePreset: (name: string) => void
+  onApplyTemplate: (tpl: SlideTemplate) => void
+  onSaveTemplate: (name: string) => void
 }
 
 export function PropertiesPanel({
@@ -67,6 +71,9 @@ export function PropertiesPanel({
   onOrnamentsChange,
   onHighlightsChange,
   onApplyThemePreset,
+  onSavePreset,
+  onApplyTemplate,
+  onSaveTemplate,
 }: Props) {
   const [tab, setTab] = useState<PanelTab>('template')
 
@@ -95,13 +102,19 @@ export function PropertiesPanel({
 
       <div className="flex-1 overflow-y-auto p-4">
         {tab === 'template' && (
-          <TemplateSelector value={slide.template} onChange={onTemplateChange} />
+          <TemplateSelector
+            value={slide.template}
+            onChange={onTemplateChange}
+            onApplyTemplate={onApplyTemplate}
+            onSaveTemplate={onSaveTemplate}
+          />
         )}
         {tab === 'background' && (
           <BackgroundPanel
             value={slide.background}
             onChange={onBackgroundChange}
             onApplyPreset={onApplyThemePreset}
+            onSavePreset={onSavePreset}
           />
         )}
         {tab === 'caption' && (

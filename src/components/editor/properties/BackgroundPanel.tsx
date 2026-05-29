@@ -3,11 +3,14 @@ import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Background } from '../../../types/project'
 import { THEME_PRESETS, type ThemePreset } from '../../../constants/defaults'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
+import { useCustomStore } from '../../../store/useCustomStore'
 
 interface Props {
   value: Background
   onChange: (bg: Background) => void
   onApplyPreset?: (preset: ThemePreset) => void
+  /** Save the current slide's background + text colors as a named preset. */
+  onSavePreset?: (name: string) => void
 }
 
 type Tab = 'solid' | 'gradient' | 'image'
@@ -18,13 +21,25 @@ const FIT_OPTIONS: { id: NonNullable<Background['imageObjectFit']>; label: strin
   { id: 'fill', label: '늘이기' },
 ]
 
-export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
+export function BackgroundPanel({ value, onChange, onApplyPreset, onSavePreset }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>(
     value.type === 'gradient' ? 'gradient' : value.type === 'image' ? 'image' : 'solid',
   )
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const customPresets = useCustomStore((s) => s.presets)
+  const removePreset = useCustomStore((s) => s.removePreset)
+  const [savingPreset, setSavingPreset] = useState(false)
+  const [presetName, setPresetName] = useState('')
+
+  function commitPreset() {
+    const name = presetName.trim()
+    if (!name || !onSavePreset) return
+    onSavePreset(name)
+    setPresetName('')
+    setSavingPreset(false)
+  }
 
   useEffect(() => {
     if (value.type !== 'image' || !value.imageKey) return
@@ -159,7 +174,65 @@ export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
                 <div className="text-xs font-medium text-[var(--color-text)]">{p.label}</div>
               </button>
             ))}
+            {customPresets.map((p) => (
+              <div
+                key={p.id}
+                className="group relative rounded-lg border border-[var(--color-border)] p-1.5 transition hover:border-[var(--color-accent)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => onApplyPreset(p)}
+                  className="block w-full text-left"
+                >
+                  <div className="mb-1 h-10 w-full rounded" style={previewStyle(p)} />
+                  <div className="truncate text-xs font-medium text-[var(--color-text)]">
+                    {p.label}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removePreset(p.id)}
+                  title="프리셋 삭제"
+                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-black/50 text-xs text-white group-hover:flex hover:bg-red-500"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
+
+          {onSavePreset &&
+            (savingPreset ? (
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitPreset()
+                    if (e.key === 'Escape') setSavingPreset(false)
+                  }}
+                  maxLength={40}
+                  placeholder="프리셋 이름"
+                  className="min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                />
+                <button
+                  type="button"
+                  onClick={commitPreset}
+                  className="shrink-0 rounded-md bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-semibold text-white hover:brightness-110"
+                >
+                  저장
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSavingPreset(true)}
+                className="mt-2 w-full rounded-md border border-dashed border-[var(--color-border)] py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
+              >
+                + 현재 배경을 프리셋으로 저장
+              </button>
+            ))}
         </div>
       )}
 

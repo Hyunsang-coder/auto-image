@@ -15,8 +15,16 @@ import type {
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
+  SlideTemplate,
 } from '../../types/project'
-import { TEMPLATE_FONT_SIZES, type ThemePreset } from '../../constants/defaults'
+import {
+  TEMPLATE_FONT_SIZES,
+  type ThemePreset,
+  presetFromSlide,
+  templateFromSlide,
+  applyTemplateToSlide,
+} from '../../constants/defaults'
+import { useCustomStore } from '../../store/useCustomStore'
 import { deleteImage } from '../../lib/imageStore'
 
 export function EditorLayout() {
@@ -163,6 +171,21 @@ export function EditorLayout() {
     })
   }
 
+  function handleSavePreset(name: string) {
+    if (!slide) return
+    useCustomStore.getState().addPreset(presetFromSlide(slide, name))
+  }
+
+  function handleSaveTemplate(name: string) {
+    if (!slide) return
+    useCustomStore.getState().addTemplate(templateFromSlide(slide, name))
+  }
+
+  function handleApplyTemplate(tpl: SlideTemplate) {
+    if (!editTargetId || !slide) return
+    updateSlide(editTargetId, applyTemplateToSlide(slide, tpl))
+  }
+
   return (
     <div className="grid h-full grid-cols-[200px_1fr_280px] gap-0 border-t border-[var(--color-border)] overflow-hidden">
       <SlideList
@@ -208,6 +231,9 @@ export function EditorLayout() {
           onOrnamentsChange={handleOrnamentsChange}
           onHighlightsChange={handleHighlightsChange}
           onApplyThemePreset={handleApplyThemePreset}
+          onSavePreset={handleSavePreset}
+          onApplyTemplate={handleApplyTemplate}
+          onSaveTemplate={handleSaveTemplate}
         />
       ) : (
         <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">
