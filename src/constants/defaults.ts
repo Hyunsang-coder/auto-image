@@ -33,6 +33,10 @@ export const SUPPORTED_LOCALES = [
   { code: 'de', label: 'Deutsch' },
   { code: 'pt-BR', label: 'Português (BR)' },
   { code: 'it', label: 'Italiano' },
+  { code: 'pl', label: 'Polski' },
+  { code: 'th', label: 'ไทย' },
+  { code: 'id', label: 'Bahasa Indonesia' },
+  { code: 'vi', label: 'Tiếng Việt' },
 ] as const
 
 /** Free font families offered for headline/subheadline. Loaded in index.html.
