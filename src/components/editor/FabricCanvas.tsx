@@ -6,6 +6,7 @@ import { applyTemplate } from '../../canvas/templateLayouts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { getOrnamentViewBox } from '../../canvas/objects/ornament'
+import { newId } from '../../constants/defaults'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
 
 const SEAM_LAYER = 'span-seam-guide'
@@ -45,6 +46,7 @@ export interface FabricCanvasHandle {
   undo: () => void
   redo: () => void
   deleteSelected: () => void
+  duplicateSelected: () => void
   discardSelection: () => void
   nudgeSelected: (dx: number, dy: number) => void
 }
@@ -438,6 +440,66 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           a.highlightId
         ) {
           patch = { highlights: (slide.highlights ?? []).filter((h) => h.id !== a.highlightId) }
+        }
+        if (!patch) return
+        canvas.discardActiveObject()
+        canvas.renderAll()
+        onSlideChangeRef.current(patch)
+      },
+      duplicateSelected() {
+        const canvas = fabricRef.current
+        const slide = activeSlideRef.current
+        if (!canvas || !slide) return
+        const active = canvas.getActiveObject()
+        if (!active || (active as Textbox).isEditing) return
+        const ln = (active as FabricObject & { layerName?: string }).layerName
+        const a = active as FabricObject & {
+          badgeId?: string
+          ornamentId?: string
+          highlightId?: string
+        }
+        // Clone the store entry with a fresh id, offset slightly so the copy is
+        // visible and not stacked exactly on the original.
+        let patch: Partial<Slide> | null = null
+        if (ln === LAYER_NAMES.BADGE && a.badgeId) {
+          const src = (slide.badges ?? []).find((b) => b.id === a.badgeId)
+          if (src)
+            patch = {
+              badges: [
+                ...(slide.badges ?? []),
+                { ...src, id: newId('badge'), translations: { ...src.translations }, top: Math.min(0.92, src.top + 0.05) },
+              ],
+            }
+        } else if (ln === LAYER_NAMES.ORNAMENT && a.ornamentId) {
+          const src = (slide.ornaments ?? []).find((o) => o.id === a.ornamentId)
+          if (src)
+            patch = {
+              ornaments: [
+                ...(slide.ornaments ?? []),
+                { ...src, id: newId('orn'), x: clamp01(src.x + 0.03), y: clamp01(src.y + 0.03) },
+              ],
+            }
+        } else if (
+          (ln === LAYER_NAMES.HIGHLIGHT_SOURCE || ln === LAYER_NAMES.HIGHLIGHT_POPUP) &&
+          a.highlightId
+        ) {
+          const src = (slide.highlights ?? []).find((h) => h.id === a.highlightId)
+          if (src)
+            patch = {
+              highlights: [
+                ...(slide.highlights ?? []),
+                {
+                  ...src,
+                  id: newId('hl'),
+                  sourceRegion: {
+                    ...src.sourceRegion,
+                    x: clamp01(src.sourceRegion.x + 0.03),
+                    y: clamp01(src.sourceRegion.y + 0.03),
+                  },
+                  popup: { ...src.popup, x: clamp01(src.popup.x + 0.03), y: clamp01(src.popup.y + 0.03) },
+                },
+              ],
+            }
         }
         if (!patch) return
         canvas.discardActiveObject()

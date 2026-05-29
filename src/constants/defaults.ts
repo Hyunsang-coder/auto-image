@@ -91,6 +91,12 @@ export const DEFAULT_BADGE_STYLE: BadgeStyle = {
   fontWeight: 600,
 }
 
+export function newId(prefix: string): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+}
+
 export function makeHighlight(): Highlight {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto

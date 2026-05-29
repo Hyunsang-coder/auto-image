@@ -66,6 +66,9 @@ export function EditorLayout() {
       } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
         e.preventDefault()
         canvasRef.current?.redo()
+      } else if (e.key === 'd') {
+        e.preventDefault()
+        canvasRef.current?.duplicateSelected()
       }
     }
     window.addEventListener('keydown', onKeyDown)

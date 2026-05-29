@@ -90,6 +90,41 @@ test('Delete 키로 선택된 배지가 삭제됨', async ({ page }) => {
   ).toBeNull()
 })
 
+test('Cmd+D로 선택된 배지가 복제됨', async ({ page }) => {
+  await page.getByRole('button', { name: '배지' }).click()
+  await page.getByRole('button', { name: '추가', exact: true }).click()
+
+  type Ed = {
+    canvas: { getObjects: () => { layerName?: string }[]; setActiveObject: (o: unknown) => void; requestRenderAll: () => void }
+    findByLayer: (n: string) => unknown
+  }
+  const badgeCount = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __editor: Ed }).__editor.canvas
+          .getObjects()
+          .filter((o) => o.layerName === 'badge').length,
+    )
+
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge') != null)
+  expect(await badgeCount()).toBe(1)
+
+  await page.evaluate(() => {
+    const e = (window as unknown as { __editor: Ed }).__editor
+    e.canvas.setActiveObject(e.findByLayer('badge'))
+    e.canvas.requestRenderAll()
+  })
+
+  const isMac = process.platform === 'darwin'
+  await page.keyboard.press(isMac ? 'Meta+d' : 'Control+d')
+
+  await page.waitForFunction(
+    () =>
+      (window as unknown as { __editor: Ed }).__editor.canvas.getObjects().filter((o) => o.layerName === 'badge').length === 2,
+  )
+  expect(await badgeCount()).toBe(2)
+})
+
 test('화살표 키로 선택된 배지를 미세 이동 (Shift=10px)', async ({ page }) => {
   await page.getByRole('button', { name: '배지' }).click()
   await page.getByRole('button', { name: '추가', exact: true }).click()
