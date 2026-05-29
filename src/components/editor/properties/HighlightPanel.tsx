@@ -34,7 +34,7 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
           onClick={add}
           disabled={!hasScreenshot}
           title={hasScreenshot ? '하이라이트 추가' : '먼저 스크린샷을 업로드하세요'}
-          className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs text-white transition hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-text)] transition hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           + 추가
         </button>
@@ -60,11 +60,11 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
           className="space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-white">하이라이트 {i + 1}</p>
+            <p className="text-xs font-semibold text-[var(--color-text)]">하이라이트 {i + 1}</p>
             <button
               type="button"
               onClick={() => remove(h.id)}
-              className="text-xs text-red-400 hover:text-red-300"
+              className="text-xs text-red-600 hover:text-red-700"
             >
               삭제
             </button>
@@ -141,7 +141,7 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
           </Group>
 
           <Group label="원본 표시">
-            <label className="flex items-center justify-between text-xs text-white">
+            <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
               <span>테두리 굵기</span>
               <input
                 type="range"
@@ -156,7 +156,7 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
                 {h.borderWidth}
               </span>
             </label>
-            <label className="flex items-center justify-between text-xs text-white">
+            <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
               <span>테두리 색</span>
               <input
                 type="color"
@@ -199,7 +199,7 @@ function Slider({
   onChange: (v: number) => void
 }) {
   return (
-    <label className="flex items-center justify-between text-xs text-white">
+    <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
       <span className="w-16 text-[var(--color-text-dim)]">{label}</span>
       <input
         type="range"

@@ -46,7 +46,7 @@ export function ProjectSetup() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-white">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-text)]">
           새 스크린샷 프로젝트
         </h1>
         <p className="mt-2 text-sm text-[var(--color-text-dim)]">
@@ -60,7 +60,7 @@ export function ProjectSetup() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={60}
-          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-white outline-none focus:border-[var(--color-accent)]"
+          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
           placeholder="예: Dogo, Claude, ADHD"
         />
       </Section>
@@ -85,7 +85,7 @@ export function ProjectSetup() {
                     : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
                 ].join(' ')}
               >
-                <span className="text-base font-medium text-white">
+                <span className="text-base font-medium text-[var(--color-text)]">
                   {spec.label}
                 </span>
                 <span className="text-xs text-[var(--color-text-dim)]">
@@ -116,7 +116,7 @@ export function ProjectSetup() {
               if (Number.isNaN(v)) return
               setCount(Math.max(MIN_SLIDES, Math.min(MAX_SLIDES, v)))
             }}
-            className="w-20 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-center text-base text-white outline-none focus:border-[var(--color-accent)]"
+            className="w-20 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-center text-base text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
           />
           <button
             type="button"
@@ -154,7 +154,7 @@ export function ProjectSetup() {
           <p className="mb-2 text-[var(--color-text-dim)]">
             이전에 만들던 프로젝트가 있습니다:
           </p>
-          <p className="text-white">
+          <p className="text-[var(--color-text)]">
             <span className="font-medium">{existingProject.name}</span>
             <span className="ml-2 text-[var(--color-text-dim)]">
               · {existingProject.slides.length}장 · 마지막 수정{' '}

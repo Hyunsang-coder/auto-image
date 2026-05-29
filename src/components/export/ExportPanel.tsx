@@ -169,10 +169,10 @@ export function ExportPanel() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-border)] px-6 py-3">
-        <h2 className="text-lg font-semibold text-white">내보내기</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-text)]">내보내기</h2>
         <button
           onClick={() => setStep(3)}
-          className="rounded px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-white"
+          className="rounded px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
         >
           ← 로컬라이즈
         </button>
@@ -180,7 +180,7 @@ export function ExportPanel() {
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-6">
         {untranslated.length > 0 && (
-          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-300">
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700">
             번역 미완료 로케일 {untranslated.length}개: {untranslated.join(', ')} —
             소스 텍스트로 내보내집니다.
           </div>
@@ -188,14 +188,14 @@ export function ExportPanel() {
 
         {/* Preview section */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-          <h3 className="mb-3 text-sm font-semibold text-white">미리보기</h3>
+          <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">미리보기</h3>
           <div className="mb-3 grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-xs text-[var(--color-text-dim)]">슬라이드</label>
               <select
                 value={previewSlideIdx}
                 onChange={(e) => setPreviewSlideIdx(Number(e.target.value))}
-                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-white"
+                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-text)]"
               >
                 {project.slides.map((s, i) => (
                   <option key={s.id} value={i}>
@@ -209,7 +209,7 @@ export function ExportPanel() {
               <select
                 value={effectiveLocale}
                 onChange={(e) => setPreviewLocale(e.target.value)}
-                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-white"
+                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-text)]"
               >
                 {allLocales.map((l) => (
                   <option key={l} value={l}>{l}</option>
@@ -220,7 +220,7 @@ export function ExportPanel() {
           <button
             onClick={handlePreviewRender}
             disabled={previewLoading}
-            className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-dim)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {previewLoading ? '렌더링 중…' : '미리보기 렌더'}
           </button>
@@ -243,15 +243,15 @@ export function ExportPanel() {
 
         {/* Export summary */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-          <h3 className="mb-3 text-sm font-semibold text-white">렌더링 범위</h3>
+          <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">렌더링 범위</h3>
           <div className="space-y-1.5 text-sm text-[var(--color-text-dim)]">
             <div className="flex justify-between">
               <span>슬라이드</span>
-              <span className="text-white">{project.slides.length}장</span>
+              <span className="text-[var(--color-text)]">{project.slides.length}장</span>
             </div>
             <div className="flex justify-between">
               <span>디바이스</span>
-              <span className="text-white">
+              <span className="text-[var(--color-text)]">
                 {devicesInUse.length > 0
                   ? devicesInUse.map((d) => (d === 'iphone' ? 'iPhone' : 'iPad')).join(', ')
                   : '—'}
@@ -259,11 +259,11 @@ export function ExportPanel() {
             </div>
             <div className="flex justify-between">
               <span>로케일</span>
-              <span className="text-white">{allLocales.join(', ')}</span>
+              <span className="text-[var(--color-text)]">{allLocales.join(', ')}</span>
             </div>
             <div className="flex justify-between border-t border-[var(--color-border)] pt-1.5">
               <span>총 PNG</span>
-              <span className="font-semibold text-white">{total}개</span>
+              <span className="font-semibold text-[var(--color-text)]">{total}개</span>
             </div>
           </div>
         </div>
@@ -276,7 +276,7 @@ export function ExportPanel() {
               </span>
               <span>{pct}%</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
               <div
                 className="h-full bg-[var(--color-accent)] transition-all duration-150"
                 style={{ width: `${pct}%` }}
@@ -286,7 +286,7 @@ export function ExportPanel() {
         )}
 
         {error && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
+          <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600">
             {error}
           </p>
         )}
@@ -306,7 +306,7 @@ export function ExportPanel() {
           {status === 'running' && (
             <button
               onClick={handleCancel}
-              className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-dim)] hover:text-white"
+              className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
               취소
             </button>

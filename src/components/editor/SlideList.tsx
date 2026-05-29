@@ -81,7 +81,7 @@ export function SlideList({ slides, activeSlideId, onSelect }: Props) {
         슬라이드
       </h3>
       {linkError && (
-        <p className="mb-2 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-xs text-yellow-300">
+        <p className="mb-2 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-xs text-yellow-700">
           {linkError}
         </p>
       )}
@@ -106,7 +106,7 @@ export function SlideList({ slides, activeSlideId, onSelect }: Props) {
               <button
                 type="button"
                 onClick={() => tryLink(row.slides[0].id)}
-                className="mt-1 flex w-full items-center justify-center gap-1 rounded border border-dashed border-[var(--color-border)] py-0.5 text-[10px] text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-white"
+                className="mt-1 flex w-full items-center justify-center gap-1 rounded border border-dashed border-[var(--color-border)] py-0.5 text-[10px] text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
                 title="아래 슬라이드와 한 장으로 묶기"
               >
                 🔗 다음 슬라이드와 연결
@@ -120,7 +120,7 @@ export function SlideList({ slides, activeSlideId, onSelect }: Props) {
         onClick={addSlide}
         disabled={!canAdd}
         title={canAdd ? '슬라이드 추가' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
-        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
       >
         <span className="text-base leading-none">+</span>
         <span>슬라이드 추가</span>
@@ -145,7 +145,7 @@ function SingleRow({
       className={[
         'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition',
         active
-          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-white'
+          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
           : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
       ].join(' ')}
     >
@@ -187,7 +187,7 @@ function SpanRow({
         <button
           type="button"
           onClick={onUnlink}
-          className="rounded px-1 text-[var(--color-text-dim)] hover:text-white"
+          className="rounded px-1 text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
           title="그룹 해제 — 두 장으로 분리"
         >
           해제
@@ -204,7 +204,7 @@ function SpanRow({
               className={[
                 'flex flex-col items-start gap-0.5 rounded border px-1.5 py-1 text-left text-xs transition',
                 active
-                  ? 'border-[var(--color-accent)] text-white'
+                  ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                   : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)]',
               ].join(' ')}
               title={i === 0 ? '왼쪽 (Leader)' : '오른쪽 (Follower)'}

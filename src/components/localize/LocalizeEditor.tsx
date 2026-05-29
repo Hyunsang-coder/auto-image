@@ -134,17 +134,17 @@ export function LocalizeEditor() {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-border)] px-6 py-3">
-        <h2 className="text-lg font-semibold text-white">로컬라이즈</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-text)]">로컬라이즈</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setStep(2)}
-            className="rounded px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-white"
+            className="rounded px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
           >
             ← 에디터
           </button>
           <button
             onClick={() => setStep(4)}
-            className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-white hover:brightness-125"
+            className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text)] hover:brightness-125"
           >
             내보내기 →
           </button>
@@ -159,7 +159,7 @@ export function LocalizeEditor() {
           <select
             value={sourceLocale}
             onChange={e => updateProject({ sourceLocale: e.target.value })}
-            className="rounded border border-[var(--color-border)] bg-black/30 px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+            className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-sm text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
           >
             {SUPPORTED_LOCALES.map(l => (
               <option key={l.code} value={l.code}>{l.label}</option>
@@ -178,8 +178,8 @@ export function LocalizeEditor() {
                   key={locale.code}
                   className={`flex cursor-pointer items-center gap-1.5 rounded border px-2 py-0.5 text-xs transition-colors ${
                     checked
-                      ? 'border-[var(--color-accent)] text-white'
-                      : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-white/30'
+                      ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                      : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)]'
                   }`}
                 >
                   <input
@@ -209,7 +209,7 @@ export function LocalizeEditor() {
                     onChange={() => updateProject({ translationApi: a })}
                     className="accent-[var(--color-accent)]"
                   />
-                  <span className={api === a ? 'text-white' : 'text-[var(--color-text-dim)]'}>
+                  <span className={api === a ? 'text-[var(--color-text)]' : 'text-[var(--color-text-dim)]'}>
                     {a === 'claude' ? 'Claude' : a === 'openai' ? 'OpenAI' : 'Gemini'}
                   </span>
                 </label>
@@ -225,11 +225,11 @@ export function LocalizeEditor() {
                 value={apiKey}
                 onChange={e => setKey(api, e.target.value)}
                 placeholder="API 키 입력"
-                className="w-44 rounded-l border border-[var(--color-border)] bg-black/30 px-2 py-1 text-xs text-white placeholder:text-[var(--color-text-dim)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                className="w-44 rounded-l border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
               />
               <button
                 onClick={() => setShowKey(v => !v)}
-                className="rounded-r border border-l-0 border-[var(--color-border)] bg-black/20 px-2 text-xs text-[var(--color-text-dim)] hover:text-white"
+                className="rounded-r border border-l-0 border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
               >
                 {showKey ? '숨김' : '표시'}
               </button>
@@ -285,7 +285,7 @@ export function LocalizeEditor() {
                       </button>
                     </div>
                     {errors[locale] && (
-                      <p className="mt-1 truncate text-xs text-red-400" title={errors[locale]}>
+                      <p className="mt-1 truncate text-xs text-red-600" title={errors[locale]}>
                         {errors[locale]}
                       </p>
                     )}
@@ -297,7 +297,7 @@ export function LocalizeEditor() {
               {rows.map(row => (
                 <tr
                   key={`${row.slideId}-${row.field}`}
-                  className="border-b border-[var(--color-border)]/40 hover:bg-white/[0.02]"
+                  className="border-b border-[var(--color-border)]/40 hover:bg-[var(--color-surface-2)]"
                 >
                   {row.slideRowSpan > 0 && (
                     <td
@@ -313,7 +313,7 @@ export function LocalizeEditor() {
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)]">
                     {row.label}
                   </td>
-                  <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-white/60">
+                  <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text)]/60">
                     {row.sourceText}
                   </td>
                   {targetLocales.map(locale => (
@@ -322,7 +322,7 @@ export function LocalizeEditor() {
                         value={getCellValue(slides, row.slideId, row.field, locale)}
                         onChange={e => handleCellChange(row.slideId, row.field, locale, e.target.value)}
                         rows={2}
-                        className="w-full resize-none rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-white placeholder:text-[var(--color-text-dim)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
+                        className="w-full resize-none rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
                         placeholder="번역 없음"
                       />
                     </td>

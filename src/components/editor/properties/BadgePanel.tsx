@@ -11,15 +11,15 @@ export function BadgePanel({ value, onChange }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-white">배지</span>
+        <span className="text-sm font-medium text-[var(--color-text)]">배지</span>
         <button
           type="button"
           onClick={() => onChange(value ? null : makeBadge())}
           className={[
             'rounded px-3 py-1 text-xs transition',
             value
-              ? 'border border-red-500/40 text-red-400 hover:bg-red-500/10'
-              : 'border border-[var(--color-border)] text-[var(--color-text-dim)] hover:text-white',
+              ? 'border border-red-500/40 text-red-600 hover:bg-red-500/10'
+              : 'border border-[var(--color-border)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
           ].join(' ')}
         >
           {value ? '제거' : '추가'}
@@ -34,7 +34,7 @@ export function BadgePanel({ value, onChange }: Props) {
               type="text"
               value={value.text}
               onChange={(e) => onChange({ ...value, text: e.target.value })}
-              className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-sm text-white outline-none focus:border-[var(--color-accent)]"
+              className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
             />
           </div>
 

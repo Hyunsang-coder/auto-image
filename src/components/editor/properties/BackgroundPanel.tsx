@@ -65,7 +65,7 @@ export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
                   className="mb-1 h-10 w-full rounded"
                   style={previewStyle(p)}
                 />
-                <div className="text-xs font-medium text-white">{p.label}</div>
+                <div className="text-xs font-medium text-[var(--color-text)]">{p.label}</div>
               </button>
             ))}
           </div>
@@ -83,7 +83,7 @@ export function BackgroundPanel({ value, onChange, onApplyPreset }: Props) {
               'flex-1 py-1.5 text-xs font-medium transition',
               activeTab === tab
                 ? 'bg-[var(--color-accent)] text-white'
-                : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-white',
+                : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
             ].join(' ')}
           >
             {tab === 'solid' ? '단색' : '그라데이션'}

@@ -26,8 +26,8 @@ export function TemplateSelector({ value, onChange }: Props) {
             className={[
               'rounded-lg border px-3 py-2 text-left text-sm transition',
               active
-                ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-white'
-                : 'border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-white',
+                ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                : 'border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]',
             ].join(' ')}
           >
             <div className="font-medium">{t.label}</div>

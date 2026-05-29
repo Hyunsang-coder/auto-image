@@ -42,7 +42,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
               key={s.id}
               type="button"
               onClick={() => addShape(s.id)}
-              className="flex flex-col items-center gap-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2 text-[10px] text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-white"
+              className="flex flex-col items-center gap-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2 text-[10px] text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
               title={s.label}
             >
               <span className="text-base">{s.emoji}</span>
@@ -63,11 +63,11 @@ export function OrnamentPanel({ value, onChange }: Props) {
               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 space-y-2"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-white">{shapeLabel(orn.shape)}</span>
+                <span className="text-xs font-medium text-[var(--color-text)]">{shapeLabel(orn.shape)}</span>
                 <button
                   type="button"
                   onClick={() => remove(orn.id)}
-                  className="text-xs text-red-400 hover:text-red-300"
+                  className="text-xs text-red-600 hover:text-red-700"
                 >
                   삭제
                 </button>

@@ -10,7 +10,7 @@ export function CanvasToolbar({ onUndo, onRedo }: Props) {
         type="button"
         title="Undo (Cmd+Z)"
         onClick={onUndo}
-        className="rounded px-2 py-1 text-xs text-[var(--color-text-dim)] hover:bg-[var(--color-surface-2)] hover:text-white transition"
+        className="rounded px-2 py-1 text-xs text-[var(--color-text-dim)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] transition"
       >
         Undo
       </button>
@@ -19,7 +19,7 @@ export function CanvasToolbar({ onUndo, onRedo }: Props) {
         type="button"
         title="Redo (Cmd+Shift+Z)"
         onClick={onRedo}
-        className="rounded px-2 py-1 text-xs text-[var(--color-text-dim)] hover:bg-[var(--color-surface-2)] hover:text-white transition"
+        className="rounded px-2 py-1 text-xs text-[var(--color-text-dim)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)] transition"
       >
         Redo
       </button>

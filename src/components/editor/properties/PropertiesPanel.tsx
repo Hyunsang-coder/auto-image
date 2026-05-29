@@ -84,8 +84,8 @@ export function PropertiesPanel({
             className={[
               'flex-1 py-2.5 text-xs font-medium transition',
               tab === t.id
-                ? 'border-b-2 border-[var(--color-accent)] text-white'
-                : 'text-[var(--color-text-dim)] hover:text-white',
+                ? 'border-b-2 border-[var(--color-accent)] text-[var(--color-accent)]'
+                : 'text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
             ].join(' ')}
           >
             {t.label}

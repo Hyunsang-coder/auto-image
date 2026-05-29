@@ -49,7 +49,7 @@ function App() {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3">
         <div className="flex items-center gap-3">
-          <span className="text-base font-semibold tracking-tight text-white">
+          <span className="text-base font-semibold tracking-tight text-[var(--color-text)]">
             auto-image
           </span>
           <span className="text-xs text-[var(--color-text-dim)]">
@@ -71,7 +71,7 @@ function App() {
             <button
               type="button"
               onClick={() => setShowResetConfirm(true)}
-              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-white"
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
               초기화
             </button>
@@ -80,7 +80,7 @@ function App() {
       </header>
 
       {storageError && (
-        <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-6 py-2 text-xs text-amber-200">
+        <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-6 py-2 text-xs text-amber-700">
           <span>
             저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다.
             슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.
@@ -111,7 +111,7 @@ function App() {
             className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white">프로젝트 초기화</h3>
+            <h3 className="text-lg font-semibold text-[var(--color-text)]">프로젝트 초기화</h3>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               현재 프로젝트 데이터가 모두 삭제됩니다. 되돌릴 수 없습니다.
             </p>

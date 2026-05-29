@@ -82,14 +82,14 @@ export function ScreenshotPanel({
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="text-xs text-[var(--color-text-dim)] hover:text-white"
+              className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
               교체
             </button>
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="text-xs text-red-400 hover:text-red-300"
+              className="text-xs text-red-600 hover:text-red-700"
             >
               삭제
             </button>
@@ -99,7 +99,7 @@ export function ScreenshotPanel({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-8 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-white"
+          className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-8 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
         >
           클릭하여 이미지 업로드
         </button>
@@ -121,7 +121,7 @@ export function ScreenshotPanel({
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
           렌더링 모드
         </p>
-        <label className="flex cursor-pointer items-center justify-between text-xs text-white">
+        <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
           <span>기기 프레임 표시</span>
           <input
             type="checkbox"
@@ -171,7 +171,7 @@ export function ScreenshotPanel({
                 className="w-full accent-[var(--color-accent)]"
               />
             </div>
-            <label className="flex cursor-pointer items-center justify-between text-xs text-white">
+            <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
               <span>그림자</span>
               <input
                 type="checkbox"

@@ -24,7 +24,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           rows={2}
           value={value.text}
           onChange={(e) => onChange({ ...value, text: e.target.value })}
-          className="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm text-white focus:border-[var(--color-accent)] outline-none"
+          className="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
         />
       </div>
 
@@ -37,7 +37,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             max={300}
             value={value.style.fontSize}
             onChange={(e) => updateStyle({ fontSize: Number(e.target.value) })}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-white focus:border-[var(--color-accent)] outline-none"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
           />
         </div>
         <div className="flex-1">
@@ -45,7 +45,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           <select
             value={value.style.fontWeight}
             onChange={(e) => updateStyle({ fontWeight: Number(e.target.value) })}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-white focus:border-[var(--color-accent)] outline-none"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
           >
             <option value={400}>Regular</option>
             <option value={500}>Medium</option>
@@ -78,7 +78,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
                 'flex-1 rounded py-1 text-xs transition',
                 value.style.textAlign === align
                   ? 'bg-[var(--color-accent)] text-white'
-                  : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-white border border-[var(--color-border)]',
+                  : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)] border border-[var(--color-border)]',
               ].join(' ')}
             >
               {align === 'left' ? '왼쪽' : align === 'center' ? '가운데' : '오른쪽'}
