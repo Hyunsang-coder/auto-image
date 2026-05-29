@@ -60,8 +60,8 @@ export function renderBadge(badge: Badge, opts: BadgeRenderOpts): FabricObject {
     evented: true,
     hasControls: true,
     hasBorders: true,
-    borderColor: '#6366F1',
-    cornerColor: '#6366F1',
+    borderColor: '#0D99FF',
+    cornerColor: '#0D99FF',
     hoverCursor: 'move',
     lockRotation: true,
     lockSkewingX: true,
@@ -73,6 +73,8 @@ export function renderBadge(badge: Badge, opts: BadgeRenderOpts): FabricObject {
   // runtime; set it via the string-key overload to keep corner drags uniform.
   group.set('lockUniScaling', true)
   group.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: false })
-  ;(group as FabricObject & { layerName?: string }).layerName = LAYER_NAMES.BADGE
+  ;(group as FabricObject & { layerName?: string; badgeId?: string }).layerName =
+    LAYER_NAMES.BADGE
+  ;(group as FabricObject & { badgeId?: string }).badgeId = badge.id
   return group
 }

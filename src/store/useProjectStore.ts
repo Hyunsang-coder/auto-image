@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Project, Slide, Step, ScreenshotImage } from '../types/project'
+import type { Project, Slide, Step, ScreenshotImage, Badge } from '../types/project'
 import { makeProject, makeSlide } from '../constants/defaults'
 import { deleteImage, loadImageBlob, saveImage } from '../lib/imageStore'
 import { safeLocalStorage } from '../lib/safeStorage'
@@ -69,7 +69,7 @@ async function buildIndependentFromLeader(
   const screenshot = await duplicateScreenshot(leader.screenshot)
   const highlights = leader.highlights.map((h) => ({ ...h, id: newId('hl') }))
   const ornaments = leader.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
-  const badge = leader.badge ? { ...leader.badge, id: newId('badge') } : null
+  const badges = leader.badges.map((b) => ({ ...b, id: newId('badge') }))
   return {
     id: follower.id,
     index: follower.index,
@@ -87,7 +87,7 @@ async function buildIndependentFromLeader(
       style: { ...leader.subheadline.style },
       translations: { ...leader.subheadline.translations },
     },
-    badge,
+    badges,
     highlights,
     ornaments,
     screenshotStyle: leader.screenshotStyle ? { ...leader.screenshotStyle } : undefined,
@@ -348,7 +348,18 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'auto-image:project',
       storage: createJSONStorage(() => safeLocalStorage),
-      version: 1,
+      version: 2,
+      // v1→v2: single `slide.badge` became `slide.badges` (array).
+      migrate: (persisted, version) => {
+        const state = persisted as { project: Project | null }
+        if (version < 2 && state.project) {
+          for (const slide of state.project.slides as Array<Slide & { badge?: Badge | null }>) {
+            slide.badges = slide.badge ? [slide.badge] : []
+            delete slide.badge
+          }
+        }
+        return state
+      },
       partialize: (state) => ({
         project: state.project,
         step: state.step,

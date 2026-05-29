@@ -15,9 +15,10 @@ function withLocaleText(slide: Slide, locale: string | null): Slide {
       ...slide.subheadline,
       text: slide.subheadline.translations[locale] ?? slide.subheadline.text,
     },
-    badge: slide.badge
-      ? { ...slide.badge, text: slide.badge.translations[locale] ?? slide.badge.text }
-      : null,
+    badges: slide.badges.map((b) => ({
+      ...b,
+      text: b.translations[locale] ?? b.text,
+    })),
   }
 }
 
@@ -40,18 +41,16 @@ function withScaledFonts(slide: Slide, scale: number): Slide {
         letterSpacing: (slide.subheadline.style.letterSpacing ?? 0) * scale,
       },
     },
-    badge: slide.badge
-      ? {
-          ...slide.badge,
-          style: {
-            ...slide.badge.style,
-            fontSize: Math.round(slide.badge.style.fontSize * scale),
-            paddingX: slide.badge.style.paddingX * scale,
-            paddingY: slide.badge.style.paddingY * scale,
-            borderRadius: slide.badge.style.borderRadius * scale,
-          },
-        }
-      : null,
+    badges: slide.badges.map((b) => ({
+      ...b,
+      style: {
+        ...b.style,
+        fontSize: Math.round(b.style.fontSize * scale),
+        paddingX: b.style.paddingX * scale,
+        paddingY: b.style.paddingY * scale,
+        borderRadius: b.style.borderRadius * scale,
+      },
+    })),
   }
 }
 

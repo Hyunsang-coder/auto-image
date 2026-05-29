@@ -42,7 +42,7 @@ export interface Slide {
   screenshot: ScreenshotImage | null
   headline: Caption
   subheadline: Caption
-  badge: Badge | null
+  badges: Badge[]
   highlights: Highlight[]
   /** Decorative SVG ornaments rendered above background, below screenshot. */
   ornaments?: Ornament[]

@@ -5,7 +5,7 @@ import { translateBatch } from '../../lib/translate'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import type { Slide, TranslationAPI } from '../../types/project'
 
-type FieldKey = 'headline' | 'subheadline' | 'badge'
+type FieldKey = 'headline' | 'subheadline' | `badge:${number}`
 
 type GridRow = {
   slideId: string
@@ -31,8 +31,14 @@ function buildRows(slides: Slide[]): GridRow[] {
       fields.push({ field: 'headline', label: '헤드라인', sourceText: slide.headline.text })
     if (slide.subheadline.text)
       fields.push({ field: 'subheadline', label: '서브', sourceText: slide.subheadline.text })
-    if (slide.badge?.text)
-      fields.push({ field: 'badge', label: '배지', sourceText: slide.badge.text })
+    slide.badges?.forEach((b, bi) => {
+      if (b.text)
+        fields.push({
+          field: `badge:${bi}`,
+          label: slide.badges.length > 1 ? `배지${bi + 1}` : '배지',
+          sourceText: b.text,
+        })
+    })
     const isSpanLeader = slide.spanRole === 'leader'
     fields.forEach((f, j) =>
       rows.push({
@@ -52,7 +58,10 @@ function getCellValue(slides: Slide[], slideId: string, field: FieldKey, locale:
   if (!slide) return ''
   if (field === 'headline') return slide.headline.translations[locale] ?? ''
   if (field === 'subheadline') return slide.subheadline.translations[locale] ?? ''
-  if (field === 'badge') return slide.badge?.translations[locale] ?? ''
+  if (field.startsWith('badge:')) {
+    const bi = Number(field.slice(6))
+    return slide.badges?.[bi]?.translations[locale] ?? ''
+  }
   return ''
 }
 
@@ -69,8 +78,15 @@ function buildPatch(
     return { headline: { ...slide.headline, translations: { ...slide.headline.translations, [locale]: value } } }
   if (field === 'subheadline')
     return { subheadline: { ...slide.subheadline, translations: { ...slide.subheadline.translations, [locale]: value } } }
-  if (field === 'badge' && slide.badge)
-    return { badge: { ...slide.badge, translations: { ...slide.badge.translations, [locale]: value } } }
+  if (field.startsWith('badge:')) {
+    const bi = Number(field.slice(6))
+    if (!slide.badges?.[bi]) return null
+    return {
+      badges: slide.badges.map((b, i) =>
+        i === bi ? { ...b, translations: { ...b.translations, [locale]: value } } : b,
+      ),
+    }
+  }
   return null
 }
 

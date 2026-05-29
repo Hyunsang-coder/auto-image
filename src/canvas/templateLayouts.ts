@@ -310,10 +310,10 @@ export async function applyTemplate(
     }
   }
 
-  // 6. Badge (always on top)
-  if (slide.badge) {
-    const badgeCenterX = cw * (slide.badge.left ?? 0.5)
-    canvas.add(renderBadge(slide.badge, { centerX: badgeCenterX, top: ch * slide.badge.top }))
+  // 6. Badges (always on top)
+  for (const badge of slide.badges ?? []) {
+    const badgeCenterX = cw * (badge.left ?? 0.5)
+    canvas.add(renderBadge(badge, { centerX: badgeCenterX, top: ch * badge.top }))
   }
 
   canvas.renderAll()

@@ -93,9 +93,9 @@ export function EditorLayout() {
     updateSlide(editTargetId, { screenshot })
   }
 
-  function handleBadgeChange(badge: Badge | null) {
+  function handleBadgesChange(badges: Badge[]) {
     if (!editTargetId) return
-    updateSlide(editTargetId, { badge })
+    updateSlide(editTargetId, { badges })
   }
 
   function handleDeviceFrameChange(df: DeviceFrame) {
@@ -166,7 +166,7 @@ export function EditorLayout() {
           onHeadlineChange={handleHeadlineChange}
           onSubheadlineChange={handleSubheadlineChange}
           onScreenshotChange={handleScreenshotChange}
-          onBadgeChange={handleBadgeChange}
+          onBadgesChange={handleBadgesChange}
           onDeviceFrameChange={handleDeviceFrameChange}
           onScreenshotStyleChange={handleScreenshotStyleChange}
           onOrnamentsChange={handleOrnamentsChange}

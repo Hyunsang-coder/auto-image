@@ -3,76 +3,138 @@ import type { Badge } from '../../../types/project'
 import { makeBadge } from '../../../constants/defaults'
 
 interface Props {
-  value: Badge | null
-  onChange: (badge: Badge | null) => void
+  value: Badge[]
+  onChange: (badges: Badge[]) => void
 }
 
 export function BadgePanel({ value, onChange }: Props) {
+  const badges = value ?? []
+
+  function add() {
+    // Stagger each new badge downward so it doesn't land exactly on the last.
+    const top = Math.min(0.9, 0.03 + badges.length * 0.09)
+    onChange([...badges, { ...makeBadge(), top }])
+  }
+
+  function update(id: string, patch: Partial<Badge>) {
+    onChange(badges.map((b) => (b.id === id ? { ...b, ...patch } : b)))
+  }
+
+  function updateStyle(id: string, patch: Partial<Badge['style']>) {
+    onChange(
+      badges.map((b) => (b.id === id ? { ...b, style: { ...b.style, ...patch } } : b)),
+    )
+  }
+
+  function remove(id: string) {
+    onChange(badges.filter((b) => b.id !== id))
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[var(--color-text)]">배지</span>
+        <span className="text-sm font-medium text-[var(--color-text)]">
+          배지{badges.length > 0 ? ` (${badges.length})` : ''}
+        </span>
         <button
           type="button"
-          onClick={() => onChange(value ? null : makeBadge())}
-          className={[
-            'rounded px-3 py-1 text-xs transition',
-            value
-              ? 'border border-red-500/40 text-red-600 hover:bg-red-500/10'
-              : 'border border-[var(--color-border)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
-          ].join(' ')}
+          onClick={add}
+          className="rounded border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-dim)] transition hover:text-[var(--color-text)]"
         >
-          {value ? '제거' : '추가'}
+          추가
         </button>
       </div>
 
-      {value && (
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-[var(--color-text-dim)]">텍스트</label>
+      {badges.map((badge) => (
+        <div
+          key={badge.id}
+          className="space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
+        >
+          <div className="flex items-center justify-between">
             <input
               type="text"
-              value={value.text}
-              onChange={(e) => onChange({ ...value, text: e.target.value })}
-              className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+              value={badge.text}
+              onChange={(e) => update(badge.id, { text: e.target.value })}
+              className="mr-2 w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
             />
+            <button
+              type="button"
+              onClick={() => remove(badge.id)}
+              className="shrink-0 text-xs text-red-600 hover:text-red-700"
+            >
+              삭제
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-2 block text-xs text-[var(--color-text-dim)]">배경색</label>
               <ColorPickerPopover
-                color={value.style.backgroundColor}
-                onChange={(c) => onChange({ ...value, style: { ...value.style, backgroundColor: c } })}
+                color={badge.style.backgroundColor}
+                onChange={(c) => updateStyle(badge.id, { backgroundColor: c })}
                 label="배경색"
               />
             </div>
             <div>
               <label className="mb-2 block text-xs text-[var(--color-text-dim)]">텍스트색</label>
               <ColorPickerPopover
-                color={value.style.textColor}
-                onChange={(c) => onChange({ ...value, style: { ...value.style, textColor: c } })}
+                color={badge.style.textColor}
+                onChange={(c) => updateStyle(badge.id, { textColor: c })}
                 label="텍스트색"
               />
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
-              <span>세로 위치</span>
-              <span>{Math.round(value.top * 100)}%</span>
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={95}
-              value={Math.round(value.top * 100)}
-              onChange={(e) => onChange({ ...value, top: Number(e.target.value) / 100 })}
-              className="w-full accent-[var(--color-accent)]"
-            />
-          </div>
+          <Slider
+            label="세로 위치"
+            value={Math.round(badge.top * 100)}
+            min={0}
+            max={95}
+            fmt={(v) => `${v}%`}
+            onChange={(v) => update(badge.id, { top: v / 100 })}
+          />
+
+          <Slider
+            label="모서리"
+            value={badge.style.borderRadius}
+            min={0}
+            max={100}
+            step={2}
+            fmt={(v) => `${v}px`}
+            onChange={(v) => updateStyle(badge.id, { borderRadius: v })}
+          />
         </div>
-      )}
+      ))}
+    </div>
+  )
+}
+
+interface SliderProps {
+  label: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  fmt: (v: number) => string
+  onChange: (v: number) => void
+}
+
+function Slider({ label, value, min, max, step = 1, fmt, onChange }: SliderProps) {
+  return (
+    <div>
+      <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+        <span>{label}</span>
+        <span>{fmt(value)}</span>
+      </label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-[var(--color-accent)]"
+      />
     </div>
   )
 }

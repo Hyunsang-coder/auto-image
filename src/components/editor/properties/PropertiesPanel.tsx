@@ -46,7 +46,7 @@ interface Props {
   onHeadlineChange: (c: Caption) => void
   onSubheadlineChange: (c: Caption) => void
   onScreenshotChange: (screenshot: ScreenshotImage | null) => void
-  onBadgeChange: (badge: Badge | null) => void
+  onBadgesChange: (badges: Badge[]) => void
   onDeviceFrameChange: (df: DeviceFrame) => void
   onScreenshotStyleChange: (style: ScreenshotStyle) => void
   onOrnamentsChange: (next: Ornament[]) => void
@@ -61,7 +61,7 @@ export function PropertiesPanel({
   onHeadlineChange,
   onSubheadlineChange,
   onScreenshotChange,
-  onBadgeChange,
+  onBadgesChange,
   onDeviceFrameChange,
   onScreenshotStyleChange,
   onOrnamentsChange,
@@ -136,7 +136,7 @@ export function PropertiesPanel({
           />
         )}
         {tab === 'badge' && (
-          <BadgePanel value={slide.badge} onChange={onBadgeChange} />
+          <BadgePanel value={slide.badges} onChange={onBadgesChange} />
         )}
       </div>
     </aside>

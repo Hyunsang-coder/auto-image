@@ -163,42 +163,51 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         }
       }
 
-      // Sync badge position/scale. Group's originX:'center', originY:'top' means
+      // Sync badge positions/scale. Group's originX:'center', originY:'top' means
       // group.left = center X, group.top = top edge of world bbox. We bake any
       // user scale into fontSize/padding so the next render starts fresh.
-      const badgeOnCanvas = objects.find(
+      const badgesOnCanvas = objects.filter(
         (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.BADGE,
       )
-      if (badgeOnCanvas && slide.badge) {
+      if (badgesOnCanvas.length > 0 && slide.badges?.length) {
         const w = canvas.width ?? 1
         const h = canvas.height ?? 1
-        const scaleX = badgeOnCanvas.scaleX ?? 1
-        const newLeft = (badgeOnCanvas.left ?? 0) / w
-        const newTop = (badgeOnCanvas.top ?? 0) / h
-        const curLeft = slide.badge.left ?? 0.5
-        const curTop = slide.badge.top
-        const styleScale = Math.max(0.4, Math.min(3.0, scaleX))
-        const scaleChanged = Math.abs(styleScale - 1) > 0.01
-        if (
-          Math.abs(newLeft - curLeft) > 0.001 ||
-          Math.abs(newTop - curTop) > 0.001 ||
-          scaleChanged
-        ) {
-          slidePatch.badge = {
-            ...slide.badge,
-            left: newLeft,
-            top: newTop,
-            style: scaleChanged
-              ? {
-                  ...slide.badge.style,
-                  fontSize: Math.round(slide.badge.style.fontSize * styleScale),
-                  paddingX: Math.round(slide.badge.style.paddingX * styleScale),
-                  paddingY: Math.round(slide.badge.style.paddingY * styleScale),
-                  borderRadius: Math.round(slide.badge.style.borderRadius * styleScale),
-                }
-              : slide.badge.style,
+        let dirty = false
+        const next = slide.badges.map((badge) => {
+          const fab = badgesOnCanvas.find(
+            (o) => (o as FabricObject & { badgeId?: string }).badgeId === badge.id,
+          )
+          if (!fab) return badge
+          const scaleX = fab.scaleX ?? 1
+          const newLeft = (fab.left ?? 0) / w
+          const newTop = (fab.top ?? 0) / h
+          const curLeft = badge.left ?? 0.5
+          const styleScale = Math.max(0.4, Math.min(3.0, scaleX))
+          const scaleChanged = Math.abs(styleScale - 1) > 0.01
+          if (
+            Math.abs(newLeft - curLeft) > 0.001 ||
+            Math.abs(newTop - badge.top) > 0.001 ||
+            scaleChanged
+          ) {
+            dirty = true
+            return {
+              ...badge,
+              left: newLeft,
+              top: newTop,
+              style: scaleChanged
+                ? {
+                    ...badge.style,
+                    fontSize: Math.round(badge.style.fontSize * styleScale),
+                    paddingX: Math.round(badge.style.paddingX * styleScale),
+                    paddingY: Math.round(badge.style.paddingY * styleScale),
+                    borderRadius: Math.round(badge.style.borderRadius * styleScale),
+                  }
+                : badge.style,
+            }
           }
-        }
+          return badge
+        })
+        if (dirty) slidePatch.badges = next
       }
 
       // Sync highlight source rect + popup positions/sizes. Each highlight has
@@ -509,7 +518,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         deviceFrame: activeSlide.deviceFrame,
         screenshotKey: activeSlide.screenshot?.imageKey ?? null,
         screenshotStyle: activeSlide.screenshotStyle,
-        badge: activeSlide.badge,
+        badges: activeSlide.badges,
         ornaments: activeSlide.ornaments,
         highlights: activeSlide.highlights,
         // Include grouped state in the cache key so toggling link/unlink

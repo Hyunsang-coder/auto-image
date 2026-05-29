@@ -263,7 +263,7 @@ export function makeSlide(index: number, themeColor: string, device: DeviceType 
       '한 문장으로 가치 제안을 전달하세요',
       { ...SUBHEADLINE_STYLE, fontSize: sizes.subheadline },
     ),
-    badge: null,
+    badges: [],
     highlights: [],
     ornaments: [],
     screenshotStyle: { ...DEFAULT_SCREENSHOT_STYLE },
