@@ -1,5 +1,6 @@
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Caption, TextStyle } from '../../../types/project'
+import { FONT_OPTIONS } from '../../../constants/defaults'
 
 interface CaptionFieldProps {
   label: string
@@ -26,6 +27,22 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           onChange={(e) => onChange({ ...value, text: e.target.value })}
           className="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-[var(--color-text-dim)]">폰트</label>
+        <select
+          value={value.style.fontFamily}
+          onChange={(e) => updateStyle({ fontFamily: e.target.value })}
+          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
+          style={{ fontFamily: value.style.fontFamily }}
+        >
+          {FONT_OPTIONS.map((f) => (
+            <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
+              {f.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="flex gap-2">

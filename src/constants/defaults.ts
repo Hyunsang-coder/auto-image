@@ -34,8 +34,17 @@ export const SUPPORTED_LOCALES = [
   { code: 'it', label: 'Italiano' },
 ] as const
 
+/** Free font families offered for headline/subheadline. Loaded in index.html.
+ * Pretendard leads because it covers Korean + Latin cleanly. */
+export const FONT_OPTIONS: { label: string; family: string }[] = [
+  { label: 'Pretendard', family: 'Pretendard' },
+  { label: 'Inter', family: 'Inter' },
+  { label: 'Montserrat', family: 'Montserrat' },
+  { label: 'Poppins', family: 'Poppins' },
+]
+
 export const HEADLINE_STYLE: TextStyle = {
-  fontFamily: 'Inter',
+  fontFamily: 'Pretendard',
   fontSize: 76,
   fontWeight: 900,
   color: '#FFFFFF',
@@ -45,7 +54,7 @@ export const HEADLINE_STYLE: TextStyle = {
 }
 
 export const SUBHEADLINE_STYLE: TextStyle = {
-  fontFamily: 'Inter',
+  fontFamily: 'Pretendard',
   fontSize: 34,
   fontWeight: 500,
   color: '#E6E8EE',
