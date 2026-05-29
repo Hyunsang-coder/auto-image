@@ -1,16 +1,28 @@
 # Testing
 
-This app is a fully client-side SPA (no backend), so verification has two layers:
-an automated Playwright e2e suite, and a manual browser-driven check for the
-canvas/render behavior that pixels — not the DOM — actually prove.
+This app is a fully client-side SPA (no backend), so verification has three layers:
+fast pure-function unit tests (Vitest), an automated Playwright e2e suite, and a
+manual browser-driven check for the canvas/render behavior that pixels — not the
+DOM — actually prove. The `test` and `update-tests` skills (`.claude/skills/`)
+encode how to pick a layer and how to reconcile tests after a change.
 
 ## 1. Gates (run before every commit)
 
 ```bash
 npm run build     # tsc -b && vite build — must be 0 errors
 npm run lint      # eslint . — 0 errors (1 known exhaustive-deps warning in ScreenshotPanel)
+npm run test:unit # vitest run — logic layer (src/**/*.test.ts)
 npm run test:e2e  # playwright (chromium) against the Vite dev server
 ```
+
+### Logic layer (Vitest)
+
+Pure functions are tested in `src/**/*.test.ts` (jsdom env, configured in
+`vite.config.ts`). This glob never overlaps Playwright's `e2e/*.spec.ts`. Seed
+coverage: `deviceSpecs.test.ts` (aspect→device buckets) and
+`templateLayouts.test.ts` (`getDeviceBaseAnchor` seam math, see §3). Add a logic
+test for anything provable without a live Fabric canvas or DOM; everything else
+belongs in the layers below.
 
 `playwright.config.ts` reuses an already-running dev server on `localhost:5173`,
 or starts one. Specs live in `e2e/` — one per step plus `navigation`,
@@ -40,23 +52,27 @@ this, so drive the running app directly. This is the exact process used.
 
 1. **Start the dev server**: `npm run dev` (serves on `localhost:5173`).
 
-2. **Make a diagnostic fixture** — a tall (iPhone-aspect, 1320×2868) PNG with a
+2. **Use a committed diagnostic fixture** from `e2e/fixtures/` —
+   `span_iphone.png` (1320×2868) or `span_ipad.png` (2064×2752). Each has a
    clearly asymmetric left/right design so the split is unambiguous: left half
    red with an "L", right half blue with an "R", a yellow vertical line at the
    exact horizontal center (the expected seam), and horizontal gridlines to
-   check vertical alignment across the split. (Generated with Pillow.)
+   check vertical alignment across the split. They are regenerated from
+   `e2e/fixtures/generate_fixtures.py` (Pillow) — re-run it if `deviceSpecs.ts`
+   export dimensions change; don't hand-edit the PNGs.
 
 3. **Serve the fixture** so the page can load it without a native file dialog:
-   drop it in `public/` (Vite serves it at `/span_test.png`). *Remove it
-   afterward — it is a throwaway, not a committed asset.*
+   copy it into `public/` (Vite serves it at `/<name>`). *Remove it from
+   `public/` afterward — the committed copy lives in `e2e/fixtures/`, not in the
+   app's real assets.*
 
 4. **Inject it into the React file input** (clicking a file input opens a native
    dialog the automation can't see). In the page context:
 
    ```js
-   const blob = await (await fetch('/span_test.png')).blob()
+   const blob = await (await fetch('/span_iphone.png')).blob()
    const dt = new DataTransfer()
-   dt.items.add(new File([blob], 'span_test.png', { type: 'image/png' }))
+   dt.items.add(new File([blob], 'span_iphone.png', { type: 'image/png' }))
    const input = document.querySelector('input[type=file]')
    input.files = dt.files
    input.dispatchEvent(new Event('change', { bubbles: true }))  // fires React onChange
