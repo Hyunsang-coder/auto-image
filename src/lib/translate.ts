@@ -16,9 +16,15 @@ function parseJsonArray(text: string, n: number): string[] {
   const match = text.match(/\[[\s\S]*\]/)
   if (!match) throw new Error('응답에서 JSON 배열을 찾을 수 없습니다')
   const arr: unknown = JSON.parse(match[0])
-  if (!Array.isArray(arr) || arr.length !== n)
-    throw new Error(`${n}개 항목이 필요하지만 ${Array.isArray(arr) ? arr.length : '비배열'}을 받았습니다`)
-  return arr.map(String)
+  if (!Array.isArray(arr) || arr.length === 0)
+    throw new Error('응답에서 번역 결과를 찾을 수 없습니다')
+  // Tolerate count drift: models occasionally drop, merge, or add an item.
+  // Align to n (truncate extras, pad shortfalls with '') so a near-miss yields
+  // a usable partial result the user can finish — better than discarding the
+  // whole locale and re-spending on a retry.
+  const out = arr.slice(0, n).map(String)
+  while (out.length < n) out.push('')
+  return out
 }
 
 async function viaClaude(texts: string[], src: string, tgt: string, key: string): Promise<string[]> {
@@ -32,7 +38,7 @@ async function viaClaude(texts: string[], src: string, tgt: string, key: string)
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: buildPrompt(texts, src, tgt) }],
     }),
   })
