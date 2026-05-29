@@ -110,7 +110,13 @@ export function LocalizeEditor() {
   const localeLabel = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
 
   function handleCellChange(slideId: string, field: FieldKey, locale: string, value: string) {
-    const patch = buildPatch(slides, slideId, field, locale, value)
+    // Read the latest committed slides, not the render-time closure: a single
+    // translate run writes many cells back-to-back (every field × every locale)
+    // with no re-render between them. buildPatch rebuilds whole sub-objects
+    // (headline/badges), so building from a stale snapshot makes each write clobber
+    // the previous one — only the last locale / last badge would survive.
+    const fresh = useProjectStore.getState().project?.slides ?? slides
+    const patch = buildPatch(fresh, slideId, field, locale, value)
     if (patch) updateSlide(slideId, patch)
   }
 
