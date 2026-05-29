@@ -42,6 +42,25 @@ test('미리보기 렌더 버튼이 클릭 가능하고 로딩 후 이미지 표
   await expect(page.locator('img[src^="blob:"]')).toBeVisible()
 })
 
+test('내보낸 PNG에 알파 채널이 없음 (color type 2) — ASC 거부 방지', async ({ page }) => {
+  await page.getByRole('button', { name: '미리보기 렌더' }).click()
+  await page.waitForFunction(() => document.querySelector('img[src^="blob:"]') !== null, {
+    timeout: 30_000,
+  })
+
+  // Read the rendered PNG bytes and inspect the IHDR header. ASC rejects any
+  // screenshot whose encoding carries an alpha channel; a color type of 2
+  // (truecolor, no alpha) is what guards against that.
+  const header = await page.evaluate(async () => {
+    const src = document.querySelector<HTMLImageElement>('img[src^="blob:"]')!.src
+    const buf = new Uint8Array(await (await fetch(src)).arrayBuffer())
+    return { sig: Array.from(buf.subarray(0, 8)), colorType: buf[25] }
+  })
+
+  expect(header.sig).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+  expect(header.colorType).toBe(2)
+})
+
 test('ZIP 내보내기 버튼이 실행 중에 비활성화됨', async ({ page }) => {
   const exportBtn = page.getByRole('button', { name: /ZIP 내보내기/ })
 
