@@ -62,7 +62,7 @@ All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts
 
 ### Translation
 
-Direct browser calls to LLM APIs. Claude requires the `anthropic-dangerous-direct-browser-access: true` header. Model choices: `claude-sonnet-4-6`, `gpt-4o-mini`, `gemini-2.0-flash`.
+Direct browser calls to LLM APIs. Claude requires the `anthropic-dangerous-direct-browser-access: true` header. Model choices: `claude-sonnet-4-6`, `gpt-4o-mini`, `gemini-3.1-flash-lite`.
 
 ### CSS
 

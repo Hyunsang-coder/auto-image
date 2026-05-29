@@ -63,7 +63,7 @@ async function viaOpenAI(texts: string[], src: string, tgt: string, key: string)
 
 async function viaGemini(texts: string[], src: string, tgt: string, key: string): Promise<string[]> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${encodeURIComponent(key)}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
