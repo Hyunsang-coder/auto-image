@@ -112,7 +112,7 @@ export async function renderSpanGroup(
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })
 
-  await applyTemplate(canvas, exportSlide, { width: fullWidth, height })
+  await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, { spanCentered: true })
   await document.fonts.ready
   canvas.renderAll()
 

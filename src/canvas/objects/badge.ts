@@ -66,11 +66,13 @@ export function renderBadge(badge: Badge, opts: BadgeRenderOpts): FabricObject {
     lockRotation: true,
     lockSkewingX: true,
     lockSkewingY: true,
-    lockUniScaling: true,
     centeredScaling: true,
     subTargetCheck: false,
   })
+  // lockUniScaling isn't in Fabric 7's GroupProps type but is honored at
+  // runtime; set it via the string-key overload to keep corner drags uniform.
+  group.set('lockUniScaling', true)
   group.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: false })
-  ;(group as FabricObject & { layerName: string }).layerName = LAYER_NAMES.BADGE
+  ;(group as FabricObject & { layerName?: string }).layerName = LAYER_NAMES.BADGE
   return group
 }

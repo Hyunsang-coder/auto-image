@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Project, Slide, Step, ScreenshotImage } from '../types/project'
 import { makeProject, makeSlide } from '../constants/defaults'
 import { deleteImage, loadImageBlob, saveImage } from '../lib/imageStore'
+import { safeLocalStorage } from '../lib/safeStorage'
 
 function newId(prefix: string): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -346,7 +347,7 @@ export const useProjectStore = create<ProjectState>()(
     }),
     {
       name: 'auto-image:project',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       version: 1,
       partialize: (state) => ({
         project: state.project,

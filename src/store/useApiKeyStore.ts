@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ApiConfig, TranslationAPI } from '../types/project'
+import { safeLocalStorage } from '../lib/safeStorage'
 
 interface ApiKeyState {
   keys: ApiConfig
@@ -30,7 +31,7 @@ export const useApiKeyStore = create<ApiKeyState>()(
     }),
     {
       name: 'auto-image:api-keys',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       version: 1,
     },
   ),

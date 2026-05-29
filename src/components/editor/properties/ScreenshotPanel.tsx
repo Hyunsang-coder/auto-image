@@ -24,18 +24,17 @@ export function ScreenshotPanel({
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!value) {
-      setThumbUrl(null)
-      return
-    }
     let objectUrl: string | null = null
-    loadImageObjectUrl(value.imageKey).then(url => {
-      if (url) {
-        objectUrl = url
-        setThumbUrl(url)
-      }
-    })
+    if (value) {
+      loadImageObjectUrl(value.imageKey).then(url => {
+        if (url) {
+          objectUrl = url
+          setThumbUrl(url)
+        }
+      })
+    }
     return () => {
+      setThumbUrl(null)
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [value?.imageKey])
@@ -131,6 +130,24 @@ export function ScreenshotPanel({
             className="accent-[var(--color-accent)]"
           />
         </label>
+
+        <div>
+          <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+            <span>기기 회전</span>
+            <span>{Math.round(deviceFrame.rotation ?? 0)}°</span>
+          </label>
+          <input
+            type="range"
+            min={-180}
+            max={180}
+            step={1}
+            value={deviceFrame.rotation ?? 0}
+            onChange={(e) =>
+              onDeviceFrameChange({ ...deviceFrame, rotation: Number(e.target.value) })
+            }
+            className="w-full accent-[var(--color-accent)]"
+          />
+        </div>
 
         {!deviceFrame.show && (
           <>

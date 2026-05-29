@@ -102,6 +102,8 @@ export interface DeviceFrame {
   offsetY?: number
   /** Uniform scale factor applied on top of the template's default size. 1 = default. */
   scale?: number
+  /** Tilt of the device + screenshot in degrees, about the device center. 0 = upright. */
+  rotation?: number
 }
 
 export interface ScreenshotImage {

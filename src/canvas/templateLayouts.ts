@@ -1,4 +1,5 @@
 import { Canvas, FabricImage, Rect, Shadow } from 'fabric'
+import type { FabricObject } from 'fabric'
 import type { Slide, ScreenshotImage, ScreenshotStyle } from '../types/project'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../constants/deviceSpecs'
 import { renderBackground } from './objects/background'
@@ -31,6 +32,26 @@ function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h:
   return { w, h }
 }
 
+// Rotate a point around a pivot in canvas (y-down) space. Positive degrees =
+// clockwise, matching Fabric's `angle`.
+function rotateAround(x: number, y: number, cx: number, cy: number, deg: number): { x: number; y: number } {
+  const rad = (deg * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const dx = x - cx
+  const dy = y - cy
+  return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos }
+}
+
+// Tilt a top-left-origin object about an external pivot: spin it on its own
+// origin (angle) and swing that origin around the pivot so the whole device +
+// screenshot composition rotates as one unit.
+function rotateObjectAround(obj: FabricObject, cx: number, cy: number, deg: number): void {
+  if (!deg) return
+  const p = rotateAround(obj.left ?? 0, obj.top ?? 0, cx, cy, deg)
+  obj.set({ left: p.x, top: p.y, angle: deg })
+}
+
 const DEFAULT_SHOT_STYLE: ScreenshotStyle = { cornerRadiusRatio: 0.06, shadow: true }
 
 function effectiveShotStyle(slide: Slide): ScreenshotStyle {
@@ -41,7 +62,7 @@ async function renderScreenshotLayer(
   canvas: Canvas,
   screenshot: ScreenshotImage,
   bounds: ScreenBounds,
-  opts?: { withShadow?: boolean },
+  opts?: { withShadow?: boolean; rotation?: number; pivot?: { x: number; y: number } },
 ): Promise<void> {
   const url = await loadImageObjectUrl(screenshot.imageKey)
   if (!url) return
@@ -89,6 +110,13 @@ async function renderScreenshotLayer(
     })
   }
 
+  // Tilt the image and its absolutely-positioned clip about the device center
+  // so the rounded mask stays glued to the rotated screenshot.
+  if (opts?.rotation && opts.pivot) {
+    rotateObjectAround(img, opts.pivot.x, opts.pivot.y, opts.rotation)
+    if (img.clipPath) rotateObjectAround(img.clipPath as unknown as FabricObject, opts.pivot.x, opts.pivot.y, opts.rotation)
+  }
+
   ;(img as FabricImage & { layerName: string }).layerName = LAYER_NAMES.SCREENSHOT
   canvas.add(img)
 }
@@ -111,6 +139,7 @@ function getDeviceLayout(
   cw: number,
   ch: number,
   device: { w: number; h: number },
+  spanCentered = false,
 ): DeviceLayout | null {
   const { offsetX = 0, offsetY = 0, scale = 1 } = slide.deviceFrame
   let baseW: number
@@ -128,6 +157,10 @@ function getDeviceLayout(
   } else {
     return null
   }
+  // In a 2-page span the device should straddle the seam (canvas center)
+  // regardless of the template's single-slide horizontal bias, otherwise
+  // off-center templates (split, hero-bleed) push the device onto one page.
+  if (spanCentered) centerX = cw / 2
   const width = baseW * scale
   const height = Math.round((width / device.w) * device.h)
   const top = topMode === 'vcenter' ? (ch - height) / 2 : topFixed
@@ -143,17 +176,19 @@ export function getDeviceBaseAnchor(
   slide: Slide,
   cw: number,
   ch: number,
+  spanCentered = false,
 ): { centerX: number; top: number } | null {
   const device = getDeviceDimensions(slide, cw)
+  const seam = cw / 2
   if (slide.template === 'text-top') return { centerX: cw / 2, top: ch * 0.30 }
   if (slide.template === 'text-bottom') return { centerX: cw / 2, top: ch * 0.05 }
   if (slide.template === 'split') {
     const deviceW = cw * 0.45
     const deviceH = Math.round((deviceW / device.w) * device.h)
-    return { centerX: cw * 0.76, top: (ch - deviceH) / 2 }
+    return { centerX: spanCentered ? seam : cw * 0.76, top: (ch - deviceH) / 2 }
   }
   if (slide.template === 'hero-bleed') {
-    return { centerX: cw * 0.7, top: ch * 0.28 }
+    return { centerX: spanCentered ? seam : cw * 0.7, top: ch * 0.28 }
   }
   return null
 }
@@ -192,18 +227,20 @@ export async function applyTemplate(
   canvas: Canvas,
   slide: Slide,
   dims?: { width: number; height: number },
+  opts?: { spanCentered?: boolean },
 ): Promise<void> {
   canvas.clear()
 
   const cw = dims?.width ?? EDITOR_CANVAS_WIDTH
   const ch = dims?.height ?? getCanvasHeight(slide)
+  const spanCentered = opts?.spanCentered ?? false
 
   canvas.setDimensions({ width: cw, height: ch })
 
   const { template } = slide
   const device = getDeviceDimensions(slide, cw)
-  const deviceLayout = getDeviceLayout(slide, cw, ch, device)
-  const baseAnchor = getDeviceBaseAnchor(slide, cw, ch)
+  const deviceLayout = getDeviceLayout(slide, cw, ch, device, spanCentered)
+  const baseAnchor = getDeviceBaseAnchor(slide, cw, ch, spanCentered)
 
   // 1. Background
   canvas.add(renderBackground(cw, ch, slide.background))
@@ -229,8 +266,16 @@ export async function applyTemplate(
     }
     if (screenBounds) {
       const floating = template !== 'hero' && !slide.deviceFrame.show
+      // Rotation only applies where there's a device footprint to pivot around;
+      // hero's full-bleed shot has no center to tilt about.
+      const rotation = deviceLayout ? (slide.deviceFrame.rotation ?? 0) : 0
+      const pivot = deviceLayout
+        ? { x: deviceLayout.centerX, y: deviceLayout.top + deviceLayout.height / 2 }
+        : undefined
       await renderScreenshotLayer(canvas, slide.screenshot, screenBounds, {
         withShadow: floating && shotStyle.shadow,
+        rotation,
+        pivot,
       })
     }
   }
@@ -341,6 +386,14 @@ function addDeviceFrame(
   })
   const baseLeft = baseAnchor ? baseAnchor.centerX - layout.width / 2 : layout.centerX - layout.width / 2
   const baseTop = baseAnchor ? baseAnchor.top : layout.top
+  const angle = slide.deviceFrame.rotation ?? 0
+  const pivotX = layout.centerX
+  const pivotY = layout.top + layout.height / 2
+  // Offset-free pivot, used to store the body's _baseLeft/_baseTop already
+  // rotated — that keeps syncToZustand's `body.left - _baseLeft` capturing only
+  // the user's drag offset even when the device is tilted.
+  const basePivotX = baseAnchor ? baseAnchor.centerX : layout.centerX
+  const basePivotY = (baseAnchor ? baseAnchor.top : layout.top) + layout.height / 2
   paths.forEach((obj, i) => {
     if (i === 0) {
       obj.set({
@@ -359,9 +412,11 @@ function addDeviceFrame(
       })
       // Only corner handles — middle handles would let the user break aspect.
       obj.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: false })
-      ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseLeft = baseLeft
-      ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseTop = baseTop
+      const base = angle ? rotateAround(baseLeft, baseTop, basePivotX, basePivotY, angle) : { x: baseLeft, y: baseTop }
+      ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseLeft = base.x
+      ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseTop = base.y
     }
+    rotateObjectAround(obj, pivotX, pivotY, angle)
     canvas.add(obj)
   })
 }

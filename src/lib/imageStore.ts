@@ -1,4 +1,4 @@
-import { del, get, set } from 'idb-keyval'
+import { del, get, keys, set } from 'idb-keyval'
 
 const PREFIX = 'img:'
 
@@ -24,7 +24,37 @@ export async function loadImageObjectUrl(
 }
 
 export async function deleteImage(key: string): Promise<void> {
-  await del(key)
+  // Callers fire-and-forget this; a failed delete is non-critical (the blob is
+  // already unreferenced and pruneOrphanImages will sweep it on next startup),
+  // so swallow rather than surface an unhandled rejection.
+  try {
+    await del(key)
+  } catch {
+    /* ignore */
+  }
+}
+
+async function listImageKeys(): Promise<string[]> {
+  const all = await keys()
+  return all.filter(
+    (k): k is string => typeof k === 'string' && k.startsWith(PREFIX),
+  )
+}
+
+/**
+ * Delete every stored image blob not present in `referenced`. Sweeps blobs
+ * orphaned by interrupted operations (a crash between saveImage and the
+ * localStorage pointer write, an aborted span unlink, etc.). Returns the
+ * number of blobs removed. Caller must pass the full set of keys still in use.
+ */
+export async function pruneOrphanImages(
+  referenced: Iterable<string>,
+): Promise<number> {
+  const keep = new Set(referenced)
+  const stored = await listImageKeys()
+  const orphans = stored.filter((k) => !keep.has(k))
+  await Promise.all(orphans.map((k) => deleteImage(k)))
+  return orphans.length
 }
 
 export async function fileToImageKey(file: File): Promise<{
