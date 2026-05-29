@@ -209,6 +209,62 @@ test('다중선택 드래그가 양쪽 객체를 올바르게 이동 (그룹 상
   expect(after[1].top).toBeGreaterThan(0)
 })
 
+test('Undo가 배지 이동을 되돌리고, 되돌림이 슬라이드 전환 후에도 유지됨', async ({ page }) => {
+  type Ed = {
+    getState: () => { width: number; objects: { layerName?: string; left: number; top: number; height: number }[] }
+    findByLayer: (n: string) => unknown
+    canvas: { setActiveObject: (o: unknown) => void; requestRenderAll: () => void }
+  }
+  const badge = () =>
+    page.evaluate(() => {
+      const b = (window as unknown as { __editor: Ed }).__editor
+        .getState()
+        .objects.find((o) => o.layerName === 'badge')!
+      return { left: b.left, top: b.top, height: b.height }
+    })
+
+  await page.getByRole('button', { name: '배지' }).click()
+  await page.getByRole('button', { name: '추가', exact: true }).click()
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge') != null)
+
+  const box = (await page.locator('canvas').last().boundingBox())!
+  const st = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.getState())
+  const scale = box.width / st.width
+  const orig = await badge()
+
+  // real drag +60px right → fires object:modified → pushHistory + sync
+  const cx = box.x + orig.left * scale
+  const cy = box.y + (orig.top + orig.height / 2) * scale
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  await page.mouse.move(cx + 60, cy, { steps: 6 })
+  await page.mouse.up()
+  await page.waitForFunction((l) => {
+    const b = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'badge')!
+    return b.left > l + 30
+  }, orig.left)
+  const moved = await badge()
+
+  // undo → should revert near the original position
+  const isMac = process.platform === 'darwin'
+  await page.keyboard.press(isMac ? 'Meta+z' : 'Control+z')
+  await page.waitForFunction((l) => {
+    const b = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'badge')!
+    return Math.abs(b.left - l) < 10
+  }, orig.left)
+  const undone = await badge()
+  expect(Math.abs(undone.left - orig.left)).toBeLessThan(10)
+  expect(moved.left).toBeGreaterThan(orig.left + 30)
+
+  // store consistency: switch slide and back — revert must survive a re-render
+  const slides = page.locator('aside').first().getByRole('button')
+  await slides.nth(1).click()
+  await slides.nth(0).click()
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge') != null)
+  const afterSwitch = await badge()
+  expect(Math.abs(afterSwitch.left - orig.left)).toBeLessThan(10)
+})
+
 test('드래그한 헤드라인 위치가 슬라이드 전환 후에도 유지됨', async ({ page }) => {
   type Ed = {
     getState: () => { width: number; objects: { layerName?: string; left: number; top: number; width: number; height: number }[] }

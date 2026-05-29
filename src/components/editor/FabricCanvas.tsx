@@ -64,6 +64,10 @@ interface Props {
 }
 
 const HISTORY_LIMIT = 50
+// Custom per-object props that must survive a history snapshot → loadFromJSON
+// round-trip, otherwise restored objects lose their identity and syncToZustand
+// can't map them back to the store (positions would silently un-revert).
+const HISTORY_PROPS = ['layerName', 'badgeId', 'ornamentId', 'highlightId', '_baseLeft', '_baseTop']
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
@@ -73,9 +77,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
   function FabricCanvas({ activeSlide, isGrouped = false, onSlideChange, onHistoryChange }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
-    // History stacks store canvas object snapshots (with custom props)
+    // History stacks store canvas object snapshots (with custom props).
+    // `baselineRef` is the present state; undo/redo move it between the stacks.
     const undoStack = useRef<object[]>([])
     const redoStack = useRef<object[]>([])
+    const baselineRef = useRef<object | null>(null)
     const isApplyingHistory = useRef(false)
     const prevSlideId = useRef<string | null>(null)
     // One blob URL per image for the current slide's lifetime — reused across
@@ -103,14 +109,20 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       })
     }
 
+    function takeSnapshot(canvas: Canvas): object {
+      return canvas.toObject(HISTORY_PROPS)
+    }
+
     function pushHistory(canvas: Canvas) {
       if (isApplyingHistory.current) return
-      // toObject accepts propertiesToInclude for custom properties
-      const snapshot = canvas.toObject(['layerName'])
-      undoStack.current.push(snapshot)
-      if (undoStack.current.length > HISTORY_LIMIT) {
-        undoStack.current.shift()
+      // object:modified fires AFTER the change, so the canvas is already the new
+      // state. Push the previous baseline (the pre-change state) onto undo, then
+      // adopt the new state as the baseline.
+      if (baselineRef.current) {
+        undoStack.current.push(baselineRef.current)
+        if (undoStack.current.length > HISTORY_LIMIT) undoStack.current.shift()
       }
+      baselineRef.current = takeSnapshot(canvas)
       redoStack.current = []
       notifyHistory()
     }
@@ -398,11 +410,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (!canvas || undoStack.current.length === 0) return
         isApplyingHistory.current = true
 
-        const current = canvas.toObject(['layerName'])
-        redoStack.current.push(current)
-
-        const snapshot = undoStack.current.pop()!
-        canvas.loadFromJSON(snapshot).then(() => {
+        if (baselineRef.current) redoStack.current.push(baselineRef.current)
+        const prev = undoStack.current.pop()!
+        baselineRef.current = prev
+        canvas.loadFromJSON(prev).then(() => {
           canvas.renderAll()
           isApplyingHistory.current = false
           notifyHistory()
@@ -414,11 +425,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (!canvas || redoStack.current.length === 0) return
         isApplyingHistory.current = true
 
-        const current = canvas.toObject(['layerName'])
-        undoStack.current.push(current)
-
-        const snapshot = redoStack.current.pop()!
-        canvas.loadFromJSON(snapshot).then(() => {
+        if (baselineRef.current) undoStack.current.push(baselineRef.current)
+        const next = redoStack.current.pop()!
+        baselineRef.current = next
+        canvas.loadFromJSON(next).then(() => {
           canvas.renderAll()
           isApplyingHistory.current = false
           notifyHistory()
@@ -718,9 +728,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const groupedChanged = prevGroupedRef.current !== isGrouped
       if (!slideChanged && !dataChanged && !groupedChanged) return
 
-      if (slideChanged || groupedChanged) {
+      const freshLoad = slideChanged || groupedChanged
+      if (freshLoad) {
         undoStack.current = []
         redoStack.current = []
+        baselineRef.current = null
         notifyHistory()
         // History (which embeds these blob URLs in its snapshots) is gone, so
         // the cached URLs from the previous slide/grouping are now unreachable.
@@ -743,6 +755,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
+        // The rendered canvas is the present state → adopt it as the undo
+        // baseline on every render. Doing this only on fresh loads would leave
+        // the baseline stale after store-driven changes (panel add/delete/edit),
+        // so the next drag's undo would revert to a pre-add state and drop the
+        // object. Stacks are still only cleared on a fresh load (above).
+        baselineRef.current = takeSnapshot(canvas)
+        notifyHistory()
       })()
     }, [activeSlide, isGrouped])
 
