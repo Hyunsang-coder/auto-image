@@ -153,6 +153,62 @@ test('화살표 키로 선택된 배지를 미세 이동 (Shift=10px)', async ({
   expect(after).toBeGreaterThan(before)
 })
 
+test('다중선택 드래그가 양쪽 객체를 올바르게 이동 (그룹 상대좌표 손상 방지)', async ({ page }) => {
+  type Ed = {
+    getState: () => { width: number; objects: { layerName?: string; left: number; top: number; height: number }[] }
+  }
+  const badgeGeom = () =>
+    page.evaluate(() =>
+      (window as unknown as { __editor: Ed }).__editor
+        .getState()
+        .objects.filter((o) => o.layerName === 'badge')
+        .map((o) => ({ left: o.left, top: o.top, height: o.height })),
+    )
+
+  await page.getByRole('button', { name: '배지' }).click()
+  await page.getByRole('button', { name: '추가', exact: true }).click()
+  await page.getByRole('button', { name: '추가', exact: true }).click()
+  await page.waitForFunction(
+    () =>
+      (window as unknown as { __editor: Ed }).__editor.getState().objects.filter((o) => o.layerName === 'badge')
+        .length === 2,
+  )
+
+  const box = (await page.locator('canvas').last().boundingBox())!
+  const st = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.getState())
+  const scale = box.width / st.width
+  const before = await badgeGeom()
+  const pt = (b: { left: number; top: number; height: number }) => ({
+    x: box.x + b.left * scale,
+    y: box.y + (b.top + b.height / 2) * scale,
+  })
+
+  // shift-click both → ActiveSelection, then drag right by 40px
+  await page.mouse.click(pt(before[0]).x, pt(before[0]).y)
+  await page.keyboard.down('Shift')
+  await page.mouse.click(pt(before[1]).x, pt(before[1]).y)
+  await page.keyboard.up('Shift')
+  await page.mouse.move(pt(before[0]).x, pt(before[0]).y)
+  await page.mouse.down()
+  await page.mouse.move(pt(before[0]).x + 40, pt(before[0]).y, { steps: 5 })
+  await page.mouse.up()
+
+  await page.waitForFunction(
+    (b0) =>
+      (window as unknown as { __editor: Ed }).__editor
+        .getState()
+        .objects.filter((o) => o.layerName === 'badge')[0].left >
+      b0 + 20,
+    before[0].left,
+  )
+  const after = await badgeGeom()
+  // Both badges shifted right by ~40px and kept their (positive, on-canvas) tops.
+  expect(after[0].left).toBeGreaterThan(before[0].left + 20)
+  expect(after[1].left).toBeGreaterThan(before[1].left + 20)
+  expect(after[0].top).toBeGreaterThan(0)
+  expect(after[1].top).toBeGreaterThan(0)
+})
+
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
   // 로컬라이즈 에디터 헤더 확인

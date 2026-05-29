@@ -645,6 +645,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       canvas.on('object:modified', () => {
         lastBodyPos.current = null
+        // Inside an ActiveSelection, child left/top are relative to the group
+        // center — syncToZustand reads them as absolute and would corrupt the
+        // stored positions. Disbanding first bakes the group transform back
+        // into each child so their coords are absolute again before we sync.
+        if (canvas.getActiveObject()?.type === 'activeselection') {
+          canvas.discardActiveObject()
+        }
         pushHistory(canvas)
         syncToZustand(canvas)
       })
