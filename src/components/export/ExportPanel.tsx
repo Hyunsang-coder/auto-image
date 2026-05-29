@@ -396,6 +396,28 @@ export function ExportPanel() {
             </button>
           )}
         </div>
+
+        <details className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-[var(--color-text-dim)]">
+          <summary className="cursor-pointer font-medium text-[var(--color-text)]">
+            fastlane으로 App Store Connect에 업로드하는 법
+          </summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-4">
+            <li>「fastlane용 ZIP」을 받아 압축을 풉니다.</li>
+            <li><code>fastlane/Appfile</code>에 앱 번들 ID를 입력합니다.</li>
+            <li>
+              App Store Connect → 사용자 및 액세스 → 통합 → App Store Connect API에서
+              키(.p8)를 만들어 <code>asc_api_key.json</code>에 채웁니다.
+            </li>
+            <li>
+              폴더에서 <code>./upload.sh</code> 실행
+              (또는 <code>fastlane deliver --api_key_path ./asc_api_key.json</code>).
+            </li>
+          </ol>
+          <p className="mt-2">
+            스크린샷만 업로드되고(바이너리·메타데이터 제외), .p8 키는 내 컴퓨터에만 머뭅니다.
+            fastlane 설치가 필요합니다.
+          </p>
+        </details>
       </div>
     </div>
   )
