@@ -69,10 +69,12 @@ async function viaOpenAI(texts: string[], src: string, tgt: string, key: string)
 
 async function viaGemini(texts: string[], src: string, tgt: string, key: string): Promise<string[]> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${encodeURIComponent(key)}`,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // Key goes in a header, not the URL query string — a query-string key
+      // leaks into browser history, referrers, and proxy logs.
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         contents: [{ parts: [{ text: buildPrompt(texts, src, tgt) }] }],
       }),
