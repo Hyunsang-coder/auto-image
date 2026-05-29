@@ -126,6 +126,11 @@ export interface Caption {
    * use the template's default placement.
    */
   pos?: { x: number; y: number }
+  /**
+   * User-resized text-box width, normalized to the canvas width. Controls where
+   * the text wraps. Absent = use the template's default width.
+   */
+  boxWidth?: number
 }
 
 export interface TextStyle {

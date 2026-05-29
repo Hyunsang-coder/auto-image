@@ -164,14 +164,18 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               textAlign: (itext.textAlign as 'left' | 'center' | 'right') ?? existing.style.textAlign,
             },
           }
-          // Persist position only when the user actually dragged THIS caption.
-          // Capturing it on every sync would pin text that's still meant to
-          // follow the template (e.g. after a device move or template switch).
+          // Persist position/width only when the user actually manipulated THIS
+          // caption. Capturing on every sync would pin text that's still meant
+          // to follow the template (e.g. after a device move or template switch).
           if (obj === movedTarget) {
             const c = itext.getCenterPoint()
+            // Side-handle resize grows width (scaleX stays 1); fold in scaleX so
+            // a corner-scale still bakes into the stored width.
+            const boxW = (itext.width ?? 0) * (itext.scaleX ?? 1)
             slidePatch[captionKey] = {
               ...slidePatch[captionKey]!,
               pos: { x: c.x / cw, y: (itext.top ?? 0) / ch },
+              boxWidth: boxW / cw,
             }
           }
         }

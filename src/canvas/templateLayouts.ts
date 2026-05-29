@@ -354,13 +354,14 @@ function addHeadlineAndSubheadline(
   ) => {
     const centerX = caption.pos ? caption.pos.x * opts.cw : defaultCenterX
     const top = caption.pos ? caption.pos.y * opts.ch : defaultTop
-    const obj = renderCaption(caption, { left: centerX, top, width: opts.width, layerName })
+    const width = caption.boxWidth != null ? caption.boxWidth * opts.cw : opts.width
+    const obj = renderCaption(caption, { left: centerX, top, width, layerName })
     // Layout-default align always wins — the slide's stored textAlign is a
     // user-facing toggle that should round-trip via the caption panel, not
     // silently override the template's intended composition.
     obj.set('textAlign', align)
-    if (align === 'left') obj.set({ originX: 'left', left: centerX - opts.width / 2 })
-    else if (align === 'right') obj.set({ originX: 'right', left: centerX + opts.width / 2 })
+    if (align === 'left') obj.set({ originX: 'left', left: centerX - width / 2 })
+    else if (align === 'right') obj.set({ originX: 'right', left: centerX + width / 2 })
     canvas.add(obj)
     return obj
   }
