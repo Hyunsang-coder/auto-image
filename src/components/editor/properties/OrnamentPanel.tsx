@@ -130,6 +130,18 @@ export function OrnamentPanel({ value, onChange }: Props) {
                   label="장식 색상"
                 />
               </div>
+
+              {orn.shape !== 'dot-grid' && (
+                <label className="flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+                  <span>안쪽 채우기</span>
+                  <input
+                    type="checkbox"
+                    checked={!!orn.filled}
+                    onChange={(e) => update(orn.id, { filled: e.target.checked })}
+                    className="accent-[var(--color-accent)]"
+                  />
+                </label>
+              )}
             </div>
           ))}
         </div>

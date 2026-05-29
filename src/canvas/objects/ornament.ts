@@ -113,7 +113,8 @@ export function renderOrnament(orn: Ornament, ctx: OrnamentRenderCtx): Path | nu
     originY: 'center',
     scaleX: scale,
     scaleY: scale,
-    fill: def.fill ? orn.color : '',
+    // 라인아트 도형은 외곽선만 그리지만, filled가 켜지면 외곽선은 유지한 채 내부도 채운다.
+    fill: def.fill || orn.filled ? orn.color : '',
     stroke: def.fill ? undefined : orn.color,
     // 2px(=Lucide 기준) 선폭. scaleX와 함께 스케일되어 아이콘 크기에 비례한다.
     strokeWidth: def.fill ? 0 : 2,
