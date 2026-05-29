@@ -37,7 +37,23 @@ export const SUPPORTED_LOCALES = [
   { code: 'th', label: 'ไทย' },
   { code: 'id', label: 'Bahasa Indonesia' },
   { code: 'vi', label: 'Tiếng Việt' },
+  { code: 'tr', label: 'Türkçe' },
+  { code: 'es-MX', label: 'Español (MX)' },
 ] as const
+
+// In-app locale codes that differ from App Store Connect's canonical codes.
+// Used only for export folder names so a deliver/fastlane-style upload lands in
+// the right ASC locale dir; the stored translation keys keep the in-app code.
+const ASC_LOCALE_OVERRIDES: Record<string, string> = {
+  en: 'en-US',
+  es: 'es-ES',
+  fr: 'fr-FR',
+  de: 'de-DE',
+}
+
+export function ascExportCode(code: string): string {
+  return ASC_LOCALE_OVERRIDES[code] ?? code
+}
 
 /** Free font families offered for headline/subheadline. Loaded in index.html.
  * Pretendard leads because it covers Korean + Latin cleanly. */

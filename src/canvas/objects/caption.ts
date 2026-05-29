@@ -9,6 +9,14 @@ export interface CaptionOptions {
   layerName: LayerName
 }
 
+// The display fonts (Inter/Montserrat/Poppins) only cover Latin, so non-Latin
+// locales (Thai, Traditional Chinese, Japanese, …) render tofu on export unless
+// the family ends in a fallback chain. Names not installed/loaded are skipped;
+// the trailing sans-serif lets the browser's per-glyph system fallback cover the
+// rest. Pretendard handles Korean + Vietnamese-diacritic Latin.
+const SCRIPT_FALLBACK =
+  "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans Thai', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans', sans-serif"
+
 export function renderCaption(
   caption: Caption,
   opts: CaptionOptions,
@@ -20,7 +28,7 @@ export function renderCaption(
     left: opts.left,
     top: opts.top,
     width: opts.width,
-    fontFamily: style.fontFamily,
+    fontFamily: `${style.fontFamily}, ${SCRIPT_FALLBACK}`,
     fontSize: style.fontSize,
     fontWeight: String(style.fontWeight),
     fill: style.color,

@@ -149,6 +149,10 @@ export function LocalizeEditor() {
     })
   }
 
+  const selectableLocales = SUPPORTED_LOCALES.filter(l => l.code !== sourceLocale).map(l => l.code)
+  const allSelected =
+    selectableLocales.length > 0 && selectableLocales.every(c => targetLocales.includes(c))
+
   const isTranslating = translatingLocales.size > 0
   const canTranslate = !!apiKey && targetLocales.length > 0 && rows.length > 0
 
@@ -193,6 +197,12 @@ export function LocalizeEditor() {
         <div className="flex-1">
           <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 언어</div>
           <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => updateProject({ targetLocales: allSelected ? [] : selectableLocales })}
+              className="rounded border border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-text-dim)] transition-colors hover:border-[var(--color-text-dim)]"
+            >
+              {allSelected ? '전체 해제' : '전체 선택'}
+            </button>
             {SUPPORTED_LOCALES.filter(l => l.code !== sourceLocale).map(locale => {
               const checked = targetLocales.includes(locale.code)
               return (

@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
+import { ascExportCode } from '../../constants/defaults'
 import type { DeviceType, Project, Slide } from '../../types/project'
 
 function deviceOf(slide: Slide): DeviceType {
@@ -73,6 +74,7 @@ export function ExportPanel() {
           const slide = project.slides[i]
           const device = deviceOf(slide)
           const renderLocale = locale === project.sourceLocale ? null : locale
+          const localeDir = ascExportCode(locale)
 
           // Span leader → render the 2× canvas once, slice into both PNGs.
           // Skip the follower in the next iteration since it's already done.
@@ -86,8 +88,8 @@ export function ExportPanel() {
               )
               const lName = String(slide.index + 1).padStart(2, '0')
               const rName = String(follower.index + 1).padStart(2, '0')
-              zip.file(`${locale}/${device}/${lName}.png`, leftBlob)
-              zip.file(`${locale}/${device}/${rName}.png`, rightBlob)
+              zip.file(`${localeDir}/${device}/${lName}.png`, leftBlob)
+              zip.file(`${localeDir}/${device}/${rName}.png`, rightBlob)
               count += 2
               setDone(count)
               i += 2
@@ -103,7 +105,7 @@ export function ExportPanel() {
 
           const blob = await renderSlide(slide, device, renderLocale)
           const name = String(slide.index + 1).padStart(2, '0')
-          zip.file(`${locale}/${device}/${name}.png`, blob)
+          zip.file(`${localeDir}/${device}/${name}.png`, blob)
           count++
           setDone(count)
           i++
