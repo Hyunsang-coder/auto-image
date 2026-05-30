@@ -5,7 +5,6 @@ import type { Highlight, Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
-import { getOrnamentViewBox } from '../../canvas/objects/ornament'
 import { newId } from '../../constants/defaults'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
 
@@ -35,6 +34,53 @@ function addSpanSeamGuide(canvas: Canvas, midX: number, height: number): void {
   canvas.add(line)
 }
 
+const DRAG_GUIDE_LAYER = 'drag-guide'
+const GUIDE_THRESHOLD = 6 // px proximity (canvas coords) at which a guide appears
+const GUIDE_PADDING_RATIO = 0.04 // safe-margin lines this far in from each edge
+
+function clearDragGuides(canvas: Canvas): void {
+  for (const o of canvas.getObjects()) {
+    if ((o as FabricObject & { layerName?: string }).layerName === DRAG_GUIDE_LAYER) {
+      canvas.remove(o)
+    }
+  }
+}
+
+function addGuideLine(canvas: Canvas, coords: [number, number, number, number]): void {
+  const line = new Line(coords, {
+    stroke: 'rgba(236, 72, 153, 0.85)',
+    strokeWidth: 1,
+    selectable: false,
+    evented: false,
+    hoverCursor: 'default',
+    excludeFromExport: true,
+  })
+  ;(line as unknown as { layerName: string }).layerName = DRAG_GUIDE_LAYER
+  canvas.add(line)
+}
+
+// Show center + safe-padding guides whenever the dragged object lines up with
+// them. Visual only (no snap) so it can't perturb the device/popup move math.
+// Bbox is approximated as center ± scaled size (ignores rotation) — fine for a
+// subtle alignment hint.
+function updateDragGuides(canvas: Canvas, target: FabricObject): void {
+  clearDragGuides(canvas)
+  const cw = canvas.width ?? 0
+  const ch = canvas.height ?? 0
+  const pad = Math.round(cw * GUIDE_PADDING_RATIO)
+  const c = target.getCenterPoint()
+  const halfW = target.getScaledWidth() / 2
+  const halfH = target.getScaledHeight() / 2
+  const near = (a: number, b: number) => Math.abs(a - b) <= GUIDE_THRESHOLD
+
+  if (near(c.x, cw / 2)) addGuideLine(canvas, [cw / 2, 0, cw / 2, ch])
+  if (near(c.y, ch / 2)) addGuideLine(canvas, [0, ch / 2, cw, ch / 2])
+  if (near(c.x - halfW, pad)) addGuideLine(canvas, [pad, 0, pad, ch])
+  if (near(c.x + halfW, cw - pad)) addGuideLine(canvas, [cw - pad, 0, cw - pad, ch])
+  if (near(c.y - halfH, pad)) addGuideLine(canvas, [0, pad, cw, pad])
+  if (near(c.y + halfH, ch - pad)) addGuideLine(canvas, [0, ch - pad, cw, ch - pad])
+}
+
 // Custom props we stash on the device-body Path so we can compute its offset
 // from drag end position without re-deriving template anchors.
 interface DeviceAnchorProps {
@@ -59,8 +105,14 @@ interface Props {
    * the *leader* — EditorLayout resolves it.
    */
   isGrouped?: boolean
+  /** View-only magnification of the editor canvas. 1 = base size. */
+  zoom?: number
   onSlideChange: (patch: Partial<Slide>) => void
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
+  /** Ctrl/Cmd + wheel (and trackpad pinch) asks the parent to change zoom. */
+  onZoomChange?: (next: number) => void
+  /** Double-click on an object surfaces its layer so the panel can open its tab. */
+  onElementActivate?: (layerName: string | null) => void
 }
 
 const HISTORY_LIMIT = 50
@@ -74,9 +126,14 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, onSlideChange, onHistoryChange }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
+    // Zoom is a pure view transform: the template always lays out at base dims,
+    // then setZoom + setDimensions scale the rendered view (pointer mapping
+    // stays correct, unlike a CSS transform on the canvas element).
+    const zoomRef = useRef(zoom)
+    const baseDimsRef = useRef<{ w: number; h: number } | null>(null)
     // History stacks store canvas object snapshots (with custom props).
     // `baselineRef` is the present state; undo/redo move it between the stacks.
     const undoStack = useRef<object[]>([])
@@ -91,7 +148,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const onSlideChangeRef = useRef(onSlideChange)
     const activeSlideRef = useRef(activeSlide)
     const onHistoryChangeRef = useRef(onHistoryChange)
+    const onZoomChangeRef = useRef(onZoomChange)
+    const onElementActivateRef = useRef(onElementActivate)
 
+    useEffect(() => {
+      onElementActivateRef.current = onElementActivate
+    })
     useEffect(() => {
       onSlideChangeRef.current = onSlideChange
     })
@@ -101,6 +163,25 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     useEffect(() => {
       onHistoryChangeRef.current = onHistoryChange
     })
+    useEffect(() => {
+      onZoomChangeRef.current = onZoomChange
+    })
+
+    // Scale the just-rendered (base-size) canvas to the current zoom.
+    function applyZoom(canvas: Canvas, z: number) {
+      const base = baseDimsRef.current
+      if (!base) return
+      canvas.setDimensions({ width: Math.round(base.w * z), height: Math.round(base.h * z) })
+      canvas.setZoom(z)
+      canvas.requestRenderAll()
+    }
+
+    // Re-apply when zoom changes on its own (no slide re-render).
+    useEffect(() => {
+      zoomRef.current = zoom
+      const canvas = fabricRef.current
+      if (canvas) applyZoom(canvas, zoom)
+    }, [zoom])
 
     function notifyHistory() {
       onHistoryChangeRef.current?.({
@@ -358,9 +439,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           const newX = left / w
           const newY = top / h
           const newRot = Math.round(fab.angle ?? 0)
-          // Size: fabric scaleX × shape viewBox / canvasW = ratio
-          const scaleX = fab.scaleX ?? 1
-          const newSize = (getOrnamentViewBox(orn.shape) * scaleX) / w
+          // Emoji glyphs are Text — recover size from the scaled glyph width.
+          const newSize = fab.getScaledWidth() / w
           if (
             Math.abs(newX - orn.x) > 0.001 ||
             Math.abs(newY - orn.y) > 0.001 ||
@@ -628,6 +708,24 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         lastBodyPos.current = null
       })
 
+      // Double-click surfaces the object's layer so the panel can jump to the
+      // matching tab. Background dblclick (no target) reports null.
+      canvas.on('mouse:dblclick', (opt) => {
+        const ln = (opt.target as (FabricObject & { layerName?: string }) | undefined)?.layerName ?? null
+        onElementActivateRef.current?.(ln)
+      })
+
+      // Ctrl/Cmd + wheel (and trackpad pinch, which arrives as ctrlKey wheel)
+      // zooms; a plain wheel is left alone so the canvas area can scroll.
+      canvas.on('mouse:wheel', (opt) => {
+        const e = opt.e as WheelEvent
+        if (!e.ctrlKey && !e.metaKey) return
+        e.preventDefault()
+        e.stopPropagation()
+        const factor = e.deltaY < 0 ? 1.1 : 0.9
+        onZoomChangeRef.current?.(zoomRef.current * factor)
+      })
+
       canvas.on('object:moving', (e) => {
         const target = e.target
         if (!target) return
@@ -643,6 +741,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             clip.set({ left: target.left ?? 0, top: target.top ?? 0 })
           }
         }
+        updateDragGuides(canvas, target)
+      })
+
+      canvas.on('mouse:up', () => {
+        clearDragGuides(canvas)
+        canvas.requestRenderAll()
       })
 
       // Same clipPath fix as object:moving but for scale operations — the popup
@@ -671,6 +775,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       canvas.on('object:modified', (e) => {
         lastBodyPos.current = null
+        // Drop guides before snapshotting so they never enter history/sync.
+        clearDragGuides(canvas)
         // Inside an ActiveSelection, child left/top are relative to the group
         // center — syncToZustand reads them as absolute and would corrupt the
         // stored positions. Disbanding first bakes the group transform back
@@ -759,6 +865,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
+        // applyTemplate laid out at base dims; capture them, then scale to zoom.
+        baseDimsRef.current = { w: canvas.width ?? EDITOR_CANVAS_WIDTH, h: canvas.height ?? h }
+        applyZoom(canvas, zoomRef.current)
         // The rendered canvas is the present state → adopt it as the undo
         // baseline on every render. Doing this only on fresh loads would leave
         // the baseline stale after store-driven changes (panel add/delete/edit),

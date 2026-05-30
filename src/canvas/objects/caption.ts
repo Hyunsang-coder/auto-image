@@ -1,4 +1,4 @@
-import { Textbox } from 'fabric'
+import { Text, Textbox } from 'fabric'
 import type { Caption } from '../../types/project'
 import type { LayerName } from '../layerNames'
 
@@ -17,23 +17,50 @@ export interface CaptionOptions {
 const SCRIPT_FALLBACK =
   "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans Thai', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans', sans-serif"
 
+// Largest font size at which every existing line of `text` fits within
+// `boxWidth` — i.e. the text fills the box. Measured per line with an
+// unwrapped Text probe; single-pass is exact because each line then fits.
+function fitFontToBox(
+  text: string,
+  baseFontSize: number,
+  fontFamily: string,
+  fontWeight: string,
+  charSpacing: number,
+  boxWidth: number,
+): number {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (!lines.length) return baseFontSize
+  let widest = 0
+  for (const line of lines) {
+    const probe = new Text(line, { fontFamily, fontSize: baseFontSize, fontWeight, charSpacing })
+    widest = Math.max(widest, probe.width ?? 0)
+  }
+  if (widest <= 0) return baseFontSize
+  return Math.max(10, Math.min(400, baseFontSize * (boxWidth / widest)))
+}
+
 export function renderCaption(
   caption: Caption,
   opts: CaptionOptions,
 ): Textbox {
   const { style } = caption
   const textAlign = style.textAlign ?? 'center'
+  const fontFamily = `${style.fontFamily}, ${SCRIPT_FALLBACK}`
+  const charSpacing = (style.letterSpacing ?? 0) * 10
+  const fontSize = style.fitToBox
+    ? fitFontToBox(caption.text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing, opts.width)
+    : style.fontSize
 
   const obj = new Textbox(caption.text, {
     left: opts.left,
     top: opts.top,
     width: opts.width,
-    fontFamily: `${style.fontFamily}, ${SCRIPT_FALLBACK}`,
-    fontSize: style.fontSize,
+    fontFamily,
+    fontSize,
     fontWeight: String(style.fontWeight),
     fill: style.color,
     textAlign,
-    charSpacing: (style.letterSpacing ?? 0) * 10,
+    charSpacing,
     lineHeight: style.lineHeight ?? 1.2,
     originX: 'center',
     originY: 'top',

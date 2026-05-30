@@ -17,7 +17,18 @@ export type OrnamentShape =
   | 'flower'
   | 'leaf'
   | 'paw'
-  | 'dot-grid'
+  | 'fire'
+  | 'party'
+  | 'rocket'
+  | 'bulb'
+  | 'bolt'
+  | 'check'
+  | 'thumbsup'
+  | 'trophy'
+  | 'gem'
+  | 'target'
+  | 'bell'
+  | 'hundred'
 
 export interface Project {
   id: string
@@ -76,8 +87,6 @@ export interface Ornament {
   rotation: number
   color: string
   opacity: number
-  /** Line-art shapes: fill the interior with `color` in addition to the outline. */
-  filled?: boolean
 }
 
 export interface Background {
@@ -141,6 +150,8 @@ export interface TextStyle {
   textAlign: 'left' | 'center' | 'right'
   letterSpacing?: number
   lineHeight?: number
+  /** When true, the font is auto-sized so the text fills the caption box width. */
+  fitToBox?: boolean
 }
 
 export interface Badge {

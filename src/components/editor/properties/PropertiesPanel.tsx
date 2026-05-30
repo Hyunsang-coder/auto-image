@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type {
   Badge,
   Highlight,
@@ -21,7 +20,7 @@ import { ScreenshotPanel } from './ScreenshotPanel'
 import { OrnamentPanel } from './OrnamentPanel'
 import { HighlightPanel } from './HighlightPanel'
 
-type PanelTab =
+export type PanelTab =
   | 'template'
   | 'background'
   | 'caption'
@@ -31,10 +30,10 @@ type PanelTab =
   | 'highlights'
 
 const TABS: { id: PanelTab; label: string }[] = [
-  { id: 'template',    label: '템플릿' },
+  { id: 'template',    label: '레이아웃' },
   { id: 'background',  label: '배경' },
-  { id: 'caption',     label: '캡션' },
-  { id: 'screenshot',  label: '스크린샷' },
+  { id: 'caption',     label: '텍스트' },
+  { id: 'screenshot',  label: '디바이스' },
   { id: 'highlights',  label: '하이라이트' },
   { id: 'ornaments',   label: '장식' },
   { id: 'badge',       label: '배지' },
@@ -42,6 +41,8 @@ const TABS: { id: PanelTab; label: string }[] = [
 
 interface Props {
   slide: Slide
+  tab: PanelTab
+  onTabChange: (t: PanelTab) => void
   onTemplateChange: (t: TemplateType) => void
   onBackgroundChange: (bg: Background) => void
   onHeadlineChange: (c: Caption) => void
@@ -60,6 +61,8 @@ interface Props {
 
 export function PropertiesPanel({
   slide,
+  tab,
+  onTabChange,
   onTemplateChange,
   onBackgroundChange,
   onHeadlineChange,
@@ -75,8 +78,6 @@ export function PropertiesPanel({
   onApplyTemplate,
   onSaveTemplate,
 }: Props) {
-  const [tab, setTab] = useState<PanelTab>('template')
-
   const screenshotStyle: ScreenshotStyle =
     slide.screenshotStyle ?? { cornerRadiusRatio: 0.06, shadow: true }
 
@@ -87,7 +88,7 @@ export function PropertiesPanel({
           <button
             key={t.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => onTabChange(t.id)}
             className={[
               'flex-1 py-2.5 text-xs font-medium transition',
               tab === t.id
@@ -133,6 +134,7 @@ export function PropertiesPanel({
             onDeviceFrameChange={onDeviceFrameChange}
             screenshotStyle={screenshotStyle}
             onScreenshotStyleChange={onScreenshotStyleChange}
+            template={slide.template}
           />
         )}
         {tab === 'highlights' && (

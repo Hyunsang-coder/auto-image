@@ -1,20 +1,31 @@
-import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Ornament, OrnamentShape } from '../../../types/project'
 import { makeOrnament } from '../../../constants/defaults'
+import { ORNAMENT_EMOJI } from '../../../canvas/objects/ornament'
 
 interface Props {
   value: Ornament[]
   onChange: (next: Ornament[]) => void
 }
 
-const SHAPES: { id: OrnamentShape; label: string; emoji: string }[] = [
-  { id: 'star',     label: '별',     emoji: '★' },
-  { id: 'sparkles', label: '스파클', emoji: '✦' },
-  { id: 'heart',    label: '하트',   emoji: '♥' },
-  { id: 'flower',   label: '꽃',     emoji: '✿' },
-  { id: 'leaf',     label: '잎',     emoji: '🍃' },
-  { id: 'paw',      label: '발자국', emoji: '🐾' },
-  { id: 'dot-grid', label: '도트',   emoji: '⋮⋮' },
+const SHAPES: { id: OrnamentShape; label: string }[] = [
+  { id: 'star',     label: '별' },
+  { id: 'sparkles', label: '스파클' },
+  { id: 'heart',    label: '하트' },
+  { id: 'flower',   label: '꽃' },
+  { id: 'leaf',     label: '잎' },
+  { id: 'paw',      label: '발자국' },
+  { id: 'fire',     label: '불' },
+  { id: 'party',    label: '파티' },
+  { id: 'rocket',   label: '로켓' },
+  { id: 'bulb',     label: '전구' },
+  { id: 'bolt',     label: '번개' },
+  { id: 'check',    label: '체크' },
+  { id: 'thumbsup', label: '따봉' },
+  { id: 'trophy',   label: '트로피' },
+  { id: 'gem',      label: '보석' },
+  { id: 'target',   label: '과녁' },
+  { id: 'bell',     label: '벨' },
+  { id: 'hundred',  label: '백점' },
 ]
 
 export function OrnamentPanel({ value, onChange }: Props) {
@@ -45,7 +56,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
               className="flex flex-col items-center gap-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2 text-[10px] text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
               title={s.label}
             >
-              <span className="text-base">{s.emoji}</span>
+              <span className="text-base">{ORNAMENT_EMOJI[s.id]}</span>
               {s.label}
             </button>
           ))}
@@ -122,26 +133,6 @@ export function OrnamentPanel({ value, onChange }: Props) {
                 onChange={(v) => update(orn.id, { opacity: v })}
               />
 
-              <div>
-                <label className="mb-1 block text-xs text-[var(--color-text-dim)]">색상</label>
-                <ColorPickerPopover
-                  color={orn.color}
-                  onChange={(c) => update(orn.id, { color: c })}
-                  label="장식 색상"
-                />
-              </div>
-
-              {orn.shape !== 'dot-grid' && (
-                <label className="flex items-center justify-between text-xs text-[var(--color-text-dim)]">
-                  <span>안쪽 채우기</span>
-                  <input
-                    type="checkbox"
-                    checked={!!orn.filled}
-                    onChange={(e) => update(orn.id, { filled: e.target.checked })}
-                    className="accent-[var(--color-accent)]"
-                  />
-                </label>
-              )}
             </div>
           ))}
         </div>

@@ -25,7 +25,7 @@ test.beforeEach(async ({ page }) => {
 test('헤드라인 편집이 새로고침 후에도 유지됨', async ({ page }) => {
   await createProject(page, { name: 'Persist Test', slideCount: 3 })
 
-  await page.getByRole('button', { name: '캡션' }).click()
+  await page.getByRole('button', { name: '텍스트', exact: true }).click()
   await page.locator('textarea').first().fill('유지되는 헤드라인')
 
   const slideList = page.locator('aside').first()

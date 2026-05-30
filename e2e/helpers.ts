@@ -9,7 +9,7 @@ const fixturesDir = fileURLToPath(new URL('./fixtures', import.meta.url))
  * `name` is a file under e2e/fixtures (e.g. 'iphone_home.png').
  */
 export async function uploadScreenshot(page: Page, name: string) {
-  await page.getByRole('button', { name: '스크린샷' }).click()
+  await page.getByRole('button', { name: '디바이스' }).click()
   await page.locator('input[type="file"]').setInputFiles(`${fixturesDir}/${name}`)
 }
 
