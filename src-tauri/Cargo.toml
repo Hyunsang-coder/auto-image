@@ -26,3 +26,4 @@ tauri-plugin-log = "2"
 tauri-plugin-http = "2"
 tauri-plugin-dialog = "2"
 base64 = "0.22"
+keyring = { version = "3", features = ["apple-native"] }

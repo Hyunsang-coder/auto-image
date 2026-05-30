@@ -21,3 +21,10 @@ export async function writeFileToDir(dir: string, path: string, data: Blob | str
       : await blobToBase64(data)
   await invoke('write_file', { dir, path, dataBase64 })
 }
+
+/** zustand-persist storage backed by the macOS Keychain (one entry per item name). */
+export const keychainStorage = {
+  getItem: (name: string) => invoke<string | null>('keychain_get', { name }),
+  setItem: (name: string, value: string) => invoke<void>('keychain_set', { name, value }),
+  removeItem: (name: string) => invoke<void>('keychain_delete', { name }),
+}
