@@ -31,10 +31,10 @@ type PanelTab =
   | 'highlights'
 
 const TABS: { id: PanelTab; label: string }[] = [
-  { id: 'template',    label: '템플릿' },
+  { id: 'template',    label: '레이아웃' },
   { id: 'background',  label: '배경' },
-  { id: 'caption',     label: '캡션' },
-  { id: 'screenshot',  label: '스크린샷' },
+  { id: 'caption',     label: '텍스트' },
+  { id: 'screenshot',  label: '디바이스' },
   { id: 'highlights',  label: '하이라이트' },
   { id: 'ornaments',   label: '장식' },
   { id: 'badge',       label: '배지' },
@@ -133,6 +133,7 @@ export function PropertiesPanel({
             onDeviceFrameChange={onDeviceFrameChange}
             screenshotStyle={screenshotStyle}
             onScreenshotStyleChange={onScreenshotStyleChange}
+            template={slide.template}
           />
         )}
         {tab === 'highlights' && (

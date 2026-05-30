@@ -97,6 +97,16 @@ export const TEMPLATE_FONT_SIZES: Record<
   split:         { headline: 46, subheadline: 24 },
 }
 
+// Each layout's default caption alignment. Applied on layout switch; after that
+// the alignment is the user's to change (and the caption panel's choice wins).
+export const TEMPLATE_TEXT_ALIGN: Record<TemplateType, 'left' | 'center' | 'right'> = {
+  hero:          'center',
+  'hero-bleed':  'left',
+  'text-top':    'center',
+  'text-bottom': 'center',
+  split:         'left',
+}
+
 export const DEFAULT_SCREENSHOT_STYLE: ScreenshotStyle = {
   cornerRadiusRatio: 0.06,
   shadow: true,
@@ -368,6 +378,9 @@ export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>
     rotation: base.rotation ?? 0,
     color: base.color ?? '#FFFFFF',
     opacity: base.opacity ?? 1,
+    // Solid by default — line-art outlines read as low-fidelity next to the
+    // filled glyphs users expect. dot-grid ignores this (it's a fill texture).
+    filled: true,
     ...overrides,
   }
 }

@@ -76,7 +76,7 @@ export function ProjectSetup() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
+    <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto px-6 py-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-text)]">
           새 스크린샷 프로젝트
@@ -165,7 +165,7 @@ export function ProjectSetup() {
         <ColorPickerPopover color={themeColor} onChange={setThemeColor} />
       </Section>
 
-      <footer className="mt-4 flex items-center justify-between border-t border-[var(--color-border)] pt-6">
+      <footer className="mt-2 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
         <p className="text-xs text-[var(--color-text-dim)]">
           {hasExisting
             ? '계속하면 기존 프로젝트를 덮어씁니다.'

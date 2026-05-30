@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { DeviceFrame, ScreenshotImage, ScreenshotStyle } from '../../../types/project'
+import type { DeviceFrame, ScreenshotImage, ScreenshotStyle, TemplateType } from '../../../types/project'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 import { detectDeviceFromAspect } from '../../../constants/deviceSpecs'
 
@@ -10,6 +10,7 @@ interface Props {
   onDeviceFrameChange: (next: DeviceFrame) => void
   screenshotStyle: ScreenshotStyle
   onScreenshotStyleChange: (next: ScreenshotStyle) => void
+  template: TemplateType
 }
 
 export function ScreenshotPanel({
@@ -19,6 +20,7 @@ export function ScreenshotPanel({
   onDeviceFrameChange,
   screenshotStyle,
   onScreenshotStyleChange,
+  template,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
@@ -63,6 +65,32 @@ export function ScreenshotPanel({
     if (detected !== deviceFrame.model) {
       onDeviceFrameChange({ ...deviceFrame, model: detected })
     }
+  }
+
+  // Hero is a text-only template with no device/screenshot slot — a shot here
+  // would render full-bleed behind the text. Block the upload and point the
+  // user at a template that actually has a screenshot.
+  if (template === 'hero') {
+    return (
+      <div className="space-y-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-dim)]">
+          스크린샷
+        </p>
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-700">
+          Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 「레이아웃」 탭에서
+          Hero Bleed · Text Top · Text Bottom · Split 중 하나를 먼저 선택하세요.
+        </div>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-xs text-red-600 hover:text-red-700"
+          >
+            남아있는 스크린샷 삭제
+          </button>
+        )}
+      </div>
+    )
   }
 
   return (

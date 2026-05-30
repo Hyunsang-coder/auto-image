@@ -26,7 +26,7 @@ test.describe('Device rotation', () => {
     await page.goto('/')
     await page.evaluate(() => localStorage.clear())
     await createProject(page, { name: 'Rotate Test' })
-    await page.getByRole('button', { name: '스크린샷' }).click()
+    await page.getByRole('button', { name: '디바이스' }).click()
     // With the frame shown (default) the screenshot tab has a single range
     // input: 기기 회전.
     await setSlider(page.getByRole('slider'), 15)
@@ -40,12 +40,12 @@ test.describe('Device rotation', () => {
     // on every reload and would defeat this test.
     await page.evaluate(() => localStorage.clear())
     await createProject(page, { name: 'Rotate Test' })
-    await page.getByRole('button', { name: '스크린샷' }).click()
+    await page.getByRole('button', { name: '디바이스' }).click()
     await setSlider(page.getByRole('slider'), -20)
     await expect.poll(() => deviceAngle(page)).toBe(-20)
 
     await page.reload()
-    await page.getByRole('button', { name: '스크린샷' }).click()
+    await page.getByRole('button', { name: '디바이스' }).click()
     await expect(page.getByRole('slider')).toHaveValue('-20')
     await expect.poll(() => deviceAngle(page)).toBe(-20)
     await page.evaluate(() => localStorage.clear())

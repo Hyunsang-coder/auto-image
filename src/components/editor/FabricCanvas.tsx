@@ -59,8 +59,12 @@ interface Props {
    * the *leader* — EditorLayout resolves it.
    */
   isGrouped?: boolean
+  /** View-only magnification of the editor canvas. 1 = base size. */
+  zoom?: number
   onSlideChange: (patch: Partial<Slide>) => void
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
+  /** Ctrl/Cmd + wheel (and trackpad pinch) asks the parent to change zoom. */
+  onZoomChange?: (next: number) => void
 }
 
 const HISTORY_LIMIT = 50
@@ -74,9 +78,14 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, onSlideChange, onHistoryChange }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
+    // Zoom is a pure view transform: the template always lays out at base dims,
+    // then setZoom + setDimensions scale the rendered view (pointer mapping
+    // stays correct, unlike a CSS transform on the canvas element).
+    const zoomRef = useRef(zoom)
+    const baseDimsRef = useRef<{ w: number; h: number } | null>(null)
     // History stacks store canvas object snapshots (with custom props).
     // `baselineRef` is the present state; undo/redo move it between the stacks.
     const undoStack = useRef<object[]>([])
@@ -91,6 +100,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const onSlideChangeRef = useRef(onSlideChange)
     const activeSlideRef = useRef(activeSlide)
     const onHistoryChangeRef = useRef(onHistoryChange)
+    const onZoomChangeRef = useRef(onZoomChange)
 
     useEffect(() => {
       onSlideChangeRef.current = onSlideChange
@@ -101,6 +111,25 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     useEffect(() => {
       onHistoryChangeRef.current = onHistoryChange
     })
+    useEffect(() => {
+      onZoomChangeRef.current = onZoomChange
+    })
+
+    // Scale the just-rendered (base-size) canvas to the current zoom.
+    function applyZoom(canvas: Canvas, z: number) {
+      const base = baseDimsRef.current
+      if (!base) return
+      canvas.setDimensions({ width: Math.round(base.w * z), height: Math.round(base.h * z) })
+      canvas.setZoom(z)
+      canvas.requestRenderAll()
+    }
+
+    // Re-apply when zoom changes on its own (no slide re-render).
+    useEffect(() => {
+      zoomRef.current = zoom
+      const canvas = fabricRef.current
+      if (canvas) applyZoom(canvas, zoom)
+    }, [zoom])
 
     function notifyHistory() {
       onHistoryChangeRef.current?.({
@@ -628,6 +657,17 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         lastBodyPos.current = null
       })
 
+      // Ctrl/Cmd + wheel (and trackpad pinch, which arrives as ctrlKey wheel)
+      // zooms; a plain wheel is left alone so the canvas area can scroll.
+      canvas.on('mouse:wheel', (opt) => {
+        const e = opt.e as WheelEvent
+        if (!e.ctrlKey && !e.metaKey) return
+        e.preventDefault()
+        e.stopPropagation()
+        const factor = e.deltaY < 0 ? 1.1 : 0.9
+        onZoomChangeRef.current?.(zoomRef.current * factor)
+      })
+
       canvas.on('object:moving', (e) => {
         const target = e.target
         if (!target) return
@@ -759,6 +799,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
+        // applyTemplate laid out at base dims; capture them, then scale to zoom.
+        baseDimsRef.current = { w: canvas.width ?? EDITOR_CANVAS_WIDTH, h: canvas.height ?? h }
+        applyZoom(canvas, zoomRef.current)
         // The rendered canvas is the present state → adopt it as the undo
         // baseline on every render. Doing this only on fresh loads would leave
         // the baseline stale after store-driven changes (panel add/delete/edit),

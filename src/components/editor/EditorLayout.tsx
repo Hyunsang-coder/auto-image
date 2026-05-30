@@ -19,6 +19,7 @@ import type {
 } from '../../types/project'
 import {
   TEMPLATE_FONT_SIZES,
+  TEMPLATE_TEXT_ALIGN,
   type ThemePreset,
   presetFromSlide,
   templateFromSlide,
@@ -26,6 +27,10 @@ import {
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
 import { gcImages } from '../../lib/imageRefs'
+
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 3
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100))
 
 export function EditorLayout() {
   const project = useProjectStore((s) => s.project)
@@ -36,6 +41,7 @@ export function EditorLayout() {
   const canvasRef = useRef<FabricCanvasHandle>(null)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+  const [zoom, setZoom] = useState(1)
 
   // Canvas keyboard shortcuts wired to the canvas handle.
   useEffect(() => {
@@ -77,6 +83,15 @@ export function EditorLayout() {
       } else if (e.key === 'd') {
         e.preventDefault()
         canvasRef.current?.duplicateSelected()
+      } else if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        setZoom((z) => clampZoom(z + 0.1))
+      } else if (e.key === '-') {
+        e.preventDefault()
+        setZoom((z) => clampZoom(z - 0.1))
+      } else if (e.key === '0') {
+        e.preventDefault()
+        setZoom(1)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -100,10 +115,11 @@ export function EditorLayout() {
   function handleTemplateChange(t: TemplateType) {
     if (!editTargetId || !slide) return
     const sizes = TEMPLATE_FONT_SIZES[t]
+    const align = TEMPLATE_TEXT_ALIGN[t]
     updateSlide(editTargetId, {
       template: t,
-      headline: { ...slide.headline, style: { ...slide.headline.style, fontSize: sizes.headline } },
-      subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style, fontSize: sizes.subheadline } },
+      headline: { ...slide.headline, style: { ...slide.headline.style, fontSize: sizes.headline, textAlign: align } },
+      subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style, fontSize: sizes.subheadline, textAlign: align } },
     })
   }
 
@@ -194,24 +210,52 @@ export function EditorLayout() {
       />
 
       <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
-        <div className="sticky top-0 z-10 flex w-full justify-center border-b border-[var(--color-border)] bg-[var(--color-bg)] py-2">
+        <div className="sticky top-0 z-10 flex w-full items-center justify-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] py-2">
           <CanvasToolbar
             canUndo={canUndo}
             canRedo={canRedo}
             onUndo={() => canvasRef.current?.undo()}
             onRedo={() => canvasRef.current?.redo()}
           />
+          <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]">
+            <button
+              type="button"
+              title="축소 (Cmd −)"
+              onClick={() => setZoom((z) => clampZoom(z - 0.1))}
+              className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              title="100%로 맞춤 (Cmd 0)"
+              onClick={() => setZoom(1)}
+              className="w-12 text-center tabular-nums transition hover:text-[var(--color-text)]"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              title="확대 (Cmd +)"
+              onClick={() => setZoom((z) => clampZoom(z + 0.1))}
+              className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+            >
+              +
+            </button>
+          </div>
         </div>
         <div className="flex flex-1 items-start justify-center p-6">
           <FabricCanvas
             ref={canvasRef}
             activeSlide={slide}
             isGrouped={isGrouped}
+            zoom={zoom}
             onSlideChange={handleSlideChange}
             onHistoryChange={({ canUndo, canRedo }) => {
               setCanUndo(canUndo)
               setCanRedo(canRedo)
             }}
+            onZoomChange={(z) => setZoom(clampZoom(z))}
           />
         </div>
       </main>
