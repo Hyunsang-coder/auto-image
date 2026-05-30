@@ -5,7 +5,7 @@ import type { Highlight, Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
-import { getOrnamentViewBox } from '../../canvas/objects/ornament'
+import { getOrnamentViewBox, ORNAMENT_EMOJI } from '../../canvas/objects/ornament'
 import { newId } from '../../constants/defaults'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
 
@@ -440,9 +440,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           const newX = left / w
           const newY = top / h
           const newRot = Math.round(fab.angle ?? 0)
-          // Size: fabric scaleX × shape viewBox / canvasW = ratio
+          // Size = rendered width / canvasW. Emoji are Text (measure scaled
+          // width directly); SVG shapes derive it from scaleX × viewBox.
           const scaleX = fab.scaleX ?? 1
-          const newSize = (getOrnamentViewBox(orn.shape) * scaleX) / w
+          const newSize = ORNAMENT_EMOJI[orn.shape]
+            ? fab.getScaledWidth() / w
+            : (getOrnamentViewBox(orn.shape) * scaleX) / w
           if (
             Math.abs(newX - orn.x) > 0.001 ||
             Math.abs(newY - orn.y) > 0.001 ||

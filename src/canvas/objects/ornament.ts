@@ -1,6 +1,19 @@
-import { Path } from 'fabric'
+import { Path, Text } from 'fabric'
+import type { FabricObject } from 'fabric'
 import type { Ornament, OrnamentShape } from '../../types/project'
 import { LAYER_NAMES } from '../layerNames'
+
+// Real system emoji read far better than line-art icons. These shapes render as
+// emoji glyphs (Fabric Text); only dot-grid stays an SVG path (it's a texture).
+// Emoji are multicolor glyphs, so color/fill don't apply to them.
+export const ORNAMENT_EMOJI: Partial<Record<OrnamentShape, string>> = {
+  star: '⭐',
+  sparkles: '✨',
+  heart: '❤️',
+  flower: '🌸',
+  leaf: '🍃',
+  paw: '🐾',
+}
 
 interface ShapeDef {
   d: string
@@ -97,44 +110,47 @@ export interface OrnamentRenderCtx {
   canvasHeight: number
 }
 
-export function renderOrnament(orn: Ornament, ctx: OrnamentRenderCtx): Path | null {
-  const def = SVG_PATHS[orn.shape]
-  // 영속화된 옛 프로젝트가 제거된 shape(월계관 등)를 들고 있을 수 있다 — 조용히 건너뛴다.
-  if (!def) return null
-  const targetW = ctx.canvasWidth * orn.size
-  const scale = targetW / def.viewBox
-
-  // SVG 경로는 좌상단 0,0 기준. 우리는 (x,y)를 도형 중심으로 쓰고 싶으므로
-  // 원점을 'center'로 설정해 회전이 도형 중심에서 일어나게 한다.
-  const path = new Path(def.d, {
+export function renderOrnament(orn: Ornament, ctx: OrnamentRenderCtx): FabricObject | null {
+  // (x,y)를 도형 중심으로 쓰므로 원점을 center로 둬 회전이 중심에서 일어나게 한다.
+  const common = {
     left: ctx.canvasWidth * orn.x,
     top: ctx.canvasHeight * orn.y,
-    originX: 'center',
-    originY: 'center',
-    scaleX: scale,
-    scaleY: scale,
-    // 라인아트 도형은 외곽선만 그리지만, filled가 켜지면 외곽선은 유지한 채 내부도 채운다.
-    fill: def.fill || orn.filled ? orn.color : '',
-    stroke: def.fill ? undefined : orn.color,
-    // 2px(=Lucide 기준) 선폭. scaleX와 함께 스케일되어 아이콘 크기에 비례한다.
-    strokeWidth: def.fill ? 0 : 2,
-    strokeLineCap: 'round',
-    strokeLineJoin: 'round',
+    originX: 'center' as const,
+    originY: 'center' as const,
     angle: orn.rotation,
     opacity: orn.opacity,
     selectable: true,
     evented: true,
     hasControls: true,
     hasBorders: true,
-    lockRotation: false,
-    lockScalingX: false,
-    lockScalingY: false,
     borderColor: '#0D99FF',
     cornerColor: '#0D99FF',
     hoverCursor: 'move',
-  })
-  ;(path as Path & { layerName: string; ornamentId: string }).layerName =
-    LAYER_NAMES.ORNAMENT
-  ;(path as Path & { ornamentId: string }).ornamentId = orn.id
-  return path
+  }
+
+  let obj: FabricObject
+  const emoji = ORNAMENT_EMOJI[orn.shape]
+  if (emoji) {
+    // Emoji glyph is ~1em square, so fontSize ≈ target width. Exact size is
+    // recovered on drag/scale via getScaledWidth (see syncToZustand).
+    obj = new Text(emoji, { ...common, fontSize: ctx.canvasWidth * orn.size })
+  } else {
+    const def = SVG_PATHS[orn.shape]
+    // 영속화된 옛 프로젝트가 제거된 shape를 들고 있을 수 있다 — 조용히 건너뛴다.
+    if (!def) return null
+    const scale = (ctx.canvasWidth * orn.size) / def.viewBox
+    obj = new Path(def.d, {
+      ...common,
+      scaleX: scale,
+      scaleY: scale,
+      fill: def.fill || orn.filled ? orn.color : '',
+      stroke: def.fill ? undefined : orn.color,
+      strokeWidth: def.fill ? 0 : 2,
+      strokeLineCap: 'round',
+      strokeLineJoin: 'round',
+    })
+  }
+  ;(obj as FabricObject & { layerName: string; ornamentId: string }).layerName = LAYER_NAMES.ORNAMENT
+  ;(obj as FabricObject & { ornamentId: string }).ornamentId = orn.id
+  return obj
 }

@@ -1,6 +1,7 @@
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Ornament, OrnamentShape } from '../../../types/project'
 import { makeOrnament } from '../../../constants/defaults'
+import { ORNAMENT_EMOJI } from '../../../canvas/objects/ornament'
 
 interface Props {
   value: Ornament[]
@@ -8,10 +9,10 @@ interface Props {
 }
 
 const SHAPES: { id: OrnamentShape; label: string; emoji: string }[] = [
-  { id: 'star',     label: '별',     emoji: '★' },
-  { id: 'sparkles', label: '스파클', emoji: '✦' },
-  { id: 'heart',    label: '하트',   emoji: '♥' },
-  { id: 'flower',   label: '꽃',     emoji: '✿' },
+  { id: 'star',     label: '별',     emoji: '⭐' },
+  { id: 'sparkles', label: '스파클', emoji: '✨' },
+  { id: 'heart',    label: '하트',   emoji: '❤️' },
+  { id: 'flower',   label: '꽃',     emoji: '🌸' },
   { id: 'leaf',     label: '잎',     emoji: '🍃' },
   { id: 'paw',      label: '발자국', emoji: '🐾' },
   { id: 'dot-grid', label: '도트',   emoji: '⋮⋮' },
@@ -122,25 +123,17 @@ export function OrnamentPanel({ value, onChange }: Props) {
                 onChange={(v) => update(orn.id, { opacity: v })}
               />
 
-              <div>
-                <label className="mb-1 block text-xs text-[var(--color-text-dim)]">색상</label>
-                <ColorPickerPopover
-                  color={orn.color}
-                  onChange={(c) => update(orn.id, { color: c })}
-                  label="장식 색상"
-                />
-              </div>
-
-              {orn.shape !== 'dot-grid' && (
-                <label className="flex items-center justify-between text-xs text-[var(--color-text-dim)]">
-                  <span>안쪽 채우기</span>
-                  <input
-                    type="checkbox"
-                    checked={!!orn.filled}
-                    onChange={(e) => update(orn.id, { filled: e.target.checked })}
-                    className="accent-[var(--color-accent)]"
+              {/* Emoji are multicolor glyphs — color/fill don't apply. Only the
+                  dot-grid texture is recolorable. */}
+              {!ORNAMENT_EMOJI[orn.shape] && (
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-text-dim)]">색상</label>
+                  <ColorPickerPopover
+                    color={orn.color}
+                    onChange={(c) => update(orn.id, { color: c })}
+                    label="장식 색상"
                   />
-                </label>
+                </div>
               )}
             </div>
           ))}
