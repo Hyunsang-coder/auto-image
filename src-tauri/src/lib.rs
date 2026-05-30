@@ -35,7 +35,7 @@ fn keychain_delete(name: String) -> Result<(), String> {
 // declaring an fs scope — fine for a local BYO-key desktop tool. Called once
 // per PNG so a full export never holds every blob in a single IPC payload.
 #[tauri::command]
-fn write_file(dir: String, path: String, data_base64: String) -> Result<(), String> {
+fn write_file(dir: String, path: String, data_base64: String, executable: bool) -> Result<(), String> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data_base64.as_bytes())
         .map_err(|e| e.to_string())?;
@@ -44,6 +44,11 @@ fn write_file(dir: String, path: String, data_base64: String) -> Result<(), Stri
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&full, bytes).map_err(|e| e.to_string())?;
+    if executable {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&full, std::fs::Permissions::from_mode(0o755))
+            .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 

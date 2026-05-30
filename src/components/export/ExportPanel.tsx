@@ -145,7 +145,7 @@ export function ExportPanel() {
       // into the in-memory zip in the browser. One file at a time either way.
       const emit = (path: string, data: Blob | string, opts?: JSZip.JSZipFileOptions) =>
         useTauri
-          ? writeFileToDir(outDir, path, data)
+          ? writeFileToDir(outDir, path, data, opts?.unixPermissions === '755')
           : Promise.resolve(void zip!.file(path, data, opts))
 
       let count = 0
