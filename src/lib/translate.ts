@@ -1,5 +1,12 @@
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 import type { TranslationAPI } from '../types/project'
 import { SUPPORTED_LOCALES } from '../constants/defaults'
+import { isTauri } from './tauri'
+
+// In the Tauri shell, route LLM calls through the Rust http plugin: it bypasses
+// CORS and makes `anthropic-dangerous-direct-browser-access` moot. The web
+// build falls back to the browser fetch (which still needs that header).
+const http: typeof fetch = isTauri() ? tauriFetch : fetch.bind(globalThis)
 
 const LOCALE_NAME = Object.fromEntries(SUPPORTED_LOCALES.map(l => [l.code, l.label]))
 
@@ -31,7 +38,7 @@ function parseJsonArray(text: string, n: number): string[] {
 }
 
 async function viaClaude(texts: string[], src: string, tgt: string, key: string): Promise<string[]> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await http('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': key,
@@ -54,7 +61,7 @@ async function viaClaude(texts: string[], src: string, tgt: string, key: string)
 }
 
 async function viaOpenAI(texts: string[], src: string, tgt: string, key: string): Promise<string[]> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await http('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -71,7 +78,7 @@ async function viaOpenAI(texts: string[], src: string, tgt: string, key: string)
 }
 
 async function viaGemini(texts: string[], src: string, tgt: string, key: string): Promise<string[]> {
-  const res = await fetch(
+  const res = await http(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
     {
       method: 'POST',

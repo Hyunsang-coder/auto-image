@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
+import { open } from '@tauri-apps/plugin-dialog'
+import { isTauri, writeFileToDir } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
@@ -125,8 +127,27 @@ export function ExportPanel() {
     const filePath = (loc: string, dev: string, n: string) =>
       layout === 'fastlane' ? `fastlane/screenshots/${loc}/${dev}_${n}.png` : `${loc}/${dev}/${n}.png`
 
+    const useTauri = isTauri()
+    const suffix = layout === 'fastlane' ? '-fastlane-screenshots' : '-screenshots'
+
     try {
-      const zip = new JSZip()
+      let outDir = ''
+      const zip = useTauri ? null : new JSZip()
+      if (useTauri) {
+        const picked = await open({ directory: true, title: '스크린샷을 저장할 폴더 선택' })
+        if (typeof picked !== 'string') {
+          setStatus('idle')
+          return
+        }
+        outDir = `${picked}/${project.name}${suffix}`
+      }
+      // Sink: write straight to the chosen folder in the desktop app, or stage
+      // into the in-memory zip in the browser. One file at a time either way.
+      const emit = (path: string, data: Blob | string, opts?: JSZip.JSZipFileOptions) =>
+        useTauri
+          ? writeFileToDir(outDir, path, data, opts?.unixPermissions === '755')
+          : Promise.resolve(void zip!.file(path, data, opts))
+
       let count = 0
 
       for (const locale of allLocales) {
@@ -153,8 +174,8 @@ export function ExportPanel() {
               )
               const lName = String(slide.index + 1).padStart(2, '0')
               const rName = String(follower.index + 1).padStart(2, '0')
-              zip.file(filePath(localeDir, device, lName), leftBlob)
-              zip.file(filePath(localeDir, device, rName), rightBlob)
+              await emit(filePath(localeDir, device, lName), leftBlob)
+              await emit(filePath(localeDir, device, rName), rightBlob)
               count += 2
               setDone(count)
               i += 2
@@ -170,7 +191,7 @@ export function ExportPanel() {
 
           const blob = await renderSlide(slide, device, renderLocale)
           const name = String(slide.index + 1).padStart(2, '0')
-          zip.file(filePath(localeDir, device, name), blob)
+          await emit(filePath(localeDir, device, name), blob)
           count++
           setDone(count)
           i++
@@ -178,17 +199,20 @@ export function ExportPanel() {
       }
 
       if (layout === 'fastlane') {
-        zip.file('fastlane/Appfile', FASTLANE_APPFILE)
-        zip.file('fastlane/Deliverfile', FASTLANE_DELIVERFILE)
-        zip.file('asc_api_key.json', FASTLANE_KEY_EXAMPLE)
-        zip.file('upload.sh', FASTLANE_UPLOAD_SH, { unixPermissions: '755' })
-        zip.file('README.txt', FASTLANE_README)
+        await emit('fastlane/Appfile', FASTLANE_APPFILE)
+        await emit('fastlane/Deliverfile', FASTLANE_DELIVERFILE)
+        await emit('asc_api_key.json', FASTLANE_KEY_EXAMPLE)
+        await emit('upload.sh', FASTLANE_UPLOAD_SH, { unixPermissions: '755' })
+        await emit('README.txt', FASTLANE_README)
       }
 
-      const zipBlob = await zip.generateAsync({ type: 'blob' })
-      const suffix = layout === 'fastlane' ? '-fastlane-screenshots' : '-screenshots'
-      saveAs(zipBlob, `${project.name}${suffix}.zip`)
-      setStatus('done')
+      if (useTauri) {
+        setStatus('done')
+      } else {
+        const zipBlob = await zip!.generateAsync({ type: 'blob' })
+        saveAs(zipBlob, `${project.name}${suffix}.zip`)
+        setStatus('done')
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setStatus('error')

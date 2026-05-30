@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ApiConfig, TranslationAPI } from '../types/project'
 import { safeLocalStorage } from '../lib/safeStorage'
+import { isTauri, keychainStorage } from '../lib/tauri'
 
 interface ApiKeyState {
   keys: ApiConfig
@@ -31,7 +32,8 @@ export const useApiKeyStore = create<ApiKeyState>()(
     }),
     {
       name: 'auto-image:api-keys',
-      storage: createJSONStorage(() => safeLocalStorage),
+      // Desktop shell: keys land in the macOS Keychain, never localStorage.
+      storage: createJSONStorage(() => (isTauri() ? keychainStorage : safeLocalStorage)),
       version: 1,
     },
   ),
