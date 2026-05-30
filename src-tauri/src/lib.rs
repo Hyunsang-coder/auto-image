@@ -36,6 +36,16 @@ fn keychain_delete(name: String) -> Result<(), String> {
 // per PNG so a full export never holds every blob in a single IPC payload.
 #[tauri::command]
 fn write_file(dir: String, path: String, data_base64: String, executable: bool) -> Result<(), String> {
+    // Defense in depth: the relative path must stay under `dir`. An absolute
+    // path would make `join` discard `dir`; a `..` component would climb out.
+    let rel = std::path::Path::new(&path);
+    if rel.is_absolute()
+        || rel
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err(format!("unsafe path: {path}"));
+    }
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data_base64.as_bytes())
         .map_err(|e| e.to_string())?;
@@ -50,6 +60,32 @@ fn write_file(dir: String, path: String, data_base64: String, executable: bool) 
             .map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::Engine;
+
+    fn b64(s: &str) -> String {
+        base64::engine::general_purpose::STANDARD.encode(s.as_bytes())
+    }
+
+    #[test]
+    fn write_file_rejects_absolute_and_traversal() {
+        assert!(write_file("/tmp".into(), "/etc/x".into(), b64("x"), false).is_err());
+        assert!(write_file("/tmp".into(), "../escape".into(), b64("x"), false).is_err());
+        assert!(write_file("/tmp".into(), "a/../../escape".into(), b64("x"), false).is_err());
+    }
+
+    #[test]
+    fn write_file_writes_nested_relative_path() {
+        let dir = std::env::temp_dir().join("ss-write-file-test");
+        let _ = std::fs::remove_dir_all(&dir);
+        write_file(dir.to_string_lossy().into(), "a/b/c.txt".into(), b64("hello"), false).unwrap();
+        assert_eq!(std::fs::read_to_string(dir.join("a/b/c.txt")).unwrap(), "hello");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
