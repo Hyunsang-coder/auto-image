@@ -53,8 +53,9 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             min={10}
             max={300}
             value={value.style.fontSize}
+            disabled={value.style.fitToBox}
             onChange={(e) => updateStyle({ fontSize: Number(e.target.value) })}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none disabled:opacity-40"
           />
         </div>
         <div className="flex-1">
@@ -73,6 +74,16 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           </select>
         </div>
       </div>
+
+      <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+        <span>박스 너비에 맞춤 <span className="text-[var(--color-text-dim)]">(자동 크기)</span></span>
+        <input
+          type="checkbox"
+          checked={!!value.style.fitToBox}
+          onChange={(e) => updateStyle({ fitToBox: e.target.checked })}
+          className="accent-[var(--color-accent)]"
+        />
+      </label>
 
       <div>
         <label className="mb-2 block text-xs text-[var(--color-text-dim)]">텍스트 색상</label>

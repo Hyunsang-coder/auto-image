@@ -141,6 +141,8 @@ export interface TextStyle {
   textAlign: 'left' | 'center' | 'right'
   letterSpacing?: number
   lineHeight?: number
+  /** When true, the font is auto-sized so the text fills the caption box width. */
+  fitToBox?: boolean
 }
 
 export interface Badge {
