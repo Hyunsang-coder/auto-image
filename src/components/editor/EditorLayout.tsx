@@ -3,7 +3,8 @@ import { useProjectStore, spanLeaderOf } from '../../store/useProjectStore'
 import { SlideList } from './SlideList'
 import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
-import { PropertiesPanel } from './properties/PropertiesPanel'
+import { PropertiesPanel, type PanelTab } from './properties/PropertiesPanel'
+import { LAYER_NAMES } from '../../canvas/layerNames'
 import type {
   Badge,
   Highlight,
@@ -32,6 +33,18 @@ const ZOOM_MIN = 0.25
 const ZOOM_MAX = 3
 const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100))
 
+// Double-click an object → jump the properties panel to its tab.
+const LAYER_TAB: Record<string, PanelTab> = {
+  [LAYER_NAMES.HEADLINE]: 'caption',
+  [LAYER_NAMES.SUBHEADLINE]: 'caption',
+  [LAYER_NAMES.SCREENSHOT]: 'screenshot',
+  [LAYER_NAMES.DEVICE_FRAME]: 'screenshot',
+  [LAYER_NAMES.BADGE]: 'badge',
+  [LAYER_NAMES.ORNAMENT]: 'ornaments',
+  [LAYER_NAMES.HIGHLIGHT_SOURCE]: 'highlights',
+  [LAYER_NAMES.HIGHLIGHT_POPUP]: 'highlights',
+}
+
 export function EditorLayout() {
   const project = useProjectStore((s) => s.project)
   const activeSlideId = useProjectStore((s) => s.activeSlideId)
@@ -42,6 +55,16 @@ export function EditorLayout() {
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const [zoom, setZoom] = useState(1)
+  const [panelTab, setPanelTab] = useState<PanelTab>('template')
+
+  function handleElementActivate(layerName: string | null) {
+    if (layerName === null) {
+      setPanelTab('background')
+      return
+    }
+    const tab = LAYER_TAB[layerName]
+    if (tab) setPanelTab(tab)
+  }
 
   // Canvas keyboard shortcuts wired to the canvas handle.
   useEffect(() => {
@@ -256,6 +279,7 @@ export function EditorLayout() {
               setCanRedo(canRedo)
             }}
             onZoomChange={(z) => setZoom(clampZoom(z))}
+            onElementActivate={handleElementActivate}
           />
         </div>
       </main>
@@ -263,6 +287,8 @@ export function EditorLayout() {
       {slide ? (
         <PropertiesPanel
           slide={slide}
+          tab={panelTab}
+          onTabChange={setPanelTab}
           onTemplateChange={handleTemplateChange}
           onBackgroundChange={handleBackgroundChange}
           onHeadlineChange={handleHeadlineChange}

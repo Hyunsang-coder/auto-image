@@ -65,6 +65,8 @@ interface Props {
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
   /** Ctrl/Cmd + wheel (and trackpad pinch) asks the parent to change zoom. */
   onZoomChange?: (next: number) => void
+  /** Double-click on an object surfaces its layer so the panel can open its tab. */
+  onElementActivate?: (layerName: string | null) => void
 }
 
 const HISTORY_LIMIT = 50
@@ -78,7 +80,7 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
     // Zoom is a pure view transform: the template always lays out at base dims,
@@ -101,7 +103,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const activeSlideRef = useRef(activeSlide)
     const onHistoryChangeRef = useRef(onHistoryChange)
     const onZoomChangeRef = useRef(onZoomChange)
+    const onElementActivateRef = useRef(onElementActivate)
 
+    useEffect(() => {
+      onElementActivateRef.current = onElementActivate
+    })
     useEffect(() => {
       onSlideChangeRef.current = onSlideChange
     })
@@ -655,6 +661,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       canvas.on('mouse:down', () => {
         lastBodyPos.current = null
+      })
+
+      // Double-click surfaces the object's layer so the panel can jump to the
+      // matching tab. Background dblclick (no target) reports null.
+      canvas.on('mouse:dblclick', (opt) => {
+        const ln = (opt.target as (FabricObject & { layerName?: string }) | undefined)?.layerName ?? null
+        onElementActivateRef.current?.(ln)
       })
 
       // Ctrl/Cmd + wheel (and trackpad pinch, which arrives as ctrlKey wheel)
