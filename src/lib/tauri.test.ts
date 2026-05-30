@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 const invoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }))
 
-import { isTauri, writeFileToDir, keychainStorage } from './tauri'
+import { isTauri, writeFileToDir, keychainStorage, sanitizePathSegment } from './tauri'
 
 beforeEach(() => {
   invoke.mockReset()
@@ -22,6 +22,23 @@ describe('isTauri', () => {
     } finally {
       delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
     }
+  })
+})
+
+describe('sanitizePathSegment', () => {
+  it('keeps a normal name intact', () => {
+    expect(sanitizePathSegment('My App')).toBe('My App')
+  })
+
+  it('strips path separators so the name stays one segment', () => {
+    expect(sanitizePathSegment('a/b\\c')).toBe('a-b-c')
+    expect(sanitizePathSegment('../../etc')).toBe('..-..-etc') // no surviving separators → cannot traverse
+  })
+
+  it('collapses pure-dot names and empties to a fallback', () => {
+    expect(sanitizePathSegment('..')).toBe('export')
+    expect(sanitizePathSegment('.')).toBe('export')
+    expect(sanitizePathSegment('   ')).toBe('export')
   })
 })
 

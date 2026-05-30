@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { open } from '@tauri-apps/plugin-dialog'
-import { isTauri, writeFileToDir } from '../../lib/tauri'
+import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
@@ -139,7 +139,7 @@ export function ExportPanel() {
           setStatus('idle')
           return
         }
-        outDir = `${picked}/${project.name}${suffix}`
+        outDir = `${picked}/${sanitizePathSegment(project.name)}${suffix}`
       }
       // Sink: write straight to the chosen folder in the desktop app, or stage
       // into the in-memory zip in the browser. One file at a time either way.

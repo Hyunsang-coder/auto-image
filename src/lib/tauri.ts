@@ -4,6 +4,16 @@ export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
+/**
+ * Collapse a string into a single safe path segment: no path separators and not
+ * a pure-dot name, so it can never escape its parent directory when used as
+ * `${dir}/${segment}`. Guards the export folder name against stray `/` or `..`.
+ */
+export function sanitizePathSegment(name: string): string {
+  const cleaned = name.replace(/[/\\]/g, '-').replace(/^\.+$/, '').trim()
+  return cleaned || 'export'
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
