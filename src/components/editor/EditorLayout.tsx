@@ -182,6 +182,24 @@ export function EditorLayout() {
 
   const handleSlideChange = applyEdit
 
+  // Commit any in-progress inline caption edit to the CURRENT slide/locale
+  // before switching. text:editing:exited → syncToZustand runs synchronously
+  // here, so it routes through the present editTargetId/editLocale; doing the
+  // state switch first would let the trailing commit land on the new slide.
+  function flushCanvasEdits() {
+    canvasRef.current?.discardSelection()
+  }
+
+  function switchSlide(id: string) {
+    flushCanvasEdits()
+    setActiveSlide(id)
+  }
+
+  function switchLocale(next: string) {
+    flushCanvasEdits()
+    setEditLocale(next)
+  }
+
   function handleTemplateChange(t: TemplateType) {
     if (!editingSlide) return
     const sizes = TEMPLATE_FONT_SIZES[t]
@@ -267,7 +285,7 @@ export function EditorLayout() {
       <SlideList
         slides={project.slides}
         activeSlideId={activeSlideId}
-        onSelect={setActiveSlide}
+        onSelect={switchSlide}
       />
 
       <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
@@ -307,7 +325,7 @@ export function EditorLayout() {
           {localeOptions.length > 0 && (
             <select
               value={editLocale}
-              onChange={(e) => setEditLocale(e.target.value)}
+              onChange={(e) => switchLocale(e.target.value)}
               title="편집 언어 — 공유(base)는 전체 공통, 특정 언어는 그 언어용 위치/크기/텍스트만 조정"
               className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
                 isLocaleMode
