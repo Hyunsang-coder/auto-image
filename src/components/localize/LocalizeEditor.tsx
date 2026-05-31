@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
+import { saveAs } from 'file-saver'
+import { save } from '@tauri-apps/plugin-dialog'
+import { isTauri, writeFileToDir } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useApiKeyStore } from '../../store/useApiKeyStore'
 import { translateBatch } from '../../lib/translate'
 import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
+import { serializeTemplate, parseTemplate, type LocaleFileFormat } from '../../lib/localeIO'
+import { parseImageName } from '../../lib/imageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
+import { detectDeviceFromAspect } from '../../constants/deviceSpecs'
 import type { Slide, TranslationAPI } from '../../types/project'
 
 type FieldKey = 'image' | 'headline' | 'subheadline' | `badge:${number}`
@@ -176,6 +182,10 @@ export function LocalizeEditor() {
   const [translatingLocales, setTranslatingLocales] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showKey, setShowKey] = useState(false)
+  const [ioMsg, setIoMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [imgMsg, setImgMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   if (!project) return null
 
@@ -249,6 +259,171 @@ export function LocalizeEditor() {
   async function translateAll() {
     for (const locale of targetLocales) {
       await runTranslate(locale)
+    }
+  }
+
+  async function exportTemplate(format: LocaleFileFormat) {
+    const serRows = textRows.map(r => ({
+      slideId: r.slideId,
+      slideIndex: r.slideIndex,
+      field: r.field,
+      sourceText: r.sourceText,
+    }))
+    const text = serializeTemplate(
+      format,
+      serRows,
+      (slideId, field, locale) => getCellValue(slides, slideId, field as FieldKey, locale),
+      sourceLocale,
+      targetLocales,
+    )
+    const filename = `${project!.name?.trim() || 'translations'}-translations.${format}`
+    // WKWebView ignores programmatic <a download> clicks, so the desktop build
+    // saves through the native dialog + Rust writer (same split as ExportPanel).
+    if (isTauri()) {
+      const picked = await save({
+        defaultPath: filename,
+        filters: [{ name: format.toUpperCase(), extensions: [format] }],
+      })
+      if (typeof picked !== 'string') return
+      const slash = picked.lastIndexOf('/')
+      const dir = slash >= 0 ? picked.slice(0, slash) : '.'
+      const name = slash >= 0 ? picked.slice(slash + 1) : picked
+      await writeFileToDir(dir, name, text)
+      setIoMsg({ kind: 'ok', text: `저장됨: ${name}` })
+      return
+    }
+    const mime = format === 'json' ? 'application/json' : 'text/csv'
+    const blob = new Blob([text], { type: `${mime};charset=utf-8` })
+    saveAs(blob, filename)
+  }
+
+  async function handleImportFile(file: File) {
+    const format: LocaleFileFormat = file.name.toLowerCase().endsWith('.json') ? 'json' : 'csv'
+    const text = await file.text()
+    const { rows: parsed, warnings } = parseTemplate(text, format)
+    const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
+    const fresh = useProjectStore.getState().project?.slides ?? slides
+    const localesSeen = new Set<string>()
+    let written = 0
+    const issues = [...warnings]
+    for (const row of parsed) {
+      const slide =
+        (row.slideId && fresh.find(s => s.id === row.slideId)) ||
+        (row.slide != null ? fresh[row.slide - 1] : undefined)
+      if (!slide) {
+        issues.push(`행 매칭 실패 (slide ${row.slideId ?? row.slide})`)
+        continue
+      }
+      const fieldOk =
+        row.field === 'headline' ||
+        row.field === 'subheadline' ||
+        (row.field.startsWith('badge:') && !!slide.badges?.[Number(row.field.slice(6))])
+      if (!fieldOk) {
+        issues.push(`알 수 없는 필드 "${row.field}" (slide ${row.slide ?? ''})`)
+        continue
+      }
+      for (const [locale, value] of Object.entries(row.values)) {
+        if (!value || locale === sourceLocale) continue
+        if (!known.has(locale)) {
+          issues.push(`지원하지 않는 언어 "${locale}"`)
+          continue
+        }
+        handleCellChange(slide.id, row.field as FieldKey, locale, value)
+        localesSeen.add(locale)
+        written++
+      }
+    }
+    // Surface any locale that arrived with values but wasn't selected yet.
+    const toAdd = [...localesSeen].filter(l => !targetLocales.includes(l))
+    if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
+    if (written === 0 && issues.length === 0) {
+      setIoMsg({ kind: 'err', text: '가져올 번역이 없습니다' })
+    } else if (issues.length) {
+      setIoMsg({ kind: 'err', text: `${written}개 적용 · 경고 ${issues.length}건: ${issues.slice(0, 3).join(' / ')}` })
+    } else {
+      setIoMsg({ kind: 'ok', text: `${written}개 번역을 가져왔습니다` })
+    }
+  }
+
+  async function handleBulkImages(files: File[]) {
+    const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
+    const issues: string[] = []
+    // Resolve filenames first; base screenshots before overrides so an override
+    // can attach to a base imported in the same batch.
+    const targets: { file: File; slide: number; locale?: string }[] = []
+    for (const file of files) {
+      const parsed = parseImageName(file.name, known)
+      if ('error' in parsed) issues.push(parsed.error)
+      else targets.push({ file, ...parsed })
+    }
+    targets.sort((a, b) => (a.locale ? 1 : 0) - (b.locale ? 1 : 0))
+
+    let applied = 0
+    for (const { file, slide: slideNum, locale } of targets) {
+      const slide = useProjectStore.getState().project?.slides[slideNum - 1]
+      if (!slide) {
+        issues.push(`슬라이드 ${slideNum} 없음: "${file.name}"`)
+        continue
+      }
+      if (!locale && slide.template === 'hero') {
+        issues.push(`슬라이드 ${slideNum}는 텍스트 전용(hero)이라 스크린샷 불가`)
+        continue
+      }
+      if (locale && !slide.screenshot) {
+        issues.push(`슬라이드 ${slideNum}에 베이스 스크린샷이 없어 ${locale} override를 붙일 수 없음`)
+        continue
+      }
+      let result
+      try {
+        result = await fileToImageKey(file)
+      } catch {
+        issues.push(`이미지를 읽을 수 없음: "${file.name}"`)
+        continue
+      }
+      const { key, width, height } = result
+      const detected = detectDeviceFromAspect(width, height)
+      // Don't let a stray file from the other device's set silently overwrite a
+      // populated slide and flip its device (e.g. an iPad shot landing on an
+      // iPhone slide). An empty base slot is the first upload, so it may set the
+      // device; overrides must match the slide's existing device.
+      const devLabel = (m: string) => (m === 'ipad-pro-13' ? 'iPad' : 'iPhone')
+      if ((locale || slide.screenshot) && detected !== slide.deviceFrame.model) {
+        issues.push(
+          `슬라이드 ${slideNum}(${devLabel(slide.deviceFrame.model)})에 ${devLabel(detected)} 이미지 — 건너뜀: "${file.name}"`,
+        )
+        continue
+      }
+      if (!locale) {
+        updateSlide(slide.id, {
+          screenshot: {
+            id: key,
+            imageKey: key,
+            originalWidth: width,
+            originalHeight: height,
+            ...(slide.screenshot?.localeOverrides && { localeOverrides: slide.screenshot.localeOverrides }),
+          },
+          ...(detected !== slide.deviceFrame.model && { deviceFrame: { ...slide.deviceFrame, model: detected } }),
+        })
+      } else {
+        updateSlide(slide.id, {
+          screenshot: {
+            ...slide.screenshot!,
+            localeOverrides: {
+              ...slide.screenshot!.localeOverrides,
+              [locale]: { imageKey: key, originalWidth: width, originalHeight: height },
+            },
+          },
+        })
+      }
+      applied++
+    }
+    gcImages()
+    if (applied === 0 && issues.length === 0) {
+      setImgMsg({ kind: 'err', text: '가져올 이미지가 없습니다' })
+    } else if (issues.length) {
+      setImgMsg({ kind: 'err', text: `${applied}개 적용 · 경고 ${issues.length}건: ${issues.slice(0, 3).join(' / ')}` })
+    } else {
+      setImgMsg({ kind: 'ok', text: `${applied}개 이미지를 가져왔습니다` })
     }
   }
 
@@ -386,6 +561,78 @@ export function LocalizeEditor() {
           >
             {isTranslating ? '번역 중…' : '전체 번역'}
           </button>
+        </div>
+
+        {/* Template import/export */}
+        <div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 양식</div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportTemplate('csv')}
+              disabled={textRows.length === 0 || targetLocales.length === 0}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+            >
+              CSV 내보내기
+            </button>
+            <button
+              onClick={() => exportTemplate('json')}
+              disabled={textRows.length === 0 || targetLocales.length === 0}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+            >
+              JSON 내보내기
+            </button>
+            <button
+              onClick={() => importInputRef.current?.click()}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            >
+              가져오기
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv,.json"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) handleImportFile(f)
+                e.target.value = ''
+              }}
+            />
+          </div>
+          {ioMsg && (
+            <p className={`mt-1 max-w-72 truncate text-xs ${ioMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`} title={ioMsg.text}>
+              {ioMsg.text}
+            </p>
+          )}
+        </div>
+
+        {/* Bulk image import */}
+        <div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">이미지 일괄</div>
+          <button
+            onClick={() => imageInputRef.current?.click()}
+            className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            title="파일명: 1.png 또는 01-home.png (베이스), 1.ja.png 또는 01-home.ja.png (언어별 override)"
+          >
+            이미지 가져오기
+          </button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={e => {
+              const files = Array.from(e.target.files ?? [])
+              if (files.length) handleBulkImages(files)
+              e.target.value = ''
+            }}
+          />
+          {imgMsg && (
+            <p className={`mt-1 max-w-72 truncate text-xs ${imgMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`} title={imgMsg.text}>
+              {imgMsg.text}
+            </p>
+          )}
         </div>
       </div>
 

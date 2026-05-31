@@ -56,7 +56,7 @@ Layer objects are tagged with `layerName` constants from `src/canvas/layerNames.
 
 Each slide exports to exactly **one** device — the one its screenshot belongs to, auto-detected from aspect ratio on upload (`detectDeviceFromAspect` in `deviceSpecs.ts`). `project.devices` is the initial default for new slides; it is **not** multiplied into the export. Total PNGs = `slides × locales`, and slides are grouped into their own device folder. An iPhone screenshot in an iPad project is impossible by construction — the slide flips to iPad frame as soon as a near-square shot is uploaded.
 
-Screenshots can be localized per locale: `ScreenshotImage.localeOverrides` maps a locale code to a `LocaleScreenshot` (its own `imageKey` + dims). At render time `withLocale()` (in `renderSlide.ts`) swaps in the override for that locale, falling back to the base when absent — same fallback shape as caption `translations`. The device frame stays fixed; the override is cover-fit into it. Overrides are uploaded on the Localize page, and their blobs join the GC keep-set in `imageRefs.ts`.
+Screenshots can be localized per locale: `ScreenshotImage.localeOverrides` maps a locale code to a `LocaleScreenshot` (its own `imageKey` + dims). At render time `withLocale()` (in `renderSlide.ts`) swaps in the override for that locale, falling back to the base when absent — same fallback shape as caption `translations`. The device frame stays fixed; the override is cover-fit into it. Overrides are uploaded on the Localize page, and their blobs join the GC keep-set in `imageRefs.ts`. The Localize page also bulk-imports screenshots by filename: `{n}[-desc].{ext}` → slide n's base, `{n}[-desc].{locale}.{ext}` → slide n's override (`parseImageName` in `src/lib/imageImport.ts`). The slide number is the leading digits of the name, so a descriptive suffix is allowed (`01-home.png`, `02-add-pdf.de.png`). Base files are applied before overrides so an override can attach to a base imported in the same batch.
 
 ### Device specs
 
@@ -65,6 +65,8 @@ All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts
 ### Translation
 
 Direct browser calls to LLM APIs. Claude requires the `anthropic-dangerous-direct-browser-access: true` header. Model choices: `claude-sonnet-4-6`, `gpt-4o-mini`, `gemini-3.1-flash-lite`.
+
+The translation table can also be filled by hand off-app: the Localize page exports a CSV or JSON template (source text + a column/key per target locale, pre-filled with any existing translations) and re-imports the filled file. Pure serialization/parse lives in `src/lib/localeIO.ts` (no store/React deps); the editor builds the rows and writes parsed cells back via the same `buildPatch` path as AI translation. Rows match on `slideId` first, falling back to the 1-based `slide` index; `source` is a reserved (non-locale) column. Imported locales not yet selected are auto-added to `targetLocales`.
 
 ### CSS
 
