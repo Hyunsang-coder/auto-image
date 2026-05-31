@@ -381,8 +381,19 @@ export function LocalizeEditor() {
         continue
       }
       const { key, width, height } = result
+      const detected = detectDeviceFromAspect(width, height)
+      // Don't let a stray file from the other device's set silently overwrite a
+      // populated slide and flip its device (e.g. an iPad shot landing on an
+      // iPhone slide). An empty base slot is the first upload, so it may set the
+      // device; overrides must match the slide's existing device.
+      const devLabel = (m: string) => (m === 'ipad-pro-13' ? 'iPad' : 'iPhone')
+      if ((locale || slide.screenshot) && detected !== slide.deviceFrame.model) {
+        issues.push(
+          `슬라이드 ${slideNum}(${devLabel(slide.deviceFrame.model)})에 ${devLabel(detected)} 이미지 — 건너뜀: "${file.name}"`,
+        )
+        continue
+      }
       if (!locale) {
-        const detected = detectDeviceFromAspect(width, height)
         updateSlide(slide.id, {
           screenshot: {
             id: key,
