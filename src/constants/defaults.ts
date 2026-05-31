@@ -22,23 +22,26 @@ export const DEFAULT_SOURCE_LOCALE = 'ko'
 export const DEFAULT_TARGET_LOCALES = ['en', 'ja']
 export const DEFAULT_TRANSLATION_API: TranslationAPI = 'claude'
 
+// `label` is the Korean UI name shown on the localize page; `name` is the
+// English language name fed to the translation prompt (kept unambiguous so a
+// Korean UI doesn't leak into the LLM instruction). Order = display order.
 export const SUPPORTED_LOCALES = [
-  { code: 'ko', label: '한국어' },
-  { code: 'en', label: 'English' },
-  { code: 'ja', label: '日本語' },
-  { code: 'zh-Hans', label: '简体中文' },
-  { code: 'zh-Hant', label: '繁體中文' },
-  { code: 'es', label: 'Español' },
-  { code: 'fr', label: 'Français' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'pt-BR', label: 'Português (BR)' },
-  { code: 'it', label: 'Italiano' },
-  { code: 'pl', label: 'Polski' },
-  { code: 'th', label: 'ไทย' },
-  { code: 'id', label: 'Bahasa Indonesia' },
-  { code: 'vi', label: 'Tiếng Việt' },
-  { code: 'tr', label: 'Türkçe' },
-  { code: 'es-MX', label: 'Español (MX)' },
+  { code: 'en', label: '영어', name: 'English' },
+  { code: 'ko', label: '한국어', name: 'Korean' },
+  { code: 'ja', label: '일본어', name: 'Japanese' },
+  { code: 'zh-Hans', label: '중국어(간체)', name: 'Simplified Chinese' },
+  { code: 'zh-Hant', label: '중국어(번체)', name: 'Traditional Chinese' },
+  { code: 'de', label: '독일어', name: 'German' },
+  { code: 'fr', label: '프랑스어', name: 'French' },
+  { code: 'es', label: '스페인어', name: 'Spanish' },
+  { code: 'it', label: '이탈리아어', name: 'Italian' },
+  { code: 'pt-BR', label: '포르투갈어(브라질)', name: 'Brazilian Portuguese' },
+  { code: 'pl', label: '폴란드어', name: 'Polish' },
+  { code: 'th', label: '태국어', name: 'Thai' },
+  { code: 'id', label: '인도네시아어', name: 'Indonesian' },
+  { code: 'vi', label: '베트남어', name: 'Vietnamese' },
+  { code: 'tr', label: '튀르키예어', name: 'Turkish' },
+  { code: 'es-MX', label: '스페인어(멕시코)', name: 'Mexican Spanish' },
 ] as const
 
 // In-app locale codes that differ from App Store Connect's canonical codes.
