@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { parseImageName } from './imageImport'
 
-const known = new Set(['en', 'ja', 'zh-Hans', 'pt-BR'])
+const known = new Set(['en', 'ja', 'de', 'zh-Hans', 'zh-Hant', 'pt-BR'])
 
 describe('parseImageName', () => {
   it('parses a base screenshot name', () => {
@@ -19,6 +19,12 @@ describe('parseImageName', () => {
 
   it('strips a leading directory path', () => {
     expect(parseImageName('shots/5.png', known)).toEqual({ slide: 5, locale: undefined })
+  })
+
+  it('accepts a descriptive suffix after the slide number', () => {
+    expect(parseImageName('01-home.png', known)).toEqual({ slide: 1, locale: undefined })
+    expect(parseImageName('02-add-pdf.de.png', known)).toEqual({ slide: 2, locale: 'de' })
+    expect(parseImageName('06-dashboard.zh-Hant.png', known)).toEqual({ slide: 6, locale: 'zh-Hant' })
   })
 
   it('rejects an unknown locale', () => {

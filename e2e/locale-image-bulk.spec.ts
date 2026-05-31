@@ -14,9 +14,10 @@ test('이미지 일괄 가져오기: 베이스 + 언어별 override를 파일명
   const home = readFileSync(new URL('./fixtures/iphone_home.png', import.meta.url))
   const decks = readFileSync(new URL('./fixtures/iphone_decks.png', import.meta.url))
 
+  // Descriptive names (flashcard skill style): leading digits = slide index.
   await page.locator('input[accept="image/*"]').setInputFiles([
-    { name: '1.png', mimeType: 'image/png', buffer: home },
-    { name: '1.ja.png', mimeType: 'image/png', buffer: decks },
+    { name: '01-home.png', mimeType: 'image/png', buffer: home },
+    { name: '01-home.ja.png', mimeType: 'image/png', buffer: decks },
   ])
 
   await expect(page.getByText(/이미지를 가져왔습니다/)).toBeVisible()

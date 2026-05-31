@@ -31,7 +31,7 @@ test('CSV 양식을 내보내면 원본 텍스트와 로케일 열이 포함됨'
 test('채워진 CSV를 가져오면 해당 셀이 채워짐', async ({ page }) => {
   // slideId 빈칸 → 1-based slide 인덱스로 매칭. en 열만 채움.
   const csv = 'slide,slideId,field,source,en,ja\n1,,headline,Track your day,Track it,\n'
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('input[accept=".csv,.json"]').setInputFiles({
     name: 'filled.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from(csv),
@@ -54,7 +54,7 @@ test('JSON 양식 왕복: 내보낸 파일을 그대로 채워 다시 가져옴'
   expect(headline.source).toBe('Track your day')
 
   headline.translations.en = 'Day tracker'
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('input[accept=".csv,.json"]').setInputFiles({
     name: 'filled.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(parsed)),

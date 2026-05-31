@@ -1,8 +1,10 @@
 // Parse a bulk-import image filename into a slide target. Convention:
-//   "{slide}.{ext}"          -> base screenshot for that 1-based slide
-//   "{slide}.{locale}.{ext}" -> per-locale override for that slide
-// Locale codes use hyphens (zh-Hans, pt-BR), never dots, so the single dot
-// after the slide number unambiguously separates slide from locale.
+//   "{n}[-desc].{ext}"          -> base screenshot for that 1-based slide n
+//   "{n}[-desc].{locale}.{ext}" -> per-locale override for that slide
+// The slide number is the leading digits of the name, so a descriptive suffix
+// is allowed (e.g. "01-home.png", "02-add-pdf.de.png"). Locale codes use
+// hyphens (zh-Hans, pt-BR), never dots, so the first dot after the slide token
+// separates it from the locale.
 
 export interface ParsedImageName {
   /** 1-based slide number as written in the filename. */
@@ -19,7 +21,8 @@ export function parseImageName(
   const dot = name.indexOf('.')
   const head = dot < 0 ? name : name.slice(0, dot)
   const locale = dot < 0 ? undefined : name.slice(dot + 1)
-  const slide = Number(head)
+  // Leading digits only — a descriptive suffix like "01-home" is allowed.
+  const slide = Number(head.match(/^\d+/)?.[0])
   if (!Number.isInteger(slide) || slide < 1) {
     return { error: `슬라이드 번호를 읽을 수 없음: "${filename}"` }
   }

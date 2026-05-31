@@ -601,7 +601,7 @@ export function LocalizeEditor() {
           <button
             onClick={() => imageInputRef.current?.click()}
             className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-            title="파일명: 1.png (베이스), 1.ja.png (언어별 override)"
+            title="파일명: 1.png 또는 01-home.png (베이스), 1.ja.png 또는 01-home.ja.png (언어별 override)"
           >
             이미지 가져오기
           </button>
