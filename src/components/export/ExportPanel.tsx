@@ -165,6 +165,10 @@ export function ExportPanel() {
     }
   }, [project, previewLocaleEff])
 
+  // Revoke the last committed preview blobs when the panel unmounts (the effect
+  // above only revokes the *previous* set on each re-run, never the final one).
+  useEffect(() => () => prevUrlsRef.current.forEach((u) => u && URL.revokeObjectURL(u)), [])
+
   if (!project) return null
 
   // Source first, then targets in canonical order (Korean right after the

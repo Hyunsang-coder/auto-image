@@ -362,6 +362,7 @@ export function LocalizeEditor() {
     const targets = [...bySlot.values()].sort((a, b) => (a.locale ? 1 : 0) - (b.locale ? 1 : 0))
 
     let applied = 0
+    const overrideLocalesSeen = new Set<string>()
     for (const { file, slide: slideNum, locale } of targets) {
       const slide = useProjectStore.getState().project?.slides[slideNum - 1]
       if (!slide) {
@@ -417,9 +418,14 @@ export function LocalizeEditor() {
             },
           },
         })
+        overrideLocalesSeen.add(locale)
       }
       applied++
     }
+    // Surface any override locale that wasn't selected yet, mirroring the caption
+    // import path — otherwise the imported override is invisible and unexported.
+    const toAdd = [...overrideLocalesSeen].filter(l => !targetLocales.includes(l))
+    if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
     gcImages()
     if (applied === 0 && issues.length === 0) {
       setImgMsg({ kind: 'err', text: '가져올 이미지가 없습니다' })
