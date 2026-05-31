@@ -43,6 +43,25 @@ export function spanLeaderOf(slides: Slide[], slide: Slide | null): Slide | null
   return pair?.leader ?? slide
 }
 
+/**
+ * Deep-clone a slide as a standalone copy: fresh IDs for the slide and every
+ * IDed sub-object, span markers cleared. Image blobs are *shared* (the imageKey
+ * strings are copied, not the IndexedDB blobs) — replacing a screenshot always
+ * mints a new key, so the copies diverge cleanly and the GC keep-set counts both
+ * references.
+ */
+function cloneSlideStandalone(src: Slide): Slide {
+  const c = structuredClone(src)
+  c.id = newId('slide')
+  if (c.screenshot) c.screenshot.id = newId('shot')
+  c.badges = c.badges.map((b) => ({ ...b, id: newId('badge') }))
+  c.highlights = c.highlights.map((h) => ({ ...h, id: newId('hl') }))
+  c.ornaments = c.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
+  c.spanGroupId = undefined
+  c.spanRole = undefined
+  return c
+}
+
 async function duplicateScreenshot(
   src: ScreenshotImage | null,
 ): Promise<ScreenshotImage | null> {
@@ -119,6 +138,9 @@ interface ProjectState {
   updateSlide: (slideId: string, patch: Partial<Slide>) => void
   replaceSlide: (slideId: string, slide: Slide) => void
   addSlide: () => void
+  /** Insert a standalone copy of `slideId` right after it (fresh IDs, shared
+   *  image blobs, span markers cleared). */
+  duplicateSlide: (slideId: string) => void
   removeSlide: (slideId: string) => Promise<void>
   reorderSlides: (orderedIds: string[]) => void
 
@@ -219,6 +241,26 @@ export const useProjectStore = create<ProjectState>()(
             slides: [...cur.slides, newSlide],
           }),
           activeSlideId: newSlide.id,
+        })
+      },
+
+      duplicateSlide: (slideId) => {
+        const cur = get().project
+        if (!cur) return
+        if (cur.slides.length >= 10) return
+        const srcIdx = cur.slides.findIndex((s) => s.id === slideId)
+        if (srcIdx < 0) return
+        const copy = cloneSlideStandalone(cur.slides[srcIdx])
+        const slides = [...cur.slides]
+        slides.splice(srcIdx + 1, 0, copy)
+        const reindexed = slides.map((s, i) => ({ ...s, index: i }))
+        set({
+          project: touch({
+            ...cur,
+            slides: reindexed,
+            screenshotCount: reindexed.length,
+          }),
+          activeSlideId: copy.id,
         })
       },
 

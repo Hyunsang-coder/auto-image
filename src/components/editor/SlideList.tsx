@@ -42,6 +42,7 @@ function buildRows(slides: Slide[]): RowItem[] {
 
 export function SlideList({ slides, activeSlideId, onSelect }: Props) {
   const addSlide = useProjectStore((s) => s.addSlide)
+  const duplicateSlide = useProjectStore((s) => s.duplicateSlide)
   const linkSpanWithNext = useProjectStore((s) => s.linkSpanWithNext)
   const unlinkSpan = useProjectStore((s) => s.unlinkSpan)
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -100,6 +101,8 @@ export function SlideList({ slides, activeSlideId, onSelect }: Props) {
                 slide={row.slides[0]}
                 active={row.slides[0].id === activeSlideId}
                 onSelect={() => onSelect(row.slides[0].id)}
+                onDuplicate={() => duplicateSlide(row.slides[0].id)}
+                canDuplicate={canAdd}
               />
             )}
             {canLinkAfter(i) && (
@@ -133,29 +136,44 @@ function SingleRow({
   slide,
   active,
   onSelect,
+  onDuplicate,
+  canDuplicate,
 }: {
   slide: Slide
   active: boolean
   onSelect: () => void
+  onDuplicate: () => void
+  canDuplicate: boolean
 }) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={[
-        'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition',
-        active
-          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-          : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
-      ].join(' ')}
-    >
-      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg)] text-xs font-semibold text-[var(--color-text-dim)]">
-        {slide.index + 1}
-      </span>
-      <span className="truncate">
-        {slide.headline.text || `슬라이드 ${slide.index + 1}`}
-      </span>
-    </button>
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onSelect}
+        className={[
+          'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-9 text-left text-sm transition',
+          active
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+            : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
+        ].join(' ')}
+      >
+        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg)] text-xs font-semibold text-[var(--color-text-dim)]">
+          {slide.index + 1}
+        </span>
+        <span className="truncate">
+          {slide.headline.text || `슬라이드 ${slide.index + 1}`}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onDuplicate}
+        disabled={!canDuplicate}
+        title={canDuplicate ? '슬라이드 복제' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
+        className="absolute right-1 top-1/2 hidden -translate-y-1/2 rounded p-1.5 text-xs leading-none text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40 group-hover:block"
+      >
+        ⧉
+      </button>
+    </div>
   )
 }
 
