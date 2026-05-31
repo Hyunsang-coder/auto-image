@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -6,11 +6,19 @@ import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
-import { ascExportCode } from '../../constants/defaults'
+import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
 import type { DeviceType, Project, Slide } from '../../types/project'
 
 function deviceOf(slide: Slide): DeviceType {
   return slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone'
+}
+
+const localeLabel = (code: string) =>
+  SUPPORTED_LOCALES.find((l) => l.code === code)?.label ?? code
+// Canonical display order for locales (SUPPORTED_LOCALES order: en, ko, ja, …).
+const localeOrder = (code: string) => {
+  const i = SUPPORTED_LOCALES.findIndex((l) => l.code === code)
+  return i < 0 ? 999 : i
 }
 
 type Status = 'idle' | 'running' | 'done' | 'error'
@@ -98,24 +106,89 @@ export function ExportPanel() {
   const [error, setError] = useState<string | null>(null)
   const cancelledRef = useRef(false)
 
-  const [previewSlideIdx, setPreviewSlideIdx] = useState(0)
   const [previewLocale, setPreviewLocale] = useState<string>('')
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const [previewSrcs, setPreviewSrcs] = useState<(string | null)[]>([])
   const [previewLoading, setPreviewLoading] = useState(false)
-  const prevUrlRef = useRef<string | null>(null)
+  const prevUrlsRef = useRef<(string | null)[]>([])
+  // Preview thumbnail size: 1 (small, more columns) … 5 (large, single column).
+  const [previewSize, setPreviewSize] = useState(3)
+  // Locales the user unticked for export; empty = export everything.
+  const [excludedLocales, setExcludedLocales] = useState<Set<string>>(new Set())
+
+  // Auto-render every slide for the chosen locale — no button. Re-runs whenever
+  // the project or preview locale changes; a cancelled flag drops stale results
+  // if the locale flips mid-render.
+  const previewLocaleEff = previewLocale || project?.sourceLocale
+  useEffect(() => {
+    if (!project) return
+    let cancelled = false
+    const slides = project.slides
+    const renderLocale = previewLocaleEff === project.sourceLocale ? null : previewLocaleEff!
+    ;(async () => {
+      setPreviewLoading(true)
+      const urls: (string | null)[] = []
+      for (const slide of slides) {
+        if (cancelled) break
+        try {
+          const device = deviceOf(slide)
+          let blob: Blob
+          if (slide.spanGroupId) {
+            const isLeader = slide.spanRole === 'leader'
+            const leader = isLeader
+              ? slide
+              : slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'leader')
+            if (!leader) {
+              urls.push(null)
+              continue
+            }
+            const halves = await renderSpanGroup(leader, device, renderLocale, EDITOR_CANVAS_WIDTH)
+            blob = isLeader ? halves.leader : halves.follower
+          } else {
+            blob = await renderSlide(slide, device, renderLocale, EDITOR_CANVAS_WIDTH)
+          }
+          urls.push(URL.createObjectURL(blob))
+        } catch {
+          urls.push(null)
+        }
+      }
+      if (cancelled) {
+        urls.forEach((u) => u && URL.revokeObjectURL(u))
+        return
+      }
+      prevUrlsRef.current.forEach((u) => u && URL.revokeObjectURL(u))
+      prevUrlsRef.current = urls
+      setPreviewSrcs(urls)
+      setPreviewLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [project, previewLocaleEff])
+
+  // Revoke the last committed preview blobs when the panel unmounts (the effect
+  // above only revokes the *previous* set on each re-run, never the final one).
+  useEffect(() => () => prevUrlsRef.current.forEach((u) => u && URL.revokeObjectURL(u)), [])
 
   if (!project) return null
 
-  const allLocales = [project.sourceLocale, ...project.targetLocales]
+  // Source first, then targets in canonical order (Korean right after the
+  // source, then Japanese, …) — deduped so a locale left in targetLocales from
+  // before a source switch can't export the same folder twice.
+  const allLocales = [
+    project.sourceLocale,
+    ...[...new Set(project.targetLocales)]
+      .filter((l) => l !== project.sourceLocale)
+      .sort((a, b) => localeOrder(a) - localeOrder(b)),
+  ]
+  const exportLocales = allLocales.filter((l) => !excludedLocales.has(l))
+  const previewCols = 6 - previewSize
   // Each slide exports to exactly one device — the one its screenshot belongs
   // to (auto-detected on upload). project.devices is no longer multiplied in.
-  const total = project.slides.length * allLocales.length
+  const total = project.slides.length * exportLocales.length
   const untranslated = getUntranslatedLocales(project)
   const devicesInUse = Array.from(new Set(project.slides.map(deviceOf)))
 
   const effectiveLocale = previewLocale || project.sourceLocale
-  const previewSlide = project.slides[previewSlideIdx]
-  const effectiveDevice: DeviceType = previewSlide ? deviceOf(previewSlide) : 'iphone'
 
   async function handleExport(layout: ExportLayout = 'default') {
     if (!project) return
@@ -150,7 +223,7 @@ export function ExportPanel() {
 
       let count = 0
 
-      for (const locale of allLocales) {
+      for (const locale of exportLocales) {
         let i = 0
         while (i < project.slides.length) {
           if (cancelledRef.current) {
@@ -223,47 +296,6 @@ export function ExportPanel() {
     cancelledRef.current = true
   }
 
-  async function handlePreviewRender() {
-    if (!project) return
-    const slide = project.slides[previewSlideIdx]
-    if (!slide) return
-
-    setPreviewLoading(true)
-    if (prevUrlRef.current) {
-      URL.revokeObjectURL(prevUrlRef.current)
-      prevUrlRef.current = null
-    }
-    setPreviewSrc(null)
-
-    try {
-      const renderLocale = effectiveLocale === project.sourceLocale ? null : effectiveLocale
-      let blob: Blob
-      if (slide.spanGroupId) {
-        // Show the half corresponding to whichever side the user picked. The
-        // leader owns the canvas; for a follower-pick we still render from the
-        // leader and return the right half.
-        const isLeader = slide.spanRole === 'leader'
-        const leader = isLeader
-          ? slide
-          : project.slides.find(
-              (s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'leader',
-            )
-        if (!leader) throw new Error('span leader not found')
-        const halves = await renderSpanGroup(leader, effectiveDevice, renderLocale, EDITOR_CANVAS_WIDTH)
-        blob = isLeader ? halves.leader : halves.follower
-      } else {
-        blob = await renderSlide(slide, effectiveDevice, renderLocale, EDITOR_CANVAS_WIDTH)
-      }
-      const url = URL.createObjectURL(blob)
-      prevUrlRef.current = url
-      setPreviewSrc(url)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setPreviewLoading(false)
-    }
-  }
-
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   return (
@@ -288,57 +320,52 @@ export function ExportPanel() {
 
         {/* Preview section */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-          <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">미리보기</h3>
-          <div className="mb-3 grid grid-cols-2 gap-2">
-            <div>
-              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">슬라이드</label>
-              <select
-                value={previewSlideIdx}
-                onChange={(e) => setPreviewSlideIdx(Number(e.target.value))}
-                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-text)]"
-              >
-                {project.slides.map((s, i) => (
-                  <option key={s.id} value={i}>
-                    {i + 1}번 ({deviceOf(s) === 'iphone' ? 'iPhone' : 'iPad'})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">로케일</label>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+              미리보기
+              {previewLoading && (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
+              )}
+            </h3>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-xs text-[var(--color-text-dim)]" title="미리보기 크기">
+                크기
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  value={previewSize}
+                  onChange={(e) => setPreviewSize(Number(e.target.value))}
+                  className="w-20 accent-[var(--color-accent)]"
+                />
+              </label>
               <select
                 value={effectiveLocale}
                 onChange={(e) => setPreviewLocale(e.target.value)}
-                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-text)]"
+                className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-text)]"
               >
                 {allLocales.map((l) => (
-                  <option key={l} value={l}>{l}</option>
+                  <option key={l} value={l}>{localeLabel(l)}</option>
                 ))}
               </select>
             </div>
           </div>
-          <button
-            onClick={handlePreviewRender}
-            disabled={previewLoading}
-            className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {previewLoading ? '렌더링 중…' : '미리보기 렌더'}
-          </button>
-          {previewLoading && (
-            <div className="mt-3 flex justify-center">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
-            </div>
-          )}
-          {previewSrc && !previewLoading && (
-            <div className="mt-3 overflow-hidden rounded-lg border border-[var(--color-border)]">
-              <img
-                src={previewSrc}
-                alt="미리보기"
-                className="w-full object-contain"
-                style={{ maxHeight: '320px' }}
-              />
-            </div>
-          )}
+          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${previewCols}, minmax(0, 1fr))` }}>
+            {project.slides.map((s, i) => (
+              <div
+                key={s.id}
+                className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]"
+              >
+                {previewSrcs[i] ? (
+                  <img src={previewSrcs[i]!} alt={`슬라이드 ${i + 1}`} className="w-full object-contain" />
+                ) : (
+                  <div className="flex aspect-[9/19] items-center justify-center text-xs text-[var(--color-text-dim)]">
+                    {i + 1}…
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Export summary */}
@@ -357,9 +384,43 @@ export function ExportPanel() {
                   : '—'}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span>로케일</span>
-              <span className="text-[var(--color-text)]">{allLocales.join(', ')}</span>
+            <div>
+              <div className="mb-1.5 flex justify-between">
+                <span>로케일</span>
+                <button
+                  onClick={() =>
+                    setExcludedLocales(
+                      excludedLocales.size > 0 ? new Set() : new Set(allLocales),
+                    )
+                  }
+                  className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                >
+                  {excludedLocales.size > 0 ? '전체 선택' : '전체 해제'}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {allLocales.map((l) => {
+                  const on = !excludedLocales.has(l)
+                  return (
+                    <button
+                      key={l}
+                      onClick={() => {
+                        const next = new Set(excludedLocales)
+                        if (on) next.add(l)
+                        else next.delete(l)
+                        setExcludedLocales(next)
+                      }}
+                      className={`rounded border px-2 py-0.5 text-xs transition-colors ${
+                        on
+                          ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                          : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)]'
+                      }`}
+                    >
+                      {localeLabel(l)}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <div className="flex justify-between border-t border-[var(--color-border)] pt-1.5">
               <span>총 PNG</span>
@@ -394,7 +455,7 @@ export function ExportPanel() {
         <div className="flex gap-2">
           <button
             onClick={() => handleExport('fastlane')}
-            disabled={status === 'running'}
+            disabled={status === 'running' || exportLocales.length === 0}
             title="screenshots/<locale>/<device>_NN.png — fastlane deliver로 바로 업로드"
             className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-semibold text-[var(--color-text)] hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -402,13 +463,15 @@ export function ExportPanel() {
           </button>
           <button
             onClick={() => handleExport('default')}
-            disabled={status === 'running'}
+            disabled={status === 'running' || exportLocales.length === 0}
             className="flex-1 rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {status === 'running'
               ? `렌더링 중… (${done}/${total})`
               : status === 'done'
               ? 'ZIP 다시 다운로드'
+              : exportLocales.length === 0
+              ? '내보낼 언어를 선택하세요'
               : `ZIP 내보내기 · ${total}개 PNG`}
           </button>
           {status === 'running' && (
