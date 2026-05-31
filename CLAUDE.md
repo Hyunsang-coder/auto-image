@@ -56,6 +56,8 @@ Layer objects are tagged with `layerName` constants from `src/canvas/layerNames.
 
 Each slide exports to exactly **one** device — the one its screenshot belongs to, auto-detected from aspect ratio on upload (`detectDeviceFromAspect` in `deviceSpecs.ts`). `project.devices` is the initial default for new slides; it is **not** multiplied into the export. Total PNGs = `slides × locales`, and slides are grouped into their own device folder. An iPhone screenshot in an iPad project is impossible by construction — the slide flips to iPad frame as soon as a near-square shot is uploaded.
 
+Screenshots can be localized per locale: `ScreenshotImage.localeOverrides` maps a locale code to a `LocaleScreenshot` (its own `imageKey` + dims). At render time `withLocale()` (in `renderSlide.ts`) swaps in the override for that locale, falling back to the base when absent — same fallback shape as caption `translations`. The device frame stays fixed; the override is cover-fit into it. Overrides are uploaded on the Localize page, and their blobs join the GC keep-set in `imageRefs.ts`.
+
 ### Device specs
 
 All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts` — single source of truth. Current models: `iphone-16-pro` (1320×2868) and `ipad-pro-13` (2064×2752). The editor canvas follows `slide.deviceFrame.model` (not a fixed iPhone aspect) so iPad slides actually look like iPads while editing. Device-frame corner radius is derived from the *rendered* device width, not the canvas width — this keeps split / hero-bleed (which shrink the device) from getting exaggerated corners.
