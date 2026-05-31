@@ -346,10 +346,10 @@ export function EditorLayout() {
               type="button"
               onClick={() => slide && editTargetId && updateSlide(editTargetId, clearLocaleOverride(slide, editLocale))}
               disabled={!slide?.localeOverrides?.[editLocale]}
-              title="이 언어의 모든 override를 지우고 공유(base)로 되돌립니다"
+              title="이 언어의 레이아웃 override(위치·크기·템플릿·배경·디바이스)를 지웁니다. 번역 텍스트와 스크린샷은 유지됩니다."
               className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              공유로 리셋
+              레이아웃 리셋
             </button>
           )}
         </div>

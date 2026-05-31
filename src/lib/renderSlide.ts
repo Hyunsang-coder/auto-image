@@ -6,11 +6,6 @@ import { createImageUrlCache } from './imageStore'
 import { encodeOpaquePng } from './encodePng'
 import { resolveSlideForLocale } from './resolveSlide'
 
-export { resolveSlideForLocale }
-
-/** @deprecated alias kept during the per-locale-slides migration. */
-export const withLocale = resolveSlideForLocale
-
 function withScaledFonts(slide: Slide, scale: number): Slide {
   return {
     ...slide,
@@ -55,7 +50,7 @@ export async function renderSlide(
     ? Math.round(previewWidth * spec.exportHeight / spec.exportWidth)
     : spec.exportHeight
   const scale = width / EDITOR_CANVAS_WIDTH
-  const exportSlide = withScaledFonts(withLocale(slide, locale), scale)
+  const exportSlide = withScaledFonts(resolveSlideForLocale(slide, locale), scale)
 
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })
@@ -94,7 +89,7 @@ export async function renderSpanGroup(
   // The editor renders grouped slides on a 2× canvas (880px wide); each axis
   // scales by the same single-slide ratio (halfWidth / EDITOR_CANVAS_WIDTH).
   const scale = halfWidth / EDITOR_CANVAS_WIDTH
-  const exportSlide = withScaledFonts(withLocale(leader, locale), scale)
+  const exportSlide = withScaledFonts(resolveSlideForLocale(leader, locale), scale)
 
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })
