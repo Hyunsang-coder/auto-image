@@ -57,6 +57,9 @@ export function ScreenshotPanel({
       imageKey: key,
       originalWidth: width,
       originalHeight: height,
+      // Replacing the base keeps any per-locale overrides — they're independent
+      // localized screenshots, not derived from this image.
+      ...(value?.localeOverrides && { localeOverrides: value.localeOverrides }),
     })
     // Lock the slide's device to the screenshot's aspect — an iPhone screenshot
     // belongs in an iPhone frame, an iPad shot in an iPad frame. Avoids the

@@ -10,7 +10,11 @@ function bgImageKey(bg: Background): string | undefined {
 
 function projectImageKeys(p: Project): string[] {
   return p.slides
-    .flatMap((s) => [s.screenshot?.imageKey, bgImageKey(s.background)])
+    .flatMap((s) => [
+      s.screenshot?.imageKey,
+      ...Object.values(s.screenshot?.localeOverrides ?? {}).map((o) => o.imageKey),
+      bgImageKey(s.background),
+    ])
     .filter((k): k is string => !!k)
 }
 

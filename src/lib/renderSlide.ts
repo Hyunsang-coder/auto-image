@@ -5,10 +5,20 @@ import { applyTemplate } from '../canvas/templateLayouts'
 import { createImageUrlCache } from './imageStore'
 import { encodeOpaquePng } from './encodePng'
 
-function withLocaleText(slide: Slide, locale: string | null): Slide {
+function withLocale(slide: Slide, locale: string | null): Slide {
   if (!locale) return slide
+  const override = slide.screenshot?.localeOverrides?.[locale]
   return {
     ...slide,
+    screenshot:
+      override && slide.screenshot
+        ? {
+            ...slide.screenshot,
+            imageKey: override.imageKey,
+            originalWidth: override.originalWidth,
+            originalHeight: override.originalHeight,
+          }
+        : slide.screenshot,
     headline: {
       ...slide.headline,
       text: slide.headline.translations[locale] ?? slide.headline.text,
@@ -68,7 +78,7 @@ export async function renderSlide(
     ? Math.round(previewWidth * spec.exportHeight / spec.exportWidth)
     : spec.exportHeight
   const scale = width / EDITOR_CANVAS_WIDTH
-  const exportSlide = withScaledFonts(withLocaleText(slide, locale), scale)
+  const exportSlide = withScaledFonts(withLocale(slide, locale), scale)
 
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })
@@ -107,7 +117,7 @@ export async function renderSpanGroup(
   // The editor renders grouped slides on a 2× canvas (880px wide); each axis
   // scales by the same single-slide ratio (halfWidth / EDITOR_CANVAS_WIDTH).
   const scale = halfWidth / EDITOR_CANVAS_WIDTH
-  const exportSlide = withScaledFonts(withLocaleText(leader, locale), scale)
+  const exportSlide = withScaledFonts(withLocale(leader, locale), scale)
 
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })

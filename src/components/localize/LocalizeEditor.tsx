@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useApiKeyStore } from '../../store/useApiKeyStore'
 import { translateBatch } from '../../lib/translate'
+import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
+import { gcImages } from '../../lib/imageRefs'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import type { Slide, TranslationAPI } from '../../types/project'
 
-type FieldKey = 'headline' | 'subheadline' | `badge:${number}`
+type FieldKey = 'image' | 'headline' | 'subheadline' | `badge:${number}`
 
 type GridRow = {
   slideId: string
@@ -27,6 +29,8 @@ function buildRows(slides: Slide[]): GridRow[] {
     // rows for them — the leader's rows govern both halves.
     if (slide.spanRole === 'follower') continue
     const fields: { field: FieldKey; label: string; sourceText: string }[] = []
+    if (slide.screenshot)
+      fields.push({ field: 'image', label: '이미지', sourceText: '' })
     if (slide.headline.text)
       fields.push({ field: 'headline', label: '헤드라인', sourceText: slide.headline.text })
     if (slide.subheadline.text)
@@ -90,6 +94,78 @@ function buildPatch(
   return null
 }
 
+/** Thumbnail that loads its blob from IndexedDB by imageKey. */
+function ImageThumb({ imageKey }: { imageKey: string }) {
+  const [url, setUrl] = useState<string | undefined>()
+  useEffect(() => {
+    let revoked = false
+    let current: string | undefined
+    loadImageObjectUrl(imageKey).then((u) => {
+      if (revoked) {
+        if (u) URL.revokeObjectURL(u)
+        return
+      }
+      current = u
+      setUrl(u)
+    })
+    return () => {
+      revoked = true
+      if (current) URL.revokeObjectURL(current)
+    }
+  }, [imageKey])
+  if (!url) return <div className="h-14 w-9 rounded bg-[var(--color-surface-2)]" />
+  return <img src={url} alt="" className="h-14 w-auto rounded border border-[var(--color-border)] object-contain" />
+}
+
+/** Per-locale screenshot override cell: thumbnail + upload/change/clear. */
+function OverrideCell({
+  imageKey,
+  onUpload,
+  onClear,
+}: {
+  imageKey?: string
+  onUpload: (file: File) => void
+  onClear: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <div className="flex items-center gap-2">
+      {imageKey ? (
+        <ImageThumb imageKey={imageKey} />
+      ) : (
+        <span className="text-xs text-[var(--color-text-dim)]">기본 이미지</span>
+      )}
+      <div className="flex flex-col gap-1">
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+        >
+          {imageKey ? '변경' : '업로드'}
+        </button>
+        {imageKey && (
+          <button
+            onClick={onClear}
+            className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-red-500 hover:text-red-500"
+          >
+            지우기
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (f) onUpload(f)
+          e.target.value = ''
+        }}
+      />
+    </div>
+  )
+}
+
 export function LocalizeEditor() {
   const project = useProjectStore(s => s.project)
   const updateProject = useProjectStore(s => s.updateProject)
@@ -107,6 +183,8 @@ export function LocalizeEditor() {
   const { sourceLocale, targetLocales, translationApi: api } = project
   const apiKey = keys[api]?.apiKey ?? ''
   const rows = buildRows(slides)
+  // Image-override rows carry no translatable text — exclude them from translation.
+  const textRows = rows.filter(r => r.field !== 'image')
   const localeLabel = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
 
   function handleCellChange(slideId: string, field: FieldKey, locale: string, value: string) {
@@ -120,14 +198,47 @@ export function LocalizeEditor() {
     if (patch) updateSlide(slideId, patch)
   }
 
+  async function handleOverrideUpload(slideId: string, locale: string, file: File) {
+    let result
+    try {
+      result = await fileToImageKey(file)
+    } catch {
+      setErrors(prev => ({ ...prev, [locale]: '이미지를 읽을 수 없습니다 (PNG/JPG 권장)' }))
+      return
+    }
+    const { key, width, height } = result
+    const slide = useProjectStore.getState().project?.slides.find(s => s.id === slideId)
+    if (!slide?.screenshot) return
+    const prev = slide.screenshot.localeOverrides?.[locale]
+    updateSlide(slideId, {
+      screenshot: {
+        ...slide.screenshot,
+        localeOverrides: {
+          ...slide.screenshot.localeOverrides,
+          [locale]: { imageKey: key, originalWidth: width, originalHeight: height },
+        },
+      },
+    })
+    if (prev) gcImages()
+  }
+
+  function handleOverrideClear(slideId: string, locale: string) {
+    const slide = useProjectStore.getState().project?.slides.find(s => s.id === slideId)
+    if (!slide?.screenshot?.localeOverrides) return
+    const rest = { ...slide.screenshot.localeOverrides }
+    delete rest[locale]
+    updateSlide(slideId, { screenshot: { ...slide.screenshot, localeOverrides: rest } })
+    gcImages()
+  }
+
   async function runTranslate(locale: string) {
-    const texts = rows.map(r => r.sourceText)
+    const texts = textRows.map(r => r.sourceText)
     if (!texts.length) return
     setTranslatingLocales(prev => new Set([...prev, locale]))
     setErrors(prev => { const n = { ...prev }; delete n[locale]; return n })
     try {
       const results = await translateBatch(texts, sourceLocale, locale, api, apiKey)
-      rows.forEach((row, i) => handleCellChange(row.slideId, row.field, locale, results[i]))
+      textRows.forEach((row, i) => handleCellChange(row.slideId, row.field, locale, results[i]))
     } catch (e) {
       setErrors(prev => ({ ...prev, [locale]: e instanceof Error ? e.message : String(e) }))
     } finally {
@@ -154,7 +265,7 @@ export function LocalizeEditor() {
     selectableLocales.length > 0 && selectableLocales.every(c => targetLocales.includes(c))
 
   const isTranslating = translatingLocales.size > 0
-  const canTranslate = !!apiKey && targetLocales.length > 0 && rows.length > 0
+  const canTranslate = !!apiKey && targetLocales.length > 0 && textRows.length > 0
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -286,7 +397,7 @@ export function LocalizeEditor() {
           </div>
         ) : rows.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-dim)]">
-            에디터에서 텍스트를 먼저 입력하세요
+            에디터에서 이미지나 텍스트를 먼저 추가하세요
           </div>
         ) : (
           <table className="w-full min-w-max border-collapse text-sm">
@@ -326,7 +437,10 @@ export function LocalizeEditor() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => (
+              {rows.map(row => {
+                const slide = slides.find(s => s.id === row.slideId)
+                const baseImageKey = slide?.screenshot?.imageKey
+                return (
                 <tr
                   key={`${row.slideId}-${row.field}`}
                   className="border-b border-[var(--color-border)]/40 hover:bg-[var(--color-surface-2)]"
@@ -346,21 +460,32 @@ export function LocalizeEditor() {
                     {row.label}
                   </td>
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text)]/60">
-                    {row.sourceText}
+                    {row.field === 'image'
+                      ? baseImageKey && <ImageThumb imageKey={baseImageKey} />
+                      : row.sourceText}
                   </td>
                   {targetLocales.map(locale => (
                     <td key={locale} className="border-r border-[var(--color-border)] px-2 py-1.5">
-                      <textarea
-                        value={getCellValue(slides, row.slideId, row.field, locale)}
-                        onChange={e => handleCellChange(row.slideId, row.field, locale, e.target.value)}
-                        rows={2}
-                        className="w-full resize-none rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
-                        placeholder="번역 없음"
-                      />
+                      {row.field === 'image' ? (
+                        <OverrideCell
+                          imageKey={slide?.screenshot?.localeOverrides?.[locale]?.imageKey}
+                          onUpload={file => handleOverrideUpload(row.slideId, locale, file)}
+                          onClear={() => handleOverrideClear(row.slideId, locale)}
+                        />
+                      ) : (
+                        <textarea
+                          value={getCellValue(slides, row.slideId, row.field, locale)}
+                          onChange={e => handleCellChange(row.slideId, row.field, locale, e.target.value)}
+                          rows={2}
+                          className="w-full resize-none rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
+                          placeholder="번역 없음"
+                        />
+                      )}
                     </td>
                   ))}
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         )}
