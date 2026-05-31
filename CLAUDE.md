@@ -66,6 +66,8 @@ All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts
 
 Direct browser calls to LLM APIs. Claude requires the `anthropic-dangerous-direct-browser-access: true` header. Model choices: `claude-sonnet-4-6`, `gpt-4o-mini`, `gemini-3.1-flash-lite`.
 
+The translation table can also be filled by hand off-app: the Localize page exports a CSV or JSON template (source text + a column/key per target locale, pre-filled with any existing translations) and re-imports the filled file. Pure serialization/parse lives in `src/lib/localeIO.ts` (no store/React deps); the editor builds the rows and writes parsed cells back via the same `buildPatch` path as AI translation. Rows match on `slideId` first, falling back to the 1-based `slide` index; `source` is a reserved (non-locale) column. Imported locales not yet selected are auto-added to `targetLocales`.
+
 ### CSS
 
 Tailwind v4 (via `@tailwindcss/vite`). Design tokens are CSS variables (`--color-border`, `--color-surface`, `--color-text-dim`, etc.) defined in `src/index.css`.

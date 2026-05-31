@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import { saveAs } from 'file-saver'
+import { save } from '@tauri-apps/plugin-dialog'
+import { isTauri, writeFileToDir } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useApiKeyStore } from '../../store/useApiKeyStore'
 import { translateBatch } from '../../lib/translate'
 import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
+import { serializeTemplate, parseTemplate, type LocaleFileFormat } from '../../lib/localeIO'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import type { Slide, TranslationAPI } from '../../types/project'
 
@@ -176,6 +180,8 @@ export function LocalizeEditor() {
   const [translatingLocales, setTranslatingLocales] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showKey, setShowKey] = useState(false)
+  const [ioMsg, setIoMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   if (!project) return null
 
@@ -249,6 +255,89 @@ export function LocalizeEditor() {
   async function translateAll() {
     for (const locale of targetLocales) {
       await runTranslate(locale)
+    }
+  }
+
+  async function exportTemplate(format: LocaleFileFormat) {
+    const serRows = textRows.map(r => ({
+      slideId: r.slideId,
+      slideIndex: r.slideIndex,
+      field: r.field,
+      sourceText: r.sourceText,
+    }))
+    const text = serializeTemplate(
+      format,
+      serRows,
+      (slideId, field, locale) => getCellValue(slides, slideId, field as FieldKey, locale),
+      sourceLocale,
+      targetLocales,
+    )
+    const filename = `${project!.name?.trim() || 'translations'}-translations.${format}`
+    // WKWebView ignores programmatic <a download> clicks, so the desktop build
+    // saves through the native dialog + Rust writer (same split as ExportPanel).
+    if (isTauri()) {
+      const picked = await save({
+        defaultPath: filename,
+        filters: [{ name: format.toUpperCase(), extensions: [format] }],
+      })
+      if (typeof picked !== 'string') return
+      const slash = picked.lastIndexOf('/')
+      const dir = slash >= 0 ? picked.slice(0, slash) : '.'
+      const name = slash >= 0 ? picked.slice(slash + 1) : picked
+      await writeFileToDir(dir, name, text)
+      setIoMsg({ kind: 'ok', text: `저장됨: ${name}` })
+      return
+    }
+    const mime = format === 'json' ? 'application/json' : 'text/csv'
+    const blob = new Blob([text], { type: `${mime};charset=utf-8` })
+    saveAs(blob, filename)
+  }
+
+  async function handleImportFile(file: File) {
+    const format: LocaleFileFormat = file.name.toLowerCase().endsWith('.json') ? 'json' : 'csv'
+    const text = await file.text()
+    const { rows: parsed, warnings } = parseTemplate(text, format)
+    const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
+    const fresh = useProjectStore.getState().project?.slides ?? slides
+    const localesSeen = new Set<string>()
+    let written = 0
+    const issues = [...warnings]
+    for (const row of parsed) {
+      const slide =
+        (row.slideId && fresh.find(s => s.id === row.slideId)) ||
+        (row.slide != null ? fresh[row.slide - 1] : undefined)
+      if (!slide) {
+        issues.push(`행 매칭 실패 (slide ${row.slideId ?? row.slide})`)
+        continue
+      }
+      const fieldOk =
+        row.field === 'headline' ||
+        row.field === 'subheadline' ||
+        (row.field.startsWith('badge:') && !!slide.badges?.[Number(row.field.slice(6))])
+      if (!fieldOk) {
+        issues.push(`알 수 없는 필드 "${row.field}" (slide ${row.slide ?? ''})`)
+        continue
+      }
+      for (const [locale, value] of Object.entries(row.values)) {
+        if (!value || locale === sourceLocale) continue
+        if (!known.has(locale)) {
+          issues.push(`지원하지 않는 언어 "${locale}"`)
+          continue
+        }
+        handleCellChange(slide.id, row.field as FieldKey, locale, value)
+        localesSeen.add(locale)
+        written++
+      }
+    }
+    // Surface any locale that arrived with values but wasn't selected yet.
+    const toAdd = [...localesSeen].filter(l => !targetLocales.includes(l))
+    if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
+    if (written === 0 && issues.length === 0) {
+      setIoMsg({ kind: 'err', text: '가져올 번역이 없습니다' })
+    } else if (issues.length) {
+      setIoMsg({ kind: 'err', text: `${written}개 적용 · 경고 ${issues.length}건: ${issues.slice(0, 3).join(' / ')}` })
+    } else {
+      setIoMsg({ kind: 'ok', text: `${written}개 번역을 가져왔습니다` })
     }
   }
 
@@ -386,6 +475,49 @@ export function LocalizeEditor() {
           >
             {isTranslating ? '번역 중…' : '전체 번역'}
           </button>
+        </div>
+
+        {/* Template import/export */}
+        <div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 양식</div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportTemplate('csv')}
+              disabled={textRows.length === 0 || targetLocales.length === 0}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+            >
+              CSV 내보내기
+            </button>
+            <button
+              onClick={() => exportTemplate('json')}
+              disabled={textRows.length === 0 || targetLocales.length === 0}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+            >
+              JSON 내보내기
+            </button>
+            <button
+              onClick={() => importInputRef.current?.click()}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            >
+              가져오기
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv,.json"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) handleImportFile(f)
+                e.target.value = ''
+              }}
+            />
+          </div>
+          {ioMsg && (
+            <p className={`mt-1 max-w-72 truncate text-xs ${ioMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`} title={ioMsg.text}>
+              {ioMsg.text}
+            </p>
+          )}
         </div>
       </div>
 
