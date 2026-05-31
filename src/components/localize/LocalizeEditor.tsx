@@ -337,15 +337,29 @@ export function LocalizeEditor() {
   async function handleBulkImages(files: File[]) {
     const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
     const issues: string[] = []
-    // Resolve filenames first; base screenshots before overrides so an override
-    // can attach to a base imported in the same batch.
-    const targets: { file: File; slide: number; locale?: string }[] = []
+    // Resolve filenames first. A no-suffix file is the base; a source-locale
+    // suffix (e.g. "01.ko.png" when sourceLocale is ko) is the same base, not an
+    // override. Two files landing on the same slot would silently clobber, so
+    // detect that and keep one deterministically (no-suffix wins the base).
+    const parsedTargets: { file: File; slide: number; locale?: string; suffixed: boolean }[] = []
     for (const file of files) {
       const parsed = parseImageName(file.name, known)
       if ('error' in parsed) issues.push(parsed.error)
-      else targets.push({ file, ...parsed })
+      else parsedTargets.push({ file, slide: parsed.slide, locale: parsed.locale === sourceLocale ? undefined : parsed.locale, suffixed: parsed.locale !== undefined })
     }
-    targets.sort((a, b) => (a.locale ? 1 : 0) - (b.locale ? 1 : 0))
+    const bySlot = new Map<string, typeof parsedTargets[number]>()
+    for (const t of parsedTargets) {
+      const key = `${t.slide}:${t.locale ?? 'base'}`
+      const prev = bySlot.get(key)
+      if (!prev) { bySlot.set(key, t); continue }
+      const keep = !t.suffixed && prev.suffixed ? t : prev
+      const drop = keep === t ? prev : t
+      issues.push(`슬라이드 ${t.slide} ${t.locale ?? '베이스'} 중복 — "${drop.file.name}" 무시, "${keep.file.name}" 사용`)
+      bySlot.set(key, keep)
+    }
+    // Base screenshots before overrides so an override can attach to a base
+    // imported in the same batch.
+    const targets = [...bySlot.values()].sort((a, b) => (a.locale ? 1 : 0) - (b.locale ? 1 : 0))
 
     let applied = 0
     for (const { file, slide: slideNum, locale } of targets) {
@@ -459,7 +473,12 @@ export function LocalizeEditor() {
           <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">원본 언어</div>
           <select
             value={sourceLocale}
-            onChange={e => updateProject({ sourceLocale: e.target.value })}
+            onChange={e => {
+              const next = e.target.value
+              // Source and targets must stay disjoint — a locale can't be both
+              // the base language and a translation target.
+              updateProject({ sourceLocale: next, targetLocales: targetLocales.filter(l => l !== next) })
+            }}
             className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-sm text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
           >
             {SUPPORTED_LOCALES.map(l => (

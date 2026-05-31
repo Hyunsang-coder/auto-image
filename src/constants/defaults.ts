@@ -93,11 +93,11 @@ export const TEMPLATE_FONT_SIZES: Record<
   TemplateType,
   { headline: number; subheadline: number }
 > = {
-  hero:          { headline: 84, subheadline: 38 },
-  'hero-bleed':  { headline: 58, subheadline: 26 },
-  'text-top':    { headline: 54, subheadline: 28 },
-  'text-bottom': { headline: 54, subheadline: 28 },
-  split:         { headline: 46, subheadline: 24 },
+  hero:          { headline: 40, subheadline: 22 },
+  'hero-bleed':  { headline: 40, subheadline: 22 },
+  'text-top':    { headline: 40, subheadline: 22 },
+  'text-bottom': { headline: 40, subheadline: 22 },
+  split:         { headline: 40, subheadline: 22 },
 }
 
 // Each layout's default caption alignment. Applied on layout switch; after that
