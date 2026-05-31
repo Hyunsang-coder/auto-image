@@ -8,7 +8,9 @@ import { translateBatch } from '../../lib/translate'
 import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
 import { serializeTemplate, parseTemplate, type LocaleFileFormat } from '../../lib/localeIO'
+import { parseImageName } from '../../lib/imageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
+import { detectDeviceFromAspect } from '../../constants/deviceSpecs'
 import type { Slide, TranslationAPI } from '../../types/project'
 
 type FieldKey = 'image' | 'headline' | 'subheadline' | `badge:${number}`
@@ -181,7 +183,9 @@ export function LocalizeEditor() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showKey, setShowKey] = useState(false)
   const [ioMsg, setIoMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [imgMsg, setImgMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   if (!project) return null
 
@@ -338,6 +342,77 @@ export function LocalizeEditor() {
       setIoMsg({ kind: 'err', text: `${written}개 적용 · 경고 ${issues.length}건: ${issues.slice(0, 3).join(' / ')}` })
     } else {
       setIoMsg({ kind: 'ok', text: `${written}개 번역을 가져왔습니다` })
+    }
+  }
+
+  async function handleBulkImages(files: File[]) {
+    const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
+    const issues: string[] = []
+    // Resolve filenames first; base screenshots before overrides so an override
+    // can attach to a base imported in the same batch.
+    const targets: { file: File; slide: number; locale?: string }[] = []
+    for (const file of files) {
+      const parsed = parseImageName(file.name, known)
+      if ('error' in parsed) issues.push(parsed.error)
+      else targets.push({ file, ...parsed })
+    }
+    targets.sort((a, b) => (a.locale ? 1 : 0) - (b.locale ? 1 : 0))
+
+    let applied = 0
+    for (const { file, slide: slideNum, locale } of targets) {
+      const slide = useProjectStore.getState().project?.slides[slideNum - 1]
+      if (!slide) {
+        issues.push(`슬라이드 ${slideNum} 없음: "${file.name}"`)
+        continue
+      }
+      if (!locale && slide.template === 'hero') {
+        issues.push(`슬라이드 ${slideNum}는 텍스트 전용(hero)이라 스크린샷 불가`)
+        continue
+      }
+      if (locale && !slide.screenshot) {
+        issues.push(`슬라이드 ${slideNum}에 베이스 스크린샷이 없어 ${locale} override를 붙일 수 없음`)
+        continue
+      }
+      let result
+      try {
+        result = await fileToImageKey(file)
+      } catch {
+        issues.push(`이미지를 읽을 수 없음: "${file.name}"`)
+        continue
+      }
+      const { key, width, height } = result
+      if (!locale) {
+        const detected = detectDeviceFromAspect(width, height)
+        updateSlide(slide.id, {
+          screenshot: {
+            id: key,
+            imageKey: key,
+            originalWidth: width,
+            originalHeight: height,
+            ...(slide.screenshot?.localeOverrides && { localeOverrides: slide.screenshot.localeOverrides }),
+          },
+          ...(detected !== slide.deviceFrame.model && { deviceFrame: { ...slide.deviceFrame, model: detected } }),
+        })
+      } else {
+        updateSlide(slide.id, {
+          screenshot: {
+            ...slide.screenshot!,
+            localeOverrides: {
+              ...slide.screenshot!.localeOverrides,
+              [locale]: { imageKey: key, originalWidth: width, originalHeight: height },
+            },
+          },
+        })
+      }
+      applied++
+    }
+    gcImages()
+    if (applied === 0 && issues.length === 0) {
+      setImgMsg({ kind: 'err', text: '가져올 이미지가 없습니다' })
+    } else if (issues.length) {
+      setImgMsg({ kind: 'err', text: `${applied}개 적용 · 경고 ${issues.length}건: ${issues.slice(0, 3).join(' / ')}` })
+    } else {
+      setImgMsg({ kind: 'ok', text: `${applied}개 이미지를 가져왔습니다` })
     }
   }
 
@@ -516,6 +591,35 @@ export function LocalizeEditor() {
           {ioMsg && (
             <p className={`mt-1 max-w-72 truncate text-xs ${ioMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`} title={ioMsg.text}>
               {ioMsg.text}
+            </p>
+          )}
+        </div>
+
+        {/* Bulk image import */}
+        <div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">이미지 일괄</div>
+          <button
+            onClick={() => imageInputRef.current?.click()}
+            className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            title="파일명: 1.png (베이스), 1.ja.png (언어별 override)"
+          >
+            이미지 가져오기
+          </button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={e => {
+              const files = Array.from(e.target.files ?? [])
+              if (files.length) handleBulkImages(files)
+              e.target.value = ''
+            }}
+          />
+          {imgMsg && (
+            <p className={`mt-1 max-w-72 truncate text-xs ${imgMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`} title={imgMsg.text}>
+              {imgMsg.text}
             </p>
           )}
         </div>
