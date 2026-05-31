@@ -193,6 +193,9 @@ export function ExportPanel() {
   const devicesInUse = Array.from(new Set(project.slides.map(deviceOf)))
 
   const effectiveLocale = previewLocale || project.sourceLocale
+  // Desktop writes PNGs straight into a folder; only the browser packages a ZIP.
+  // Button copy follows the actual artifact.
+  const isDesktop = isTauri()
 
   async function handleExport(layout: ExportLayout = 'default') {
     if (!project) return
@@ -391,16 +394,20 @@ export function ExportPanel() {
             <div>
               <div className="mb-1.5 flex justify-between">
                 <span>로케일</span>
-                <button
-                  onClick={() =>
-                    setExcludedLocales(
-                      excludedLocales.size > 0 ? new Set() : new Set(allLocales),
-                    )
-                  }
-                  className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
-                >
-                  {excludedLocales.size > 0 ? '전체 선택' : '전체 해제'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setExcludedLocales(new Set())}
+                    className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                  >
+                    모두 선택
+                  </button>
+                  <button
+                    onClick={() => setExcludedLocales(new Set(allLocales))}
+                    className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                  >
+                    전체 해제
+                  </button>
+                </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {allLocales.map((l) => {
@@ -463,7 +470,7 @@ export function ExportPanel() {
             title="screenshots/<locale>/<device>_NN.png — fastlane deliver로 바로 업로드"
             className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-semibold text-[var(--color-text)] hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            fastlane용 ZIP
+            {isDesktop ? 'fastlane 폴더' : 'fastlane용 ZIP'}
           </button>
           <button
             onClick={() => handleExport('default')}
@@ -473,9 +480,11 @@ export function ExportPanel() {
             {status === 'running'
               ? `렌더링 중… (${done}/${total})`
               : status === 'done'
-              ? 'ZIP 다시 다운로드'
+              ? isDesktop ? '다시 내보내기' : 'ZIP 다시 다운로드'
               : exportLocales.length === 0
               ? '내보낼 언어를 선택하세요'
+              : isDesktop
+              ? `내보내기 · ${total}개 PNG`
               : `ZIP 내보내기 · ${total}개 PNG`}
           </button>
           {status === 'running' && (
