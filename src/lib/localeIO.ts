@@ -4,8 +4,11 @@
 
 export type LocaleFileFormat = 'csv' | 'json'
 
-/** Reserved (non-locale) column headers in the CSV / keys in the JSON. */
-const RESERVED_COLUMNS = ['slide', 'slideId', 'field', 'source']
+/** Identity columns written on export (everything else is a labeled language). */
+const ID_COLUMNS = ['slide', 'slideId', 'field']
+/** Columns ignored when collecting language columns on parse. `source` is a
+ * legacy column from the old format — kept for reference, never routed. */
+const RESERVED_COLUMNS = [...ID_COLUMNS, 'source']
 
 export interface SerializeRow {
   slideId: string
@@ -40,6 +43,12 @@ export function serializeTemplate(
   sourceLocale: string,
   targetLocales: string[],
 ): string {
+  // Every language is a labeled column. The source-locale column carries the
+  // slide's base text; the rest carry translations.
+  const locales = [sourceLocale, ...targetLocales]
+  const cellFor = (r: SerializeRow, locale: string) =>
+    locale === sourceLocale ? r.sourceText : getCell(r.slideId, r.field, locale)
+
   if (format === 'json') {
     return JSON.stringify(
       {
@@ -49,25 +58,21 @@ export function serializeTemplate(
           slide: r.slideIndex + 1,
           slideId: r.slideId,
           field: r.field,
-          source: r.sourceText,
-          translations: Object.fromEntries(
-            targetLocales.map(l => [l, getCell(r.slideId, r.field, l)]),
-          ),
+          texts: Object.fromEntries(locales.map(l => [l, cellFor(r, l)])),
         })),
       },
       null,
       2,
     )
   }
-  const header = [...RESERVED_COLUMNS, ...targetLocales]
+  const header = [...ID_COLUMNS, ...locales]
   const lines = [header.map(csvCell).join(',')]
   for (const r of rows) {
     const cells = [
       String(r.slideIndex + 1),
       r.slideId,
       r.field,
-      r.sourceText,
-      ...targetLocales.map(l => getCell(r.slideId, r.field, l)),
+      ...locales.map(l => cellFor(r, l)),
     ]
     lines.push(cells.map(csvCell).join(','))
   }
@@ -100,7 +105,9 @@ function parseJsonTemplate(text: string): ParseResult {
       continue
     }
     const values: Record<string, string> = {}
-    const t = raw.translations
+    // New format: `texts` maps every language (incl. source) → text. Fall back
+    // to the legacy `translations` key (target locales only) for old files.
+    const t = raw.texts && typeof raw.texts === 'object' ? raw.texts : raw.translations
     if (t && typeof t === 'object') {
       for (const [loc, v] of Object.entries(t as Record<string, unknown>)) {
         values[loc] = v == null ? '' : String(v)

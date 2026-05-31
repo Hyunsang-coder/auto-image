@@ -8,12 +8,11 @@ import { translateBatch } from '../../lib/translate'
 import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
 import { serializeTemplate, parseTemplate, type LocaleFileFormat } from '../../lib/localeIO'
+import { buildTranslationPatch, buildImportPatch, type FieldKey } from '../../lib/localePatch'
 import { parseImageName } from '../../lib/imageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import { detectDeviceFromAspect } from '../../constants/deviceSpecs'
 import type { Slide, TranslationAPI } from '../../types/project'
-
-type FieldKey = 'image' | 'headline' | 'subheadline' | `badge:${number}`
 
 type GridRow = {
   slideId: string
@@ -73,31 +72,6 @@ function getCellValue(slides: Slide[], slideId: string, field: FieldKey, locale:
     return slide.badges?.[bi]?.translations[locale] ?? ''
   }
   return ''
-}
-
-function buildPatch(
-  slides: Slide[],
-  slideId: string,
-  field: FieldKey,
-  locale: string,
-  value: string,
-): Partial<Slide> | null {
-  const slide = slides.find(s => s.id === slideId)
-  if (!slide) return null
-  if (field === 'headline')
-    return { headline: { ...slide.headline, translations: { ...slide.headline.translations, [locale]: value } } }
-  if (field === 'subheadline')
-    return { subheadline: { ...slide.subheadline, translations: { ...slide.subheadline.translations, [locale]: value } } }
-  if (field.startsWith('badge:')) {
-    const bi = Number(field.slice(6))
-    if (!slide.badges?.[bi]) return null
-    return {
-      badges: slide.badges.map((b, i) =>
-        i === bi ? { ...b, translations: { ...b.translations, [locale]: value } } : b,
-      ),
-    }
-  }
-  return null
 }
 
 /** Thumbnail that loads its blob from IndexedDB by imageKey. */
@@ -204,7 +178,15 @@ export function LocalizeEditor() {
     // (headline/badges), so building from a stale snapshot makes each write clobber
     // the previous one — only the last locale / last badge would survive.
     const fresh = useProjectStore.getState().project?.slides ?? slides
-    const patch = buildPatch(fresh, slideId, field, locale, value)
+    const patch = buildTranslationPatch(fresh, slideId, field, locale, value)
+    if (patch) updateSlide(slideId, patch)
+  }
+
+  // Route an imported cell to base text (source locale) or a translation,
+  // always off the latest committed slides so back-to-back writes compose.
+  function applyImportCell(slideId: string, field: FieldKey, locale: string, value: string) {
+    const fresh = useProjectStore.getState().project?.slides ?? slides
+    const patch = buildImportPatch(fresh, slideId, field, locale, value, sourceLocale)
     if (patch) updateSlide(slideId, patch)
   }
 
@@ -305,6 +287,7 @@ export function LocalizeEditor() {
     const fresh = useProjectStore.getState().project?.slides ?? slides
     const localesSeen = new Set<string>()
     let written = 0
+    let baseWritten = 0
     const issues = [...warnings]
     for (const row of parsed) {
       const slide =
@@ -323,25 +306,31 @@ export function LocalizeEditor() {
         continue
       }
       for (const [locale, value] of Object.entries(row.values)) {
-        if (!value || locale === sourceLocale) continue
+        if (!value) continue
         if (!known.has(locale)) {
           issues.push(`지원하지 않는 언어 "${locale}"`)
           continue
         }
-        handleCellChange(slide.id, row.field as FieldKey, locale, value)
-        localesSeen.add(locale)
+        // Source-locale column → slide base text; otherwise → translation.
+        applyImportCell(slide.id, row.field as FieldKey, locale, value)
+        if (locale === sourceLocale) {
+          baseWritten++
+        } else {
+          localesSeen.add(locale)
+        }
         written++
       }
     }
     // Surface any locale that arrived with values but wasn't selected yet.
     const toAdd = [...localesSeen].filter(l => !targetLocales.includes(l))
     if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
+    const baseNote = baseWritten ? ` (원본 ${baseWritten}개 갱신)` : ''
     if (written === 0 && issues.length === 0) {
       setIoMsg({ kind: 'err', text: '가져올 번역이 없습니다' })
     } else if (issues.length) {
-      setIoMsg({ kind: 'err', text: `${written}개 적용 · 경고 ${issues.length}건: ${issues.slice(0, 3).join(' / ')}` })
+      setIoMsg({ kind: 'err', text: `${written}개 적용${baseNote} · 경고 ${issues.length}건: ${issues.slice(0, 3).join(' / ')}` })
     } else {
-      setIoMsg({ kind: 'ok', text: `${written}개 번역을 가져왔습니다` })
+      setIoMsg({ kind: 'ok', text: `${written}개 번역을 가져왔습니다${baseNote}` })
     }
   }
 

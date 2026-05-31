@@ -13,12 +13,14 @@ const getCell = (id: string, f: string, l: string) => cells[`${id}|${f}|${l}`] ?
 
 describe('serializeTemplate / parseTemplate round-trip', () => {
   for (const format of ['csv', 'json'] as const) {
-    it(`${format}: round-trips slideId, field, and translations`, () => {
+    it(`${format}: round-trips slideId, field, source text, and translations`, () => {
       const text = serializeTemplate(format, ROWS, getCell, 'en', ['ja', 'ko'])
       const { rows, warnings } = parseTemplate(text, format)
       expect(warnings).toEqual([])
       expect(rows).toHaveLength(3)
       expect(rows[0]).toMatchObject({ slideId: 's1', slide: 1, field: 'headline' })
+      // Source locale ('en') is a labeled column carrying the base text.
+      expect(rows[0].values.en).toBe('Track your day')
       expect(rows[0].values.ja).toBe('一日を記録')
       expect(rows[0].values.ko).toBe('')
       expect(rows[2]).toMatchObject({ slideId: 's2', slide: 2, field: 'badge:0' })
@@ -51,10 +53,21 @@ describe('csv parsing', () => {
     expect(rows).toHaveLength(1)
   })
 
-  it('treats source as reserved, not a locale column', () => {
-    const text = serializeTemplate('csv', ROWS, getCell, 'en', ['ko'])
-    const { localeColumns } = parseTemplate(text, 'csv')
+  it('ignores a legacy `source` column but keeps every language column', () => {
+    // A re-imported old-format file still works: `source` is dropped, `ko` kept.
+    const text = 'slide,slideId,field,source,ko\n1,s1,headline,Hi,안녕'
+    const { rows, localeColumns } = parseTemplate(text, 'csv')
     expect(localeColumns).toEqual(['ko'])
+    expect(rows[0].values).not.toHaveProperty('source')
+    expect(rows[0].values.ko).toBe('안녕')
+  })
+
+  it('exports the source locale as a labeled column, not a special `source`', () => {
+    const text = serializeTemplate('csv', ROWS, getCell, 'en', ['ko'])
+    const header = text.replace(/^\uFEFF/, '').split('\r\n')[0]
+    expect(header).toBe('slide,slideId,field,en,ko')
+    const { localeColumns } = parseTemplate(text, 'csv')
+    expect(localeColumns).toEqual(['en', 'ko'])
   })
 })
 
@@ -74,5 +87,21 @@ describe('json parsing', () => {
     const { rows, warnings } = parseTemplate(text, 'json')
     expect(rows).toHaveLength(0)
     expect(warnings).toHaveLength(1)
+  })
+
+  it('reads the new `texts` language map', () => {
+    const text = JSON.stringify({
+      rows: [{ slideId: 's1', field: 'headline', texts: { en: 'Hi', ko: '안녕' } }],
+    })
+    const { rows } = parseTemplate(text, 'json')
+    expect(rows[0].values).toEqual({ en: 'Hi', ko: '안녕' })
+  })
+
+  it('falls back to a legacy `translations` map when `texts` is absent', () => {
+    const text = JSON.stringify({
+      rows: [{ slideId: 's1', field: 'headline', source: 'Hi', translations: { ko: '안녕' } }],
+    })
+    const { rows } = parseTemplate(text, 'json')
+    expect(rows[0].values).toEqual({ ko: '안녕' })
   })
 })

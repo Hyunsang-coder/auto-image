@@ -2,11 +2,14 @@ import { readFileSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
 import { clearAppState, createProject } from './helpers'
 
-// The localize page exports a CSV/JSON translation template (source text + a
-// column per target locale) and re-imports a filled file back into the grid.
+// The localize page exports a CSV/JSON translation template (one labeled column
+// per language, including the source locale) and re-imports a filled file. The
+// source-locale column routes to the slide's base text; the rest to translations
+// — so which column is "base" follows the app's 원본 언어 setting, no regen needed.
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
   await page.goto('/')
+  // Default project source locale is ko, target locales en + ja.
   await createProject(page, { name: 'Template IO', slideCount: 1 })
 
   // Give the slide a headline → one translatable text row in the grid.
@@ -16,21 +19,22 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
 })
 
-test('CSV 양식을 내보내면 원본 텍스트와 로케일 열이 포함됨', async ({ page }) => {
+test('CSV 양식은 모든 언어를 열로 내보낸다 (원본 열 = 베이스 텍스트)', async ({ page }) => {
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'CSV 내보내기' }).click()
   const download = await downloadPromise
   const content = readFileSync(await download.path(), 'utf8')
 
-  // Header carries the reserved columns + default target locales (en, ja).
+  // Header: id columns + source locale (ko) + targets (en, ja). No `source` column.
   const header = content.replace(/^\uFEFF/, '').split(/\r?\n/)[0]
-  expect(header).toBe('slide,slideId,field,source,en,ja')
+  expect(header).toBe('slide,slideId,field,ko,en,ja')
+  // The source-locale (ko) column carries the base headline text.
   expect(content).toContain('Track your day')
 })
 
-test('채워진 CSV를 가져오면 해당 셀이 채워짐', async ({ page }) => {
-  // slideId 빈칸 → 1-based slide 인덱스로 매칭. en 열만 채움.
-  const csv = 'slide,slideId,field,source,en,ja\n1,,headline,Track your day,Track it,\n'
+test('타깃 언어 열을 가져오면 해당 셀이 채워짐', async ({ page }) => {
+  // slideId 빈칸 → 1-based slide 인덱스로 매칭. 원본(ko) 열은 베이스, en 열은 번역.
+  const csv = 'slide,slideId,field,ko,en,ja\n1,,headline,Track your day,Track it,\n'
   await page.locator('input[accept=".csv,.json"]').setInputFiles({
     name: 'filled.csv',
     mimeType: 'text/csv',
@@ -44,16 +48,45 @@ test('채워진 CSV를 가져오면 해당 셀이 채워짐', async ({ page }) =
   await expect(headlineRow.locator('textarea').first()).toHaveValue('Track it')
 })
 
-test('JSON 양식 왕복: 내보낸 파일을 그대로 채워 다시 가져옴', async ({ page }) => {
+test('원본 언어 열은 베이스 텍스트로, 원본 언어를 바꾸면 베이스가 바뀐다', async ({ page }) => {
+  // All-language file. With source=ko, the ko column becomes the slide's base text.
+  const csv =
+    'slide,slideId,field,ko,en,ja\n1,,headline,한국어 헤드라인,English headline,日本語 견출\n'
+  const setFile = () =>
+    page.locator('input[accept=".csv,.json"]').setInputFiles({
+      name: 'all.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    })
+
+  await setFile()
+  await expect(page.getByText(/번역을 가져왔습니다/)).toBeVisible()
+
+  // Base text (source/원본 column, read-only) now shows the ko value; targets filled.
+  const headlineRow = page.locator('tr', { has: page.getByText('헤드라인', { exact: true }) })
+  await expect(headlineRow).toContainText('한국어 헤드라인')
+  await expect(headlineRow.locator('textarea').first()).toHaveValue('English headline') // en is first target
+
+  // Flip the source language to en, re-import the SAME file. Now the en column is base.
+  await page.locator('select').selectOption('en')
+  await setFile()
+  await expect(page.getByText(/번역을 가져왔습니다/)).toBeVisible()
+
+  const headlineRow2 = page.locator('tr', { has: page.getByText('헤드라인', { exact: true }) })
+  await expect(headlineRow2).toContainText('English headline')
+})
+
+test('JSON 양식 왕복: texts 맵을 채워 다시 가져옴', async ({ page }) => {
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'JSON 내보내기' }).click()
   const download = await downloadPromise
   const parsed = JSON.parse(readFileSync(await download.path(), 'utf8'))
 
+  // texts carries every language; the source locale (ko) holds the base text.
   const headline = parsed.rows.find((r: { field: string }) => r.field === 'headline')
-  expect(headline.source).toBe('Track your day')
+  expect(headline.texts.ko).toBe('Track your day')
 
-  headline.translations.en = 'Day tracker'
+  headline.texts.en = 'Day tracker'
   await page.locator('input[accept=".csv,.json"]').setInputFiles({
     name: 'filled.json',
     mimeType: 'application/json',
