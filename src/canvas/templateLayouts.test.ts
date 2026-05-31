@@ -22,9 +22,10 @@ function layout(
   ch: number,
   spanCentered: boolean,
   deviceFrame: Partial<Slide['deviceFrame']> = {},
+  canvasScale = 1,
 ) {
   const slide = makeSlide(template, deviceFrame)
-  return getDeviceLayout(slide, cw, ch, getDeviceDimensions(slide, cw), spanCentered)
+  return getDeviceLayout(slide, cw, ch, getDeviceDimensions(slide, cw), spanCentered, canvasScale)
 }
 
 describe('device layout span centering', () => {
@@ -91,6 +92,22 @@ describe('device drag round-trip is exact (no snap)', () => {
       }
     }
   }
+
+  // Editor stores offsetX/offsetY in editor-canvas pixels; at export resolution
+  // the canvas is canvasScale× wider, so the offset must be multiplied by
+  // canvasScale for the device to land in the same proportional spot. Otherwise
+  // a dragged device renders in a different place in the export than the editor.
+  it('offset scales with canvasScale so editor and export match', () => {
+    const cw = 440
+    const ch = 956
+    const canvasScale = 1284 / cw // an iPhone export render
+    for (const template of DEVICE_TEMPLATES) {
+      const base = layout(template, cw, ch, false, { offsetX: 0, offsetY: 0 }, canvasScale)!
+      const moved = layout(template, cw, ch, false, { offsetX: 60, offsetY: 40 }, canvasScale)!
+      expect(moved.centerX - base.centerX).toBeCloseTo(60 * canvasScale, 6)
+      expect(moved.top - base.top).toBeCloseTo(40 * canvasScale, 6)
+    }
+  })
 
   // Guards the property the fix relies on: offset is a pure translation of the
   // layout, independent of scale. (A regression that recomputed the base from a

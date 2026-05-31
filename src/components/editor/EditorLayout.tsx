@@ -28,6 +28,9 @@ import {
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
 import { gcImages } from '../../lib/imageRefs'
+import { resolveSlideForLocale } from '../../lib/resolveSlide'
+import { routeLocalePatch, clearLocaleOverride } from '../../lib/localeOverride'
+import { SUPPORTED_LOCALES } from '../../constants/defaults'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 3
@@ -56,6 +59,14 @@ export function EditorLayout() {
   const [canRedo, setCanRedo] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [panelTab, setPanelTab] = useState<PanelTab>('template')
+  // Which locale the editor is editing. '' = the shared/base view (full
+  // editing of every element). A locale code = edit that locale: captions and
+  // the device frame are tweakable and their changes are stored as that
+  // locale's overrides; shared elements are locked.
+  const [editLocale, setEditLocale] = useState('')
+  // onKeyDown is bound once; read live mode through a ref so locale-gated
+  // shortcuts don't act on a stale closure.
+  const localeModeRef = useRef(false)
 
   function handleElementActivate(layerName: string | null) {
     if (layerName === null) {
@@ -79,6 +90,11 @@ export function EditorLayout() {
         canvasRef.current?.discardSelection()
         return
       }
+      // In locale mode, delete/nudge are safe (delete only hits shared elements,
+      // which are locked → inert; nudge routes through sync into the locale's
+      // overrides). Undo/redo/duplicate work off raw canvas snapshots that don't
+      // route, so they stay base-only for now.
+      const localeMode = localeModeRef.current
       if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
         e.preventDefault()
         canvasRef.current?.deleteSelected()
@@ -98,12 +114,15 @@ export function EditorLayout() {
       const ctrl = isMac ? e.metaKey : e.ctrlKey
       if (!ctrl) return
       if (e.key === 'z' && !e.shiftKey) {
+        if (localeMode) return
         e.preventDefault()
         canvasRef.current?.undo()
       } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        if (localeMode) return
         e.preventDefault()
         canvasRef.current?.redo()
       } else if (e.key === 'd') {
+        if (localeMode) return
         e.preventDefault()
         canvasRef.current?.duplicateSelected()
       } else if (e.key === '=' || e.key === '+') {
@@ -121,6 +140,10 @@ export function EditorLayout() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  useEffect(() => {
+    localeModeRef.current = !!editLocale
+  }, [editLocale])
+
   if (!project) return null
   const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
   // When the clicked slide is part of a span group, the leader owns all the
@@ -130,98 +153,131 @@ export function EditorLayout() {
   const editTargetId = slide?.id ?? null
   const isGrouped = !!slide?.spanGroupId
 
-  function handleSlideChange(patch: Partial<Slide>) {
+  // Locale edit mode: the canvas renders the slide resolved for that locale and
+  // routes edits into its overrides. '' = shared/base view (edit everything).
+  const isLocaleMode = !!editLocale
+  const canvasSlide = isLocaleMode && slide ? resolveSlideForLocale(slide, editLocale) : slide
+  // Editable locales. project.locales is the new peer list; until setup writes
+  // it (a later phase), fall back to the translation targets.
+  const localeOptions = project.locales ?? project.targetLocales
+  const localeLabel = (code: string) => SUPPORTED_LOCALES.find((l) => l.code === code)?.label ?? code
+
+  // The slide the editor actually shows/edits: resolved for the locale, or the
+  // shared base. Panel handlers build patches off this so they reflect what the
+  // user sees; applyEdit then routes the patch to the right place.
+  const editingSlide = canvasSlide
+
+  // Single write path. In locale mode the patch is rerouted into that locale's
+  // overrides (text → translations, look → localeOverrides, shared elements →
+  // base); otherwise it edits the shared base directly.
+  function applyEdit(patch: Partial<Slide>) {
     if (!editTargetId) return
+    if (isLocaleMode && slide) {
+      const routed = routeLocalePatch(slide, editLocale, patch)
+      if (Object.keys(routed).length) updateSlide(editTargetId, routed)
+      return
+    }
     updateSlide(editTargetId, patch)
   }
 
+  const handleSlideChange = applyEdit
+
+  // Commit any in-progress inline caption edit to the CURRENT slide/locale
+  // before switching. text:editing:exited → syncToZustand runs synchronously
+  // here, so it routes through the present editTargetId/editLocale; doing the
+  // state switch first would let the trailing commit land on the new slide.
+  function flushCanvasEdits() {
+    canvasRef.current?.discardSelection()
+  }
+
+  function switchSlide(id: string) {
+    flushCanvasEdits()
+    setActiveSlide(id)
+  }
+
+  function switchLocale(next: string) {
+    flushCanvasEdits()
+    setEditLocale(next)
+  }
+
   function handleTemplateChange(t: TemplateType) {
-    if (!editTargetId || !slide) return
+    if (!editingSlide) return
     const sizes = TEMPLATE_FONT_SIZES[t]
     const align = TEMPLATE_TEXT_ALIGN[t]
-    updateSlide(editTargetId, {
+    applyEdit({
       template: t,
-      headline: { ...slide.headline, style: { ...slide.headline.style, fontSize: sizes.headline, textAlign: align } },
-      subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style, fontSize: sizes.subheadline, textAlign: align } },
+      headline: { ...editingSlide.headline, style: { ...editingSlide.headline.style, fontSize: sizes.headline, textAlign: align } },
+      subheadline: { ...editingSlide.subheadline, style: { ...editingSlide.subheadline.style, fontSize: sizes.subheadline, textAlign: align } },
     })
   }
 
   function handleBackgroundChange(bg: Background) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { background: bg })
+    applyEdit({ background: bg })
   }
 
   function handleHeadlineChange(c: Caption) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { headline: c })
+    applyEdit({ headline: c })
   }
 
   function handleSubheadlineChange(c: Caption) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { subheadline: c })
+    applyEdit({ subheadline: c })
   }
 
   function handleScreenshotChange(screenshot: ScreenshotImage | null) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { screenshot })
+    applyEdit({ screenshot })
     // Reference-checked: the replaced screenshot's blob is swept only if no
     // saved project/preset/template still points at it.
     gcImages()
   }
 
   function handleBadgesChange(badges: Badge[]) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { badges })
+    applyEdit({ badges })
   }
 
   function handleDeviceFrameChange(df: DeviceFrame) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { deviceFrame: df })
+    applyEdit({ deviceFrame: df })
   }
 
   function handleScreenshotStyleChange(style: ScreenshotStyle) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { screenshotStyle: style })
+    applyEdit({ screenshotStyle: style })
   }
 
   function handleOrnamentsChange(ornaments: Ornament[]) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { ornaments })
+    applyEdit({ ornaments })
   }
 
   function handleHighlightsChange(highlights: Highlight[]) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { highlights })
+    applyEdit({ highlights })
   }
 
   function handleApplyThemePreset(preset: ThemePreset) {
-    if (!editTargetId || !slide) return
-    updateSlide(editTargetId, {
+    if (!editingSlide) return
+    applyEdit({
       background: structuredClone(preset.background),
       headline: {
-        ...slide.headline,
-        style: { ...slide.headline.style, color: preset.headlineColor },
+        ...editingSlide.headline,
+        style: { ...editingSlide.headline.style, color: preset.headlineColor },
       },
       subheadline: {
-        ...slide.subheadline,
-        style: { ...slide.subheadline.style, color: preset.subheadlineColor },
+        ...editingSlide.subheadline,
+        style: { ...editingSlide.subheadline.style, color: preset.subheadlineColor },
       },
     })
   }
 
   function handleSavePreset(name: string) {
-    if (!slide) return
-    useCustomStore.getState().addPreset(presetFromSlide(slide, name))
+    if (!editingSlide) return
+    useCustomStore.getState().addPreset(presetFromSlide(editingSlide, name))
   }
 
   function handleSaveTemplate(name: string) {
-    if (!slide) return
-    useCustomStore.getState().addTemplate(templateFromSlide(slide, name))
+    if (!editingSlide) return
+    useCustomStore.getState().addTemplate(templateFromSlide(editingSlide, name))
   }
 
   function handleApplyTemplate(tpl: SlideTemplate) {
-    if (!editTargetId || !slide) return
-    updateSlide(editTargetId, applyTemplateToSlide(slide, tpl))
+    if (!editingSlide) return
+    applyEdit(applyTemplateToSlide(editingSlide, tpl))
   }
 
   return (
@@ -229,7 +285,7 @@ export function EditorLayout() {
       <SlideList
         slides={project.slides}
         activeSlideId={activeSlideId}
-        onSelect={setActiveSlide}
+        onSelect={switchSlide}
       />
 
       <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
@@ -266,12 +322,43 @@ export function EditorLayout() {
               +
             </button>
           </div>
+          {localeOptions.length > 0 && (
+            <select
+              value={editLocale}
+              onChange={(e) => switchLocale(e.target.value)}
+              title="편집 언어 — 공유(base)는 전체 공통, 특정 언어는 그 언어용 위치/크기/텍스트만 조정"
+              className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
+                isLocaleMode
+                  ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
+              }`}
+            >
+              <option value="">공유 (base)</option>
+              {localeOptions.map((l) => (
+                <option key={l} value={l}>
+                  {localeLabel(l)}
+                </option>
+              ))}
+            </select>
+          )}
+          {isLocaleMode && (
+            <button
+              type="button"
+              onClick={() => slide && editTargetId && updateSlide(editTargetId, clearLocaleOverride(slide, editLocale))}
+              disabled={!slide?.localeOverrides?.[editLocale]}
+              title="이 언어의 레이아웃 override(위치·크기·템플릿·배경·디바이스)를 지웁니다. 번역 텍스트와 스크린샷은 유지됩니다."
+              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              레이아웃 리셋
+            </button>
+          )}
         </div>
         <div className="flex flex-1 items-start justify-center p-6">
           <FabricCanvas
             ref={canvasRef}
-            activeSlide={slide}
+            activeSlide={canvasSlide}
             isGrouped={isGrouped}
+            lockSharedLayout={isLocaleMode}
             zoom={zoom}
             onSlideChange={handleSlideChange}
             onHistoryChange={({ canUndo, canRedo }) => {
@@ -284,9 +371,9 @@ export function EditorLayout() {
         </div>
       </main>
 
-      {slide ? (
+      {editingSlide ? (
         <PropertiesPanel
-          slide={slide}
+          slide={editingSlide}
           tab={panelTab}
           onTabChange={setPanelTab}
           onTemplateChange={handleTemplateChange}

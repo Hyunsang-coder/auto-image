@@ -105,6 +105,13 @@ interface Props {
    * the *leader* — EditorLayout resolves it.
    */
   isGrouped?: boolean
+  /**
+   * Per-locale edit mode: lock the shared-layout elements (badges, ornaments,
+   * highlights) so only captions and the device frame can be tweaked for this
+   * locale. EditorLayout routes the resulting edits into that locale's
+   * overrides; shared elements stay editable only in the base/shared view.
+   */
+  lockSharedLayout?: boolean
   /** View-only magnification of the editor canvas. 1 = base size. */
   zoom?: number
   onSlideChange: (patch: Partial<Slide>) => void
@@ -114,6 +121,15 @@ interface Props {
   /** Double-click on an object surfaces its layer so the panel can open its tab. */
   onElementActivate?: (layerName: string | null) => void
 }
+
+// Elements that belong to the shared base layout (not per-locale). Locked in
+// locale edit mode so a locale tweak can't move content meant to stay common.
+const SHARED_LAYER_NAMES = new Set<string>([
+  LAYER_NAMES.BADGE,
+  LAYER_NAMES.ORNAMENT,
+  LAYER_NAMES.HIGHLIGHT_SOURCE,
+  LAYER_NAMES.HIGHLIGHT_POPUP,
+])
 
 const HISTORY_LIMIT = 50
 // Custom per-object props that must survive a history snapshot → loadFromJSON
@@ -126,7 +142,7 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, lockSharedLayout = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
     // Zoom is a pure view transform: the template always lays out at base dims,
@@ -813,6 +829,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     // and produced ghosted/double renders.
     const prevSlideDataRef = useRef<string>('')
     const prevGroupedRef = useRef<boolean>(false)
+    const prevLockRef = useRef<boolean>(false)
     useEffect(() => {
       const canvas = fabricRef.current
       if (!canvas || !activeSlide) return
@@ -831,14 +848,22 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // Include grouped state in the cache key so toggling link/unlink
         // forces a re-render even when the slide data didn't change.
         isGrouped,
+        // A locale whose overrides match the base renders identical content, so
+        // key on the lock too — otherwise entering such a locale wouldn't
+        // re-render and shared elements would stay editable.
+        lockSharedLayout,
       })
 
       const slideChanged = prevSlideId.current !== activeSlide.id
       const dataChanged = prevSlideDataRef.current !== serialized
       const groupedChanged = prevGroupedRef.current !== isGrouped
+      const lockChanged = prevLockRef.current !== lockSharedLayout
       if (!slideChanged && !dataChanged && !groupedChanged) return
 
-      const freshLoad = slideChanged || groupedChanged
+      // Crossing the base↔locale boundary must reset history: undo snapshots are
+      // raw canvas states, so a base-mode undo onto a locale-resolved snapshot
+      // (or vice-versa) would load the wrong layout and mis-sync.
+      const freshLoad = slideChanged || groupedChanged || lockChanged
       if (freshLoad) {
         undoStack.current = []
         redoStack.current = []
@@ -851,6 +876,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       prevSlideId.current = activeSlide.id
       prevSlideDataRef.current = serialized
       prevGroupedRef.current = isGrouped
+      prevLockRef.current = lockSharedLayout
 
       ;(async () => {
         // Span groups: render leader's data onto a 2× wide canvas and lay a
@@ -865,6 +891,19 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
+        // Locale edit mode: lock the shared-layout elements so only captions
+        // and the device frame remain editable for this locale.
+        if (lockSharedLayout) {
+          canvas.discardActiveObject()
+          for (const o of canvas.getObjects()) {
+            const ln = (o as FabricObject & { layerName?: string }).layerName
+            if (ln && SHARED_LAYER_NAMES.has(ln)) {
+              o.selectable = false
+              o.evented = false
+            }
+          }
+        }
+        canvas.selection = !lockSharedLayout
         // applyTemplate laid out at base dims; capture them, then scale to zoom.
         baseDimsRef.current = { w: canvas.width ?? EDITOR_CANVAS_WIDTH, h: canvas.height ?? h }
         applyZoom(canvas, zoomRef.current)
@@ -876,7 +915,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         baselineRef.current = takeSnapshot(canvas)
         notifyHistory()
       })()
-    }, [activeSlide, isGrouped])
+    }, [activeSlide, isGrouped, lockSharedLayout])
 
     return (
       <div className="relative flex items-start justify-center">

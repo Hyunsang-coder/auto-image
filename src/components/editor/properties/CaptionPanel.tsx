@@ -86,6 +86,22 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       </label>
 
       <div>
+        <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+          <span>줄 간격</span>
+          <span>{(value.style.lineHeight ?? 1.2).toFixed(2)}</span>
+        </label>
+        <input
+          type="range"
+          min={0.8}
+          max={2}
+          step={0.05}
+          value={value.style.lineHeight ?? 1.2}
+          onChange={(e) => updateStyle({ lineHeight: Number(e.target.value) })}
+          className="w-full accent-[var(--color-accent)]"
+        />
+      </div>
+
+      <div>
         <label className="mb-2 block text-xs text-[var(--color-text-dim)]">텍스트 색상</label>
         <ColorPickerPopover
           color={value.style.color}

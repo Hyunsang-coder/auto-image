@@ -7,6 +7,10 @@ export interface CaptionOptions {
   top: number
   width: number
   layerName: LayerName
+  // Canvas/font scale relative to the editor (1 in the editor, ~3 at export
+  // resolution). Absolute floors must scale with it so the fit-to-box result is
+  // identical in proportion at every resolution.
+  scale?: number
 }
 
 // The display fonts (Inter/Montserrat/Poppins) only cover Latin, so non-Latin
@@ -21,9 +25,14 @@ const SCRIPT_FALLBACK =
 // locale keeps the intended size while text wider than the box is reduced just
 // enough to fit (floored at 10). `widest` is the widest unwrapped line measured
 // at `baseFontSize`. Pure so the policy is testable without a Fabric probe.
-export function fitFontSize(baseFontSize: number, widest: number, boxWidth: number): number {
+export function fitFontSize(
+  baseFontSize: number,
+  widest: number,
+  boxWidth: number,
+  minFontSize = 10,
+): number {
   if (widest <= 0) return baseFontSize
-  return Math.max(10, baseFontSize * Math.min(1, boxWidth / widest))
+  return Math.max(minFontSize, baseFontSize * Math.min(1, boxWidth / widest))
 }
 
 // Largest font size — capped at `baseFontSize` — at which every existing line of
@@ -36,6 +45,7 @@ function fitFontToBox(
   fontWeight: string,
   charSpacing: number,
   boxWidth: number,
+  minFontSize: number,
 ): number {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
   if (!lines.length) return baseFontSize
@@ -44,7 +54,7 @@ function fitFontToBox(
     const probe = new Text(line, { fontFamily, fontSize: baseFontSize, fontWeight, charSpacing })
     widest = Math.max(widest, probe.width ?? 0)
   }
-  return fitFontSize(baseFontSize, widest, boxWidth)
+  return fitFontSize(baseFontSize, widest, boxWidth, minFontSize)
 }
 
 export function renderCaption(
@@ -55,8 +65,9 @@ export function renderCaption(
   const textAlign = style.textAlign ?? 'center'
   const fontFamily = `${style.fontFamily}, ${SCRIPT_FALLBACK}`
   const charSpacing = (style.letterSpacing ?? 0) * 10
+  const minFontSize = 10 * (opts.scale ?? 1)
   const fontSize = style.fitToBox
-    ? fitFontToBox(caption.text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing, opts.width)
+    ? fitFontToBox(caption.text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing, opts.width, minFontSize)
     : style.fontSize
 
   const obj = new Textbox(caption.text, {

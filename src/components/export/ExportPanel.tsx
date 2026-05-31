@@ -5,7 +5,6 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
-import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
 import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
 import type { DeviceType, Project, Slide } from '../../types/project'
 
@@ -111,7 +110,7 @@ export function ExportPanel() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const prevUrlsRef = useRef<(string | null)[]>([])
   // Preview thumbnail size: 1 (small, more columns) … 5 (large, single column).
-  const [previewSize, setPreviewSize] = useState(3)
+  const [previewSize, setPreviewSize] = useState(1)
   // Locales the user unticked for export; empty = export everything.
   const [excludedLocales, setExcludedLocales] = useState<Set<string>>(new Set())
 
@@ -141,10 +140,15 @@ export function ExportPanel() {
               urls.push(null)
               continue
             }
-            const halves = await renderSpanGroup(leader, device, renderLocale, EDITOR_CANVAS_WIDTH)
+            // Render at full export resolution (no preview width) so the
+            // thumbnail is byte-identical to the exported PNG — absolute-pixel
+            // constants (fit-to-box floor, headline gap) otherwise diverge
+            // between the 440px preview scale and the export scale. CSS scales it
+            // down for display.
+            const halves = await renderSpanGroup(leader, device, renderLocale)
             blob = isLeader ? halves.leader : halves.follower
           } else {
-            blob = await renderSlide(slide, device, renderLocale, EDITOR_CANVAS_WIDTH)
+            blob = await renderSlide(slide, device, renderLocale)
           }
           urls.push(URL.createObjectURL(blob))
         } catch {
@@ -189,6 +193,9 @@ export function ExportPanel() {
   const devicesInUse = Array.from(new Set(project.slides.map(deviceOf)))
 
   const effectiveLocale = previewLocale || project.sourceLocale
+  // Desktop writes PNGs straight into a folder; only the browser packages a ZIP.
+  // Button copy follows the actual artifact.
+  const isDesktop = isTauri()
 
   async function handleExport(layout: ExportLayout = 'default') {
     if (!project) return
@@ -387,16 +394,20 @@ export function ExportPanel() {
             <div>
               <div className="mb-1.5 flex justify-between">
                 <span>로케일</span>
-                <button
-                  onClick={() =>
-                    setExcludedLocales(
-                      excludedLocales.size > 0 ? new Set() : new Set(allLocales),
-                    )
-                  }
-                  className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
-                >
-                  {excludedLocales.size > 0 ? '전체 선택' : '전체 해제'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setExcludedLocales(new Set())}
+                    className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                  >
+                    모두 선택
+                  </button>
+                  <button
+                    onClick={() => setExcludedLocales(new Set(allLocales))}
+                    className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                  >
+                    전체 해제
+                  </button>
+                </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {allLocales.map((l) => {
@@ -459,7 +470,7 @@ export function ExportPanel() {
             title="screenshots/<locale>/<device>_NN.png — fastlane deliver로 바로 업로드"
             className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-semibold text-[var(--color-text)] hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            fastlane용 ZIP
+            {isDesktop ? 'fastlane 폴더' : 'fastlane용 ZIP'}
           </button>
           <button
             onClick={() => handleExport('default')}
@@ -469,9 +480,11 @@ export function ExportPanel() {
             {status === 'running'
               ? `렌더링 중… (${done}/${total})`
               : status === 'done'
-              ? 'ZIP 다시 다운로드'
+              ? isDesktop ? '다시 내보내기' : 'ZIP 다시 다운로드'
               : exportLocales.length === 0
               ? '내보낼 언어를 선택하세요'
+              : isDesktop
+              ? `내보내기 · ${total}개 PNG`
               : `ZIP 내보내기 · ${total}개 PNG`}
           </button>
           {status === 'running' && (

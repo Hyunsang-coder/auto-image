@@ -3,8 +3,6 @@ import { saveAs } from 'file-saver'
 import { save } from '@tauri-apps/plugin-dialog'
 import { isTauri, writeFileToDir } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
-import { useApiKeyStore } from '../../store/useApiKeyStore'
-import { translateBatch } from '../../lib/translate'
 import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
 import { serializeTemplate, parseTemplate, type LocaleFileFormat } from '../../lib/localeIO'
@@ -12,7 +10,7 @@ import { buildTranslationPatch, buildImportPatch, type FieldKey } from '../../li
 import { parseImageName } from '../../lib/imageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import { detectDeviceFromAspect } from '../../constants/deviceSpecs'
-import type { Slide, TranslationAPI } from '../../types/project'
+import type { Slide } from '../../types/project'
 
 type GridRow = {
   slideId: string
@@ -151,11 +149,8 @@ export function LocalizeEditor() {
   const updateProject = useProjectStore(s => s.updateProject)
   const updateSlide = useProjectStore(s => s.updateSlide)
   const setStep = useProjectStore(s => s.setStep)
-  const { keys, setKey } = useApiKeyStore()
 
-  const [translatingLocales, setTranslatingLocales] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [showKey, setShowKey] = useState(false)
   const [ioMsg, setIoMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [imgMsg, setImgMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -164,10 +159,9 @@ export function LocalizeEditor() {
   if (!project) return null
 
   const slides = project.slides
-  const { sourceLocale, targetLocales, translationApi: api } = project
-  const apiKey = keys[api]?.apiKey ?? ''
+  const { sourceLocale, targetLocales } = project
   const rows = buildRows(slides)
-  // Image-override rows carry no translatable text — exclude them from translation.
+  // Image-override rows carry no text — text-only rows drive the CSV/JSON template.
   const textRows = rows.filter(r => r.field !== 'image')
   const localeLabel = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
 
@@ -221,27 +215,6 @@ export function LocalizeEditor() {
     delete rest[locale]
     updateSlide(slideId, { screenshot: { ...slide.screenshot, localeOverrides: rest } })
     gcImages()
-  }
-
-  async function runTranslate(locale: string) {
-    const texts = textRows.map(r => r.sourceText)
-    if (!texts.length) return
-    setTranslatingLocales(prev => new Set([...prev, locale]))
-    setErrors(prev => { const n = { ...prev }; delete n[locale]; return n })
-    try {
-      const results = await translateBatch(texts, sourceLocale, locale, api, apiKey)
-      textRows.forEach((row, i) => handleCellChange(row.slideId, row.field, locale, results[i]))
-    } catch (e) {
-      setErrors(prev => ({ ...prev, [locale]: e instanceof Error ? e.message : String(e) }))
-    } finally {
-      setTranslatingLocales(prev => { const n = new Set(prev); n.delete(locale); return n })
-    }
-  }
-
-  async function translateAll() {
-    for (const locale of targetLocales) {
-      await runTranslate(locale)
-    }
   }
 
   async function exportTemplate(format: LocaleFileFormat) {
@@ -336,26 +309,24 @@ export function LocalizeEditor() {
 
   async function handleBulkImages(files: File[]) {
     const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
+    const labelOf = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
     const issues: string[] = []
-    // Resolve filenames first. A no-suffix file is the base; a source-locale
-    // suffix (e.g. "01.ko.png" when sourceLocale is ko) is the same base, not an
-    // override. Two files landing on the same slot would silently clobber, so
-    // detect that and keep one deterministically (no-suffix wins the base).
-    const parsedTargets: { file: File; slide: number; locale?: string; suffixed: boolean }[] = []
+    // Every file carries a locale; the one matching the project's sourceLocale
+    // becomes the slide's base screenshot, the rest become per-locale overrides.
+    // Two files landing on the same slot would silently clobber, so detect that
+    // and keep the first deterministically.
+    const parsedTargets: { file: File; slide: number; locale?: string }[] = []
     for (const file of files) {
       const parsed = parseImageName(file.name, known)
       if ('error' in parsed) issues.push(parsed.error)
-      else parsedTargets.push({ file, slide: parsed.slide, locale: parsed.locale === sourceLocale ? undefined : parsed.locale, suffixed: parsed.locale !== undefined })
+      else parsedTargets.push({ file, slide: parsed.slide, locale: parsed.locale === sourceLocale ? undefined : parsed.locale })
     }
     const bySlot = new Map<string, typeof parsedTargets[number]>()
     for (const t of parsedTargets) {
       const key = `${t.slide}:${t.locale ?? 'base'}`
       const prev = bySlot.get(key)
       if (!prev) { bySlot.set(key, t); continue }
-      const keep = !t.suffixed && prev.suffixed ? t : prev
-      const drop = keep === t ? prev : t
-      issues.push(`슬라이드 ${t.slide} ${t.locale ?? '베이스'} 중복 — "${drop.file.name}" 무시, "${keep.file.name}" 사용`)
-      bySlot.set(key, keep)
+      issues.push(`슬라이드 ${t.slide} ${t.locale ?? '원본'} 중복 — "${t.file.name}" 무시, "${prev.file.name}" 사용`)
     }
     // Base screenshots before overrides so an override can attach to a base
     // imported in the same batch.
@@ -374,7 +345,7 @@ export function LocalizeEditor() {
         continue
       }
       if (locale && !slide.screenshot) {
-        issues.push(`슬라이드 ${slideNum}에 베이스 스크린샷이 없어 ${locale} override를 붙일 수 없음`)
+        issues.push(`슬라이드 ${slideNum}: 원본 언어(${labelOf(sourceLocale)}) 스크린샷이 없어 ${labelOf(locale)} 추가본을 붙일 수 없음`)
         continue
       }
       let result
@@ -447,9 +418,6 @@ export function LocalizeEditor() {
   const selectableLocales = SUPPORTED_LOCALES.filter(l => l.code !== sourceLocale).map(l => l.code)
   const allSelected =
     selectableLocales.length > 0 && selectableLocales.every(c => targetLocales.includes(c))
-
-  const isTranslating = translatingLocales.size > 0
-  const canTranslate = !!apiKey && targetLocales.length > 0 && textRows.length > 0
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -527,59 +495,9 @@ export function LocalizeEditor() {
           </div>
         </div>
 
-        {/* API + key + translate button */}
-        <div className="flex items-end gap-3">
-          <div>
-            <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 API</div>
-            <div className="flex gap-3">
-              {(['claude', 'openai', 'gemini'] as TranslationAPI[]).map(a => (
-                <label key={a} className="flex cursor-pointer items-center gap-1 text-sm">
-                  <input
-                    type="radio"
-                    name="translationApi"
-                    checked={api === a}
-                    onChange={() => updateProject({ translationApi: a })}
-                    className="accent-[var(--color-accent)]"
-                  />
-                  <span className={api === a ? 'text-[var(--color-text)]' : 'text-[var(--color-text-dim)]'}>
-                    {a === 'claude' ? 'Claude' : a === 'openai' ? 'OpenAI' : 'Gemini'}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">API 키</div>
-            <div className="flex">
-              <input
-                type={showKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={e => setKey(api, e.target.value)}
-                placeholder="API 키 입력"
-                className="w-44 rounded-l border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-              />
-              <button
-                onClick={() => setShowKey(v => !v)}
-                className="rounded-r border border-l-0 border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
-              >
-                {showKey ? '숨김' : '표시'}
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={translateAll}
-            disabled={!canTranslate || isTranslating}
-            className="rounded bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isTranslating ? '번역 중…' : '전체 번역'}
-          </button>
-        </div>
-
-        {/* Template import/export */}
+        {/* Template import/export — translation happens externally */}
         <div>
-          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 양식</div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 양식 (외부 번역용)</div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => exportTemplate('csv')}
@@ -626,7 +544,7 @@ export function LocalizeEditor() {
           <button
             onClick={() => imageInputRef.current?.click()}
             className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-            title="파일명: 1.png 또는 01-home.png (베이스), 1.ja.png 또는 01-home.ja.png (언어별 override)"
+            title="파일명: 모든 파일에 언어 접미사 필요 — 01.en.png, 01-home.ja.png. 원본 언어로 들어온 파일이 베이스가 됩니다."
           >
             이미지 가져오기
           </button>
@@ -678,18 +596,9 @@ export function LocalizeEditor() {
                 </th>
                 {targetLocales.map(locale => (
                   <th key={locale} className="min-w-44 border-r border-[var(--color-border)] px-3 py-2 text-left">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-[var(--color-text-dim)]">
-                        {localeLabel(locale)}
-                      </span>
-                      <button
-                        onClick={() => runTranslate(locale)}
-                        disabled={!apiKey || translatingLocales.has(locale)}
-                        className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
-                      >
-                        {translatingLocales.has(locale) ? '…' : '번역'}
-                      </button>
-                    </div>
+                    <span className="text-xs font-medium text-[var(--color-text-dim)]">
+                      {localeLabel(locale)}
+                    </span>
                     {errors[locale] && (
                       <p className="mt-1 truncate text-xs text-red-600" title={errors[locale]}>
                         {errors[locale]}
