@@ -17,9 +17,18 @@ export interface CaptionOptions {
 const SCRIPT_FALLBACK =
   "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans Thai', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans', sans-serif"
 
-// Largest font size at which every existing line of `text` fits within
-// `boxWidth` — i.e. the text fills the box. Measured per line with an
-// unwrapped Text probe; single-pass is exact because each line then fits.
+// Shrink-only fit policy: the base (design) size is the ceiling, so a short
+// locale keeps the intended size while text wider than the box is reduced just
+// enough to fit (floored at 10). `widest` is the widest unwrapped line measured
+// at `baseFontSize`. Pure so the policy is testable without a Fabric probe.
+export function fitFontSize(baseFontSize: number, widest: number, boxWidth: number): number {
+  if (widest <= 0) return baseFontSize
+  return Math.max(10, baseFontSize * Math.min(1, boxWidth / widest))
+}
+
+// Largest font size — capped at `baseFontSize` — at which every existing line of
+// `text` fits within `boxWidth`. Measured per line with an unwrapped Text probe;
+// single-pass is exact because each line then fits.
 function fitFontToBox(
   text: string,
   baseFontSize: number,
@@ -35,8 +44,7 @@ function fitFontToBox(
     const probe = new Text(line, { fontFamily, fontSize: baseFontSize, fontWeight, charSpacing })
     widest = Math.max(widest, probe.width ?? 0)
   }
-  if (widest <= 0) return baseFontSize
-  return Math.max(10, Math.min(400, baseFontSize * (boxWidth / widest)))
+  return fitFontSize(baseFontSize, widest, boxWidth)
 }
 
 export function renderCaption(
