@@ -28,6 +28,8 @@ import {
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
 import { gcImages } from '../../lib/imageRefs'
+import { withLocale } from '../../lib/renderSlide'
+import { SUPPORTED_LOCALES } from '../../constants/defaults'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 3
@@ -56,6 +58,13 @@ export function EditorLayout() {
   const [canRedo, setCanRedo] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [panelTab, setPanelTab] = useState<PanelTab>('template')
+  // Read-only preview of a non-source locale on the editor canvas. '' = source
+  // (full editing). Lets the user eyeball how each translation sits in the
+  // shared layout before exporting.
+  const [previewLocale, setPreviewLocale] = useState('')
+  // onKeyDown is bound once; read live preview state through a ref so locked
+  // shortcuts don't act on a stale closure.
+  const isPreviewRef = useRef(false)
 
   function handleElementActivate(layerName: string | null) {
     if (layerName === null) {
@@ -79,12 +88,15 @@ export function EditorLayout() {
         canvasRef.current?.discardSelection()
         return
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
+      // In read-only preview, only zoom shortcuts stay live — block anything
+      // that would mutate the (source) slide.
+      const editingBlocked = isPreviewRef.current
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && !editingBlocked) {
         e.preventDefault()
         canvasRef.current?.deleteSelected()
         return
       }
-      if (!typing && e.key.startsWith('Arrow')) {
+      if (!typing && !editingBlocked && e.key.startsWith('Arrow')) {
         const step = e.shiftKey ? 10 : 1
         const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key]
         if (d) {
@@ -98,12 +110,15 @@ export function EditorLayout() {
       const ctrl = isMac ? e.metaKey : e.ctrlKey
       if (!ctrl) return
       if (e.key === 'z' && !e.shiftKey) {
+        if (editingBlocked) return
         e.preventDefault()
         canvasRef.current?.undo()
       } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        if (editingBlocked) return
         e.preventDefault()
         canvasRef.current?.redo()
       } else if (e.key === 'd') {
+        if (editingBlocked) return
         e.preventDefault()
         canvasRef.current?.duplicateSelected()
       } else if (e.key === '=' || e.key === '+') {
@@ -121,6 +136,10 @@ export function EditorLayout() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  useEffect(() => {
+    isPreviewRef.current = !!previewLocale && !!project && previewLocale !== project.sourceLocale
+  }, [previewLocale, project])
+
   if (!project) return null
   const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
   // When the clicked slide is part of a span group, the leader owns all the
@@ -129,6 +148,16 @@ export function EditorLayout() {
   const slide = spanLeaderOf(project.slides, clickedSlide)
   const editTargetId = slide?.id ?? null
   const isGrouped = !!slide?.spanGroupId
+
+  // Preview is active only for a real, non-source locale. The canvas then shows
+  // that locale's translated text + screenshot override (read-only).
+  const isPreview = !!previewLocale && previewLocale !== project.sourceLocale
+  const canvasSlide = isPreview && slide ? withLocale(slide, previewLocale) : slide
+  const previewLocales = [
+    project.sourceLocale,
+    ...project.targetLocales.filter((l) => l !== project.sourceLocale),
+  ]
+  const localeLabel = (code: string) => SUPPORTED_LOCALES.find((l) => l.code === code)?.label ?? code
 
   function handleSlideChange(patch: Partial<Slide>) {
     if (!editTargetId) return
@@ -266,12 +295,34 @@ export function EditorLayout() {
               +
             </button>
           </div>
+          {previewLocales.length > 1 && (
+            <select
+              value={previewLocale || project.sourceLocale}
+              onChange={(e) =>
+                setPreviewLocale(e.target.value === project.sourceLocale ? '' : e.target.value)
+              }
+              title="언어 미리보기 — 원본 외 언어는 읽기전용"
+              className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
+                isPreview
+                  ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
+              }`}
+            >
+              {previewLocales.map((l) => (
+                <option key={l} value={l}>
+                  {localeLabel(l)}
+                  {l === project.sourceLocale ? ' (원본)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flex flex-1 items-start justify-center p-6">
           <FabricCanvas
             ref={canvasRef}
-            activeSlide={slide}
+            activeSlide={canvasSlide}
             isGrouped={isGrouped}
+            readOnly={isPreview}
             zoom={zoom}
             onSlideChange={handleSlideChange}
             onHistoryChange={({ canUndo, canRedo }) => {
@@ -284,7 +335,17 @@ export function EditorLayout() {
         </div>
       </main>
 
-      {slide ? (
+      {slide && isPreview ? (
+        <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <p className="text-sm font-medium text-[var(--color-accent)]">
+            👁 {localeLabel(previewLocale)} 미리보기
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-dim)]">
+            번역 결과를 레이아웃 안에서 확인하는 읽기전용 모드입니다. 편집하려면 상단에서
+            원본({localeLabel(project.sourceLocale)})으로 전환하세요.
+          </p>
+        </aside>
+      ) : slide ? (
         <PropertiesPanel
           slide={slide}
           tab={panelTab}

@@ -105,6 +105,12 @@ interface Props {
    * the *leader* — EditorLayout resolves it.
    */
   isGrouped?: boolean
+  /**
+   * Read-only preview (e.g. viewing a non-source locale): objects render but
+   * can't be selected, dragged, or text-edited, so a translation preview never
+   * writes back into the source slide.
+   */
+  readOnly?: boolean
   /** View-only magnification of the editor canvas. 1 = base size. */
   zoom?: number
   onSlideChange: (patch: Partial<Slide>) => void
@@ -126,7 +132,7 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, readOnly = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
     // Zoom is a pure view transform: the template always lays out at base dims,
@@ -831,6 +837,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // Include grouped state in the cache key so toggling link/unlink
         // forces a re-render even when the slide data didn't change.
         isGrouped,
+        // A locale whose translations equal the base renders identical text, so
+        // key on readOnly too — otherwise switching into such a preview wouldn't
+        // re-render and the canvas would stay editable.
+        readOnly,
       })
 
       const slideChanged = prevSlideId.current !== activeSlide.id
@@ -865,6 +875,19 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
+        // Read-only preview: strip interactivity so a non-source locale view
+        // can't be dragged/edited back into the source slide.
+        if (readOnly) {
+          canvas.discardActiveObject()
+          canvas.selection = false
+          for (const o of canvas.getObjects()) {
+            o.selectable = false
+            o.evented = false
+            if (o.type === 'textbox') (o as Textbox).editable = false
+          }
+        } else {
+          canvas.selection = true
+        }
         // applyTemplate laid out at base dims; capture them, then scale to zoom.
         baseDimsRef.current = { w: canvas.width ?? EDITOR_CANVAS_WIDTH, h: canvas.height ?? h }
         applyZoom(canvas, zoomRef.current)
@@ -876,7 +899,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         baselineRef.current = takeSnapshot(canvas)
         notifyHistory()
       })()
-    }, [activeSlide, isGrouped])
+    }, [activeSlide, isGrouped, readOnly])
 
     return (
       <div className="relative flex items-start justify-center">

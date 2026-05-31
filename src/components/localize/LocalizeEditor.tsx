@@ -336,26 +336,24 @@ export function LocalizeEditor() {
 
   async function handleBulkImages(files: File[]) {
     const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
+    const labelOf = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
     const issues: string[] = []
-    // Resolve filenames first. A no-suffix file is the base; a source-locale
-    // suffix (e.g. "01.ko.png" when sourceLocale is ko) is the same base, not an
-    // override. Two files landing on the same slot would silently clobber, so
-    // detect that and keep one deterministically (no-suffix wins the base).
-    const parsedTargets: { file: File; slide: number; locale?: string; suffixed: boolean }[] = []
+    // Every file carries a locale; the one matching the project's sourceLocale
+    // becomes the slide's base screenshot, the rest become per-locale overrides.
+    // Two files landing on the same slot would silently clobber, so detect that
+    // and keep the first deterministically.
+    const parsedTargets: { file: File; slide: number; locale?: string }[] = []
     for (const file of files) {
       const parsed = parseImageName(file.name, known)
       if ('error' in parsed) issues.push(parsed.error)
-      else parsedTargets.push({ file, slide: parsed.slide, locale: parsed.locale === sourceLocale ? undefined : parsed.locale, suffixed: parsed.locale !== undefined })
+      else parsedTargets.push({ file, slide: parsed.slide, locale: parsed.locale === sourceLocale ? undefined : parsed.locale })
     }
     const bySlot = new Map<string, typeof parsedTargets[number]>()
     for (const t of parsedTargets) {
       const key = `${t.slide}:${t.locale ?? 'base'}`
       const prev = bySlot.get(key)
       if (!prev) { bySlot.set(key, t); continue }
-      const keep = !t.suffixed && prev.suffixed ? t : prev
-      const drop = keep === t ? prev : t
-      issues.push(`슬라이드 ${t.slide} ${t.locale ?? '베이스'} 중복 — "${drop.file.name}" 무시, "${keep.file.name}" 사용`)
-      bySlot.set(key, keep)
+      issues.push(`슬라이드 ${t.slide} ${t.locale ?? '원본'} 중복 — "${t.file.name}" 무시, "${prev.file.name}" 사용`)
     }
     // Base screenshots before overrides so an override can attach to a base
     // imported in the same batch.
@@ -374,7 +372,7 @@ export function LocalizeEditor() {
         continue
       }
       if (locale && !slide.screenshot) {
-        issues.push(`슬라이드 ${slideNum}에 베이스 스크린샷이 없어 ${locale} override를 붙일 수 없음`)
+        issues.push(`슬라이드 ${slideNum}: 원본 언어(${labelOf(sourceLocale)}) 스크린샷이 없어 ${labelOf(locale)} 추가본을 붙일 수 없음`)
         continue
       }
       let result
@@ -626,7 +624,7 @@ export function LocalizeEditor() {
           <button
             onClick={() => imageInputRef.current?.click()}
             className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-            title="파일명: 1.png 또는 01-home.png (베이스), 1.ja.png 또는 01-home.ja.png (언어별 override)"
+            title="파일명: 모든 파일에 언어 접미사 필요 — 01.en.png, 01-home.ja.png. 원본 언어로 들어온 파일이 베이스가 됩니다."
           >
             이미지 가져오기
           </button>
