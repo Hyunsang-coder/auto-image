@@ -77,33 +77,39 @@ export interface Slide {
   spanGroupId?: string
   spanRole?: 'leader' | 'follower'
   /**
-   * Per-locale layout/geometry overrides on top of the shared base
-   * (copy-on-write). Only the properties a user tweaks while editing in a given
-   * locale are stored here; everything absent inherits the shared slide, so a
-   * later edit to the base still propagates to un-overridden locales. Text and
-   * screenshot already have their own per-locale channels (`translations`,
-   * `localeOverrides`); this covers what's left that overflowing translations
-   * tend to need: caption placement/size and the device transform.
+   * Per-locale overrides on top of the shared base (copy-on-write). Only the
+   * properties a user changes while editing a given locale are stored here;
+   * everything absent inherits the shared slide, so a later edit to the base
+   * still propagates to un-overridden locales. Text and the screenshot image
+   * have their own per-locale channels (`Caption.translations`,
+   * `ScreenshotImage.localeOverrides`); this covers the look: template,
+   * background, device transform, screenshot style, and caption style/placement.
+   * Badges/ornaments/highlights stay shared (their text is still per-locale via
+   * `translations`).
    */
-  localeLayout?: Record<string, LocaleLayout>
+  localeOverrides?: Record<string, LocaleOverride>
 }
 
-/** Caption geometry that can diverge per locale (text content lives in `translations`). */
-export interface CaptionLayout {
+/** Caption look that can diverge per locale (text content lives in `translations`). */
+export interface CaptionOverride {
+  style?: Partial<TextStyle>
   pos?: { x: number; y: number }
   boxWidth?: number
-  fontSize?: number
 }
 
-export interface LocaleLayout {
-  headline?: CaptionLayout
-  subheadline?: CaptionLayout
+export interface LocaleOverride {
+  template?: TemplateType
+  background?: Background
   deviceFrame?: {
     offsetX?: number
     offsetY?: number
     scale?: number
     rotation?: number
+    color?: DeviceColor
   }
+  screenshotStyle?: ScreenshotStyle
+  headline?: CaptionOverride
+  subheadline?: CaptionOverride
 }
 
 export interface ScreenshotStyle {

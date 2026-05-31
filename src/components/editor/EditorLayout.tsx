@@ -29,7 +29,7 @@ import {
 import { useCustomStore } from '../../store/useCustomStore'
 import { gcImages } from '../../lib/imageRefs'
 import { resolveSlideForLocale } from '../../lib/resolveSlide'
-import { routeLocalePatch, clearLocaleLayout } from '../../lib/localeOverride'
+import { routeLocalePatch, clearLocaleOverride } from '../../lib/localeOverride'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 
 const ZOOM_MIN = 0.25
@@ -162,7 +162,15 @@ export function EditorLayout() {
   const localeOptions = project.locales ?? project.targetLocales
   const localeLabel = (code: string) => SUPPORTED_LOCALES.find((l) => l.code === code)?.label ?? code
 
-  function handleSlideChange(patch: Partial<Slide>) {
+  // The slide the editor actually shows/edits: resolved for the locale, or the
+  // shared base. Panel handlers build patches off this so they reflect what the
+  // user sees; applyEdit then routes the patch to the right place.
+  const editingSlide = canvasSlide
+
+  // Single write path. In locale mode the patch is rerouted into that locale's
+  // overrides (text → translations, look → localeOverrides, shared elements →
+  // base); otherwise it edits the shared base directly.
+  function applyEdit(patch: Partial<Slide>) {
     if (!editTargetId) return
     if (isLocaleMode && slide) {
       const routed = routeLocalePatch(slide, editLocale, patch)
@@ -172,93 +180,86 @@ export function EditorLayout() {
     updateSlide(editTargetId, patch)
   }
 
+  const handleSlideChange = applyEdit
+
   function handleTemplateChange(t: TemplateType) {
-    if (!editTargetId || !slide) return
+    if (!editingSlide) return
     const sizes = TEMPLATE_FONT_SIZES[t]
     const align = TEMPLATE_TEXT_ALIGN[t]
-    updateSlide(editTargetId, {
+    applyEdit({
       template: t,
-      headline: { ...slide.headline, style: { ...slide.headline.style, fontSize: sizes.headline, textAlign: align } },
-      subheadline: { ...slide.subheadline, style: { ...slide.subheadline.style, fontSize: sizes.subheadline, textAlign: align } },
+      headline: { ...editingSlide.headline, style: { ...editingSlide.headline.style, fontSize: sizes.headline, textAlign: align } },
+      subheadline: { ...editingSlide.subheadline, style: { ...editingSlide.subheadline.style, fontSize: sizes.subheadline, textAlign: align } },
     })
   }
 
   function handleBackgroundChange(bg: Background) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { background: bg })
+    applyEdit({ background: bg })
   }
 
   function handleHeadlineChange(c: Caption) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { headline: c })
+    applyEdit({ headline: c })
   }
 
   function handleSubheadlineChange(c: Caption) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { subheadline: c })
+    applyEdit({ subheadline: c })
   }
 
   function handleScreenshotChange(screenshot: ScreenshotImage | null) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { screenshot })
+    applyEdit({ screenshot })
     // Reference-checked: the replaced screenshot's blob is swept only if no
     // saved project/preset/template still points at it.
     gcImages()
   }
 
   function handleBadgesChange(badges: Badge[]) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { badges })
+    applyEdit({ badges })
   }
 
   function handleDeviceFrameChange(df: DeviceFrame) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { deviceFrame: df })
+    applyEdit({ deviceFrame: df })
   }
 
   function handleScreenshotStyleChange(style: ScreenshotStyle) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { screenshotStyle: style })
+    applyEdit({ screenshotStyle: style })
   }
 
   function handleOrnamentsChange(ornaments: Ornament[]) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { ornaments })
+    applyEdit({ ornaments })
   }
 
   function handleHighlightsChange(highlights: Highlight[]) {
-    if (!editTargetId) return
-    updateSlide(editTargetId, { highlights })
+    applyEdit({ highlights })
   }
 
   function handleApplyThemePreset(preset: ThemePreset) {
-    if (!editTargetId || !slide) return
-    updateSlide(editTargetId, {
+    if (!editingSlide) return
+    applyEdit({
       background: structuredClone(preset.background),
       headline: {
-        ...slide.headline,
-        style: { ...slide.headline.style, color: preset.headlineColor },
+        ...editingSlide.headline,
+        style: { ...editingSlide.headline.style, color: preset.headlineColor },
       },
       subheadline: {
-        ...slide.subheadline,
-        style: { ...slide.subheadline.style, color: preset.subheadlineColor },
+        ...editingSlide.subheadline,
+        style: { ...editingSlide.subheadline.style, color: preset.subheadlineColor },
       },
     })
   }
 
   function handleSavePreset(name: string) {
-    if (!slide) return
-    useCustomStore.getState().addPreset(presetFromSlide(slide, name))
+    if (!editingSlide) return
+    useCustomStore.getState().addPreset(presetFromSlide(editingSlide, name))
   }
 
   function handleSaveTemplate(name: string) {
-    if (!slide) return
-    useCustomStore.getState().addTemplate(templateFromSlide(slide, name))
+    if (!editingSlide) return
+    useCustomStore.getState().addTemplate(templateFromSlide(editingSlide, name))
   }
 
   function handleApplyTemplate(tpl: SlideTemplate) {
-    if (!editTargetId || !slide) return
-    updateSlide(editTargetId, applyTemplateToSlide(slide, tpl))
+    if (!editingSlide) return
+    applyEdit(applyTemplateToSlide(editingSlide, tpl))
   }
 
   return (
@@ -322,6 +323,17 @@ export function EditorLayout() {
               ))}
             </select>
           )}
+          {isLocaleMode && (
+            <button
+              type="button"
+              onClick={() => slide && editTargetId && updateSlide(editTargetId, clearLocaleOverride(slide, editLocale))}
+              disabled={!slide?.localeOverrides?.[editLocale]}
+              title="이 언어의 모든 override를 지우고 공유(base)로 되돌립니다"
+              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              공유로 리셋
+            </button>
+          )}
         </div>
         <div className="flex flex-1 items-start justify-center p-6">
           <FabricCanvas
@@ -341,27 +353,9 @@ export function EditorLayout() {
         </div>
       </main>
 
-      {slide && isLocaleMode ? (
-        <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-          <p className="text-sm font-medium text-[var(--color-accent)]">
-            ✏️ {localeLabel(editLocale)} 편집
-          </p>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-dim)]">
-            이 언어용으로 <strong>텍스트·위치·크기·디바이스</strong>만 조정합니다 (이 언어
-            override로 저장). 색·템플릿·배경·뱃지 등 공유 속성은 상단에서 <strong>공유(base)</strong>로
-            전환해 편집하세요.
-          </p>
-          <button
-            onClick={() => editTargetId && updateSlide(editTargetId, clearLocaleLayout(slide, editLocale))}
-            disabled={!slide.localeLayout?.[editLocale]}
-            className="mt-4 w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            이 언어 레이아웃 → 공유로 리셋
-          </button>
-        </aside>
-      ) : slide ? (
+      {editingSlide ? (
         <PropertiesPanel
-          slide={slide}
+          slide={editingSlide}
           tab={panelTab}
           onTabChange={setPanelTab}
           onTemplateChange={handleTemplateChange}

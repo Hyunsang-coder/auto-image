@@ -1,76 +1,103 @@
-import type { Caption, CaptionLayout, LocaleLayout, Slide } from '../types/project'
+import type { Caption, CaptionOverride, LocaleOverride, Slide, TextStyle } from '../types/project'
 
-// The write side of copy-on-write per-locale editing. The canvas edits a
-// *resolved* slide (base + this locale's overrides) and emits a normal
-// Partial<Slide> patch; these helpers translate that into writes against the
-// shared base slide so only what the user actually changed for this locale is
-// stored. resolveSlideForLocale is the read side that flattens it back.
+// The write side of copy-on-write per-locale editing. The editor (panel +
+// canvas) edits a *resolved* slide and emits a normal Partial<Slide>; this
+// translates that into writes against the shared base so only what the user
+// changed for this locale is stored. resolveSlideForLocale flattens it back.
+//
+// Per-locale: template, background, device transform, screenshot style, and
+// caption text/style/placement. Shared (passed straight to the base): badges,
+// ornaments, highlights, and the base screenshot image — their text stays
+// per-locale via Caption.translations.
 
 const CAPTION_KEYS = ['headline', 'subheadline'] as const
+const DEVICE_OVERRIDE_KEYS = ['offsetX', 'offsetY', 'scale', 'rotation', 'color'] as const
+const SHARED_KEYS = ['badges', 'ornaments', 'highlights', 'screenshot'] as const
 
-// Geometry the canvas can change for a caption in locale mode. Font size is
-// intentionally not captured here (auto-fit makes the synced size ambiguous);
-// per-locale font size is a later, explicit control.
-function captionGeometry(prev: CaptionLayout | undefined, patch: Caption): CaptionLayout | null {
-  const next: CaptionLayout = { ...prev }
+// Only the style props that actually differ from the base, so changing one
+// (e.g. font size) doesn't freeze the rest (e.g. colour) against base edits.
+function diffStyle(base: TextStyle, next?: Partial<TextStyle>): Partial<TextStyle> | undefined {
+  if (!next) return undefined
+  const out: Record<string, unknown> = {}
+  const b = base as unknown as Record<string, unknown>
+  const n = next as Record<string, unknown>
   let changed = false
-  if (patch.pos) { next.pos = patch.pos; changed = true }
-  if (patch.boxWidth != null) { next.boxWidth = patch.boxWidth; changed = true }
-  return changed ? next : null
+  for (const k of Object.keys(n)) {
+    if (n[k] !== b[k]) { out[k] = n[k]; changed = true }
+  }
+  return changed ? (out as Partial<TextStyle>) : undefined
+}
+
+function captionOverride(base: Caption, patch: Caption): CaptionOverride | null {
+  const ov: CaptionOverride = {}
+  let changed = false
+  const style = diffStyle(base.style, patch.style)
+  if (style) { ov.style = style; changed = true }
+  if (patch.pos) { ov.pos = patch.pos; changed = true }
+  if (patch.boxWidth != null) { ov.boxWidth = patch.boxWidth; changed = true }
+  return changed ? ov : null
 }
 
 /**
- * Convert a canvas patch (relative to the locale-resolved slide) into override
- * writes against the shared base. Returns a Partial<Slide> ready for the store:
- * text edits land in `translations[locale]`, caption placement and the device
- * transform land in `localeLayout[locale]`. Anything the patch didn't carry is
- * left untouched, so other locales and the shared base are preserved.
+ * Convert an editor patch (relative to the locale-resolved slide) into writes
+ * against the shared base: caption text → translations[locale], everything
+ * per-locale → localeOverrides[locale], shared elements straight to the base.
+ * Merges onto existing overrides and leaves other locales untouched.
  */
 export function routeLocalePatch(base: Slide, locale: string, patch: Partial<Slide>): Partial<Slide> {
   const result: Partial<Slide> = {}
-  const prevLayout: LocaleLayout = base.localeLayout?.[locale] ?? {}
-  const nextLayout: LocaleLayout = { ...prevLayout }
-  let layoutChanged = false
+  const prev: LocaleOverride = base.localeOverrides?.[locale] ?? {}
+  const next: LocaleOverride = { ...prev }
+  let ovChanged = false
 
   for (const key of CAPTION_KEYS) {
     const pc = patch[key]
     if (!pc) continue
-    // Text → translations[locale], but only when it differs from what this
-    // locale currently shows (its translation, or the base text as fallback).
     if (typeof pc.text === 'string') {
-      const current = base[key].translations?.[locale] ?? base[key].text
-      if (pc.text !== current) {
-        result[key] = {
-          ...base[key],
-          translations: { ...base[key].translations, [locale]: pc.text },
-        }
+      const cur = base[key].translations?.[locale] ?? base[key].text
+      if (pc.text !== cur) {
+        result[key] = { ...base[key], translations: { ...base[key].translations, [locale]: pc.text } }
       }
     }
-    const geo = captionGeometry(prevLayout[key], pc)
-    if (geo) { nextLayout[key] = geo; layoutChanged = true }
+    const co = captionOverride(base[key], pc)
+    if (co) {
+      next[key] = {
+        ...prev[key],
+        ...co,
+        ...(co.style ? { style: { ...prev[key]?.style, ...co.style } } : {}),
+      }
+      ovChanged = true
+    }
   }
 
+  if (patch.template != null && patch.template !== base.template) { next.template = patch.template; ovChanged = true }
+  if (patch.background) { next.background = patch.background; ovChanged = true }
+  if (patch.screenshotStyle) { next.screenshotStyle = patch.screenshotStyle; ovChanged = true }
   if (patch.deviceFrame) {
-    const d = patch.deviceFrame
-    const df = { ...prevLayout.deviceFrame }
-    if (d.offsetX != null) df.offsetX = d.offsetX
-    if (d.offsetY != null) df.offsetY = d.offsetY
-    if (d.scale != null) df.scale = d.scale
-    if (d.rotation != null) df.rotation = d.rotation
-    nextLayout.deviceFrame = df
-    layoutChanged = true
+    const df: Record<string, unknown> = { ...prev.deviceFrame }
+    const pd = patch.deviceFrame as unknown as Record<string, unknown>
+    let dfChanged = false
+    for (const k of DEVICE_OVERRIDE_KEYS) {
+      if (pd[k] != null) { df[k] = pd[k]; dfChanged = true }
+    }
+    if (dfChanged) { next.deviceFrame = df as LocaleOverride['deviceFrame']; ovChanged = true }
   }
 
-  if (layoutChanged) {
-    result.localeLayout = { ...base.localeLayout, [locale]: nextLayout }
+  // Shared elements edit the base directly (apply to every locale).
+  for (const key of SHARED_KEYS) {
+    if (patch[key] !== undefined) (result as Record<string, unknown>)[key] = patch[key]
+  }
+
+  if (ovChanged) {
+    result.localeOverrides = { ...base.localeOverrides, [locale]: next }
   }
   return result
 }
 
-/** Drop a locale's layout overrides so it falls back to the shared base. */
-export function clearLocaleLayout(base: Slide, locale: string): Partial<Slide> {
-  if (!base.localeLayout?.[locale]) return {}
-  const next = { ...base.localeLayout }
+/** Drop a locale's overrides so it falls back to the shared base. */
+export function clearLocaleOverride(base: Slide, locale: string): Partial<Slide> {
+  if (!base.localeOverrides?.[locale]) return {}
+  const next = { ...base.localeOverrides }
   delete next[locale]
-  return { localeLayout: next }
+  return { localeOverrides: next }
 }
