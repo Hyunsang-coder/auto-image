@@ -28,7 +28,8 @@ import {
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
 import { gcImages } from '../../lib/imageRefs'
-import { withLocale } from '../../lib/renderSlide'
+import { resolveSlideForLocale } from '../../lib/resolveSlide'
+import { routeLocalePatch, clearLocaleLayout } from '../../lib/localeOverride'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 
 const ZOOM_MIN = 0.25
@@ -58,13 +59,14 @@ export function EditorLayout() {
   const [canRedo, setCanRedo] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [panelTab, setPanelTab] = useState<PanelTab>('template')
-  // Read-only preview of a non-source locale on the editor canvas. '' = source
-  // (full editing). Lets the user eyeball how each translation sits in the
-  // shared layout before exporting.
-  const [previewLocale, setPreviewLocale] = useState('')
-  // onKeyDown is bound once; read live preview state through a ref so locked
+  // Which locale the editor is editing. '' = the shared/base view (full
+  // editing of every element). A locale code = edit that locale: captions and
+  // the device frame are tweakable and their changes are stored as that
+  // locale's overrides; shared elements are locked.
+  const [editLocale, setEditLocale] = useState('')
+  // onKeyDown is bound once; read live mode through a ref so locale-gated
   // shortcuts don't act on a stale closure.
-  const isPreviewRef = useRef(false)
+  const localeModeRef = useRef(false)
 
   function handleElementActivate(layerName: string | null) {
     if (layerName === null) {
@@ -88,15 +90,17 @@ export function EditorLayout() {
         canvasRef.current?.discardSelection()
         return
       }
-      // In read-only preview, only zoom shortcuts stay live — block anything
-      // that would mutate the (source) slide.
-      const editingBlocked = isPreviewRef.current
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && !editingBlocked) {
+      // In locale mode, delete/nudge are safe (delete only hits shared elements,
+      // which are locked → inert; nudge routes through sync into the locale's
+      // overrides). Undo/redo/duplicate work off raw canvas snapshots that don't
+      // route, so they stay base-only for now.
+      const localeMode = localeModeRef.current
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
         e.preventDefault()
         canvasRef.current?.deleteSelected()
         return
       }
-      if (!typing && !editingBlocked && e.key.startsWith('Arrow')) {
+      if (!typing && e.key.startsWith('Arrow')) {
         const step = e.shiftKey ? 10 : 1
         const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key]
         if (d) {
@@ -110,15 +114,15 @@ export function EditorLayout() {
       const ctrl = isMac ? e.metaKey : e.ctrlKey
       if (!ctrl) return
       if (e.key === 'z' && !e.shiftKey) {
-        if (editingBlocked) return
+        if (localeMode) return
         e.preventDefault()
         canvasRef.current?.undo()
       } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
-        if (editingBlocked) return
+        if (localeMode) return
         e.preventDefault()
         canvasRef.current?.redo()
       } else if (e.key === 'd') {
-        if (editingBlocked) return
+        if (localeMode) return
         e.preventDefault()
         canvasRef.current?.duplicateSelected()
       } else if (e.key === '=' || e.key === '+') {
@@ -137,8 +141,8 @@ export function EditorLayout() {
   }, [])
 
   useEffect(() => {
-    isPreviewRef.current = !!previewLocale && !!project && previewLocale !== project.sourceLocale
-  }, [previewLocale, project])
+    localeModeRef.current = !!editLocale
+  }, [editLocale])
 
   if (!project) return null
   const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
@@ -149,18 +153,22 @@ export function EditorLayout() {
   const editTargetId = slide?.id ?? null
   const isGrouped = !!slide?.spanGroupId
 
-  // Preview is active only for a real, non-source locale. The canvas then shows
-  // that locale's translated text + screenshot override (read-only).
-  const isPreview = !!previewLocale && previewLocale !== project.sourceLocale
-  const canvasSlide = isPreview && slide ? withLocale(slide, previewLocale) : slide
-  const previewLocales = [
-    project.sourceLocale,
-    ...project.targetLocales.filter((l) => l !== project.sourceLocale),
-  ]
+  // Locale edit mode: the canvas renders the slide resolved for that locale and
+  // routes edits into its overrides. '' = shared/base view (edit everything).
+  const isLocaleMode = !!editLocale
+  const canvasSlide = isLocaleMode && slide ? resolveSlideForLocale(slide, editLocale) : slide
+  // Editable locales. project.locales is the new peer list; until setup writes
+  // it (a later phase), fall back to the translation targets.
+  const localeOptions = project.locales ?? project.targetLocales
   const localeLabel = (code: string) => SUPPORTED_LOCALES.find((l) => l.code === code)?.label ?? code
 
   function handleSlideChange(patch: Partial<Slide>) {
     if (!editTargetId) return
+    if (isLocaleMode && slide) {
+      const routed = routeLocalePatch(slide, editLocale, patch)
+      if (Object.keys(routed).length) updateSlide(editTargetId, routed)
+      return
+    }
     updateSlide(editTargetId, patch)
   }
 
@@ -295,23 +303,21 @@ export function EditorLayout() {
               +
             </button>
           </div>
-          {previewLocales.length > 1 && (
+          {localeOptions.length > 0 && (
             <select
-              value={previewLocale || project.sourceLocale}
-              onChange={(e) =>
-                setPreviewLocale(e.target.value === project.sourceLocale ? '' : e.target.value)
-              }
-              title="언어 미리보기 — 원본 외 언어는 읽기전용"
+              value={editLocale}
+              onChange={(e) => setEditLocale(e.target.value)}
+              title="편집 언어 — 공유(base)는 전체 공통, 특정 언어는 그 언어용 위치/크기/텍스트만 조정"
               className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
-                isPreview
+                isLocaleMode
                   ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                   : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
               }`}
             >
-              {previewLocales.map((l) => (
+              <option value="">공유 (base)</option>
+              {localeOptions.map((l) => (
                 <option key={l} value={l}>
                   {localeLabel(l)}
-                  {l === project.sourceLocale ? ' (원본)' : ''}
                 </option>
               ))}
             </select>
@@ -322,7 +328,7 @@ export function EditorLayout() {
             ref={canvasRef}
             activeSlide={canvasSlide}
             isGrouped={isGrouped}
-            readOnly={isPreview}
+            lockSharedLayout={isLocaleMode}
             zoom={zoom}
             onSlideChange={handleSlideChange}
             onHistoryChange={({ canUndo, canRedo }) => {
@@ -335,15 +341,23 @@ export function EditorLayout() {
         </div>
       </main>
 
-      {slide && isPreview ? (
+      {slide && isLocaleMode ? (
         <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <p className="text-sm font-medium text-[var(--color-accent)]">
-            👁 {localeLabel(previewLocale)} 미리보기
+            ✏️ {localeLabel(editLocale)} 편집
           </p>
           <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-dim)]">
-            번역 결과를 레이아웃 안에서 확인하는 읽기전용 모드입니다. 편집하려면 상단에서
-            원본({localeLabel(project.sourceLocale)})으로 전환하세요.
+            이 언어용으로 <strong>텍스트·위치·크기·디바이스</strong>만 조정합니다 (이 언어
+            override로 저장). 색·템플릿·배경·뱃지 등 공유 속성은 상단에서 <strong>공유(base)</strong>로
+            전환해 편집하세요.
           </p>
+          <button
+            onClick={() => editTargetId && updateSlide(editTargetId, clearLocaleLayout(slide, editLocale))}
+            disabled={!slide.localeLayout?.[editLocale]}
+            className="mt-4 w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            이 언어 레이아웃 → 공유로 리셋
+          </button>
         </aside>
       ) : slide ? (
         <PropertiesPanel
