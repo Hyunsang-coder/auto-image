@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
 import { clearAppState, createProject, uploadScreenshot } from './helpers'
 
+// Taller viewport so the single image row's stacked override buttons fit without
+// scrolling — otherwise scroll-into-view tucks the first row under the sticky
+// table header and the click gets intercepted.
+test.use({ viewport: { width: 1280, height: 1000 } })
+
 // UI integration: the localization page exposes an "이미지" row whose source
 // column shows the base screenshot, and each target-locale cell can upload an
 // override (a second thumbnail appears) and clear it (back to one thumbnail).
