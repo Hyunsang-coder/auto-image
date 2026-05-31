@@ -4,35 +4,12 @@ import { deviceSpecOf, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 import { applyTemplate } from '../canvas/templateLayouts'
 import { createImageUrlCache } from './imageStore'
 import { encodeOpaquePng } from './encodePng'
+import { resolveSlideForLocale } from './resolveSlide'
 
-export function withLocale(slide: Slide, locale: string | null): Slide {
-  if (!locale) return slide
-  const override = slide.screenshot?.localeOverrides?.[locale]
-  return {
-    ...slide,
-    screenshot:
-      override && slide.screenshot
-        ? {
-            ...slide.screenshot,
-            imageKey: override.imageKey,
-            originalWidth: override.originalWidth,
-            originalHeight: override.originalHeight,
-          }
-        : slide.screenshot,
-    headline: {
-      ...slide.headline,
-      text: slide.headline.translations[locale] ?? slide.headline.text,
-    },
-    subheadline: {
-      ...slide.subheadline,
-      text: slide.subheadline.translations[locale] ?? slide.subheadline.text,
-    },
-    badges: slide.badges.map((b) => ({
-      ...b,
-      text: b.translations[locale] ?? b.text,
-    })),
-  }
-}
+export { resolveSlideForLocale }
+
+/** @deprecated alias kept during the per-locale-slides migration. */
+export const withLocale = resolveSlideForLocale
 
 function withScaledFonts(slide: Slide, scale: number): Slide {
   return {

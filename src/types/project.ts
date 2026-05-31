@@ -41,6 +41,14 @@ export interface Project {
   sourceLocale: string
   targetLocales: string[]
   translationApi: TranslationAPI
+  /**
+   * The languages this project ships. All are peers — there is no source/target
+   * asymmetry; translation happens externally and is imported. The shared slide
+   * data is the common base; per-locale divergence lives in overrides
+   * (`Caption.translations`, `ScreenshotImage.localeOverrides`,
+   * `Slide.localeLayout`). Optional during the migration off `sourceLocale`.
+   */
+  locales?: string[]
   slides: Slide[]
 }
 
@@ -68,6 +76,34 @@ export interface Slide {
    */
   spanGroupId?: string
   spanRole?: 'leader' | 'follower'
+  /**
+   * Per-locale layout/geometry overrides on top of the shared base
+   * (copy-on-write). Only the properties a user tweaks while editing in a given
+   * locale are stored here; everything absent inherits the shared slide, so a
+   * later edit to the base still propagates to un-overridden locales. Text and
+   * screenshot already have their own per-locale channels (`translations`,
+   * `localeOverrides`); this covers what's left that overflowing translations
+   * tend to need: caption placement/size and the device transform.
+   */
+  localeLayout?: Record<string, LocaleLayout>
+}
+
+/** Caption geometry that can diverge per locale (text content lives in `translations`). */
+export interface CaptionLayout {
+  pos?: { x: number; y: number }
+  boxWidth?: number
+  fontSize?: number
+}
+
+export interface LocaleLayout {
+  headline?: CaptionLayout
+  subheadline?: CaptionLayout
+  deviceFrame?: {
+    offsetX?: number
+    offsetY?: number
+    scale?: number
+    rotation?: number
+  }
 }
 
 export interface ScreenshotStyle {
