@@ -5,7 +5,6 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
-import { EDITOR_CANVAS_WIDTH } from '../../constants/deviceSpecs'
 import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
 import type { DeviceType, Project, Slide } from '../../types/project'
 
@@ -111,7 +110,7 @@ export function ExportPanel() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const prevUrlsRef = useRef<(string | null)[]>([])
   // Preview thumbnail size: 1 (small, more columns) … 5 (large, single column).
-  const [previewSize, setPreviewSize] = useState(3)
+  const [previewSize, setPreviewSize] = useState(1)
   // Locales the user unticked for export; empty = export everything.
   const [excludedLocales, setExcludedLocales] = useState<Set<string>>(new Set())
 
@@ -141,10 +140,15 @@ export function ExportPanel() {
               urls.push(null)
               continue
             }
-            const halves = await renderSpanGroup(leader, device, renderLocale, EDITOR_CANVAS_WIDTH)
+            // Render at full export resolution (no preview width) so the
+            // thumbnail is byte-identical to the exported PNG — absolute-pixel
+            // constants (fit-to-box floor, headline gap) otherwise diverge
+            // between the 440px preview scale and the export scale. CSS scales it
+            // down for display.
+            const halves = await renderSpanGroup(leader, device, renderLocale)
             blob = isLeader ? halves.leader : halves.follower
           } else {
-            blob = await renderSlide(slide, device, renderLocale, EDITOR_CANVAS_WIDTH)
+            blob = await renderSlide(slide, device, renderLocale)
           }
           urls.push(URL.createObjectURL(blob))
         } catch {

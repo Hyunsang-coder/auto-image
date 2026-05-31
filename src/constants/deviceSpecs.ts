@@ -15,9 +15,9 @@ export const DEVICE_SPECS: Record<DeviceModel, DeviceSpec> = {
   'iphone-16-pro': {
     type: 'iphone',
     model: 'iphone-16-pro',
-    label: 'iPhone 16 Pro Max (6.9")',
-    exportWidth: 1320,
-    exportHeight: 2868,
+    label: 'iPhone 6.5" (13 Pro Max)',
+    exportWidth: 1284,
+    exportHeight: 2778,
     cornerRadius: 200,
     screenInsetRatio: 0.020,
     hasIsland: true,
@@ -25,9 +25,9 @@ export const DEVICE_SPECS: Record<DeviceModel, DeviceSpec> = {
   'ipad-pro-13': {
     type: 'ipad',
     model: 'ipad-pro-13',
-    label: 'iPad Pro 13" (M4)',
-    exportWidth: 2064,
-    exportHeight: 2752,
+    label: 'iPad Pro 12.9"',
+    exportWidth: 2048,
+    exportHeight: 2732,
     cornerRadius: 80,
     screenInsetRatio: 0.046,
     hasIsland: false,
@@ -40,7 +40,7 @@ export function deviceSpecOf(type: DeviceType): DeviceSpec {
     : DEVICE_SPECS['ipad-pro-13']
 }
 
-// iPhone 16 Pro Max aspect ≈ 0.460; iPad Pro 13" ≈ 0.750.
+// iPhone 6.5" aspect ≈ 0.462; iPad Pro 12.9" ≈ 0.750.
 // Midpoint at ~0.60 cleanly separates portrait phones (always < 0.55) from
 // tablets and near-square shots (≥ 0.65). Anything wider than 1 is landscape
 // and gets bucketed as iPad — iPhone landscape isn't a target.

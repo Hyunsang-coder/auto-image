@@ -141,6 +141,7 @@ export function getDeviceLayout(
   ch: number,
   device: { w: number; h: number },
   spanCentered = false,
+  canvasScale = 1,
 ): DeviceLayout | null {
   const { offsetX = 0, offsetY = 0, scale = 1 } = slide.deviceFrame
   let baseW: number
@@ -170,7 +171,10 @@ export function getDeviceLayout(
   // exaggerated corner radii that don't match the device's real proportions.
   const spec = DEVICE_SPECS[slide.deviceFrame.model]
   const rx = Math.round((spec.cornerRadius * width) / spec.exportWidth)
-  return { centerX: centerX + offsetX, top: top + offsetY, width, height, rx }
+  // offsetX/offsetY are stored in editor-canvas pixels (EDITOR_CANVAS_WIDTH).
+  // Scale them to the current canvas so a dragged device lands in the same
+  // proportional spot at full export resolution as it does in the editor.
+  return { centerX: centerX + offsetX * canvasScale, top: top + offsetY * canvasScale, width, height, rx }
 }
 
 function heroScreenBounds(cw: number, ch: number): ScreenBounds {
@@ -219,12 +223,18 @@ export async function applyTemplate(
   const cw = dims?.width ?? EDITOR_CANVAS_WIDTH
   const ch = dims?.height ?? getCanvasHeight(slide)
   const spanCentered = opts?.spanCentered ?? false
+  // Font/constant scale vs the editor's base width. A span canvas is two device
+  // widths wide, so its per-device scale is based on the half-width — matching
+  // renderSpanGroup's font scale. Absolute layout constants (text gap, fit-to-box
+  // floor) are multiplied by this so the layout is identical in proportion at the
+  // editor's 440px and at full export resolution.
+  const scale = (spanCentered ? cw / 2 : cw) / EDITOR_CANVAS_WIDTH
 
   canvas.setDimensions({ width: cw, height: ch })
 
   const { template } = slide
   const device = getDeviceDimensions(slide, cw)
-  const deviceLayout = getDeviceLayout(slide, cw, ch, device, spanCentered)
+  const deviceLayout = getDeviceLayout(slide, cw, ch, device, spanCentered, scale)
 
   // 1. Background
   for (const obj of await renderBackground(cw, ch, slide.background, resolveUrl)) {
@@ -269,15 +279,15 @@ export async function applyTemplate(
 
   // 4. Text + device frame border
   if (template === 'hero') {
-    applyHero(canvas, slide, cw, ch)
+    applyHero(canvas, slide, cw, ch, scale)
   } else if (template === 'hero-bleed') {
-    applyHeroBleed(canvas, slide, cw, ch, deviceLayout)
+    applyHeroBleed(canvas, slide, cw, ch, deviceLayout, scale)
   } else if (template === 'text-top') {
-    applyTextTop(canvas, slide, cw, ch, deviceLayout)
+    applyTextTop(canvas, slide, cw, ch, deviceLayout, scale)
   } else if (template === 'text-bottom') {
-    applyTextBottom(canvas, slide, cw, ch, deviceLayout)
+    applyTextBottom(canvas, slide, cw, ch, deviceLayout, scale)
   } else if (template === 'split') {
-    applySplit(canvas, slide, cw, ch, deviceLayout)
+    applySplit(canvas, slide, cw, ch, deviceLayout, scale)
   }
 
   // 5. Highlights — magnified pop-out cards. Rendered after the device so they
@@ -317,6 +327,7 @@ function addHeadlineAndSubheadline(
     width: number
     align?: 'left' | 'center' | 'right'
     gap?: number
+    scale: number
   },
 ): void {
   const align = opts.align ?? 'center'
@@ -333,7 +344,7 @@ function addHeadlineAndSubheadline(
     const centerX = caption.pos ? caption.pos.x * opts.cw : defaultCenterX
     const top = caption.pos ? caption.pos.y * opts.ch : defaultTop
     const width = caption.boxWidth != null ? caption.boxWidth * opts.cw : opts.width
-    const obj = renderCaption(caption, { left: centerX, top, width, layerName })
+    const obj = renderCaption(caption, { left: centerX, top, width, layerName, scale: opts.scale })
     // The caption's own textAlign is the source of truth (the panel sets it, and
     // a layout switch seeds it with TEMPLATE_TEXT_ALIGN). Fall back to the
     // layout default only if a caption somehow has none.
@@ -346,8 +357,16 @@ function addHeadlineAndSubheadline(
   }
 
   const headline = place(slide.headline, LAYER_NAMES.HEADLINE, opts.headlineCenterX, opts.headlineTop)
-  const subTop = opts.headlineTop + headline.height + (opts.gap ?? 12)
-  place(slide.subheadline, LAYER_NAMES.SUBHEADLINE, opts.headlineCenterX, subTop)
+  const subTop = opts.headlineTop + headline.height + (opts.gap ?? 12) * opts.scale
+  const sub = place(slide.subheadline, LAYER_NAMES.SUBHEADLINE, opts.headlineCenterX, subTop)
+
+  // Keep the size hierarchy under auto-size: a long headline shrinks via fitToBox
+  // and can end up smaller than a short subheadline. When both auto-size, cap the
+  // subheadline at the headline's rendered size.
+  if (slide.headline.style.fitToBox && slide.subheadline.style.fitToBox) {
+    const hSize = headline.fontSize ?? 0
+    if ((sub.fontSize ?? 0) > hSize) sub.set('fontSize', hSize)
+  }
 }
 
 function applyHero(
@@ -355,6 +374,7 @@ function applyHero(
   slide: Slide,
   cw: number,
   ch: number,
+  scale: number,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
@@ -362,6 +382,7 @@ function applyHero(
     headlineCenterX: cw / 2,
     headlineTop: ch * 0.42,
     width: cw * 0.85,
+    scale,
   })
 }
 
@@ -369,6 +390,7 @@ function addDeviceFrame(
   canvas: Canvas,
   slide: Slide,
   layout: DeviceLayout | null,
+  scale = 1,
 ): void {
   if (!layout || !slide.deviceFrame.show) return
   const { paths } = renderDeviceFrame(slide.deviceFrame, {
@@ -384,16 +406,18 @@ function addDeviceFrame(
   // to offsetX/offsetY for every template and scale — including vertically
   // centered templates whose anchor would otherwise use the unscaled device
   // height and inject a vertical jump on drag-release.
+  // layout.centerX/top already bake in offsetX/offsetY * scale, so recover the
+  // offset-free anchor by subtracting the same scaled offset.
   const { offsetX = 0, offsetY = 0 } = slide.deviceFrame
-  const baseLeft = (layout.centerX - offsetX) - layout.width / 2
-  const baseTop = layout.top - offsetY
+  const baseLeft = (layout.centerX - offsetX * scale) - layout.width / 2
+  const baseTop = layout.top - offsetY * scale
   const angle = slide.deviceFrame.rotation ?? 0
   const pivotX = layout.centerX
   const pivotY = layout.top + layout.height / 2
   // Offset-free pivot, used to store the body's _baseLeft/_baseTop already
   // rotated — that keeps syncToZustand's `body.left - _baseLeft` capturing only
   // the user's drag offset even when the device is tilted.
-  const basePivotX = layout.centerX - offsetX
+  const basePivotX = layout.centerX - offsetX * scale
   const basePivotY = baseTop + layout.height / 2
   paths.forEach((obj, i) => {
     if (i === 0) {
@@ -428,6 +452,7 @@ function applyTextTop(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
+  scale: number,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
@@ -436,8 +461,9 @@ function applyTextTop(
     headlineTop: ch * 0.05,
     width: cw * 0.85,
     gap: 8,
+    scale,
   })
-  addDeviceFrame(canvas, slide, layout)
+  addDeviceFrame(canvas, slide, layout, scale)
 }
 
 function applyTextBottom(
@@ -446,8 +472,9 @@ function applyTextBottom(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
+  scale: number,
 ): void {
-  addDeviceFrame(canvas, slide, layout)
+  addDeviceFrame(canvas, slide, layout, scale)
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
     ch,
@@ -455,6 +482,7 @@ function applyTextBottom(
     headlineTop: ch * 0.74,
     width: cw * 0.85,
     gap: 8,
+    scale,
   })
 }
 
@@ -464,6 +492,7 @@ function applySplit(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
+  scale: number,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
@@ -473,8 +502,9 @@ function applySplit(
     width: cw * 0.37,
     align: 'left',
     gap: 10,
+    scale,
   })
-  addDeviceFrame(canvas, slide, layout)
+  addDeviceFrame(canvas, slide, layout, scale)
 }
 
 /**
@@ -487,6 +517,7 @@ function applyHeroBleed(
   cw: number,
   ch: number,
   layout: DeviceLayout | null,
+  scale: number,
 ): void {
   addHeadlineAndSubheadline(canvas, slide, {
     cw,
@@ -496,6 +527,7 @@ function applyHeroBleed(
     width: cw * 0.46,
     align: 'left',
     gap: 10,
+    scale,
   })
-  addDeviceFrame(canvas, slide, layout)
+  addDeviceFrame(canvas, slide, layout, scale)
 }
