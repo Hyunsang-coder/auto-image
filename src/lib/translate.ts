@@ -8,7 +8,7 @@ import { isTauri } from './tauri'
 // build falls back to the browser fetch (which still needs that header).
 const http: typeof fetch = isTauri() ? tauriFetch : fetch.bind(globalThis)
 
-const LOCALE_NAME = Object.fromEntries(SUPPORTED_LOCALES.map(l => [l.code, l.label]))
+const LOCALE_NAME = Object.fromEntries(SUPPORTED_LOCALES.map(l => [l.code, l.name]))
 
 function buildPrompt(texts: string[], src: string, tgt: string): string {
   const srcName = LOCALE_NAME[src] ?? src

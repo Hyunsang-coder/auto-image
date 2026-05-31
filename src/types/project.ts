@@ -123,6 +123,20 @@ export interface ScreenshotImage {
   imageKey: string
   originalWidth: number
   originalHeight: number
+  /**
+   * Per-locale screenshot overrides keyed by locale code. When an export
+   * targets a locale present here, this image replaces the base screenshot for
+   * that locale only (e.g. a UI screenshot captured in that language). Absent
+   * locales fall back to the base image. The device frame is unchanged; the
+   * override is cover-fit into the same frame using its own dimensions.
+   */
+  localeOverrides?: Record<string, LocaleScreenshot>
+}
+
+export interface LocaleScreenshot {
+  imageKey: string
+  originalWidth: number
+  originalHeight: number
 }
 
 export interface Caption {

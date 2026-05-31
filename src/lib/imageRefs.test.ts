@@ -37,6 +37,21 @@ describe('allReferencedImageKeys', () => {
     expect(keys.has('img:bg-lib')).toBe(true)
   })
 
+  // Per-locale screenshot overrides must survive the orphan sweep, same as the
+  // base screenshot — otherwise switching slides would prune a localized image.
+  it('includes per-locale screenshot override keys', () => {
+    const p = projWithKeys('A', 'img:shot-a', 'img:bg-a')
+    p.slides[0].screenshot!.localeOverrides = {
+      ja: { imageKey: 'img:shot-ja', originalWidth: 10, originalHeight: 10 },
+      en: { imageKey: 'img:shot-en', originalWidth: 10, originalHeight: 10 },
+    }
+    useProjectStore.setState({ project: p })
+    const keys = allReferencedImageKeys()
+    expect(keys.has('img:shot-a')).toBe(true)
+    expect(keys.has('img:shot-ja')).toBe(true)
+    expect(keys.has('img:shot-en')).toBe(true)
+  })
+
   it('includes custom preset + template image backgrounds', () => {
     useCustomStore.setState({
       presets: [
