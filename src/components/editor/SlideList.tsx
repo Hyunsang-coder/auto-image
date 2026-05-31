@@ -43,6 +43,7 @@ function buildRows(slides: Slide[]): RowItem[] {
 export function SlideList({ slides, activeSlideId, onSelect }: Props) {
   const addSlide = useProjectStore((s) => s.addSlide)
   const duplicateSlide = useProjectStore((s) => s.duplicateSlide)
+  const removeSlide = useProjectStore((s) => s.removeSlide)
   const linkSpanWithNext = useProjectStore((s) => s.linkSpanWithNext)
   const unlinkSpan = useProjectStore((s) => s.unlinkSpan)
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -103,6 +104,8 @@ export function SlideList({ slides, activeSlideId, onSelect }: Props) {
                 onSelect={() => onSelect(row.slides[0].id)}
                 onDuplicate={() => duplicateSlide(row.slides[0].id)}
                 canDuplicate={canAdd}
+                onDelete={() => void removeSlide(row.slides[0].id)}
+                canDelete={slides.length > 1}
               />
             )}
             {canLinkAfter(i) && (
@@ -138,12 +141,16 @@ function SingleRow({
   onSelect,
   onDuplicate,
   canDuplicate,
+  onDelete,
+  canDelete,
 }: {
   slide: Slide
   active: boolean
   onSelect: () => void
   onDuplicate: () => void
   canDuplicate: boolean
+  onDelete: () => void
+  canDelete: boolean
 }) {
   return (
     <div className="group relative">
@@ -151,7 +158,7 @@ function SingleRow({
         type="button"
         onClick={onSelect}
         className={[
-          'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-9 text-left text-sm transition',
+          'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-16 text-left text-sm transition',
           active
             ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
             : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
@@ -169,9 +176,18 @@ function SingleRow({
         onClick={onDuplicate}
         disabled={!canDuplicate}
         title={canDuplicate ? '슬라이드 복제' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
-        className="absolute right-1 top-1/2 hidden -translate-y-1/2 rounded p-1.5 text-xs leading-none text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40 group-hover:block"
+        className="absolute right-8 top-1/2 hidden -translate-y-1/2 rounded p-1.5 text-xs leading-none text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40 group-hover:block"
       >
         ⧉
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        disabled={!canDelete}
+        title={canDelete ? '슬라이드 삭제' : '마지막 슬라이드는 삭제할 수 없습니다'}
+        className="absolute right-1 top-1/2 hidden -translate-y-1/2 rounded p-1.5 text-xs leading-none text-[var(--color-text-dim)] transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 group-hover:block"
+      >
+        🗑
       </button>
     </div>
   )
