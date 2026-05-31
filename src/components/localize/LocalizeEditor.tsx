@@ -646,8 +646,10 @@ export function LocalizeEditor() {
                   필드
                 </th>
                 <th className="min-w-44 border-r border-[var(--color-border)] px-3 py-2 text-left text-xs font-medium text-[var(--color-text-dim)]">
-                  {localeLabel(sourceLocale)}{' '}
-                  <span className="opacity-50">(원본)</span>
+                  {/* Base text is stored language-agnostically; the 원본 언어 dropdown
+                      declares its language. Don't relabel this column to the chosen
+                      source language — the stored text doesn't change when it flips. */}
+                  원본
                 </th>
                 {targetLocales.map(locale => (
                   <th key={locale} className="min-w-44 border-r border-[var(--color-border)] px-3 py-2 text-left">
