@@ -5,7 +5,7 @@ import { applyTemplate } from '../canvas/templateLayouts'
 import { createImageUrlCache } from './imageStore'
 import { encodeOpaquePng } from './encodePng'
 
-function withLocale(slide: Slide, locale: string | null): Slide {
+export function withLocale(slide: Slide, locale: string | null): Slide {
   if (!locale) return slide
   const override = slide.screenshot?.localeOverrides?.[locale]
   return {
