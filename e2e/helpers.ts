@@ -38,7 +38,7 @@ export async function createProject(
   await page.fill('input[placeholder="예: Dogo, Claude, ADHD"]', name)
 
   // Deselect all devices first by clicking active ones, then select desired
-  const iPhoneBtn = page.getByRole('button', { name: /iPhone 16 Pro/ })
+  const iPhoneBtn = page.getByRole('button', { name: /iPhone/ })
   const iPadBtn = page.getByRole('button', { name: /iPad Pro/ })
 
   const iPhoneActive = await iPhoneBtn.evaluate((el) =>

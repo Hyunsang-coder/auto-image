@@ -8,16 +8,19 @@ test.beforeEach(async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
 })
 
-test('로컬라이즈 에디터가 렌더됨', async ({ page }) => {
-  // 번역 API 선택 라디오 버튼들
-  await expect(page.getByRole('radio', { name: /claude/i })).toBeVisible()
-  await expect(page.getByRole('radio', { name: /openai/i })).toBeVisible()
-  await expect(page.getByRole('radio', { name: /gemini/i })).toBeVisible()
+test('로컬라이즈 에디터가 렌더됨 (import-only 워크플로)', async ({ page }) => {
+  // 인앱 번역은 제거됨 — 양식 내보내기/가져오기 + 프롬프트 복사가 핵심 UI다.
+  await expect(page.getByRole('button', { name: 'CSV 내보내기' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'JSON 내보내기' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '프롬프트 복사' })).toBeVisible()
+  // exact: '이미지 가져오기' (bulk) also contains '가져오기' — pin to the template button.
+  await expect(page.getByRole('button', { name: '가져오기', exact: true })).toBeVisible()
 })
 
-test('타겟 로케일 없으면 전체 번역 버튼이 비활성화됨', async ({ page }) => {
-  const translateBtn = page.getByRole('button', { name: /전체 번역/ })
-  await expect(translateBtn).toBeDisabled()
+test('기본 타겟 로케일에서 양식·프롬프트 버튼이 활성화됨', async ({ page }) => {
+  // 새 프로젝트는 기본 타겟 로케일(en, ja)을 가지므로 양식 버튼이 활성화된다.
+  await expect(page.getByRole('button', { name: 'CSV 내보내기' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: '프롬프트 복사' })).toBeEnabled()
 })
 
 test('소스 로케일 드롭다운이 존재함', async ({ page }) => {
@@ -26,16 +29,15 @@ test('소스 로케일 드롭다운이 존재함', async ({ page }) => {
   await expect(selects.first()).toBeVisible()
 })
 
-test('타겟 로케일 선택 후에도 API 키 없으면 번역 버튼 비활성화', async ({ page }) => {
-  // 타겟 로케일 체크박스 선택 (en이 있다면)
-  const checkboxes = page.getByRole('checkbox')
-  const count = await checkboxes.count()
-  if (count > 0) {
-    await checkboxes.first().check()
+test('타겟 로케일을 모두 해제하면 양식 내보내기가 비활성화됨', async ({ page }) => {
+  // 체크된 타겟 로케일을 모두 해제 → 내보낼 언어가 없으니 양식/프롬프트 버튼 비활성화.
+  for (let i = 0; i < 12; i++) {
+    const checked = page.getByRole('checkbox', { checked: true })
+    if ((await checked.count()) === 0) break
+    await checked.first().uncheck()
   }
-
-  const translateBtn = page.getByRole('button', { name: /전체 번역/ })
-  await expect(translateBtn).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'CSV 내보내기' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '프롬프트 복사' })).toBeDisabled()
 })
 
 test('Export 스텝 버튼으로 이동 가능', async ({ page }) => {
