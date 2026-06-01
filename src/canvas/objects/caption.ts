@@ -23,8 +23,8 @@ const SCRIPT_FALLBACK =
 
 // Shrink-only fit policy: the base (design) size is the ceiling, so a short
 // locale keeps the intended size while text wider than the box is reduced just
-// enough to fit (floored at 10). `widest` is the widest unwrapped line measured
-// at `baseFontSize`. Pure so the policy is testable without a Fabric probe.
+// enough to fit (floored at 10). `widest` is the widest unbreakable token (word)
+// measured at `baseFontSize`. Pure so the policy is testable without a Fabric probe.
 export function fitFontSize(
   baseFontSize: number,
   widest: number,
@@ -35,9 +35,13 @@ export function fitFontSize(
   return Math.max(minFontSize, baseFontSize * Math.min(1, boxWidth / widest))
 }
 
-// Largest font size — capped at `baseFontSize` — at which every existing line of
-// `text` fits within `boxWidth`. Measured per line with an unwrapped Text probe;
-// single-pass is exact because each line then fits.
+// Largest font size — capped at `baseFontSize` — at which `text` fits `boxWidth`
+// once wrapped. A Textbox wraps at word boundaries, so the only thing that can't
+// fit is a single word wider than the box: we measure the widest WORD (not the
+// whole line) and shrink just enough for it. The text then wraps to multiple
+// lines near the design size instead of being crushed to cram a whole line onto
+// one row — the standard shrink-to-fit-after-wrap behavior. CJK text (no spaces,
+// which Fabric won't wrap) is one token, so it still shrinks to fit the width.
 function fitFontToBox(
   text: string,
   baseFontSize: number,
@@ -47,11 +51,11 @@ function fitFontToBox(
   boxWidth: number,
   minFontSize: number,
 ): number {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
-  if (!lines.length) return baseFontSize
+  const words = text.split(/\s+/).filter(Boolean)
+  if (!words.length) return baseFontSize
   let widest = 0
-  for (const line of lines) {
-    const probe = new Text(line, { fontFamily, fontSize: baseFontSize, fontWeight, charSpacing })
+  for (const word of words) {
+    const probe = new Text(word, { fontFamily, fontSize: baseFontSize, fontWeight, charSpacing })
     widest = Math.max(widest, probe.width ?? 0)
   }
   return fitFontSize(baseFontSize, widest, boxWidth, minFontSize)
