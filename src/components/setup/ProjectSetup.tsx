@@ -87,6 +87,8 @@ export function ProjectSetup() {
         </p>
       </header>
 
+      {!hasExisting && savedProjects.length === 0 && <FirstRunIntro />}
+
       <Section title="앱 이름">
         <input
           value={name}
@@ -294,6 +296,31 @@ export function ProjectSetup() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function FirstRunIntro() {
+  const steps = [
+    { n: 1, label: '설정', desc: '기기 · 슬라이드 수 · 테마' },
+    { n: 2, label: '편집', desc: '스크린샷 올리고 문구 · 디자인' },
+    { n: 3, label: '현지화', desc: '언어별 문구 · 스크린샷' },
+    { n: 4, label: '내보내기', desc: 'PNG ZIP (App Store 규격)' },
+  ]
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <p className="mb-3 text-sm text-[var(--color-text)]">처음이신가요? 4단계로 만듭니다:</p>
+      <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {steps.map((s) => (
+          <li key={s.n} className="flex flex-col gap-1">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-xs font-semibold text-[var(--color-accent)]">
+              {s.n}
+            </span>
+            <span className="text-sm font-medium text-[var(--color-text)]">{s.label}</span>
+            <span className="text-xs text-[var(--color-text-dim)]">{s.desc}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }
