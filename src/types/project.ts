@@ -173,6 +173,13 @@ export interface ScreenshotImage {
    * override is cover-fit into the same frame using its own dimensions.
    */
   localeOverrides?: Record<string, LocaleScreenshot>
+  /**
+   * For a locale with no own override, which *other* locale's screenshot to
+   * borrow (locale code → donor locale code). Absent → fall back to the base
+   * image (the default). Lets e.g. an unscreenshot locale show the English
+   * capture instead of the source-language one.
+   */
+  localeSource?: Record<string, string>
 }
 
 export interface LocaleScreenshot {

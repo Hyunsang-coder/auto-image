@@ -167,6 +167,24 @@ export function EditorLayout() {
   // user sees; applyEdit then routes the patch to the right place.
   const editingSlide = canvasSlide
 
+  // Screenshot donor: in locale mode a locale with no own screenshot can borrow
+  // another locale's (default = base). Offer it only when there's a donor to
+  // borrow from and this locale hasn't uploaded its own.
+  const shotOverrides = slide?.screenshot?.localeOverrides ?? {}
+  const donorLocales = Object.keys(shotOverrides).filter((l) => l !== editLocale)
+  const showShotSource =
+    isLocaleMode && !!slide?.screenshot && !shotOverrides[editLocale] && donorLocales.length > 0
+
+  function setScreenshotSource(donor: string) {
+    if (!slide?.screenshot || !editTargetId) return
+    const next = { ...slide.screenshot.localeSource }
+    if (donor) next[editLocale] = donor
+    else delete next[editLocale]
+    updateSlide(editTargetId, {
+      screenshot: { ...slide.screenshot, localeSource: Object.keys(next).length ? next : undefined },
+    })
+  }
+
   // Single write path. In locale mode the patch is rerouted into that locale's
   // overrides (text → translations, look → localeOverrides, shared elements →
   // base); otherwise it edits the shared base directly.
@@ -352,6 +370,19 @@ export function EditorLayout() {
             >
               레이아웃 리셋
             </button>
+          )}
+          {showShotSource && (
+            <select
+              value={slide!.screenshot!.localeSource?.[editLocale] ?? ''}
+              onChange={(e) => setScreenshotSource(e.target.value)}
+              title="이 언어는 자체 스크린샷이 없습니다. 어떤 언어의 스크린샷을 빌려올지 선택하세요 (기본: 원본)."
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
+            >
+              <option value="">스크린샷: 원본</option>
+              {donorLocales.map((l) => (
+                <option key={l} value={l}>스크린샷: {localeLabel(l)}</option>
+              ))}
+            </select>
           )}
         </div>
         <div className="flex flex-1 items-start justify-center p-6">

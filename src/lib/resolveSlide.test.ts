@@ -86,4 +86,42 @@ describe('resolveSlideForLocale', () => {
     expect(r.deviceFrame.offsetX).toBe(0)
     expect(r.headline.text).toBe('Hello')
   })
+
+  it('borrows a donor locale screenshot via localeSource when set', () => {
+    const s = baseSlide({
+      screenshot: {
+        id: 'sh', imageKey: 'img:base', originalWidth: 100, originalHeight: 200,
+        localeOverrides: { en: { imageKey: 'img:en', originalWidth: 300, originalHeight: 600 } },
+        localeSource: { es: 'en' },
+      },
+    })
+    // es has no own override → borrows en's screenshot.
+    expect(resolveSlideForLocale(s, 'es').screenshot?.imageKey).toBe('img:en')
+    // de has no override and no donor → base.
+    expect(resolveSlideForLocale(s, 'de').screenshot?.imageKey).toBe('img:base')
+  })
+
+  it('prefers a locale own override over its donor pointer', () => {
+    const s = baseSlide({
+      screenshot: {
+        id: 'sh', imageKey: 'img:base', originalWidth: 100, originalHeight: 200,
+        localeOverrides: {
+          en: { imageKey: 'img:en', originalWidth: 300, originalHeight: 600 },
+          es: { imageKey: 'img:es', originalWidth: 300, originalHeight: 600 },
+        },
+        localeSource: { es: 'en' },
+      },
+    })
+    expect(resolveSlideForLocale(s, 'es').screenshot?.imageKey).toBe('img:es')
+  })
+
+  it('falls back to base when the donor locale has no override', () => {
+    const s = baseSlide({
+      screenshot: {
+        id: 'sh', imageKey: 'img:base', originalWidth: 100, originalHeight: 200,
+        localeSource: { es: 'en' }, // en has no override
+      },
+    })
+    expect(resolveSlideForLocale(s, 'es').screenshot?.imageKey).toBe('img:base')
+  })
 })

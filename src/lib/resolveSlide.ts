@@ -25,7 +25,11 @@ export function resolveSlideForLocale(slide: Slide, locale: string | null): Slid
   if (!locale) return slide
   const ov = slide.localeOverrides?.[locale]
   const shot = slide.screenshot
-  const shotOverride = shot?.localeOverrides?.[locale]
+  // Screenshot for this locale: its own override, else a chosen donor locale's
+  // override (localeSource), else the base image.
+  const own = shot?.localeOverrides?.[locale]
+  const donorCode = own ? undefined : shot?.localeSource?.[locale]
+  const pick = own ?? (donorCode ? shot?.localeOverrides?.[donorCode] : undefined)
 
   return {
     ...slide,
@@ -34,12 +38,12 @@ export function resolveSlideForLocale(slide: Slide, locale: string | null): Slid
     deviceFrame: ov?.deviceFrame ? { ...slide.deviceFrame, ...ov.deviceFrame } : slide.deviceFrame,
     screenshotStyle: ov?.screenshotStyle ?? slide.screenshotStyle,
     screenshot:
-      shotOverride && shot
+      pick && shot
         ? {
             ...shot,
-            imageKey: shotOverride.imageKey,
-            originalWidth: shotOverride.originalWidth,
-            originalHeight: shotOverride.originalHeight,
+            imageKey: pick.imageKey,
+            originalWidth: pick.originalWidth,
+            originalHeight: pick.originalHeight,
           }
         : shot,
     headline: resolveCaption(slide.headline, locale, ov?.headline),
