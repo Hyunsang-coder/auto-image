@@ -21,6 +21,9 @@ test('슬라이드 삭제: 행에서 삭제하면 목록에서 빠진다', async
   await row.hover()
   await aside.getByTitle('슬라이드 삭제').first().click()
 
+  // A confirm popup asks again before deleting — confirm it.
+  await page.getByRole('button', { name: '삭제', exact: true }).click()
+
   // The slide is gone — one row left, no 'Delete me'.
   await expect(aside.locator('ul > li')).toHaveCount(1)
   await expect(aside.getByText('Delete me')).toHaveCount(0)

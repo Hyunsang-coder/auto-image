@@ -6,9 +6,19 @@ interface Props {
   slides: Slide[]
   activeSlideId: string | null
   onSelect: (id: string) => void
+  /** When previewing/editing a non-source locale, show that locale's headline
+   * (falling back to base) so the list matches the canvas. '' / undefined = base. */
+  previewLocale?: string
 }
 
 const MAX_SLIDES = 10
+
+function slideTitle(slide: Slide, locale?: string): string {
+  const text = locale
+    ? slide.headline.translations?.[locale] ?? slide.headline.text
+    : slide.headline.text
+  return text || `슬라이드 ${slide.index + 1}`
+}
 
 interface RowItem {
   kind: 'single' | 'span'
@@ -40,13 +50,14 @@ function buildRows(slides: Slide[]): RowItem[] {
   return rows
 }
 
-export function SlideList({ slides, activeSlideId, onSelect }: Props) {
+export function SlideList({ slides, activeSlideId, onSelect, previewLocale }: Props) {
   const addSlide = useProjectStore((s) => s.addSlide)
   const duplicateSlide = useProjectStore((s) => s.duplicateSlide)
   const removeSlide = useProjectStore((s) => s.removeSlide)
   const linkSpanWithNext = useProjectStore((s) => s.linkSpanWithNext)
   const unlinkSpan = useProjectStore((s) => s.unlinkSpan)
   const [linkError, setLinkError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const canAdd = slides.length < MAX_SLIDES
   const rows = buildRows(slides)
 
@@ -100,11 +111,17 @@ export function SlideList({ slides, activeSlideId, onSelect }: Props) {
             ) : (
               <SingleRow
                 slide={row.slides[0]}
+                title={slideTitle(row.slides[0], previewLocale)}
                 active={row.slides[0].id === activeSlideId}
                 onSelect={() => onSelect(row.slides[0].id)}
                 onDuplicate={() => duplicateSlide(row.slides[0].id)}
                 canDuplicate={canAdd}
-                onDelete={() => void removeSlide(row.slides[0].id)}
+                onDelete={() =>
+                  setPendingDelete({
+                    id: row.slides[0].id,
+                    title: slideTitle(row.slides[0], previewLocale),
+                  })
+                }
                 canDelete={slides.length > 1}
               />
             )}
@@ -131,12 +148,50 @@ export function SlideList({ slides, activeSlideId, onSelect }: Props) {
         <span className="text-base leading-none">+</span>
         <span>슬라이드 추가</span>
       </button>
+
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text)]">슬라이드 삭제</h3>
+            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+              <span className="font-medium text-[var(--color-text)]">{pendingDelete.title}</span>{' '}
+              슬라이드를 삭제합니다. 이 작업은 되돌릴 수 없습니다.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void removeSlide(pendingDelete.id)
+                  setPendingDelete(null)
+                }}
+                className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }
 
 function SingleRow({
   slide,
+  title,
   active,
   onSelect,
   onDuplicate,
@@ -145,6 +200,7 @@ function SingleRow({
   canDelete,
 }: {
   slide: Slide
+  title: string
   active: boolean
   onSelect: () => void
   onDuplicate: () => void
@@ -168,7 +224,7 @@ function SingleRow({
           {slide.index + 1}
         </span>
         <span className="truncate">
-          {slide.headline.text || `슬라이드 ${slide.index + 1}`}
+          {title}
         </span>
       </button>
       <button

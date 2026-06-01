@@ -286,6 +286,7 @@ export function EditorLayout() {
         slides={project.slides}
         activeSlideId={activeSlideId}
         onSelect={switchSlide}
+        previewLocale={editLocale}
       />
 
       <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
