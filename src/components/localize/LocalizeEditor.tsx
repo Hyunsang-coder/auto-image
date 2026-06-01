@@ -7,7 +7,7 @@ import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
 import { serializeTemplate, parseTemplate, buildTranslationPrompt, type LocaleFileFormat } from '../../lib/localeIO'
 import { buildTranslationPatch, buildImportPatch, type FieldKey } from '../../lib/localePatch'
-import { parseImageName } from '../../lib/imageImport'
+import { parseImageName, buildImageNamingGuide } from '../../lib/imageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import { detectDeviceFromAspect } from '../../constants/deviceSpecs'
 import type { Slide } from '../../types/project'
@@ -262,6 +262,19 @@ export function LocalizeEditor() {
       setIoMsg({ kind: 'ok', text: '번역 프롬프트를 복사했습니다 — AI 도구에 붙여넣고 양식을 첨부하세요' })
     } catch {
       setIoMsg({ kind: 'err', text: '복사 실패 — 클립보드 권한을 확인하세요' })
+    }
+  }
+
+  async function copyImageNamingGuide() {
+    const guide = buildImageNamingGuide(
+      { code: sourceLocale, label: localeLabel(sourceLocale) },
+      targetLocales.map(c => ({ code: c, label: localeLabel(c) })),
+    )
+    try {
+      await navigator.clipboard.writeText(guide)
+      setImgMsg({ kind: 'ok', text: '파일명 규칙을 복사했습니다' })
+    } catch {
+      setImgMsg({ kind: 'err', text: '복사 실패 — 클립보드 권한을 확인하세요' })
     }
   }
 
@@ -561,13 +574,23 @@ export function LocalizeEditor() {
         {/* Bulk image import */}
         <div>
           <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">이미지 일괄</div>
-          <button
-            onClick={() => imageInputRef.current?.click()}
-            className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-            title="파일명: 모든 파일에 언어 접미사 필요 — 01.en.png, 01-home.ja.png. 원본 언어로 들어온 파일이 베이스가 됩니다."
-          >
-            이미지 가져오기
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            >
+              이미지 가져오기
+            </button>
+            <button
+              onClick={copyImageNamingGuide}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            >
+              규칙 복사
+            </button>
+          </div>
+          <p className="mt-1 max-w-72 text-[11px] leading-snug text-[var(--color-text-dim)]">
+            파일명 {'{번호}.{언어}.png'} · 원본({sourceLocale})이 베이스 · 예: 1.{sourceLocale}.png, 1.{targetLocales[0] ?? 'en'}.png
+          </p>
           <input
             ref={imageInputRef}
             type="file"
