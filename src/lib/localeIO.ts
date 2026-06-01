@@ -80,6 +80,31 @@ export function serializeTemplate(
   return '﻿' + lines.join('\r\n')
 }
 
+/** A ready-to-paste prompt for translating the exported template in any AI
+ * tool. We don't translate in-app (quality is low and users have their own
+ * tools) — the value is the round-trip, so we hand them a prompt that fills
+ * the template correctly and they re-import the result. */
+export function buildTranslationPrompt(
+  source: { code: string; label: string },
+  targets: { code: string; label: string }[],
+): string {
+  const targetList = targets.map(t => `${t.label} (${t.code})`).join(', ')
+  return [
+    'You are translating App Store screenshot caption copy — short, punchy marketing text, not prose.',
+    '',
+    `Source language: ${source.label} (${source.code})`,
+    `Translate into: ${targetList || '(no target languages selected)'}`,
+    '',
+    'A CSV or JSON translation template follows (pasted or attached). Each row is one caption field (headline / subheadline / badge).',
+    'Rules:',
+    `- Fill ONLY the empty target-language columns. Leave the ${source.code} column (the source) unchanged.`,
+    '- Keep the slide, slideId, and field columns exactly as they are.',
+    '- Translate for meaning and tone — natural, benefit-driven copy in each language, not word-for-word.',
+    '- Keep each translation about as short as the source so it still fits the screenshot layout.',
+    '- Return the COMPLETE file in the same format and structure, nothing else (no explanations, no code fences).',
+  ].join('\n')
+}
+
 export function parseTemplate(text: string, format: LocaleFileFormat): ParseResult {
   return format === 'json' ? parseJsonTemplate(text) : parseCsvTemplate(text)
 }

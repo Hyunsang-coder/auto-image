@@ -5,7 +5,7 @@ import { isTauri, writeFileToDir } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
-import { serializeTemplate, parseTemplate, type LocaleFileFormat } from '../../lib/localeIO'
+import { serializeTemplate, parseTemplate, buildTranslationPrompt, type LocaleFileFormat } from '../../lib/localeIO'
 import { buildTranslationPatch, buildImportPatch, type FieldKey } from '../../lib/localePatch'
 import { parseImageName } from '../../lib/imageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
@@ -250,6 +250,19 @@ export function LocalizeEditor() {
     const mime = format === 'json' ? 'application/json' : 'text/csv'
     const blob = new Blob([text], { type: `${mime};charset=utf-8` })
     saveAs(blob, filename)
+  }
+
+  async function copyTranslationPrompt() {
+    const prompt = buildTranslationPrompt(
+      { code: sourceLocale, label: localeLabel(sourceLocale) },
+      targetLocales.map(c => ({ code: c, label: localeLabel(c) })),
+    )
+    try {
+      await navigator.clipboard.writeText(prompt)
+      setIoMsg({ kind: 'ok', text: '번역 프롬프트를 복사했습니다 — AI 도구에 붙여넣고 양식을 첨부하세요' })
+    } catch {
+      setIoMsg({ kind: 'err', text: '복사 실패 — 클립보드 권한을 확인하세요' })
+    }
   }
 
   async function handleImportFile(file: File) {
@@ -512,6 +525,13 @@ export function LocalizeEditor() {
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
             >
               JSON 내보내기
+            </button>
+            <button
+              onClick={copyTranslationPrompt}
+              disabled={textRows.length === 0 || targetLocales.length === 0}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+            >
+              프롬프트 복사
             </button>
             <button
               onClick={() => importInputRef.current?.click()}
