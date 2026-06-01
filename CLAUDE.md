@@ -62,7 +62,7 @@ The editor canvas can render any locale read-only via a preview dropdown (`Edito
 
 ### Device specs
 
-All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts` — single source of truth. Current models: `iphone-16-pro` (1320×2868) and `ipad-pro-13` (2064×2752). The editor canvas follows `slide.deviceFrame.model` (not a fixed iPhone aspect) so iPad slides actually look like iPads while editing. Device-frame corner radius is derived from the *rendered* device width, not the canvas width — this keeps split / hero-bleed (which shrink the device) from getting exaggerated corners.
+All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts` — single source of truth. Current models: `iphone-16-pro` (1284×2778) and `ipad-pro-13` (2048×2732). The editor canvas follows `slide.deviceFrame.model` (not a fixed iPhone aspect) so iPad slides actually look like iPads while editing. Device-frame corner radius is derived from the *rendered* device width, not the canvas width — this keeps split / hero-bleed (which shrink the device) from getting exaggerated corners.
 
 ### Translation
 
