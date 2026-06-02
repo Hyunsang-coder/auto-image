@@ -29,13 +29,13 @@ test('헤드라인 편집이 새로고침 후에도 유지됨', async ({ page })
   await page.locator('textarea').first().fill('유지되는 헤드라인')
 
   const slideList = page.locator('aside').first()
-  await expect(slideList.getByRole('button').first()).toContainText('유지되는 헤드라인')
+  await expect(slideList.getByText('유지되는 헤드라인')).toBeVisible()
 
   await page.reload()
 
   // step is persisted, so we land back in the editor and the slide list keeps
   // the edited headline.
-  await expect(slideList.getByRole('button').first()).toContainText('유지되는 헤드라인')
+  await expect(slideList.getByText('유지되는 헤드라인')).toBeVisible()
 })
 
 test('2-page span 그룹이 새로고침 후에도 유지됨', async ({ page }) => {

@@ -41,9 +41,9 @@ test('헤드라인 텍스트 입력이 슬라이드 목록에 반영됨', async 
   const headlineTextarea = page.locator('textarea').first()
   await headlineTextarea.fill('내 헤드라인')
 
-  // 슬라이드 목록의 첫 번째 항목에 텍스트가 표시됨
+  // 슬라이드 목록에 헤드라인이 제목으로 표시됨 (썸네일 아래 캡션)
   const slideList = page.locator('aside').first()
-  await expect(slideList.getByRole('button').first()).toContainText('내 헤드라인')
+  await expect(slideList.getByText('내 헤드라인')).toBeVisible()
 })
 
 test('Undo/Redo 버튼이 존재함', async ({ page }) => {

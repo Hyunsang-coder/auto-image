@@ -1,17 +1,24 @@
 import { useState } from 'react'
 import type { Slide } from '../../types/project'
 import { useProjectStore } from '../../store/useProjectStore'
+import { useSlideThumbnails } from './useSlideThumbnails'
 
 interface Props {
   slides: Slide[]
   activeSlideId: string | null
   onSelect: (id: string) => void
-  /** When previewing/editing a non-source locale, show that locale's headline
-   * (falling back to base) so the list matches the canvas. '' / undefined = base. */
+  /** When previewing/editing a non-source locale, render that locale's thumbnail
+   * (and title) so the list matches the canvas. '' / undefined = base. */
   previewLocale?: string
 }
 
 const MAX_SLIDES = 10
+
+// Aspect ratio of each device's exported PNG — used so the thumbnail box matches
+// the rendered image exactly (no letterboxing).
+function aspectOf(slide: Slide): string {
+  return slide.deviceFrame.model === 'ipad-pro-13' ? '2048 / 2732' : '1284 / 2778'
+}
 
 function slideTitle(slide: Slide, locale?: string): string {
   const text = locale
@@ -58,6 +65,7 @@ export function SlideList({ slides, activeSlideId, onSelect, previewLocale }: Pr
   const unlinkSpan = useProjectStore((s) => s.unlinkSpan)
   const [linkError, setLinkError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
+  const thumbs = useSlideThumbnails(slides, previewLocale ?? '')
   const canAdd = slides.length < MAX_SLIDES
   const rows = buildRows(slides)
 
@@ -104,6 +112,7 @@ export function SlideList({ slides, activeSlideId, onSelect, previewLocale }: Pr
             {row.kind === 'span' ? (
               <SpanRow
                 row={row}
+                thumbs={thumbs}
                 activeSlideId={activeSlideId}
                 onSelect={onSelect}
                 onUnlink={() => tryUnlink(row.groupId!)}
@@ -111,6 +120,7 @@ export function SlideList({ slides, activeSlideId, onSelect, previewLocale }: Pr
             ) : (
               <SingleRow
                 slide={row.slides[0]}
+                thumb={thumbs[row.slides[0].id]}
                 title={slideTitle(row.slides[0], previewLocale)}
                 active={row.slides[0].id === activeSlideId}
                 onSelect={() => onSelect(row.slides[0].id)}
@@ -189,8 +199,29 @@ export function SlideList({ slides, activeSlideId, onSelect, previewLocale }: Pr
   )
 }
 
+function ThumbImage({ slide, thumb, title }: { slide: Slide; thumb?: string; title: string }) {
+  return (
+    <div
+      className="relative w-full bg-[var(--color-surface-2)]"
+      style={{ aspectRatio: aspectOf(slide) }}
+    >
+      {thumb ? (
+        <img src={thumb} alt={title} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[10px] text-[var(--color-text-dim)]">
+          …
+        </div>
+      )}
+      <span className="absolute left-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-[10px] font-semibold text-white">
+        {slide.index + 1}
+      </span>
+    </div>
+  )
+}
+
 function SingleRow({
   slide,
+  thumb,
   title,
   active,
   onSelect,
@@ -200,6 +231,7 @@ function SingleRow({
   canDelete,
 }: {
   slide: Slide
+  thumb?: string
   title: string
   active: boolean
   onSelect: () => void
@@ -213,49 +245,58 @@ function SingleRow({
       <button
         type="button"
         onClick={onSelect}
+        title={title}
+        aria-label={title}
         className={[
-          'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-16 text-left text-sm transition',
+          'block w-full overflow-hidden rounded-lg border text-left transition',
           active
-            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-            : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
+            ? 'border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/30'
+            : 'border-[var(--color-border)] hover:border-[var(--color-text-dim)]',
         ].join(' ')}
       >
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg)] text-xs font-semibold text-[var(--color-text-dim)]">
-          {slide.index + 1}
-        </span>
-        <span className="truncate">
-          {title}
-        </span>
+        <ThumbImage slide={slide} thumb={thumb} title={title} />
       </button>
-      <button
-        type="button"
-        onClick={onDuplicate}
-        disabled={!canDuplicate}
-        title={canDuplicate ? '슬라이드 복제' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
-        className="absolute right-8 top-1/2 hidden -translate-y-1/2 rounded p-1.5 text-xs leading-none text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40 group-hover:block"
+      <p
+        className={[
+          'mt-1 truncate px-0.5 text-[11px]',
+          active ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-dim)]',
+        ].join(' ')}
       >
-        ⧉
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        disabled={!canDelete}
-        title={canDelete ? '슬라이드 삭제' : '마지막 슬라이드는 삭제할 수 없습니다'}
-        className="absolute right-1 top-1/2 hidden -translate-y-1/2 rounded p-1.5 text-xs leading-none text-[var(--color-text-dim)] transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 group-hover:block"
-      >
-        🗑
-      </button>
+        {title}
+      </p>
+      <div className="absolute right-1 top-1 hidden gap-1 group-hover:flex">
+        <button
+          type="button"
+          onClick={onDuplicate}
+          disabled={!canDuplicate}
+          title={canDuplicate ? '슬라이드 복제' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
+          className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ⧉
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={!canDelete}
+          title={canDelete ? '슬라이드 삭제' : '마지막 슬라이드는 삭제할 수 없습니다'}
+          className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          🗑
+        </button>
+      </div>
     </div>
   )
 }
 
 function SpanRow({
   row,
+  thumbs,
   activeSlideId,
   onSelect,
   onUnlink,
 }: {
   row: RowItem
+  thumbs: Record<string, string | undefined>
   activeSlideId: string | null
   onSelect: (id: string) => void
   onUnlink: () => void
@@ -291,17 +332,15 @@ function SpanRow({
               key={s.id}
               type="button"
               onClick={() => onSelect(s.id)}
-              className={[
-                'flex flex-col items-start gap-0.5 rounded border px-1.5 py-1 text-left text-xs transition',
-                active
-                  ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                  : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)]',
-              ].join(' ')}
               title={i === 0 ? '왼쪽 (Leader)' : '오른쪽 (Follower)'}
+              className={[
+                'block overflow-hidden rounded border transition',
+                active
+                  ? 'border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/30'
+                  : 'border-[var(--color-border)] hover:border-[var(--color-text-dim)]',
+              ].join(' ')}
             >
-              <span className="text-[10px] font-semibold opacity-70">
-                {s.index + 1} · {i === 0 ? 'L' : 'R'}
-              </span>
+              <ThumbImage slide={s} thumb={thumbs[s.id]} title={`${s.index + 1}`} />
             </button>
           )
         })}
