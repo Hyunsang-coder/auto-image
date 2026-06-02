@@ -300,15 +300,9 @@ export function EditorLayout() {
   }
 
   return (
-    <div className="grid h-full grid-cols-[200px_1fr_280px] gap-0 border-t border-[var(--color-border)] overflow-hidden">
-      <SlideList
-        slides={project.slides}
-        activeSlideId={activeSlideId}
-        onSelect={switchSlide}
-        previewLocale={editLocale}
-      />
-
-      <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
+    <div className="grid h-full grid-cols-[1fr_280px] gap-0 border-t border-[var(--color-border)] overflow-hidden">
+      <div className="flex min-w-0 flex-col overflow-hidden">
+        <main className="flex flex-1 flex-col items-center overflow-y-auto bg-[var(--color-bg)]">
         <div className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
           <div className="flex-1" />
           <div className="flex items-center gap-3">
@@ -415,7 +409,15 @@ export function EditorLayout() {
             onElementActivate={handleElementActivate}
           />
         </div>
-      </main>
+        </main>
+
+        <SlideList
+          slides={project.slides}
+          activeSlideId={activeSlideId}
+          onSelect={switchSlide}
+          previewLocale={editLocale}
+        />
+      </div>
 
       {editingSlide ? (
         <PropertiesPanel
