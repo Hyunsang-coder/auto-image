@@ -7,6 +7,7 @@ import { useLibraryStore } from '../../store/useLibraryStore'
 import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
+import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
 
 const MIN_SLIDES = 1
 const MAX_SLIDES = 10
@@ -87,6 +88,12 @@ export function ProjectSetup() {
     gcImages()
   }
 
+  // Starting from a template builds a fresh project, then routes through the
+  // same load path (so it confirms before overwriting current work).
+  function startFromTemplate(tpl: ProjectTemplate) {
+    handleLoad(buildProjectFromTemplate(tpl, name))
+  }
+
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto px-6 py-8">
       <header>
@@ -100,6 +107,38 @@ export function ProjectSetup() {
       </header>
 
       {!hasExisting && savedProjects.length === 0 && <FirstRunIntro />}
+
+      {BUILTIN_PROJECT_TEMPLATES.length > 0 && (
+        <Section
+          title="템플릿으로 시작"
+          hint="여러 슬라이드로 구성된 시작 세트입니다. 고르면 바로 편집 단계로 들어갑니다."
+        >
+          <ul className="flex flex-col gap-2">
+            {BUILTIN_PROJECT_TEMPLATES.map((tpl) => (
+              <li
+                key={tpl.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                    {tpl.label}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-dim)]">
+                    {tpl.description} · {tpl.slides.length}장
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => startFromTemplate(tpl)}
+                  className="shrink-0 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                >
+                  이 템플릿으로 시작 →
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       <Section title="앱 이름">
         <input
