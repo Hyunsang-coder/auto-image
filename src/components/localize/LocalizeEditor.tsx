@@ -405,7 +405,12 @@ export function LocalizeEditor() {
       <div className="flex flex-shrink-0 flex-wrap items-start gap-6 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4">
         {/* Source locale */}
         <div>
-          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">기준 언어</div>
+          <div
+            className="mb-1.5 text-xs text-[var(--color-text-dim)]"
+            title="에디터의 '기본 레이아웃'에 입력한 텍스트가 이 기준 언어의 원본이 됩니다. 나머지 언어는 여기서 번역됩니다."
+          >
+            기준 언어
+          </div>
           <select
             value={sourceLocale}
             onChange={e => {

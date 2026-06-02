@@ -463,14 +463,14 @@ export function EditorLayout() {
               <select
                 value={editLocale}
                 onChange={(e) => switchLocale(e.target.value)}
-                title="편집 언어 — 기본 레이아웃은 전체 공통, 특정 언어는 그 언어용 위치/크기/텍스트만 조정"
+                title={`편집 언어 — 기본 레이아웃은 전체 공통이며, 여기 입력한 텍스트가 로컬라이즈의 기준 언어(${localeLabel(project.sourceLocale)}) 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다.`}
                 className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
                   isLocaleMode
                     ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
                 }`}
               >
-                <option value="">기본 레이아웃</option>
+                <option value="">기본 레이아웃 (기준: {localeLabel(project.sourceLocale)})</option>
                 {localeOptions.map((l) => (
                   <option key={l} value={l}>
                     {localeLabel(l)}
