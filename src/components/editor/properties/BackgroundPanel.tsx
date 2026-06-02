@@ -11,9 +11,17 @@ interface Props {
   onApplyPreset?: (preset: ThemePreset) => void
   /** Save the current slide's background + text colors as a named preset. */
   onSavePreset?: (name: string) => void
+  /** Bulk apply is off in locale mode (base-only operation). */
+  bulkEnabled?: boolean
+  /** Live multi-selection size (includes the active slide). */
+  selectedCount?: number
+  /** Total base slides — the "전체" target count. */
+  slideCount?: number
+  onApplyPresetToSlides?: (preset: ThemePreset, scope: 'all' | 'selected') => void
 }
 
 type Tab = 'solid' | 'gradient' | 'image'
+type ApplyScope = 'this' | 'all' | 'selected'
 
 const FIT_OPTIONS: { id: NonNullable<Background['imageObjectFit']>; label: string }[] = [
   { id: 'cover', label: '채우기' },
@@ -21,7 +29,16 @@ const FIT_OPTIONS: { id: NonNullable<Background['imageObjectFit']>; label: strin
   { id: 'fill', label: '늘이기' },
 ]
 
-export function BackgroundPanel({ value, onChange, onApplyPreset, onSavePreset }: Props) {
+export function BackgroundPanel({
+  value,
+  onChange,
+  onApplyPreset,
+  onSavePreset,
+  bulkEnabled = false,
+  selectedCount = 0,
+  slideCount = 0,
+  onApplyPresetToSlides,
+}: Props) {
   const [activeTab, setActiveTab] = useState<Tab>(
     value.type === 'gradient' ? 'gradient' : value.type === 'image' ? 'image' : 'solid',
   )
@@ -32,6 +49,34 @@ export function BackgroundPanel({ value, onChange, onApplyPreset, onSavePreset }
   const removePreset = useCustomStore((s) => s.removePreset)
   const [savingPreset, setSavingPreset] = useState(false)
   const [presetName, setPresetName] = useState('')
+  // Bulk apply scope. Default 'this' keeps the existing single-slide behavior.
+  // 'selected' is only offered with 2+ slides selected; if the selection shrinks
+  // back below 2 we silently fall back to 'this' at click time.
+  const [scope, setScope] = useState<ApplyScope>('this')
+  // A preset queued for a ≥2-slide bulk apply, awaiting inline confirmation.
+  const [pendingPreset, setPendingPreset] = useState<ThemePreset | null>(null)
+
+  const showBulk = bulkEnabled && !!onApplyPresetToSlides && slideCount > 1
+  const bulkScope: 'all' | 'selected' | null =
+    scope === 'all' ? 'all' : scope === 'selected' && selectedCount >= 2 ? 'selected' : null
+  const bulkCount = bulkScope === 'all' ? slideCount : selectedCount
+
+  // Route a preset click: bulk scopes with ≥2 targets get a confirm step;
+  // everything else applies to the active slide immediately (unchanged path).
+  function handlePresetClick(preset: ThemePreset) {
+    if (bulkScope && onApplyPresetToSlides) {
+      setPendingPreset(preset)
+      return
+    }
+    onApplyPreset?.(preset)
+  }
+
+  function confirmBulk() {
+    if (pendingPreset && bulkScope && onApplyPresetToSlides) {
+      onApplyPresetToSlides(pendingPreset, bulkScope)
+    }
+    setPendingPreset(null)
+  }
 
   function commitPreset() {
     const name = presetName.trim()
@@ -159,12 +204,61 @@ export function BackgroundPanel({ value, onChange, onApplyPreset, onSavePreset }
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
             테마 프리셋
           </label>
+
+          {showBulk && (
+            <div className="mb-2 flex rounded-lg border border-[var(--color-border)] overflow-hidden">
+              {([
+                ['this', '이 슬라이드'],
+                ['all', '전체'],
+                ...(selectedCount >= 2 ? [['selected', `선택 ${selectedCount}개`] as const] : []),
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setScope(id)}
+                  className={[
+                    'flex-1 py-1.5 text-xs font-medium transition',
+                    scope === id
+                      ? 'bg-[var(--color-accent)] text-white'
+                      : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {showBulk && pendingPreset && bulkScope && (
+            <div className="mb-2 rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface-2)] p-2 text-xs">
+              <p className="mb-2 text-[var(--color-text)]">
+                {bulkCount}개 슬라이드에 적용할까요?{' '}
+                <span className="text-[var(--color-text-dim)]">되돌리기 불가</span>
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={confirmBulk}
+                  className="flex-1 rounded-md bg-[var(--color-accent)] py-1 font-semibold text-white hover:brightness-110"
+                >
+                  적용
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingPreset(null)}
+                  className="flex-1 rounded-md border border-[var(--color-border)] py-1 text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             {THEME_PRESETS.map((p) => (
               <button
                 key={p.id}
                 type="button"
-                onClick={() => onApplyPreset(p)}
+                onClick={() => handlePresetClick(p)}
                 className="group rounded-lg border border-[var(--color-border)] p-1.5 text-left transition hover:border-[var(--color-accent)]"
               >
                 <div
@@ -181,7 +275,7 @@ export function BackgroundPanel({ value, onChange, onApplyPreset, onSavePreset }
               >
                 <button
                   type="button"
-                  onClick={() => onApplyPreset(p)}
+                  onClick={() => handlePresetClick(p)}
                   className="block w-full text-left"
                 >
                   <div className="mb-1 h-10 w-full rounded" style={previewStyle(p)} />

@@ -57,6 +57,14 @@ interface Props {
   onSavePreset: (name: string) => void
   onApplyTemplate: (tpl: SlideTemplate) => void
   onSaveTemplate: (name: string) => void
+  /** Bulk apply ("all"/"selected"). Hidden in locale mode. */
+  bulkEnabled: boolean
+  /** Size of the live multi-selection (includes the active slide). */
+  selectedCount: number
+  /** Total base slides — the "전체" target count. */
+  slideCount: number
+  onApplyThemePresetToSlides: (preset: ThemePreset, scope: 'all' | 'selected') => void
+  onApplyTemplateToSlides: (tpl: SlideTemplate, scope: 'all' | 'selected') => void
 }
 
 export function PropertiesPanel({
@@ -77,6 +85,11 @@ export function PropertiesPanel({
   onSavePreset,
   onApplyTemplate,
   onSaveTemplate,
+  bulkEnabled,
+  selectedCount,
+  slideCount,
+  onApplyThemePresetToSlides,
+  onApplyTemplateToSlides,
 }: Props) {
   const screenshotStyle: ScreenshotStyle =
     slide.screenshotStyle ?? { cornerRadiusRatio: 0.06, shadow: true }
@@ -108,6 +121,10 @@ export function PropertiesPanel({
             onChange={onTemplateChange}
             onApplyTemplate={onApplyTemplate}
             onSaveTemplate={onSaveTemplate}
+            bulkEnabled={bulkEnabled}
+            selectedCount={selectedCount}
+            slideCount={slideCount}
+            onApplyTemplateToSlides={onApplyTemplateToSlides}
           />
         )}
         {tab === 'background' && (
@@ -116,6 +133,10 @@ export function PropertiesPanel({
             onChange={onBackgroundChange}
             onApplyPreset={onApplyThemePreset}
             onSavePreset={onSavePreset}
+            bulkEnabled={bulkEnabled}
+            selectedCount={selectedCount}
+            slideCount={slideCount}
+            onApplyPresetToSlides={onApplyThemePresetToSlides}
           />
         )}
         {tab === 'caption' && (

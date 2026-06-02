@@ -53,6 +53,8 @@ export function EditorLayout() {
   const activeSlideId = useProjectStore((s) => s.activeSlideId)
   const setActiveSlide = useProjectStore((s) => s.setActiveSlide)
   const updateSlide = useProjectStore((s) => s.updateSlide)
+  const updateSlides = useProjectStore((s) => s.updateSlides)
+  const removeSlides = useProjectStore((s) => s.removeSlides)
   const setStep = useProjectStore((s) => s.setStep)
 
   const canvasRef = useRef<FabricCanvasHandle>(null)
@@ -65,6 +67,11 @@ export function EditorLayout() {
   // the device frame are tweakable and their changes are stored as that
   // locale's overrides; shared elements are locked.
   const [editLocale, setEditLocale] = useState('')
+  // Ephemeral multi-selection for the bottom tray (bulk delete / future "apply
+  // style to selected"). Deliberately NOT in the persisted store: it's UI state
+  // layered on top of the single, persisted activeSlideId. A plain click
+  // collapses this back to {activeId}; cmd/shift-click grow it.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   // onKeyDown is bound once; read live mode through a ref so locale-gated
   // shortcuts don't act on a stale closure.
   const localeModeRef = useRef(false)
@@ -146,6 +153,15 @@ export function EditorLayout() {
   }, [editLocale])
 
   if (!project) return null
+  // Derive the selection passed to the tray instead of mutating selectedIds in
+  // an effect: prune ids that no longer exist (post-delete) and always include
+  // the active slide so "active" and "selected" never visibly drift, even when
+  // the active slide changes through a store path (add/duplicate/span-link).
+  const liveIds = new Set(project.slides.map((s) => s.id))
+  const displaySelectedIds = new Set<string>()
+  for (const id of selectedIds) if (liveIds.has(id)) displaySelectedIds.add(id)
+  if (activeSlideId && liveIds.has(activeSlideId)) displaySelectedIds.add(activeSlideId)
+
   const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
   // When the clicked slide is part of a span group, the leader owns all the
   // layer data — route both the canvas render and every update target there.
@@ -212,6 +228,45 @@ export function EditorLayout() {
   function switchSlide(id: string) {
     flushCanvasEdits()
     setActiveSlide(id)
+    // A plain switch collapses the multi-selection back to the new active slide
+    // so the "active" and "selected" concepts don't drift confusingly.
+    setSelectedIds(new Set([id]))
+  }
+
+  // Tray thumbnail click with modifier semantics:
+  //  - plain      → switch active slide AND reset selection to {id}
+  //  - cmd/ctrl   → toggle id in the selection WITHOUT changing the active slide
+  //  - shift      → contiguous range from the active/anchor slide to id (by index)
+  function handleSlideSelect(id: string, e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }) {
+    if (!project) return
+    if (e.metaKey || e.ctrlKey) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+      return
+    }
+    if (e.shiftKey) {
+      const ids = project.slides.map((s) => s.id)
+      const anchorId = activeSlideId && ids.includes(activeSlideId) ? activeSlideId : id
+      const a = ids.indexOf(anchorId)
+      const b = ids.indexOf(id)
+      if (a === -1 || b === -1) {
+        setSelectedIds(new Set([id]))
+        return
+      }
+      const [lo, hi] = a <= b ? [a, b] : [b, a]
+      setSelectedIds(new Set(ids.slice(lo, hi + 1)))
+      return
+    }
+    switchSlide(id)
+  }
+
+  async function handleRemoveSlides(ids: string[]) {
+    await removeSlides(ids)
+    setSelectedIds(new Set())
   }
 
   function switchLocale(next: string) {
@@ -297,6 +352,53 @@ export function EditorLayout() {
   function handleApplyTemplate(tpl: SlideTemplate) {
     if (!editingSlide) return
     applyEdit(applyTemplateToSlide(editingSlide, tpl))
+  }
+
+  // Resolve a bulk "target set" to a list of BASE slides to write. Each id is
+  // routed through its span leader (the leader owns the layout data) and
+  // deduped, so a span group is patched once via its leader. 'all' = every
+  // slide; 'selected' = the live multi-selection. Bulk is base-only, so this is
+  // never called in locale mode (the UI hides the affordance there).
+  function resolveBulkTargets(scope: 'all' | 'selected'): Slide[] {
+    if (!project) return []
+    const ids = scope === 'all' ? project.slides.map((s) => s.id) : [...displaySelectedIds]
+    const seen = new Set<string>()
+    const out: Slide[] = []
+    for (const id of ids) {
+      const clicked = project.slides.find((s) => s.id === id) ?? null
+      const leader = spanLeaderOf(project.slides, clicked)
+      if (!leader || seen.has(leader.id)) continue
+      seen.add(leader.id)
+      out.push(leader)
+    }
+    return out
+  }
+
+  // Bulk theme preset: mirror handleApplyThemePreset's single-slide patch, but
+  // derived PER target slide (its own headline/subheadline objects), then write
+  // the whole map in one store set().
+  function applyThemePresetToSlides(preset: ThemePreset, scope: 'all' | 'selected') {
+    const targets = resolveBulkTargets(scope)
+    if (!targets.length) return
+    const patches: Record<string, Partial<Slide>> = {}
+    for (const s of targets) {
+      patches[s.id] = {
+        background: structuredClone(preset.background),
+        headline: { ...s.headline, style: { ...s.headline.style, color: preset.headlineColor } },
+        subheadline: { ...s.subheadline, style: { ...s.subheadline.style, color: preset.subheadlineColor } },
+      }
+    }
+    updateSlides(patches)
+  }
+
+  // Bulk saved template: applyTemplateToSlide already adapts per slide (keeps
+  // each slide's screenshot/text/device model), so compute it per target.
+  function applyTemplateToSlides(tpl: SlideTemplate, scope: 'all' | 'selected') {
+    const targets = resolveBulkTargets(scope)
+    if (!targets.length) return
+    const patches: Record<string, Partial<Slide>> = {}
+    for (const s of targets) patches[s.id] = applyTemplateToSlide(s, tpl)
+    updateSlides(patches)
   }
 
   return (
@@ -414,7 +516,9 @@ export function EditorLayout() {
         <SlideList
           slides={project.slides}
           activeSlideId={activeSlideId}
-          onSelect={switchSlide}
+          selectedIds={displaySelectedIds}
+          onSelect={handleSlideSelect}
+          onRemoveSlides={handleRemoveSlides}
           previewLocale={editLocale}
         />
       </div>
@@ -438,6 +542,11 @@ export function EditorLayout() {
           onSavePreset={handleSavePreset}
           onApplyTemplate={handleApplyTemplate}
           onSaveTemplate={handleSaveTemplate}
+          bulkEnabled={!isLocaleMode}
+          selectedCount={displaySelectedIds.size}
+          slideCount={project.slides.length}
+          onApplyThemePresetToSlides={applyThemePresetToSlides}
+          onApplyTemplateToSlides={applyTemplateToSlides}
         />
       ) : (
         <aside className="overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">

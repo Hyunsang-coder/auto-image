@@ -15,13 +15,54 @@ interface Props {
   onChange: (t: TemplateType) => void
   onApplyTemplate: (tpl: SlideTemplate) => void
   onSaveTemplate: (name: string) => void
+  /** Bulk apply is off in locale mode (base-only operation). */
+  bulkEnabled?: boolean
+  /** Live multi-selection size (includes the active slide). */
+  selectedCount?: number
+  /** Total base slides — the "전체" target count. */
+  slideCount?: number
+  onApplyTemplateToSlides?: (tpl: SlideTemplate, scope: 'all' | 'selected') => void
 }
 
-export function TemplateSelector({ value, onChange, onApplyTemplate, onSaveTemplate }: Props) {
+type ApplyScope = 'this' | 'all' | 'selected'
+
+export function TemplateSelector({
+  value,
+  onChange,
+  onApplyTemplate,
+  onSaveTemplate,
+  bulkEnabled = false,
+  selectedCount = 0,
+  slideCount = 0,
+  onApplyTemplateToSlides,
+}: Props) {
   const templates = useCustomStore((s) => s.templates)
   const removeTemplate = useCustomStore((s) => s.removeTemplate)
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState('')
+  // Bulk apply scope; mirrors BackgroundPanel. Default 'this' = unchanged.
+  const [scope, setScope] = useState<ApplyScope>('this')
+  const [pendingTpl, setPendingTpl] = useState<SlideTemplate | null>(null)
+
+  const showBulk = bulkEnabled && !!onApplyTemplateToSlides && slideCount > 1
+  const bulkScope: 'all' | 'selected' | null =
+    scope === 'all' ? 'all' : scope === 'selected' && selectedCount >= 2 ? 'selected' : null
+  const bulkCount = bulkScope === 'all' ? slideCount : selectedCount
+
+  function handleApplyClick(tpl: SlideTemplate) {
+    if (bulkScope && onApplyTemplateToSlides) {
+      setPendingTpl(tpl)
+      return
+    }
+    onApplyTemplate(tpl)
+  }
+
+  function confirmBulk() {
+    if (pendingTpl && bulkScope && onApplyTemplateToSlides) {
+      onApplyTemplateToSlides(pendingTpl, bulkScope)
+    }
+    setPendingTpl(null)
+  }
 
   function commit() {
     const trimmed = name.trim()
@@ -59,6 +100,55 @@ export function TemplateSelector({ value, onChange, onApplyTemplate, onSaveTempl
         <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
           내 템플릿
         </label>
+
+        {showBulk && templates.length > 0 && (
+          <div className="mb-2 flex rounded-lg border border-[var(--color-border)] overflow-hidden">
+            {([
+              ['this', '이 슬라이드'],
+              ['all', '전체'],
+              ...(selectedCount >= 2 ? [['selected', `선택 ${selectedCount}개`] as const] : []),
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setScope(id)}
+                className={[
+                  'flex-1 py-1.5 text-xs font-medium transition',
+                  scope === id
+                    ? 'bg-[var(--color-accent)] text-white'
+                    : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {showBulk && pendingTpl && bulkScope && (
+          <div className="mb-2 rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface-2)] p-2 text-xs">
+            <p className="mb-2 text-[var(--color-text)]">
+              {bulkCount}개 슬라이드에 적용할까요?{' '}
+              <span className="text-[var(--color-text-dim)]">되돌리기 불가</span>
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={confirmBulk}
+                className="flex-1 rounded-md bg-[var(--color-accent)] py-1 font-semibold text-white hover:brightness-110"
+              >
+                적용
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingTpl(null)}
+                className="flex-1 rounded-md border border-[var(--color-border)] py-1 text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+
         {templates.length > 0 && (
           <div className="mb-2 flex flex-col gap-2">
             {templates.map((t) => (
@@ -72,7 +162,7 @@ export function TemplateSelector({ value, onChange, onApplyTemplate, onSaveTempl
                 <div className="flex shrink-0 items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => onApplyTemplate(t)}
+                    onClick={() => handleApplyClick(t)}
                     className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                   >
                     적용

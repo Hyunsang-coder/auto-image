@@ -136,12 +136,24 @@ interface ProjectState {
   setActiveSlide: (slideId: string) => void
 
   updateSlide: (slideId: string, patch: Partial<Slide>) => void
+  /**
+   * Apply a per-slide patch map in a single write (one history/persist entry).
+   * Each slide gets its OWN derived patch (keyed by id) — used by bulk "apply
+   * style to all/selected" where the preset/template is recomputed per target.
+   */
+  updateSlides: (patches: Record<string, Partial<Slide>>) => void
   replaceSlide: (slideId: string, slide: Slide) => void
   addSlide: () => void
   /** Insert a standalone copy of `slideId` right after it (fresh IDs, shared
    *  image blobs, span markers cleared). */
   duplicateSlide: (slideId: string) => void
   removeSlide: (slideId: string) => Promise<void>
+  /**
+   * Remove several slides in one go. Iterates the existing single-remove logic
+   * sequentially (so span dissolve, reindex, and GC all run per slide) while
+   * guarding the "never delete the last slide" rule across the whole batch.
+   */
+  removeSlides: (ids: string[]) => Promise<void>
   reorderSlides: (orderedIds: string[]) => void
 
   /**
@@ -213,6 +225,19 @@ export const useProjectStore = create<ProjectState>()(
             ...cur,
             slides: cur.slides.map((s) =>
               s.id === slideId ? { ...s, ...patch } : s,
+            ),
+          }),
+        })
+      },
+
+      updateSlides: (patches) => {
+        const cur = get().project
+        if (!cur) return
+        set({
+          project: touch({
+            ...cur,
+            slides: cur.slides.map((s) =>
+              patches[s.id] ? { ...s, ...patches[s.id] } : s,
             ),
           }),
         })
@@ -298,6 +323,20 @@ export const useProjectStore = create<ProjectState>()(
         // Sweep the removed slide's blobs only if nothing else references them
         // (a saved project, preset, template, or sibling slide may share keys).
         gcImages()
+      },
+
+      removeSlides: async (ids) => {
+        // Delegate to removeSlide one id at a time; it re-reads project state,
+        // dissolves spans, reindexes, and GCs on each call. Stop before the
+        // project would be emptied — removeSlide already no-ops at length 1,
+        // but checking here keeps the loop from churning needlessly and leaves
+        // the last requested slide intact rather than silently kept.
+        for (const id of ids) {
+          const cur = get().project
+          if (!cur || cur.slides.length <= 1) break
+          if (!cur.slides.some((s) => s.id === id)) continue
+          await get().removeSlide(id)
+        }
       },
 
       reorderSlides: (orderedIds) => {
