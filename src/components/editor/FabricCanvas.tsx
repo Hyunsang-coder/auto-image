@@ -288,8 +288,14 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       const objects = canvas.getObjects()
       const slidePatch: Partial<Slide> = {}
-      const cw = canvas.width ?? 1
-      const ch = canvas.height ?? 1
+      // Object coords stay in base (unzoomed) layout space, but canvas.width is
+      // scaled by the current zoom (applyZoom sets dimensions to base × zoom).
+      // Normalize against the base dims — otherwise a drag while zoomed ≠ 100%
+      // stores a wrong ratio (text jumps to the wrong spot and the box width
+      // balloons past the slide on the next render).
+      const zoom = canvas.getZoom() || 1
+      const cw = (canvas.width ?? 1) / zoom
+      const ch = (canvas.height ?? 1) / zoom
 
       for (const obj of objects) {
         const ln = (obj as Textbox & { layerName?: string }).layerName
@@ -322,7 +328,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             next = {
               ...next,
               pos: { x: c.x / cw, y: (itext.top ?? 0) / ch },
-              boxWidth: boxW / cw,
+              // A text box can never be wider than the slide.
+              boxWidth: Math.min(boxW / cw, 1),
             }
           }
           texts[i] = next
@@ -370,8 +377,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.BADGE,
       )
       if (badgesOnCanvas.length > 0 && slide.badges?.length) {
-        const w = canvas.width ?? 1
-        const h = canvas.height ?? 1
+        const w = cw
+        const h = ch
         let dirty = false
         const next = slide.badges.map((badge) => {
           const fab = badgesOnCanvas.find(
@@ -427,8 +434,6 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.SCREENSHOT,
         ) as (FabricImage & { clipPath?: Rect }) | undefined
         const clip = shotObj?.clipPath
-        const cw = canvas.width ?? 1
-        const ch = canvas.height ?? 1
         const sb = clip
           ? {
               left: clip.left ?? 0,
@@ -494,8 +499,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.ORNAMENT,
       )
       if (ornamentsOnCanvas.length > 0 && slide.ornaments) {
-        const w = canvas.width ?? 1
-        const h = canvas.height ?? 1
+        const w = cw
+        const h = ch
         let dirty = false
         const next = slide.ornaments.map((orn) => {
           const fab = ornamentsOnCanvas.find(
