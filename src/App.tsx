@@ -6,6 +6,8 @@ import { LocalizeEditor } from './components/localize/LocalizeEditor'
 import { ExportPanel } from './components/export/ExportPanel'
 import { useProjectStore } from './store/useProjectStore'
 import { useLibraryStore } from './store/useLibraryStore'
+import { useCustomStore } from './store/useCustomStore'
+import { projectTemplateFromProject } from './constants/projectTemplates'
 import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
@@ -18,10 +20,14 @@ function App() {
   const resetProject = useProjectStore((s) => s.resetProject)
   const updateProject = useProjectStore((s) => s.updateProject)
   const saveProject = useLibraryStore((s) => s.saveProject)
+  const addProjectTemplate = useCustomStore((s) => s.addProjectTemplate)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [justSaved, setJustSaved] = useState(false)
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [justSavedTemplate, setJustSavedTemplate] = useState(false)
   const [storageError, setStorageError] = useState(false)
   const prunedRef = useRef(false)
 
@@ -63,6 +69,21 @@ function App() {
     setShowSaveModal(false)
     setJustSaved(true)
     window.setTimeout(() => setJustSaved(false), 1600)
+  }
+
+  function openTemplateModal() {
+    setTemplateName(project ? `${project.name} 템플릿` : '')
+    setShowTemplateModal(true)
+  }
+
+  function handleSaveTemplate() {
+    const current = useProjectStore.getState().project
+    if (!current) return
+    const label = templateName.trim() || `${current.name} 템플릿`
+    addProjectTemplate(projectTemplateFromProject(current, label))
+    setShowTemplateModal(false)
+    setJustSavedTemplate(true)
+    window.setTimeout(() => setJustSavedTemplate(false), 1600)
   }
 
   // Readiness flags for the step-nav dots. Same shared predicates ExportPanel
@@ -113,6 +134,15 @@ function App() {
               className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
               {justSaved ? '저장됨 ✓' : '저장'}
+            </button>
+          )}
+          {project && (
+            <button
+              type="button"
+              onClick={openTemplateModal}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+            >
+              {justSavedTemplate ? '템플릿 저장됨 ✓' : '템플릿으로 저장'}
             </button>
           )}
           {project && (
@@ -185,6 +215,51 @@ function App() {
               <button
                 type="button"
                 onClick={handleSaveProject}
+                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTemplateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setShowTemplateModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text)]">템플릿으로 저장</h3>
+            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+              현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한
+              템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, '프로젝트 설정'의 '템플릿으로 시작'에 추가됩니다.
+            </p>
+            <input
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveTemplate()
+              }}
+              maxLength={60}
+              className="mt-4 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+              placeholder="템플릿 이름"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowTemplateModal(false)}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTemplate}
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
                 저장

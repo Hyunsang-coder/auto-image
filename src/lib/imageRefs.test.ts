@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { Project, SlideTemplate } from '../types/project'
+import type { Project } from '../types/project'
 import { useProjectStore } from '../store/useProjectStore'
 import { useLibraryStore } from '../store/useLibraryStore'
 import { useCustomStore } from '../store/useCustomStore'
@@ -16,7 +16,7 @@ function projWithKeys(name: string, shotKey: string, bgKey: string): Project {
 beforeEach(() => {
   useProjectStore.setState({ project: null })
   useLibraryStore.setState({ projects: [] })
-  useCustomStore.setState({ presets: [], templates: [] })
+  useCustomStore.setState({ presets: [], projectTemplates: [] })
 })
 
 describe('allReferencedImageKeys', () => {
@@ -52,7 +52,7 @@ describe('allReferencedImageKeys', () => {
     expect(keys.has('img:shot-en')).toBe(true)
   })
 
-  it('includes custom preset + template image backgrounds', () => {
+  it('includes custom preset + project-template image backgrounds', () => {
     useCustomStore.setState({
       presets: [
         {
@@ -64,18 +64,28 @@ describe('allReferencedImageKeys', () => {
           accentColor: '#abc',
         },
       ],
-      templates: [
+      projectTemplates: [
         {
           id: 't1',
           label: 'T',
-          template: 'hero',
-          background: { type: 'image', imageKey: 'img:tpl-bg' },
-        } as SlideTemplate,
+          description: '1장',
+          devices: ['iphone'],
+          themeBackground: { type: 'image', imageKey: 'img:tpl-theme-bg' },
+          slides: [
+            {
+              template: 'hero',
+              background: { type: 'image', imageKey: 'img:tpl-slide-bg' },
+              deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black' },
+              texts: [],
+            },
+          ],
+        },
       ],
     })
     const keys = allReferencedImageKeys()
     expect(keys.has('img:preset-bg')).toBe(true)
-    expect(keys.has('img:tpl-bg')).toBe(true)
+    expect(keys.has('img:tpl-theme-bg')).toBe(true)
+    expect(keys.has('img:tpl-slide-bg')).toBe(true)
   })
 
   it('ignores non-image backgrounds', () => {

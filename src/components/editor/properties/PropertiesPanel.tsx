@@ -2,17 +2,14 @@ import type {
   Badge,
   Highlight,
   Slide,
-  TemplateType,
   Background,
   Caption,
   DeviceFrame,
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
-  SlideTemplate,
 } from '../../../types/project'
 import type { ThemePreset } from '../../../constants/defaults'
-import { TemplateSelector } from './TemplateSelector'
 import { BackgroundPanel } from './BackgroundPanel'
 import { BadgePanel } from './BadgePanel'
 import { CaptionPanel } from './CaptionPanel'
@@ -21,7 +18,6 @@ import { OrnamentPanel } from './OrnamentPanel'
 import { HighlightPanel } from './HighlightPanel'
 
 export type PanelTab =
-  | 'template'
   | 'background'
   | 'caption'
   | 'screenshot'
@@ -30,7 +26,6 @@ export type PanelTab =
   | 'highlights'
 
 const TABS: { id: PanelTab; label: string }[] = [
-  { id: 'template',    label: '레이아웃' },
   { id: 'background',  label: '배경' },
   { id: 'caption',     label: '텍스트' },
   { id: 'screenshot',  label: '디바이스' },
@@ -43,7 +38,6 @@ interface Props {
   slide: Slide
   tab: PanelTab
   onTabChange: (t: PanelTab) => void
-  onTemplateChange: (t: TemplateType) => void
   onBackgroundChange: (bg: Background) => void
   onTextsChange: (texts: Caption[]) => void
   onScreenshotChange: (screenshot: ScreenshotImage | null) => void
@@ -54,8 +48,6 @@ interface Props {
   onHighlightsChange: (next: Highlight[]) => void
   onApplyThemePreset: (preset: ThemePreset) => void
   onSavePreset: (name: string) => void
-  onApplyTemplate: (tpl: SlideTemplate) => void
-  onSaveTemplate: (name: string) => void
   /** Bulk apply ("all"/"selected"). Hidden in locale mode. */
   bulkEnabled: boolean
   /** Size of the live multi-selection (includes the active slide). */
@@ -63,14 +55,12 @@ interface Props {
   /** Total base slides — the "전체" target count. */
   slideCount: number
   onApplyThemePresetToSlides: (preset: ThemePreset, scope: 'all' | 'selected') => void
-  onApplyTemplateToSlides: (tpl: SlideTemplate, scope: 'all' | 'selected') => void
 }
 
 export function PropertiesPanel({
   slide,
   tab,
   onTabChange,
-  onTemplateChange,
   onBackgroundChange,
   onTextsChange,
   onScreenshotChange,
@@ -81,13 +71,10 @@ export function PropertiesPanel({
   onHighlightsChange,
   onApplyThemePreset,
   onSavePreset,
-  onApplyTemplate,
-  onSaveTemplate,
   bulkEnabled,
   selectedCount,
   slideCount,
   onApplyThemePresetToSlides,
-  onApplyTemplateToSlides,
 }: Props) {
   const screenshotStyle: ScreenshotStyle =
     slide.screenshotStyle ?? { cornerRadiusRatio: 0.06, shadow: true }
@@ -113,18 +100,6 @@ export function PropertiesPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {tab === 'template' && (
-          <TemplateSelector
-            value={slide.template}
-            onChange={onTemplateChange}
-            onApplyTemplate={onApplyTemplate}
-            onSaveTemplate={onSaveTemplate}
-            bulkEnabled={bulkEnabled}
-            selectedCount={selectedCount}
-            slideCount={slideCount}
-            onApplyTemplateToSlides={onApplyTemplateToSlides}
-          />
-        )}
         {tab === 'background' && (
           <BackgroundPanel
             value={slide.background}

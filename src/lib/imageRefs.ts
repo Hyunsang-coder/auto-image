@@ -31,14 +31,18 @@ export function allReferencedImageKeys(): Set<string> {
   for (const p of useLibraryStore.getState().projects) {
     projectImageKeys(p).forEach((k) => keys.add(k))
   }
-  const { presets, templates } = useCustomStore.getState()
+  const { presets, projectTemplates } = useCustomStore.getState()
   for (const pr of presets) {
     const k = bgImageKey(pr.background)
     if (k) keys.add(k)
   }
-  for (const t of templates) {
-    const k = bgImageKey(t.background)
-    if (k) keys.add(k)
+  for (const t of projectTemplates) {
+    const tk = bgImageKey(t.themeBackground)
+    if (tk) keys.add(tk)
+    for (const sl of t.slides) {
+      const k = bgImageKey(sl.background)
+      if (k) keys.add(k)
+    }
   }
   return keys
 }

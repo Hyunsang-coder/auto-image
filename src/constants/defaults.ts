@@ -11,7 +11,6 @@ import type {
   Project,
   ScreenshotStyle,
   Slide,
-  SlideTemplate,
   TemplateType,
   TextStyle,
   TranslationAPI,
@@ -333,46 +332,6 @@ export function presetFromSlide(slide: Slide, label: string): ThemePreset {
  *  Everything captured is deep-cloned so the stored template never shares a
  *  mutable object (background, caption translations, badge styles) with the
  *  live slide. */
-export function templateFromSlide(slide: Slide, label: string): SlideTemplate {
-  return {
-    id: newId('tpl'),
-    label,
-    template: slide.template,
-    background: structuredClone(slide.background),
-    deviceFrame: { ...slide.deviceFrame },
-    texts: structuredClone(slide.texts),
-    badges: structuredClone(slide.badges),
-    ornaments: structuredClone(slide.ornaments ?? []),
-    screenshotStyle: slide.screenshotStyle ? { ...slide.screenshotStyle } : undefined,
-  }
-}
-
-/**
- * Build the patch that applies a template's look onto `slide`, preserving the
- * slide's content (screenshot, caption text/translations, highlights) and its
- * device model (so an iPhone-saved look can't flip an iPad slide's frame).
- * Badges/ornaments get fresh IDs so the two slides stay independent.
- */
-export function applyTemplateToSlide(slide: Slide, tpl: SlideTemplate): Partial<Slide> {
-  return {
-    template: tpl.template,
-    background: structuredClone(tpl.background),
-    deviceFrame: { ...tpl.deviceFrame, model: slide.deviceFrame.model },
-    texts: tpl.texts.map((tplCap, i) => ({
-      ...(slide.texts[i] ?? makeTextBlock(i, tpl.template, '')),
-      style: { ...tplCap.style },
-      pos: tplCap.pos ? { ...tplCap.pos } : undefined,
-      boxWidth: tplCap.boxWidth,
-    })),
-    badges: tpl.badges.map((b) => ({
-      ...structuredClone(b),
-      id: newId('badge'),
-    })),
-    ornaments: tpl.ornaments.map((o) => ({ ...o, id: newId('orn') })),
-    screenshotStyle: tpl.screenshotStyle ? { ...tpl.screenshotStyle } : slide.screenshotStyle,
-  }
-}
-
 export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>): Ornament {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto

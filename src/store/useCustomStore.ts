@@ -1,40 +1,40 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { SlideTemplate } from '../types/project'
 import type { ThemePreset } from '../constants/defaults'
+import type { ProjectTemplate } from '../constants/projectTemplates'
 import { safeLocalStorage } from '../lib/safeStorage'
 
 interface CustomState {
   presets: ThemePreset[]
-  templates: SlideTemplate[]
+  projectTemplates: ProjectTemplate[]
   addPreset: (preset: ThemePreset) => void
   removePreset: (id: string) => void
-  addTemplate: (template: SlideTemplate) => void
-  removeTemplate: (id: string) => void
+  addProjectTemplate: (template: ProjectTemplate) => void
+  removeProjectTemplate: (id: string) => void
 }
 
 export const useCustomStore = create<CustomState>()(
   persist(
     (set) => ({
       presets: [],
-      templates: [],
+      projectTemplates: [],
 
       addPreset: (preset) => set((s) => ({ presets: [...s.presets, preset] })),
       removePreset: (id) =>
         set((s) => ({ presets: s.presets.filter((p) => p.id !== id) })),
 
-      addTemplate: (template) =>
-        set((s) => ({ templates: [...s.templates, template] })),
-      removeTemplate: (id) =>
-        set((s) => ({ templates: s.templates.filter((t) => t.id !== id) })),
+      addProjectTemplate: (template) =>
+        set((s) => ({ projectTemplates: [...s.projectTemplates, template] })),
+      removeProjectTemplate: (id) =>
+        set((s) => ({ projectTemplates: s.projectTemplates.filter((t) => t.id !== id) })),
     }),
     {
       name: 'auto-image:custom',
       storage: createJSONStorage(() => safeLocalStorage),
-      // v0 (unversioned) presets/templates stored captions in the old fixed
-      // headline/subheadline shape. No back-compat: reset to an empty library.
-      version: 1,
-      migrate: () => ({ presets: [], templates: [] }),
+      // v1 stored single-slide `templates`; v2 replaces them with whole-project
+      // `projectTemplates`. No back-compat for the old shape — reset that slice.
+      version: 2,
+      migrate: () => ({ presets: [], projectTemplates: [] }),
     },
   ),
 )

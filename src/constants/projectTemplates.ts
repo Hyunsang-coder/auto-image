@@ -1,4 +1,4 @@
-import type { Background, DeviceType, Project, Slide, TextStyle } from '../types/project'
+import type { Background, Badge, Caption, DeviceType, Ornament, Project, ScreenshotStyle, Slide } from '../types/project'
 import { makeProject, newId } from './defaults'
 
 /**
@@ -12,7 +12,10 @@ interface TemplateSlide {
   template: Slide['template']
   background: Background
   deviceFrame: Slide['deviceFrame']
-  texts: { text: string; translations: Record<string, string>; style: TextStyle; pos?: { x: number; y: number }; boxWidth?: number }[]
+  texts: Caption[]
+  badges?: Badge[]
+  ornaments?: Ornament[]
+  screenshotStyle?: ScreenshotStyle
   /**
    * Span-group marker shared by the two members of a 2-page spanning pair.
    * `group` is a per-template tag (any stable string); it's rewritten to a fresh
@@ -147,12 +150,53 @@ export function buildProjectFromTemplate(tpl: ProjectTemplate, name: string): Pr
       deviceFrame: { ...s.deviceFrame },
       screenshot: null,
       texts: structuredClone(s.texts),
-      badges: [],
+      badges: (s.badges ?? []).map((b) => ({ ...structuredClone(b), id: newId('badge') })),
       highlights: [],
-      ornaments: [],
+      ornaments: (s.ornaments ?? []).map((o) => ({ ...structuredClone(o), id: newId('orn') })),
+      screenshotStyle: s.screenshotStyle ? { ...s.screenshotStyle } : undefined,
       spanGroupId,
       spanRole,
     }
   })
   return { ...base, slides }
+}
+
+/**
+ * Capture the current project's whole *look* as a reusable template: every
+ * slide's layout/background/device/text/badges/ornaments, minus the content
+ * that's specific to this project (screenshots, highlights). Span pairs are
+ * recorded with per-template group tags so buildProjectFromTemplate can mint a
+ * fresh shared id on the way back. The inverse of buildProjectFromTemplate.
+ */
+export function projectTemplateFromProject(project: Project, label: string): ProjectTemplate {
+  const groupTags = new Map<string, string>()
+  const slides: TemplateSlide[] = project.slides.map((s) => {
+    let span: TemplateSlide['span']
+    if (s.spanGroupId && s.spanRole) {
+      let tag = groupTags.get(s.spanGroupId)
+      if (!tag) {
+        tag = `g${groupTags.size}`
+        groupTags.set(s.spanGroupId, tag)
+      }
+      span = { group: tag, role: s.spanRole }
+    }
+    return {
+      template: s.template,
+      background: structuredClone(s.background),
+      deviceFrame: { ...s.deviceFrame },
+      texts: structuredClone(s.texts),
+      badges: structuredClone(s.badges ?? []),
+      ornaments: structuredClone(s.ornaments ?? []),
+      screenshotStyle: s.screenshotStyle ? { ...s.screenshotStyle } : undefined,
+      span,
+    }
+  })
+  return {
+    id: newId('utpl'),
+    label,
+    description: `${project.slides.length}장`,
+    devices: project.devices,
+    themeBackground: structuredClone(project.themeBackground),
+    slides,
+  }
 }

@@ -33,7 +33,7 @@ test('슬라이드 클릭으로 활성 슬라이드 변경', async ({ page }) =>
 })
 
 test('헤드라인 텍스트 입력이 슬라이드 트레이 썸네일 라벨에 반영됨', async ({ page }) => {
-  // 캡션 탭 클릭 (기본 탭은 '템플릿'이므로 textarea가 없음)
+  // 캡션 탭 클릭 (기본 탭은 '배경'이므로 textarea가 없음)
   await page.getByRole('button', { name: '텍스트', exact: true }).click()
 
   const headlineTextarea = page.locator('textarea').first()

@@ -10,22 +10,16 @@ import type {
   Badge,
   Highlight,
   Slide,
-  TemplateType,
   Background,
   Caption,
   DeviceFrame,
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
-  SlideTemplate,
 } from '../../types/project'
 import {
-  TEMPLATE_FONT_SIZES,
-  TEMPLATE_TEXT_ALIGN,
   type ThemePreset,
   presetFromSlide,
-  templateFromSlide,
-  applyTemplateToSlide,
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
 import { gcImages } from '../../lib/imageRefs'
@@ -61,7 +55,7 @@ export function EditorLayout() {
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const [zoom, setZoom] = useState(1)
-  const [panelTab, setPanelTab] = useState<PanelTab>('template')
+  const [panelTab, setPanelTab] = useState<PanelTab>('background')
   // Which locale the editor is editing. '' = the shared/base view (full
   // editing of every element). A locale code = edit that locale: captions and
   // the device frame are tweakable and their changes are stored as that
@@ -294,19 +288,6 @@ export function EditorLayout() {
     setEditLocale(next)
   }
 
-  function handleTemplateChange(t: TemplateType) {
-    if (!editingSlide) return
-    const sizes = TEMPLATE_FONT_SIZES[t]
-    const align = TEMPLATE_TEXT_ALIGN[t]
-    applyEdit({
-      template: t,
-      texts: editingSlide.texts.map((c, i) => ({
-        ...c,
-        style: { ...c.style, fontSize: i === 0 ? sizes.headline : sizes.subheadline, textAlign: align },
-      })),
-    })
-  }
-
   function handleBackgroundChange(bg: Background) {
     applyEdit({ background: bg })
   }
@@ -358,16 +339,6 @@ export function EditorLayout() {
     useCustomStore.getState().addPreset(presetFromSlide(editingSlide, name))
   }
 
-  function handleSaveTemplate(name: string) {
-    if (!editingSlide) return
-    useCustomStore.getState().addTemplate(templateFromSlide(editingSlide, name))
-  }
-
-  function handleApplyTemplate(tpl: SlideTemplate) {
-    if (!editingSlide) return
-    applyEdit(applyTemplateToSlide(editingSlide, tpl))
-  }
-
   // Resolve a bulk "target set" to a list of BASE slides to write. Each id is
   // routed through its span leader (the leader owns the layout data) and
   // deduped, so a span group is patched once via its leader. 'all' = every
@@ -404,16 +375,6 @@ export function EditorLayout() {
         })),
       }
     }
-    updateSlides(patches)
-  }
-
-  // Bulk saved template: applyTemplateToSlide already adapts per slide (keeps
-  // each slide's screenshot/text/device model), so compute it per target.
-  function applyTemplateToSlides(tpl: SlideTemplate, scope: 'all' | 'selected') {
-    const targets = resolveBulkTargets(scope)
-    if (!targets.length) return
-    const patches: Record<string, Partial<Slide>> = {}
-    for (const s of targets) patches[s.id] = applyTemplateToSlide(s, tpl)
     updateSlides(patches)
   }
 
@@ -570,7 +531,6 @@ export function EditorLayout() {
             slide={editingSlide}
             tab={panelTab}
             onTabChange={setPanelTab}
-            onTemplateChange={handleTemplateChange}
             onBackgroundChange={handleBackgroundChange}
             onTextsChange={handleTextsChange}
             onScreenshotChange={handleScreenshotChange}
@@ -581,13 +541,10 @@ export function EditorLayout() {
             onHighlightsChange={handleHighlightsChange}
             onApplyThemePreset={handleApplyThemePreset}
             onSavePreset={handleSavePreset}
-            onApplyTemplate={handleApplyTemplate}
-            onSaveTemplate={handleSaveTemplate}
             bulkEnabled={!isLocaleMode}
             selectedCount={displaySelectedIds.size}
             slideCount={project.slides.length}
             onApplyThemePresetToSlides={applyThemePresetToSlides}
-            onApplyTemplateToSlides={applyTemplateToSlides}
           />
         ) : (
           <aside className="flex-1 overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">

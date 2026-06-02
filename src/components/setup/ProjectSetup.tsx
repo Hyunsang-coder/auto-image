@@ -4,6 +4,7 @@ import { DEFAULT_BACKGROUND } from '../../constants/defaults'
 import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useLibraryStore } from '../../store/useLibraryStore'
+import { useCustomStore } from '../../store/useCustomStore'
 import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
@@ -19,7 +20,10 @@ export function ProjectSetup() {
   const loadProject = useProjectStore((s) => s.loadProject)
   const savedProjects = useLibraryStore((s) => s.projects)
   const removeProject = useLibraryStore((s) => s.removeProject)
+  const userTemplates = useCustomStore((s) => s.projectTemplates)
+  const removeProjectTemplate = useCustomStore((s) => s.removeProjectTemplate)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [pendingTplDelete, setPendingTplDelete] = useState<string | null>(null)
   const [confirmLoad, setConfirmLoad] = useState<Project | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
 
@@ -108,7 +112,7 @@ export function ProjectSetup() {
 
       {!hasExisting && savedProjects.length === 0 && <FirstRunIntro />}
 
-      {BUILTIN_PROJECT_TEMPLATES.length > 0 && (
+      {(BUILTIN_PROJECT_TEMPLATES.length > 0 || userTemplates.length > 0) && (
         <Section
           title="템플릿으로 시작"
           hint="여러 슬라이드로 구성된 시작 세트입니다. 고르면 바로 편집 단계로 들어갑니다."
@@ -134,6 +138,59 @@ export function ProjectSetup() {
                 >
                   이 템플릿으로 시작 →
                 </button>
+              </li>
+            ))}
+            {userTemplates.map((tpl) => (
+              <li
+                key={tpl.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                    {tpl.label}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-dim)]">
+                    {tpl.description} · 내 템플릿
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startFromTemplate(tpl)}
+                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                  >
+                    시작 →
+                  </button>
+                  {pendingTplDelete === tpl.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeProjectTemplate(tpl.id)
+                          setPendingTplDelete(null)
+                        }}
+                        className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                      >
+                        삭제 확인
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingTplDelete(null)}
+                        className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
+                      >
+                        취소
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPendingTplDelete(tpl.id)}
+                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-red-400 hover:text-red-400"
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
