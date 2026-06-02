@@ -181,7 +181,7 @@ const HISTORY_LIMIT = 50
 // Custom per-object props that must survive a history snapshot → loadFromJSON
 // round-trip, otherwise restored objects lose their identity and syncToZustand
 // can't map them back to the store (positions would silently un-revert).
-const HISTORY_PROPS = ['layerName', 'badgeId', 'ornamentId', 'highlightId', '_baseLeft', '_baseTop']
+const HISTORY_PROPS = ['layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex', '_baseLeft', '_baseTop']
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
@@ -293,11 +293,15 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       for (const obj of objects) {
         const ln = (obj as Textbox & { layerName?: string }).layerName
-        if (ln === LAYER_NAMES.HEADLINE || ln === LAYER_NAMES.SUBHEADLINE) {
-          const itext = obj as Textbox
-          const captionKey = ln === LAYER_NAMES.HEADLINE ? 'headline' : 'subheadline'
-          const existing = slide[captionKey]
-          slidePatch[captionKey] = {
+        if (ln === LAYER_NAMES.TEXT) {
+          const itext = obj as Textbox & { textIndex?: number }
+          const i = itext.textIndex ?? 0
+          const existing = slide.texts[i]
+          if (!existing) continue
+          // Seed from the current array (or a prior text patch in this same sync)
+          // and replace only index i, so multiple text objects don't clobber.
+          const texts = (slidePatch.texts ?? slide.texts).slice()
+          let next: typeof existing = {
             ...existing,
             text: itext.text ?? existing.text,
             style: {
@@ -315,12 +319,14 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             // Side-handle resize grows width (scaleX stays 1); fold in scaleX so
             // a corner-scale still bakes into the stored width.
             const boxW = (itext.width ?? 0) * (itext.scaleX ?? 1)
-            slidePatch[captionKey] = {
-              ...slidePatch[captionKey]!,
+            next = {
+              ...next,
               pos: { x: c.x / cw, y: (itext.top ?? 0) / ch },
               boxWidth: boxW / cw,
             }
           }
+          texts[i] = next
+          slidePatch.texts = texts
         }
       }
 
@@ -887,8 +893,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const serialized = JSON.stringify({
         background: activeSlide.background,
         template: activeSlide.template,
-        headline: activeSlide.headline,
-        subheadline: activeSlide.subheadline,
+        texts: activeSlide.texts,
         deviceFrame: activeSlide.deviceFrame,
         screenshotKey: activeSlide.screenshot?.imageKey ?? null,
         screenshotStyle: activeSlide.screenshotStyle,

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Project, Slide, Step, ScreenshotImage, Badge } from '../types/project'
-import { makeProject, makeSlide } from '../constants/defaults'
+import type { Project, Slide, Step, ScreenshotImage, Background } from '../types/project'
+import { makeProject, makeSlide, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
@@ -97,16 +97,12 @@ async function buildIndependentFromLeader(
     background: leader.background,
     deviceFrame: { ...leader.deviceFrame },
     screenshot,
-    headline: {
-      ...leader.headline,
-      style: { ...leader.headline.style },
-      translations: { ...leader.headline.translations },
-    },
-    subheadline: {
-      ...leader.subheadline,
-      style: { ...leader.subheadline.style },
-      translations: { ...leader.subheadline.translations },
-    },
+    texts: leader.texts.map((c) => ({
+      ...c,
+      style: { ...c.style },
+      translations: { ...c.translations },
+      pos: c.pos ? { ...c.pos } : undefined,
+    })),
     badges,
     highlights,
     ornaments,
@@ -125,7 +121,7 @@ interface ProjectState {
     name: string
     devices: Project['devices']
     screenshotCount: number
-    themeColor: string
+    themeBackground: Background
   }) => void
   resetProject: () => void
   /** Replace the active project with a saved one (deep-cloned), jump to editor. */
@@ -136,12 +132,24 @@ interface ProjectState {
   setActiveSlide: (slideId: string) => void
 
   updateSlide: (slideId: string, patch: Partial<Slide>) => void
+  /**
+   * Apply a per-slide patch map in a single write (one history/persist entry).
+   * Each slide gets its OWN derived patch (keyed by id) — used by bulk "apply
+   * style to all/selected" where the preset/template is recomputed per target.
+   */
+  updateSlides: (patches: Record<string, Partial<Slide>>) => void
   replaceSlide: (slideId: string, slide: Slide) => void
   addSlide: () => void
   /** Insert a standalone copy of `slideId` right after it (fresh IDs, shared
    *  image blobs, span markers cleared). */
   duplicateSlide: (slideId: string) => void
   removeSlide: (slideId: string) => Promise<void>
+  /**
+   * Remove several slides in one go. Iterates the existing single-remove logic
+   * sequentially (so span dissolve, reindex, and GC all run per slide) while
+   * guarding the "never delete the last slide" rule across the whole batch.
+   */
+  removeSlides: (ids: string[]) => Promise<void>
   reorderSlides: (orderedIds: string[]) => void
 
   /**
@@ -161,6 +169,17 @@ interface ProjectState {
 function touch(project: Project | null): Project | null {
   if (!project) return project
   return { ...project, updatedAt: new Date().toISOString() }
+}
+
+/**
+ * Back-compat: projects created before the theme became a full Background only
+ * carried a `themeColor` string. Fill `themeBackground` with the default so the
+ * setup screen and new-slide defaults don't break when such a project loads
+ * (from the library or rehydrated from localStorage).
+ */
+function ensureThemeBackground(project: Project): Project {
+  if (project.themeBackground) return project
+  return { ...project, themeBackground: structuredClone(DEFAULT_BACKGROUND) }
 }
 
 export const useProjectStore = create<ProjectState>()(
@@ -187,7 +206,7 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       loadProject: (project) => {
-        const clone = structuredClone(project)
+        const clone = ensureThemeBackground(structuredClone(project))
         set({
           project: clone,
           step: 2,
@@ -213,6 +232,19 @@ export const useProjectStore = create<ProjectState>()(
             ...cur,
             slides: cur.slides.map((s) =>
               s.id === slideId ? { ...s, ...patch } : s,
+            ),
+          }),
+        })
+      },
+
+      updateSlides: (patches) => {
+        const cur = get().project
+        if (!cur) return
+        set({
+          project: touch({
+            ...cur,
+            slides: cur.slides.map((s) =>
+              patches[s.id] ? { ...s, ...patches[s.id] } : s,
             ),
           }),
         })
@@ -298,6 +330,20 @@ export const useProjectStore = create<ProjectState>()(
         // Sweep the removed slide's blobs only if nothing else references them
         // (a saved project, preset, template, or sibling slide may share keys).
         gcImages()
+      },
+
+      removeSlides: async (ids) => {
+        // Delegate to removeSlide one id at a time; it re-reads project state,
+        // dissolves spans, reindexes, and GCs on each call. Stop before the
+        // project would be emptied — removeSlide already no-ops at length 1,
+        // but checking here keeps the loop from churning needlessly and leaves
+        // the last requested slide intact rather than silently kept.
+        for (const id of ids) {
+          const cur = get().project
+          if (!cur || cur.slides.length <= 1) break
+          if (!cur.slides.some((s) => s.id === id)) continue
+          await get().removeSlide(id)
+        }
       },
 
       reorderSlides: (orderedIds) => {
@@ -400,17 +446,12 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'auto-image:project',
       storage: createJSONStorage(() => safeLocalStorage),
-      version: 2,
-      // v1→v2: single `slide.badge` became `slide.badges` (array).
-      migrate: (persisted, version) => {
-        const state = persisted as { project: Project | null }
-        if (version < 2 && state.project) {
-          for (const slide of state.project.slides as Array<Slide & { badge?: Badge | null }>) {
-            slide.badges = slide.badge ? [slide.badge] : []
-            delete slide.badge
-          }
-        }
-        return state
+      version: 4,
+      // v3→v4: fixed `slide.headline`/`slide.subheadline` became `slide.texts[]`.
+      // No back-compat: any pre-v4 persisted project is dropped to a clean slate.
+      migrate: (_persisted, version) => {
+        if (version < 4) return { project: null, step: 1, activeSlideId: null }
+        return _persisted as { project: Project | null; step: Step; activeSlideId: string | null }
       },
       partialize: (state) => ({
         project: state.project,

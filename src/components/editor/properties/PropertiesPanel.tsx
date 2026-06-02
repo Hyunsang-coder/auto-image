@@ -45,8 +45,7 @@ interface Props {
   onTabChange: (t: PanelTab) => void
   onTemplateChange: (t: TemplateType) => void
   onBackgroundChange: (bg: Background) => void
-  onHeadlineChange: (c: Caption) => void
-  onSubheadlineChange: (c: Caption) => void
+  onTextsChange: (texts: Caption[]) => void
   onScreenshotChange: (screenshot: ScreenshotImage | null) => void
   onBadgesChange: (badges: Badge[]) => void
   onDeviceFrameChange: (df: DeviceFrame) => void
@@ -57,6 +56,14 @@ interface Props {
   onSavePreset: (name: string) => void
   onApplyTemplate: (tpl: SlideTemplate) => void
   onSaveTemplate: (name: string) => void
+  /** Bulk apply ("all"/"selected"). Hidden in locale mode. */
+  bulkEnabled: boolean
+  /** Size of the live multi-selection (includes the active slide). */
+  selectedCount: number
+  /** Total base slides — the "전체" target count. */
+  slideCount: number
+  onApplyThemePresetToSlides: (preset: ThemePreset, scope: 'all' | 'selected') => void
+  onApplyTemplateToSlides: (tpl: SlideTemplate, scope: 'all' | 'selected') => void
 }
 
 export function PropertiesPanel({
@@ -65,8 +72,7 @@ export function PropertiesPanel({
   onTabChange,
   onTemplateChange,
   onBackgroundChange,
-  onHeadlineChange,
-  onSubheadlineChange,
+  onTextsChange,
   onScreenshotChange,
   onBadgesChange,
   onDeviceFrameChange,
@@ -77,12 +83,17 @@ export function PropertiesPanel({
   onSavePreset,
   onApplyTemplate,
   onSaveTemplate,
+  bulkEnabled,
+  selectedCount,
+  slideCount,
+  onApplyThemePresetToSlides,
+  onApplyTemplateToSlides,
 }: Props) {
   const screenshotStyle: ScreenshotStyle =
     slide.screenshotStyle ?? { cornerRadiusRatio: 0.06, shadow: true }
 
   return (
-    <aside className="flex flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)]">
+    <aside className="flex min-h-0 flex-1 flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex flex-wrap border-b border-[var(--color-border)]">
         {TABS.map((t) => (
           <button
@@ -108,6 +119,10 @@ export function PropertiesPanel({
             onChange={onTemplateChange}
             onApplyTemplate={onApplyTemplate}
             onSaveTemplate={onSaveTemplate}
+            bulkEnabled={bulkEnabled}
+            selectedCount={selectedCount}
+            slideCount={slideCount}
+            onApplyTemplateToSlides={onApplyTemplateToSlides}
           />
         )}
         {tab === 'background' && (
@@ -116,14 +131,17 @@ export function PropertiesPanel({
             onChange={onBackgroundChange}
             onApplyPreset={onApplyThemePreset}
             onSavePreset={onSavePreset}
+            bulkEnabled={bulkEnabled}
+            selectedCount={selectedCount}
+            slideCount={slideCount}
+            onApplyPresetToSlides={onApplyThemePresetToSlides}
           />
         )}
         {tab === 'caption' && (
           <CaptionPanel
-            headline={slide.headline}
-            subheadline={slide.subheadline}
-            onHeadlineChange={onHeadlineChange}
-            onSubheadlineChange={onSubheadlineChange}
+            texts={slide.texts}
+            template={slide.template}
+            onChange={onTextsChange}
           />
         )}
         {tab === 'screenshot' && (

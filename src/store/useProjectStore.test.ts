@@ -7,7 +7,7 @@ function setup(slideCount = 2) {
     name: 'Dup Test',
     devices: ['iphone'],
     screenshotCount: slideCount,
-    themeColor: '#000000',
+    themeBackground: { type: 'solid', color: '#000000' },
   })
   return useProjectStore.getState().project!
 }
@@ -37,12 +37,12 @@ describe('duplicateSlide', () => {
   it('inserts a copy right after the source and selects it', () => {
     const { project, updateSlide, duplicateSlide } = useProjectStore.getState()
     const src = project!.slides[0]
-    updateSlide(src.id, { headline: { ...src.headline, text: 'Hello' } })
+    updateSlide(src.id, { texts: [{ ...src.texts[0], text: 'Hello' }] })
     duplicateSlide(src.id)
 
     const after = useProjectStore.getState().project!
     expect(after.slides).toHaveLength(3)
-    expect(after.slides[1].headline.text).toBe('Hello') // copy sits at index 1
+    expect(after.slides[1].texts[0].text).toBe('Hello') // copy sits at index 1
     expect(after.slides.map((s) => s.index)).toEqual([0, 1, 2]) // reindexed
     expect(useProjectStore.getState().activeSlideId).toBe(after.slides[1].id)
   })
@@ -71,14 +71,14 @@ describe('duplicateSlide', () => {
     const src = project!.slides[0]
     updateSlide(src.id, {
       screenshot: { id: 'shot-old', imageKey: 'img:abc', originalWidth: 1, originalHeight: 1 },
-      headline: { ...src.headline, text: 'Base', translations: { ja: 'ベース' } },
+      texts: [{ ...src.texts[0], text: 'Base', translations: { ja: 'ベース' } }],
     })
     duplicateSlide(src.id)
 
     const [orig, copy] = useProjectStore.getState().project!.slides
     expect(copy.screenshot!.imageKey).toBe('img:abc') // blob shared
-    expect(copy.headline.translations).toEqual({ ja: 'ベース' })
-    expect(copy.headline.translations).not.toBe(orig.headline.translations) // not the same ref
+    expect(copy.texts[0].translations).toEqual({ ja: 'ベース' })
+    expect(copy.texts[0].translations).not.toBe(orig.texts[0].translations) // not the same ref
   })
 
   it('clears span markers on the copy', () => {

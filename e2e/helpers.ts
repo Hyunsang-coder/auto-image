@@ -1,7 +1,27 @@
 import { fileURLToPath } from 'node:url'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 const fixturesDir = fileURLToPath(new URL('./fixtures', import.meta.url))
+
+/**
+ * The bottom slide tray (a horizontal <nav>). The slide list moved out of the
+ * left <aside> into this tray; each thumb is a draggable <button> whose
+ * accessible name is the slide's headline (falling back to "슬라이드 N"). The
+ * trailing "+" button (슬라이드 추가) adds a slide.
+ *
+ * StepIndicator is also a <nav>, so scope to the one holding slide thumbs
+ * (aria-labelled buttons) — only the tray has those.
+ */
+export function slideTray(page: Page): Locator {
+  return page.locator('nav:has(button[aria-label])')
+}
+
+/** Slide thumbnail buttons in the tray, in visual order. */
+export function slideThumbs(page: Page): Locator {
+  // Thumb buttons carry an aria-label (the title); the add/dup/delete/link
+  // buttons don't, so filtering by [aria-label] isolates the slides.
+  return slideTray(page).locator('button[aria-label]')
+}
 
 /**
  * Upload a screenshot fixture into the active slide via the (hidden) file
@@ -10,7 +30,11 @@ const fixturesDir = fileURLToPath(new URL('./fixtures', import.meta.url))
  */
 export async function uploadScreenshot(page: Page, name: string) {
   await page.getByRole('button', { name: '디바이스' }).click()
-  await page.locator('input[type="file"]').setInputFiles(`${fixturesDir}/${name}`)
+  // The 스크린샷 tab mounts two file inputs: the single-shot one and a `multiple`
+  // bulk-import one. Target the single-shot input explicitly.
+  await page
+    .locator('input[type="file"]:not([multiple])')
+    .setInputFiles(`${fixturesDir}/${name}`)
 }
 
 /**

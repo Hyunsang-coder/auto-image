@@ -9,22 +9,14 @@ import { resolveSlideForLocale } from './resolveSlide'
 function withScaledFonts(slide: Slide, scale: number): Slide {
   return {
     ...slide,
-    headline: {
-      ...slide.headline,
+    texts: slide.texts.map((c) => ({
+      ...c,
       style: {
-        ...slide.headline.style,
-        fontSize: Math.round(slide.headline.style.fontSize * scale),
-        letterSpacing: (slide.headline.style.letterSpacing ?? 0) * scale,
+        ...c.style,
+        fontSize: Math.round(c.style.fontSize * scale),
+        letterSpacing: (c.style.letterSpacing ?? 0) * scale,
       },
-    },
-    subheadline: {
-      ...slide.subheadline,
-      style: {
-        ...slide.subheadline.style,
-        fontSize: Math.round(slide.subheadline.style.fontSize * scale),
-        letterSpacing: (slide.subheadline.style.letterSpacing ?? 0) * scale,
-      },
-    },
+    })),
     badges: slide.badges.map((b) => ({
       ...b,
       style: {

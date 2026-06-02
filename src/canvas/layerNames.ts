@@ -5,8 +5,7 @@ export const LAYER_NAMES = {
   DEVICE_FRAME: 'device-frame',
   HIGHLIGHT_SOURCE: 'highlight-source',
   HIGHLIGHT_POPUP: 'highlight-popup',
-  HEADLINE: 'headline',
-  SUBHEADLINE: 'subheadline',
+  TEXT: 'text',
   BADGE: 'badge',
 } as const
 

@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { DeviceFrame, ScreenshotImage, ScreenshotStyle, TemplateType } from '../../../types/project'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 import { detectDeviceFromAspect } from '../../../constants/deviceSpecs'
+import { useProjectStore } from '../../../store/useProjectStore'
+import { gcImages } from '../../../lib/imageRefs'
+import { importBulkImages } from '../../../lib/bulkImageImport'
+import { SUPPORTED_LOCALES } from '../../../constants/defaults'
 
 interface Props {
   value: ScreenshotImage | null
@@ -23,8 +27,43 @@ export function ScreenshotPanel({
   template,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const bulkInputRef = useRef<HTMLInputElement>(null)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [bulkMsg, setBulkMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [bulkIssues, setBulkIssues] = useState<string[]>([])
+
+  const sourceLocale = useProjectStore(s => s.project?.sourceLocale ?? 'en')
+  const targetLocales = useProjectStore(s => s.project?.targetLocales ?? [])
+  const updateSlides = useProjectStore(s => s.updateSlides)
+  const updateProject = useProjectStore(s => s.updateProject)
+
+  // Same bulk screenshot import the Localize page runs — exposed here so editor
+  // users can add MANY screenshots without hopping to step 3. Routes base vs
+  // per-locale override by the project's sourceLocale and lands every slide.
+  async function handleBulkImages(files: File[]) {
+    const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
+    const labelOf = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
+    const slides = useProjectStore.getState().project?.slides ?? []
+    const { patches, addedLocales, applied, issues } = await importBulkImages(files, {
+      slides,
+      sourceLocale,
+      targetLocales,
+      knownLocales: known,
+      labelOf,
+    })
+    if (Object.keys(patches).length) updateSlides(patches)
+    if (addedLocales.length) updateProject({ targetLocales: [...targetLocales, ...addedLocales] })
+    gcImages()
+    setBulkIssues(issues)
+    if (applied === 0 && issues.length === 0) {
+      setBulkMsg({ kind: 'err', text: '가져올 이미지가 없습니다' })
+    } else if (issues.length) {
+      setBulkMsg({ kind: 'err', text: `${applied}개 적용 · 경고 ${issues.length}건 (아래 목록 확인)` })
+    } else {
+      setBulkMsg({ kind: 'ok', text: `${applied}개 이미지를 가져왔습니다` })
+    }
+  }
 
   useEffect(() => {
     let objectUrl: string | null = null
@@ -160,6 +199,48 @@ export function ScreenshotPanel({
           e.target.value = ''
         }}
       />
+
+      {/* Bulk import — add many screenshots across slides at once. Routes base
+          vs per-locale override by the project's sourceLocale (same as Localize). */}
+      <div className="space-y-2 rounded-lg border border-[var(--color-border)] p-3">
+        <button
+          type="button"
+          onClick={() => bulkInputRef.current?.click()}
+          className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-2 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+        >
+          여러 장 일괄 업로드
+        </button>
+        <p className="text-[11px] leading-snug text-[var(--color-text-dim)]">
+          파일명 {'{번호}[-설명].{언어}.png'} · 원본({sourceLocale})이 베이스 · 예: 01-home.{sourceLocale}.png, 01-home.{targetLocales[0] ?? 'en'}.png
+        </p>
+        <input
+          ref={bulkInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? [])
+            if (files.length) handleBulkImages(files)
+            e.target.value = ''
+          }}
+        />
+        {bulkMsg && (
+          <p className={`text-xs ${bulkMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`}>
+            {bulkMsg.text}
+          </p>
+        )}
+        {bulkIssues.length > 0 && (
+          <details>
+            <summary className="cursor-pointer text-xs text-red-600">경고 {bulkIssues.length}건 보기</summary>
+            <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] leading-snug text-[var(--color-text-dim)]">
+              {bulkIssues.map((issue, i) => (
+                <li key={i}>{issue}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
 
       <div className="space-y-3 rounded-lg border border-[var(--color-border)] p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">

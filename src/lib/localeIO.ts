@@ -14,7 +14,7 @@ export interface SerializeRow {
   slideId: string
   /** 0-based slide position; written 1-based as the `slide` column. */
   slideIndex: number
-  /** Internal field key: 'headline' | 'subheadline' | 'badge:0' … */
+  /** Internal field key: 'text:0' | 'text:1' | 'badge:0' … */
   field: string
   sourceText: string
 }
@@ -95,7 +95,7 @@ export function buildTranslationPrompt(
     `Source language: ${source.label} (${source.code})`,
     `Translate into: ${targetList || '(no target languages selected)'}`,
     '',
-    'A CSV or JSON translation template follows (pasted or attached). Each row is one caption field (headline / subheadline / badge).',
+    'A CSV or JSON translation template follows (pasted or attached). Each row is one caption field (a text block or a badge).',
     'Rules:',
     `- Fill ONLY the empty target-language columns. Leave the ${source.code} column (the source) unchanged.`,
     '- Keep the slide, slideId, and field columns exactly as they are.',

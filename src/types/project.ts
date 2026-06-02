@@ -37,7 +37,8 @@ export interface Project {
   updatedAt: string
   devices: DeviceType[]
   screenshotCount: number
-  themeColor: string
+  /** Default background applied to every slide of a new project. */
+  themeBackground: Background
   sourceLocale: string
   targetLocales: string[]
   translationApi: TranslationAPI
@@ -59,8 +60,8 @@ export interface Slide {
   background: Background
   deviceFrame: DeviceFrame
   screenshot: ScreenshotImage | null
-  headline: Caption
-  subheadline: Caption
+  /** 1–4 text blocks; texts[0] = title block. */
+  texts: Caption[]
   badges: Badge[]
   highlights: Highlight[]
   /** Decorative SVG ornaments rendered above background, below screenshot. */
@@ -108,8 +109,7 @@ export interface LocaleOverride {
     color?: DeviceColor
   }
   screenshotStyle?: ScreenshotStyle
-  headline?: CaptionOverride
-  subheadline?: CaptionOverride
+  texts?: Record<number, CaptionOverride>
 }
 
 export interface ScreenshotStyle {
@@ -271,8 +271,7 @@ export interface SlideTemplate {
   template: TemplateType
   background: Background
   deviceFrame: DeviceFrame
-  headline: Caption
-  subheadline: Caption
+  texts: Caption[]
   badges: Badge[]
   ornaments: Ornament[]
   screenshotStyle?: ScreenshotStyle

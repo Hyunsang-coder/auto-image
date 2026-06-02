@@ -1,6 +1,6 @@
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
-import type { Caption, TextStyle } from '../../../types/project'
-import { FONT_OPTIONS } from '../../../constants/defaults'
+import type { Caption, TemplateType, TextStyle } from '../../../types/project'
+import { FONT_OPTIONS, MAX_TEXTS, makeTextBlock } from '../../../constants/defaults'
 
 interface CaptionFieldProps {
   label: string
@@ -135,22 +135,51 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
 }
 
 interface Props {
-  headline: Caption
-  subheadline: Caption
-  onHeadlineChange: (c: Caption) => void
-  onSubheadlineChange: (c: Caption) => void
+  texts: Caption[]
+  template: TemplateType
+  onChange: (texts: Caption[]) => void
 }
 
-export function CaptionPanel({
-  headline,
-  subheadline,
-  onHeadlineChange,
-  onSubheadlineChange,
-}: Props) {
+export function CaptionPanel({ texts, template, onChange }: Props) {
+  function addBlock() {
+    onChange([...texts, makeTextBlock(texts.length, template, '')])
+  }
+  function removeBlock(index: number) {
+    onChange(texts.filter((_, i) => i !== index))
+  }
+  function editBlock(index: number, c: Caption) {
+    onChange(texts.map((t, i) => (i === index ? c : t)))
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      <CaptionField label="헤드라인" value={headline} onChange={onHeadlineChange} />
-      <CaptionField label="서브헤드라인" value={subheadline} onChange={onSubheadlineChange} />
+      {texts.map((caption, i) => (
+        <div key={i} className="relative">
+          <CaptionField
+            label={i === 0 ? '제목 (헤드라인)' : `텍스트 ${i + 1}`}
+            value={caption}
+            onChange={(c) => editBlock(i, c)}
+          />
+          {texts.length > 1 && (
+            <button
+              type="button"
+              onClick={() => removeBlock(i)}
+              title="이 텍스트 블록 삭제"
+              className="absolute right-2 top-2 rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] transition hover:border-red-500 hover:text-red-500"
+            >
+              삭제
+            </button>
+          )}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addBlock}
+        disabled={texts.length >= MAX_TEXTS}
+        className="rounded-lg border border-dashed border-[var(--color-border)] py-2 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
+      >
+        텍스트 블록 추가 ({texts.length}/{MAX_TEXTS})
+      </button>
     </div>
   )
 }

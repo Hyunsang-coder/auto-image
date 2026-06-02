@@ -7,6 +7,9 @@ export interface CaptionOptions {
   top: number
   width: number
   layerName: LayerName
+  /** Index of this block within slide.texts; tagged onto the object so sync can
+   * map it back to the right entry. */
+  textIndex?: number
   // Canvas/font scale relative to the editor (1 in the editor, ~3 at export
   // resolution). Absolute floors must scale with it so the fit-to-box result is
   // identical in proportion at every resolution.
@@ -93,6 +96,7 @@ export function renderCaption(
     hasControls: true,
   })
   ;(obj as Textbox & { layerName: string }).layerName = opts.layerName
+  ;(obj as Textbox & { textIndex?: number }).textIndex = opts.textIndex
 
   return obj
 }

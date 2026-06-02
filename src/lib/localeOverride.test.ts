@@ -18,40 +18,53 @@ function baseSlide(over: Partial<Slide> = {}): Slide {
     background: { type: 'solid', color: '#fff' },
     deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black', offsetX: 0, offsetY: 0, scale: 1, rotation: 0 },
     screenshot: null,
-    headline: caption('Hello'),
-    subheadline: caption('World'),
+    texts: [caption('Hello'), caption('World')],
     badges: [],
     highlights: [],
     ...over,
   }
 }
 
+// Build a texts patch that mirrors the base but swaps one block.
+function patchText(base: Slide, index: number, next: Caption) {
+  return { texts: base.texts.map((c, i) => (i === index ? next : c)) }
+}
+
 describe('routeLocalePatch', () => {
   it('routes changed caption text to translations[locale], not the override', () => {
     const base = baseSlide()
-    const out = routeLocalePatch(base, 'fr', { headline: { ...base.headline, text: 'Bonjour' } })
-    expect(out.headline?.translations).toEqual({ fr: 'Bonjour' })
+    const out = routeLocalePatch(base, 'fr', patchText(base, 0, { ...base.texts[0], text: 'Bonjour' }))
+    expect(out.texts?.[0].translations).toEqual({ fr: 'Bonjour' })
     expect(out.localeOverrides).toBeUndefined()
   })
 
   it('skips text that equals what the locale already shows', () => {
-    const out = routeLocalePatch(baseSlide(), 'fr', { headline: { ...baseSlide().headline, text: 'Hello' } })
-    expect(out.headline).toBeUndefined()
+    const base = baseSlide()
+    const out = routeLocalePatch(base, 'fr', patchText(base, 0, { ...base.texts[0], text: 'Hello' }))
+    expect(out.texts).toBeUndefined()
     expect(out.localeOverrides).toBeUndefined()
   })
 
   it('stores only the changed style props (per-property grain)', () => {
     const base = baseSlide()
-    const patch = { headline: { ...base.headline, style: { ...base.headline.style, fontSize: 60 } } }
+    const patch = patchText(base, 0, { ...base.texts[0], style: { ...base.texts[0].style, fontSize: 60 } })
     const out = routeLocalePatch(base, 'fr', patch)
-    expect(out.localeOverrides?.fr.headline?.style).toEqual({ fontSize: 60 }) // colour etc. not frozen
+    expect(out.localeOverrides?.fr.texts?.[0]?.style).toEqual({ fontSize: 60 }) // colour etc. not frozen
   })
 
-  it('routes caption placement to the override', () => {
+  it('routes caption placement to the override (keyed by index)', () => {
     const base = baseSlide()
-    const patch = { headline: { ...base.headline, pos: { x: 0.5, y: 0.2 }, boxWidth: 0.7 } }
+    const patch = patchText(base, 0, { ...base.texts[0], pos: { x: 0.5, y: 0.2 }, boxWidth: 0.7 })
     const out = routeLocalePatch(base, 'fr', patch)
-    expect(out.localeOverrides?.fr.headline).toMatchObject({ pos: { x: 0.5, y: 0.2 }, boxWidth: 0.7 })
+    expect(out.localeOverrides?.fr.texts?.[0]).toMatchObject({ pos: { x: 0.5, y: 0.2 }, boxWidth: 0.7 })
+  })
+
+  it('routes a second text block to its own override index', () => {
+    const base = baseSlide()
+    const patch = patchText(base, 1, { ...base.texts[1], style: { ...base.texts[1].style, fontSize: 30 } })
+    const out = routeLocalePatch(base, 'fr', patch)
+    expect(out.localeOverrides?.fr.texts?.[1]?.style).toEqual({ fontSize: 30 })
+    expect(out.localeOverrides?.fr.texts?.[0]).toBeUndefined()
   })
 
   it('routes template, background, device transform, screenshot style to the override', () => {
@@ -79,18 +92,18 @@ describe('routeLocalePatch', () => {
 
   it('merges onto an existing override and preserves other locales', () => {
     const base = baseSlide({
-      localeOverrides: { fr: { headline: { boxWidth: 0.6 } }, de: { template: 'hero' } },
+      localeOverrides: { fr: { texts: { 0: { boxWidth: 0.6 } } }, de: { template: 'hero' } },
     })
     const out = routeLocalePatch(base, 'fr', { deviceFrame: { ...base.deviceFrame, offsetX: 50 } })
-    expect(out.localeOverrides?.fr.headline).toEqual({ boxWidth: 0.6 })
+    expect(out.localeOverrides?.fr.texts?.[0]).toEqual({ boxWidth: 0.6 })
     expect(out.localeOverrides?.fr.deviceFrame).toMatchObject({ offsetX: 50 })
     expect(out.localeOverrides?.de).toEqual({ template: 'hero' })
   })
 
   it('does not mutate the base slide', () => {
-    const base = baseSlide({ headline: caption('Hello', { fr: 'X' }) })
-    routeLocalePatch(base, 'fr', { headline: { ...base.headline, text: 'Y' }, template: 'hero' })
-    expect(base.headline.translations).toEqual({ fr: 'X' })
+    const base = baseSlide({ texts: [caption('Hello', { fr: 'X' }), caption('World')] })
+    routeLocalePatch(base, 'fr', { ...patchText(base, 0, { ...base.texts[0], text: 'Y' }), template: 'hero' })
+    expect(base.texts[0].translations).toEqual({ fr: 'X' })
     expect(base.localeOverrides).toBeUndefined()
   })
 })

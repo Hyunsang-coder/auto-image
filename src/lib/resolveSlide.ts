@@ -46,8 +46,7 @@ export function resolveSlideForLocale(slide: Slide, locale: string | null): Slid
             originalHeight: pick.originalHeight,
           }
         : shot,
-    headline: resolveCaption(slide.headline, locale, ov?.headline),
-    subheadline: resolveCaption(slide.subheadline, locale, ov?.subheadline),
+    texts: slide.texts.map((c, i) => resolveCaption(c, locale, ov?.texts?.[i])),
     badges: slide.badges.map((b) => ({
       ...b,
       text: b.translations[locale] ?? b.text,

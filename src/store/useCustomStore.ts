@@ -31,6 +31,10 @@ export const useCustomStore = create<CustomState>()(
     {
       name: 'auto-image:custom',
       storage: createJSONStorage(() => safeLocalStorage),
+      // v0 (unversioned) presets/templates stored captions in the old fixed
+      // headline/subheadline shape. No back-compat: reset to an empty library.
+      version: 1,
+      migrate: () => ({ presets: [], templates: [] }),
     },
   ),
 )

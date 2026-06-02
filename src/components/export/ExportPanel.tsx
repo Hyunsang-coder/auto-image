@@ -6,7 +6,8 @@ import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
-import type { DeviceType, Project, Slide } from '../../types/project'
+import { getUntranslatedLocales, getSlidesMissingScreenshot } from '../../lib/readiness'
+import type { DeviceType, Slide } from '../../types/project'
 
 function deviceOf(slide: Slide): DeviceType {
   return slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone'
@@ -21,6 +22,10 @@ const localeOrder = (code: string) => {
 }
 
 type Status = 'idle' | 'running' | 'done' | 'error'
+
+// One slide+locale that failed to render/emit during an export run. The batch
+// continues past it; these are collected and shown as a persistent list.
+type RenderFailure = { slideNo: number; locale: string; device: DeviceType; message: string }
 
 // 'default' = human-organized {locale}/{device}/NN.png.
 // 'fastlane' = `deliver` layout: screenshots/{ascLocale}/{device}_NN.png, flat
@@ -84,18 +89,6 @@ fastlane deliver \\
   --skip_metadata true
 `
 
-function getUntranslatedLocales(project: Project): string[] {
-  // Followers in a span group inherit text from the leader — their own text
-  // fields aren't rendered, so skip them when computing "missing translations".
-  const owners = project.slides.filter((s) => s.spanRole !== 'follower')
-  return project.targetLocales.filter(locale =>
-    owners.some(slide =>
-      (slide.headline.text && !slide.headline.translations[locale]) ||
-      (slide.subheadline.text && !slide.subheadline.translations[locale])
-    )
-  )
-}
-
 export function ExportPanel() {
   const project = useProjectStore((s) => s.project)
   const setStep = useProjectStore((s) => s.setStep)
@@ -103,6 +96,11 @@ export function ExportPanel() {
   const [status, setStatus] = useState<Status>('idle')
   const [done, setDone] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  // Per-slide render failures collected during a run so one bad slide can't
+  // abort the whole batch; surfaced as a persistent list after export.
+  const [failures, setFailures] = useState<RenderFailure[]>([])
+  // What's currently rendering, for progress granularity ("슬라이드 5 · German").
+  const [current, setCurrent] = useState<{ slideNo: number; locale: string } | null>(null)
   const cancelledRef = useRef(false)
 
   const [previewLocale, setPreviewLocale] = useState<string>('')
@@ -190,6 +188,7 @@ export function ExportPanel() {
   // to (auto-detected on upload). project.devices is no longer multiplied in.
   const total = project.slides.length * exportLocales.length
   const untranslated = getUntranslatedLocales(project)
+  const missingScreenshots = getSlidesMissingScreenshot(project)
   const devicesInUse = Array.from(new Set(project.slides.map(deviceOf)))
 
   const effectiveLocale = previewLocale || project.sourceLocale
@@ -203,6 +202,11 @@ export function ExportPanel() {
     setStatus('running')
     setError(null)
     setDone(0)
+    setFailures([])
+    setCurrent(null)
+    // Local mirror of `failures` — state updates are async, so we accumulate
+    // here and decide all-ok / partial / total at the end from this array.
+    const failed: RenderFailure[] = []
 
     const filePath = (loc: string, dev: string, n: string) =>
       layout === 'fastlane' ? `fastlane/screenshots/${loc}/${dev}_${n}.png` : `${loc}/${dev}/${n}.png`
@@ -241,21 +245,31 @@ export function ExportPanel() {
           const device = deviceOf(slide)
           const renderLocale = locale === project.sourceLocale ? null : locale
           const localeDir = ascExportCode(locale)
+          setCurrent({ slideNo: slide.index + 1, locale })
 
           // Span leader → render the 2× canvas once, slice into both PNGs.
           // Skip the follower in the next iteration since it's already done.
           if (slide.spanGroupId && slide.spanRole === 'leader') {
             const follower = project.slides[i + 1]
             if (follower && follower.spanGroupId === slide.spanGroupId) {
-              const { leader: leftBlob, follower: rightBlob } = await renderSpanGroup(
-                slide,
-                device,
-                renderLocale,
-              )
-              const lName = String(slide.index + 1).padStart(2, '0')
-              const rName = String(follower.index + 1).padStart(2, '0')
-              await emit(filePath(localeDir, device, lName), leftBlob)
-              await emit(filePath(localeDir, device, rName), rightBlob)
+              // Per-slide guard: a failure here records both halves and moves
+              // on, so one broken span group can't abort the whole export.
+              try {
+                const { leader: leftBlob, follower: rightBlob } = await renderSpanGroup(
+                  slide,
+                  device,
+                  renderLocale,
+                )
+                const lName = String(slide.index + 1).padStart(2, '0')
+                const rName = String(follower.index + 1).padStart(2, '0')
+                await emit(filePath(localeDir, device, lName), leftBlob)
+                await emit(filePath(localeDir, device, rName), rightBlob)
+              } catch (e) {
+                const message = e instanceof Error ? e.message : String(e)
+                failed.push({ slideNo: slide.index + 1, locale, device, message })
+                failed.push({ slideNo: follower.index + 1, locale, device, message })
+                setFailures([...failed])
+              }
               count += 2
               setDone(count)
               i += 2
@@ -269,13 +283,33 @@ export function ExportPanel() {
             continue
           }
 
-          const blob = await renderSlide(slide, device, renderLocale)
-          const name = String(slide.index + 1).padStart(2, '0')
-          await emit(filePath(localeDir, device, name), blob)
+          // Per-slide guard: record the failure and continue so the rest of the
+          // batch still renders and a partial ZIP/folder is produced.
+          try {
+            const blob = await renderSlide(slide, device, renderLocale)
+            const name = String(slide.index + 1).padStart(2, '0')
+            await emit(filePath(localeDir, device, name), blob)
+          } catch (e) {
+            const message = e instanceof Error ? e.message : String(e)
+            failed.push({ slideNo: slide.index + 1, locale, device, message })
+            setFailures([...failed])
+          }
           count++
           setDone(count)
           i++
         }
+      }
+
+      setCurrent(null)
+
+      // Total failure: every planned render failed, so there's nothing to
+      // package. Skip the artifact and surface an error state (the per-slide
+      // failure list stays visible alongside it).
+      const rendered = count - failed.length
+      if (rendered === 0 && failed.length > 0) {
+        setError('모든 슬라이드 렌더링에 실패해 내보낼 파일이 없습니다.')
+        setStatus('error')
+        return
       }
 
       if (layout === 'fastlane') {
@@ -294,6 +328,7 @@ export function ExportPanel() {
         setStatus('done')
       }
     } catch (e) {
+      setCurrent(null)
       setError(e instanceof Error ? e.message : String(e))
       setStatus('error')
     }
@@ -322,6 +357,13 @@ export function ExportPanel() {
           <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700">
             번역 미완료 로케일 {untranslated.length}개: {untranslated.join(', ')} —
             소스 텍스트로 내보내집니다.
+          </div>
+        )}
+
+        {missingScreenshots.length > 0 && (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700">
+            스크린샷 없는 슬라이드: {missingScreenshots.join(', ')} — 기기 프레임만
+            내보내집니다.
           </div>
         )}
 
@@ -444,7 +486,11 @@ export function ExportPanel() {
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-[var(--color-text-dim)]">
               <span>
-                {status === 'done' ? '렌더링 완료' : `${done} / ${total} 렌더링 중…`}
+                {status === 'done'
+                  ? '렌더링 완료'
+                  : current
+                  ? `슬라이드 ${current.slideNo} · ${localeLabel(current.locale)} (${done}/${total})`
+                  : `${done} / ${total} 렌더링 중…`}
               </span>
               <span>{pct}%</span>
             </div>
@@ -457,7 +503,27 @@ export function ExportPanel() {
           </div>
         )}
 
-        {error && (
+        {failures.length > 0 && (
+          <div className="space-y-1.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600">
+            <p className="font-semibold">
+              {status === 'error'
+                ? `렌더링 실패: ${failures.length}개 슬라이드 — 내보낸 파일이 없습니다.`
+                : `일부 슬라이드 렌더링 실패 (${failures.length}개). 나머지는 정상적으로 내보냈습니다.`}
+            </p>
+            <ul className="list-disc space-y-0.5 pl-4">
+              {failures.map((f, idx) => (
+                <li key={`${f.slideNo}-${f.locale}-${idx}`}>
+                  슬라이드 {f.slideNo} ({localeLabel(f.locale)}) 렌더 실패: {f.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Catastrophic errors only (e.g. ZIP packaging). A total render
+            failure is already explained by the per-slide failures list above,
+            so don't double-report it here. */}
+        {error && failures.length === 0 && (
           <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600">
             {error}
           </p>

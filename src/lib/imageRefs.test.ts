@@ -3,11 +3,11 @@ import type { Project, SlideTemplate } from '../types/project'
 import { useProjectStore } from '../store/useProjectStore'
 import { useLibraryStore } from '../store/useLibraryStore'
 import { useCustomStore } from '../store/useCustomStore'
-import { makeProject } from '../constants/defaults'
+import { makeProject, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { allReferencedImageKeys } from './imageRefs'
 
 function projWithKeys(name: string, shotKey: string, bgKey: string): Project {
-  const p = makeProject({ name, devices: ['iphone'], screenshotCount: 1, themeColor: '#102030' })
+  const p = makeProject({ name, devices: ['iphone'], screenshotCount: 1, themeBackground: structuredClone(DEFAULT_BACKGROUND) })
   p.slides[0].screenshot = { id: 's', imageKey: shotKey, originalWidth: 10, originalHeight: 10 }
   p.slides[0].background = { type: 'image', imageKey: bgKey }
   return p
@@ -79,7 +79,7 @@ describe('allReferencedImageKeys', () => {
   })
 
   it('ignores non-image backgrounds', () => {
-    const p = makeProject({ name: 'G', devices: ['iphone'], screenshotCount: 1, themeColor: '#102030' })
+    const p = makeProject({ name: 'G', devices: ['iphone'], screenshotCount: 1, themeBackground: structuredClone(DEFAULT_BACKGROUND) })
     p.slides[0].screenshot = null
     // default background is a gradient — carries no imageKey
     useProjectStore.setState({ project: p })

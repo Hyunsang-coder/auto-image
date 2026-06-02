@@ -316,7 +316,7 @@ export async function applyTemplate(
   canvas.renderAll()
 }
 
-function addHeadlineAndSubheadline(
+export function addTextBlocks(
   canvas: Canvas,
   slide: Slide,
   opts: {
@@ -331,20 +331,26 @@ function addHeadlineAndSubheadline(
   },
 ): void {
   const align = opts.align ?? 'center'
+  const gap = (opts.gap ?? 12) * opts.scale
 
-  // A caption with a user-dragged `pos` overrides the template anchor; the
-  // stored fractions are denormalized against the current canvas so the same
-  // placement holds in the editor and at full export resolution.
-  const place = (
-    caption: typeof slide.headline,
-    layerName: typeof LAYER_NAMES.HEADLINE | typeof LAYER_NAMES.SUBHEADLINE,
-    defaultCenterX: number,
-    defaultTop: number,
-  ) => {
-    const centerX = caption.pos ? caption.pos.x * opts.cw : defaultCenterX
-    const top = caption.pos ? caption.pos.y * opts.ch : defaultTop
+  // A caption with a user-dragged `pos` overrides the template anchor (absolute,
+  // does NOT advance the stack); the stored fractions are denormalized against
+  // the current canvas so the same placement holds in the editor and at full
+  // export resolution. A caption without `pos` stacks from cursorTop.
+  let cursorTop = opts.headlineTop
+  slide.texts.forEach((caption, i) => {
+    const absolute = !!caption.pos
+    const centerX = absolute ? caption.pos!.x * opts.cw : opts.headlineCenterX
+    const top = absolute ? caption.pos!.y * opts.ch : cursorTop
     const width = caption.boxWidth != null ? caption.boxWidth * opts.cw : opts.width
-    const obj = renderCaption(caption, { left: centerX, top, width, layerName, scale: opts.scale })
+    const obj = renderCaption(caption, {
+      left: centerX,
+      top,
+      width,
+      layerName: LAYER_NAMES.TEXT,
+      textIndex: i,
+      scale: opts.scale,
+    })
     // The caption's own textAlign is the source of truth (the panel sets it, and
     // a layout switch seeds it with TEMPLATE_TEXT_ALIGN). Fall back to the
     // layout default only if a caption somehow has none.
@@ -353,20 +359,8 @@ function addHeadlineAndSubheadline(
     if (effectiveAlign === 'left') obj.set({ originX: 'left', left: centerX - width / 2 })
     else if (effectiveAlign === 'right') obj.set({ originX: 'right', left: centerX + width / 2 })
     canvas.add(obj)
-    return obj
-  }
-
-  const headline = place(slide.headline, LAYER_NAMES.HEADLINE, opts.headlineCenterX, opts.headlineTop)
-  const subTop = opts.headlineTop + headline.height + (opts.gap ?? 12) * opts.scale
-  const sub = place(slide.subheadline, LAYER_NAMES.SUBHEADLINE, opts.headlineCenterX, subTop)
-
-  // Keep the size hierarchy under auto-size: a long headline shrinks via fitToBox
-  // and can end up smaller than a short subheadline. When both auto-size, cap the
-  // subheadline at the headline's rendered size.
-  if (slide.headline.style.fitToBox && slide.subheadline.style.fitToBox) {
-    const hSize = headline.fontSize ?? 0
-    if ((sub.fontSize ?? 0) > hSize) sub.set('fontSize', hSize)
-  }
+    if (!absolute) cursorTop = top + obj.height + gap
+  })
 }
 
 function applyHero(
@@ -376,7 +370,7 @@ function applyHero(
   ch: number,
   scale: number,
 ): void {
-  addHeadlineAndSubheadline(canvas, slide, {
+  addTextBlocks(canvas, slide, {
     cw,
     ch,
     headlineCenterX: cw / 2,
@@ -454,7 +448,7 @@ function applyTextTop(
   layout: DeviceLayout | null,
   scale: number,
 ): void {
-  addHeadlineAndSubheadline(canvas, slide, {
+  addTextBlocks(canvas, slide, {
     cw,
     ch,
     headlineCenterX: cw / 2,
@@ -475,7 +469,7 @@ function applyTextBottom(
   scale: number,
 ): void {
   addDeviceFrame(canvas, slide, layout, scale)
-  addHeadlineAndSubheadline(canvas, slide, {
+  addTextBlocks(canvas, slide, {
     cw,
     ch,
     headlineCenterX: cw / 2,
@@ -494,7 +488,7 @@ function applySplit(
   layout: DeviceLayout | null,
   scale: number,
 ): void {
-  addHeadlineAndSubheadline(canvas, slide, {
+  addTextBlocks(canvas, slide, {
     cw,
     ch,
     headlineCenterX: cw * 0.21,
@@ -519,7 +513,7 @@ function applyHeroBleed(
   layout: DeviceLayout | null,
   scale: number,
 ): void {
-  addHeadlineAndSubheadline(canvas, slide, {
+  addTextBlocks(canvas, slide, {
     cw,
     ch,
     headlineCenterX: cw * 0.25,

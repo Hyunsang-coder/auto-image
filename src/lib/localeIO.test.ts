@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { serializeTemplate, parseTemplate, buildTranslationPrompt, type SerializeRow } from './localeIO'
 
 const ROWS: SerializeRow[] = [
-  { slideId: 's1', slideIndex: 0, field: 'headline', sourceText: 'Track your day' },
-  { slideId: 's1', slideIndex: 0, field: 'subheadline', sourceText: 'Simple, fast' },
+  { slideId: 's1', slideIndex: 0, field: 'text:0', sourceText: 'Track your day' },
+  { slideId: 's1', slideIndex: 0, field: 'text:1', sourceText: 'Simple, fast' },
   { slideId: 's2', slideIndex: 1, field: 'badge:0', sourceText: 'New' },
 ]
 
-// Existing translations: ja filled for the headline only.
-const cells: Record<string, string> = { 's1|headline|ja': '一日を記録' }
+// Existing translations: ja filled for the title block only.
+const cells: Record<string, string> = { 's1|text:0|ja': '一日を記録' }
 const getCell = (id: string, f: string, l: string) => cells[`${id}|${f}|${l}`] ?? ''
 
 describe('serializeTemplate / parseTemplate round-trip', () => {
@@ -18,7 +18,7 @@ describe('serializeTemplate / parseTemplate round-trip', () => {
       const { rows, warnings } = parseTemplate(text, format)
       expect(warnings).toEqual([])
       expect(rows).toHaveLength(3)
-      expect(rows[0]).toMatchObject({ slideId: 's1', slide: 1, field: 'headline' })
+      expect(rows[0]).toMatchObject({ slideId: 's1', slide: 1, field: 'text:0' })
       // Source locale ('en') is a labeled column carrying the base text.
       expect(rows[0].values.en).toBe('Track your day')
       expect(rows[0].values.ja).toBe('一日を記録')
@@ -50,7 +50,7 @@ describe('csv parsing', () => {
   it('handles quoted commas, newlines, and escaped quotes', () => {
     const text = serializeTemplate(
       'csv',
-      [{ slideId: 's1', slideIndex: 0, field: 'headline', sourceText: 'a, "b"\nc' }],
+      [{ slideId: 's1', slideIndex: 0, field: 'text:0', sourceText: 'a, "b"\nc' }],
       () => 'val, "x"',
       'en',
       ['ko'],

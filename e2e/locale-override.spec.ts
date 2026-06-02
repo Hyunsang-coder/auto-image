@@ -33,7 +33,7 @@ test('per-locale screenshot override swaps the rendered image; absent locale fal
       name: 'V',
       devices: ['iphone'],
       screenshotCount: 1,
-      themeColor: '#102030',
+      themeBackground: { type: 'solid', color: '#102030' },
     })
     const slide = proj.slides[0]
     slide.screenshot = {
