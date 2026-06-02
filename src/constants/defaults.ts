@@ -152,12 +152,21 @@ export function makeHighlight(): Highlight {
   }
 }
 
-export function makeBadge(text = '새 기능'): Badge {
+export function makeBadge(text = '새 기능', accentColor?: string): Badge {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `badge-${Date.now()}`
-  return { id, text, translations: {}, style: { ...DEFAULT_BADGE_STYLE }, top: 0.03 }
+  // A badge is the slide's main accent, so it defaults to the project's theme
+  // color (with a legible auto-contrast label). Falls back to the neutral pill.
+  const style = accentColor
+    ? {
+        ...DEFAULT_BADGE_STYLE,
+        backgroundColor: accentColor,
+        textColor: readableTextOn(accentColor),
+      }
+    : { ...DEFAULT_BADGE_STYLE }
+  return { id, text, translations: {}, style, top: 0.03 }
 }
 
 export function defaultDeviceFrame(device: DeviceType = 'iphone'): DeviceFrame {
@@ -165,18 +174,21 @@ export function defaultDeviceFrame(device: DeviceType = 'iphone'): DeviceFrame {
   return { show: true, model, color: 'black' }
 }
 
-export function defaultBackground(themeColor: string): Background {
-  return {
-    type: 'gradient',
-    gradient: {
-      direction: 180,
-      stops: [
-        { color: themeColor, position: 0 },
-        { color: shiftLightness(themeColor, -25), position: 1 },
-      ],
-    },
-  }
+// New-slide default: a soft, near-white wash (faint cool corner → warm cream)
+// with dark text — the App-Store reference look. Intentionally theme-independent;
+// cloned per slide so they don't share the gradient object.
+export const DEFAULT_BACKGROUND: Background = {
+  type: 'gradient',
+  gradient: {
+    direction: 145,
+    stops: [
+      { color: '#ECEAF3', position: 0 },
+      { color: '#F2EEE7', position: 1 },
+    ],
+  },
 }
+export const DEFAULT_HEADLINE_COLOR = '#1C1C24'
+export const DEFAULT_SUBHEADLINE_COLOR = '#3A3A46'
 
 export interface ThemePreset {
   id: string
@@ -401,25 +413,32 @@ export function defaultCaption(text: string, style: TextStyle): Caption {
   return { text, translations: {}, style: { ...style } }
 }
 
-export function makeSlide(index: number, themeColor: string, device: DeviceType = 'iphone'): Slide {
+export function makeSlide(index: number, device: DeviceType = 'iphone'): Slide {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `slide-${index}-${Date.now()}`
-  const template: TemplateType = index === 0 ? 'hero-bleed' : 'text-top'
+  const template: TemplateType = 'text-top'
   const sizes = TEMPLATE_FONT_SIZES[template]
   return {
     id,
     index,
     template,
-    background: defaultBackground(themeColor),
+    background: structuredClone(DEFAULT_BACKGROUND),
     deviceFrame: defaultDeviceFrame(device),
     screenshot: null,
-    headline: defaultCaption('당신의 헤드라인', { ...HEADLINE_STYLE, fontSize: sizes.headline }),
-    subheadline: defaultCaption(
-      '한 문장으로 가치 제안을 전달하세요',
-      { ...SUBHEADLINE_STYLE, fontSize: sizes.subheadline },
-    ),
+    headline: defaultCaption('당신의 헤드라인', {
+      ...HEADLINE_STYLE,
+      fontSize: sizes.headline,
+      color: DEFAULT_HEADLINE_COLOR,
+    }),
+    // Reference layout is headline-only; the subheadline starts empty (the
+    // caption panel can fill it). Dark color so it reads once typed.
+    subheadline: defaultCaption('', {
+      ...SUBHEADLINE_STYLE,
+      fontSize: sizes.subheadline,
+      color: DEFAULT_SUBHEADLINE_COLOR,
+    }),
     badges: [],
     highlights: [],
     ornaments: [],
@@ -450,21 +469,9 @@ export function makeProject(input: {
     targetLocales: [...DEFAULT_TARGET_LOCALES],
     translationApi: DEFAULT_TRANSLATION_API,
     slides: Array.from({ length: input.screenshotCount }, (_, i) =>
-      makeSlide(i, input.themeColor, input.devices[0]),
+      makeSlide(i, input.devices[0]),
     ),
   }
-}
-
-function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n))
-}
-
-export function shiftLightness(hex: string, delta: number): string {
-  const { r, g, b } = hexToRgb(hex)
-  const { h, s, l } = rgbToHsl(r, g, b)
-  const nl = clamp(l + delta, 0, 100)
-  const { r: nr, g: ng, b: nb } = hslToRgb(h, s, nl)
-  return rgbToHex(nr, ng, nb)
 }
 
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -476,49 +483,9 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   }
 }
 
-export function rgbToHex(r: number, g: number, b: number): string {
-  const to = (n: number) =>
-    Math.round(clamp(n, 0, 255)).toString(16).padStart(2, '0')
-  return `#${to(r)}${to(g)}${to(b)}`.toUpperCase()
-}
-
-function rgbToHsl(r: number, g: number, b: number) {
-  r /= 255
-  g /= 255
-  b /= 255
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  let h = 0
-  let s = 0
-  const l = (max + min) / 2
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0)
-        break
-      case g:
-        h = (b - r) / d + 2
-        break
-      case b:
-        h = (r - g) / d + 4
-        break
-    }
-    h *= 60
-  }
-  return { h, s: s * 100, l: l * 100 }
-}
-
-function hslToRgb(h: number, s: number, l: number) {
-  s /= 100
-  l /= 100
-  const k = (n: number) => (n + h / 30) % 12
-  const a = s * Math.min(l, 1 - l)
-  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))
-  return {
-    r: f(0) * 255,
-    g: f(8) * 255,
-    b: f(4) * 255,
-  }
+// Black or white — whichever stays legible on the given background color.
+export function readableTextOn(hex: string): string {
+  const { r, g, b } = hexToRgb(hex)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.6 ? '#1A1A2E' : '#FFFFFF'
 }
