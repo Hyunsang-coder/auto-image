@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { createProject, uploadScreenshot } from './helpers'
+import { createProject, slideTray, uploadScreenshot } from './helpers'
 
 function hasScreenshotOnCanvas(page: import('@playwright/test').Page) {
   return page.waitForFunction(() => {
@@ -28,25 +28,27 @@ test('헤드라인 편집이 새로고침 후에도 유지됨', async ({ page })
   await page.getByRole('button', { name: '텍스트', exact: true }).click()
   await page.locator('textarea').first().fill('유지되는 헤드라인')
 
-  const slideList = page.locator('aside').first()
-  await expect(slideList.getByText('유지되는 헤드라인')).toBeVisible()
+  // The tray renders the headline as the thumb's accessible name (aria-label).
+  const headlineThumb = slideTray(page).getByRole('button', { name: '유지되는 헤드라인' })
+  await expect(headlineThumb).toBeVisible()
 
   await page.reload()
 
-  // step is persisted, so we land back in the editor and the slide list keeps
+  // step is persisted, so we land back in the editor and the tray thumb keeps
   // the edited headline.
-  await expect(slideList.getByText('유지되는 헤드라인')).toBeVisible()
+  await expect(headlineThumb).toBeVisible()
 })
 
 test('2-page span 그룹이 새로고침 후에도 유지됨', async ({ page }) => {
   await createProject(page, { name: 'Persist Span', slideCount: 3 })
 
-  await page.getByRole('button', { name: /다음 슬라이드와 연결/ }).first().click()
-  await expect(page.getByText('2-page span')).toBeVisible()
+  await page.getByTitle('옆 슬라이드와 한 장으로 묶기').first().click()
+  // The span group container carries a "🔗 2-page span" title.
+  await expect(page.getByTitle('🔗 2-page span')).toBeVisible()
 
   await page.reload()
 
-  await expect(page.getByText('2-page span')).toBeVisible()
+  await expect(page.getByTitle('🔗 2-page span')).toBeVisible()
 })
 
 test('업로드한 스크린샷이 새로고침 후에도 유지됨 (IndexedDB)', async ({ page }) => {
