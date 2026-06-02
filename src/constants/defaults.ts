@@ -190,6 +190,18 @@ export const DEFAULT_BACKGROUND: Background = {
 export const DEFAULT_HEADLINE_COLOR = '#1C1C24'
 export const DEFAULT_SUBHEADLINE_COLOR = '#3A3A46'
 
+/**
+ * Derive a single accent hex from a background, for the parts that still need a
+ * solid color (badge fill + its auto-contrast label). Solid → its color;
+ * gradient → first stop; image → its tint color. Always returns a valid hex,
+ * falling back to the neutral theme color.
+ */
+export function accentFromBackground(bg: Background): string {
+  if (bg.type === 'solid') return bg.color ?? DEFAULT_THEME_COLOR
+  if (bg.type === 'gradient') return bg.gradient?.stops[0]?.color ?? DEFAULT_THEME_COLOR
+  return bg.color ?? DEFAULT_THEME_COLOR
+}
+
 export interface ThemePreset {
   id: string
   label: string
@@ -413,7 +425,11 @@ export function defaultCaption(text: string, style: TextStyle): Caption {
   return { text, translations: {}, style: { ...style } }
 }
 
-export function makeSlide(index: number, device: DeviceType = 'iphone'): Slide {
+export function makeSlide(
+  index: number,
+  device: DeviceType = 'iphone',
+  background?: Background,
+): Slide {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -424,7 +440,7 @@ export function makeSlide(index: number, device: DeviceType = 'iphone'): Slide {
     id,
     index,
     template,
-    background: structuredClone(DEFAULT_BACKGROUND),
+    background: structuredClone(background ?? DEFAULT_BACKGROUND),
     deviceFrame: defaultDeviceFrame(device),
     screenshot: null,
     headline: defaultCaption('당신의 헤드라인', {
@@ -450,7 +466,7 @@ export function makeProject(input: {
   name: string
   devices: Project['devices']
   screenshotCount: number
-  themeColor: string
+  themeBackground: Background
 }): Project {
   const now = new Date().toISOString()
   const id =
@@ -464,12 +480,12 @@ export function makeProject(input: {
     updatedAt: now,
     devices: input.devices,
     screenshotCount: input.screenshotCount,
-    themeColor: input.themeColor,
+    themeBackground: structuredClone(input.themeBackground),
     sourceLocale: DEFAULT_SOURCE_LOCALE,
     targetLocales: [...DEFAULT_TARGET_LOCALES],
     translationApi: DEFAULT_TRANSLATION_API,
     slides: Array.from({ length: input.screenshotCount }, (_, i) =>
-      makeSlide(i, input.devices[0]),
+      makeSlide(i, input.devices[0], input.themeBackground),
     ),
   }
 }

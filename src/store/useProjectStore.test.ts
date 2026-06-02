@@ -7,7 +7,7 @@ function setup(slideCount = 2) {
     name: 'Dup Test',
     devices: ['iphone'],
     screenshotCount: slideCount,
-    themeColor: '#000000',
+    themeBackground: { type: 'solid', color: '#000000' },
   })
   return useProjectStore.getState().project!
 }

@@ -37,7 +37,8 @@ export interface Project {
   updatedAt: string
   devices: DeviceType[]
   screenshotCount: number
-  themeColor: string
+  /** Default background applied to every slide of a new project. */
+  themeBackground: Background
   sourceLocale: string
   targetLocales: string[]
   translationApi: TranslationAPI

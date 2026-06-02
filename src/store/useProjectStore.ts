@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Project, Slide, Step, ScreenshotImage, Badge } from '../types/project'
-import { makeProject, makeSlide } from '../constants/defaults'
+import type { Project, Slide, Step, ScreenshotImage, Badge, Background } from '../types/project'
+import { makeProject, makeSlide, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
@@ -125,7 +125,7 @@ interface ProjectState {
     name: string
     devices: Project['devices']
     screenshotCount: number
-    themeColor: string
+    themeBackground: Background
   }) => void
   resetProject: () => void
   /** Replace the active project with a saved one (deep-cloned), jump to editor. */
@@ -175,6 +175,17 @@ function touch(project: Project | null): Project | null {
   return { ...project, updatedAt: new Date().toISOString() }
 }
 
+/**
+ * Back-compat: projects created before the theme became a full Background only
+ * carried a `themeColor` string. Fill `themeBackground` with the default so the
+ * setup screen and new-slide defaults don't break when such a project loads
+ * (from the library or rehydrated from localStorage).
+ */
+function ensureThemeBackground(project: Project): Project {
+  if (project.themeBackground) return project
+  return { ...project, themeBackground: structuredClone(DEFAULT_BACKGROUND) }
+}
+
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
@@ -199,7 +210,7 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       loadProject: (project) => {
-        const clone = structuredClone(project)
+        const clone = ensureThemeBackground(structuredClone(project))
         set({
           project: clone,
           step: 2,
@@ -439,8 +450,9 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'auto-image:project',
       storage: createJSONStorage(() => safeLocalStorage),
-      version: 2,
+      version: 3,
       // v1→v2: single `slide.badge` became `slide.badges` (array).
+      // v2→v3: project `themeColor` string became `themeBackground` Background.
       migrate: (persisted, version) => {
         const state = persisted as { project: Project | null }
         if (version < 2 && state.project) {
@@ -448,6 +460,9 @@ export const useProjectStore = create<ProjectState>()(
             slide.badges = slide.badge ? [slide.badge] : []
             delete slide.badge
           }
+        }
+        if (version < 3 && state.project) {
+          state.project = ensureThemeBackground(state.project)
         }
         return state
       },

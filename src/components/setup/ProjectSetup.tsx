@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import type { DeviceType, Project } from '../../types/project'
-import { DEFAULT_THEME_COLOR } from '../../constants/defaults'
+import type { Background, DeviceType, Project } from '../../types/project'
+import { DEFAULT_BACKGROUND } from '../../constants/defaults'
 import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useLibraryStore } from '../../store/useLibraryStore'
 import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
-import { ColorPickerPopover } from '../common/ColorPickerPopover'
+import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 
 const MIN_SLIDES = 1
 const MAX_SLIDES = 10
@@ -29,8 +29,8 @@ export function ProjectSetup() {
   const [count, setCount] = useState<number>(
     existingProject?.screenshotCount ?? 5,
   )
-  const [themeColor, setThemeColor] = useState<string>(
-    existingProject?.themeColor ?? DEFAULT_THEME_COLOR,
+  const [themeBackground, setThemeBackground] = useState<Background>(
+    existingProject?.themeBackground ?? structuredClone(DEFAULT_BACKGROUND),
   )
 
   const canSubmit = name.trim().length > 0 && devices.length > 0
@@ -58,7 +58,7 @@ export function ProjectSetup() {
       name: name.trim(),
       devices,
       screenshotCount: count,
-      themeColor: themeColor.toUpperCase(),
+      themeBackground,
     })
     setConfirmNew(false)
   }
@@ -175,8 +175,8 @@ export function ProjectSetup() {
         </div>
       </Section>
 
-      <Section title="테마 컬러" hint="배지 등 강조 요소의 기본 색으로 사용됩니다.">
-        <ColorPickerPopover color={themeColor} onChange={setThemeColor} />
+      <Section title="기본 배경" hint="모든 슬라이드의 기본 배경으로 사용됩니다.">
+        <BackgroundPanel value={themeBackground} onChange={setThemeBackground} />
       </Section>
 
       <footer className="mt-2 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
