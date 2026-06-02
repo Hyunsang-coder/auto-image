@@ -211,7 +211,7 @@ export function ScreenshotPanel({
           여러 장 일괄 업로드
         </button>
         <p className="text-[11px] leading-snug text-[var(--color-text-dim)]">
-          파일명 {'{번호}[-설명].{언어}.png'} · 원본({sourceLocale})이 베이스 · 예: 01-home.{sourceLocale}.png, 01-home.{targetLocales[0] ?? 'en'}.png
+          파일명 {'{번호}[-설명].{언어}.png'} · 기준 언어({sourceLocale})가 베이스 · 예: 01-home.{sourceLocale}.png, 01-home.{targetLocales[0] ?? 'en'}.png
         </p>
         <input
           ref={bulkInputRef}

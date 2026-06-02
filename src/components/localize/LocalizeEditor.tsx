@@ -331,7 +331,7 @@ export function LocalizeEditor() {
     // Surface any locale that arrived with values but wasn't selected yet.
     const toAdd = [...localesSeen].filter(l => !targetLocales.includes(l))
     if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
-    const baseNote = baseWritten ? ` (원본 ${baseWritten}개 갱신)` : ''
+    const baseNote = baseWritten ? ` (기준 언어 ${baseWritten}개 갱신)` : ''
     setIoIssues(issues)
     if (written === 0 && issues.length === 0) {
       setIoMsg({ kind: 'err', text: '가져올 번역이 없습니다' })
@@ -405,7 +405,7 @@ export function LocalizeEditor() {
       <div className="flex flex-shrink-0 flex-wrap items-start gap-6 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4">
         {/* Source locale */}
         <div>
-          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">원본 언어</div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">기준 언어</div>
           <select
             value={sourceLocale}
             onChange={e => {
@@ -423,7 +423,7 @@ export function LocalizeEditor() {
         </div>
 
         {/* Target locales */}
-        <div className="flex-1">
+        <div className="max-w-[26rem]">
           <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 언어</div>
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -459,7 +459,7 @@ export function LocalizeEditor() {
         {/* Template import/export — translation happens externally */}
         <div>
           <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 양식 (외부 번역용)</div>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => exportTemplate('csv')}
               disabled={textRows.length === 0 || targetLocales.length === 0}
@@ -534,7 +534,7 @@ export function LocalizeEditor() {
             </button>
           </div>
           <p className="mt-1 max-w-72 text-[11px] leading-snug text-[var(--color-text-dim)]">
-            파일명 {'{번호}.{언어}.png'} · 원본({sourceLocale})이 베이스 · 예: 1.{sourceLocale}.png, 1.{targetLocales[0] ?? 'en'}.png
+            파일명 {'{번호}.{언어}.png'} · 기준 언어({sourceLocale})가 베이스 · 예: 1.{sourceLocale}.png, 1.{targetLocales[0] ?? 'en'}.png
           </p>
           <input
             ref={imageInputRef}
@@ -587,10 +587,10 @@ export function LocalizeEditor() {
                   필드
                 </th>
                 <th className="min-w-44 border-r border-[var(--color-border)] px-3 py-2 text-left text-xs font-medium text-[var(--color-text-dim)]">
-                  {/* Base text is stored language-agnostically; the 원본 언어 dropdown
+                  {/* Base text is stored language-agnostically; the 기준 언어 dropdown
                       declares its language. Don't relabel this column to the chosen
                       source language — the stored text doesn't change when it flips. */}
-                  원본
+                  기준 언어
                 </th>
                 {targetLocales.map(locale => (
                   <th key={locale} className="min-w-44 border-r border-[var(--color-border)] px-3 py-2 text-left">

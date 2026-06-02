@@ -69,7 +69,7 @@ export async function importBulkImages(
       continue
     }
     issues.push(
-      `슬라이드 ${t.slide} ${t.locale ?? '원본'} 중복 — "${t.file.name}" 무시, "${prev.file.name}" 사용`,
+      `슬라이드 ${t.slide} ${t.locale ?? '기준 언어'} 중복 — "${t.file.name}" 무시, "${prev.file.name}" 사용`,
     )
   }
   // Base screenshots before overrides so an override can attach to a base
@@ -98,7 +98,7 @@ export async function importBulkImages(
     }
     if (locale && !slide.screenshot) {
       issues.push(
-        `슬라이드 ${slideNum}: 원본 언어(${labelOf(sourceLocale)}) 스크린샷이 없어 ${labelOf(locale)} 추가본을 붙일 수 없음`,
+        `슬라이드 ${slideNum}: 기준 언어(${labelOf(sourceLocale)}) 스크린샷이 없어 ${labelOf(locale)} 추가본을 붙일 수 없음`,
       )
       continue
     }

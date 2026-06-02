@@ -47,6 +47,6 @@ describe('buildImageNamingGuide', () => {
     expect(guide).toContain('1.ko.png(베이스)')
     expect(guide).toContain('1.en.png')
     expect(guide).toContain('1.ja.png')
-    expect(guide).toContain('원본 언어(한국어, ko)')
+    expect(guide).toContain('기준 언어(한국어, ko)')
   })
 })

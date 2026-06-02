@@ -27,7 +27,7 @@ export function buildImageNamingGuide(
   return [
     '이미지 파일명 규칙 (벌크 업로드)',
     '• 형식: {슬라이드번호}[-설명].{언어}.png — 모든 파일에 언어 접미사 필요',
-    `• 원본 언어(${source.label}, ${source.code})로 들어온 파일 = 슬라이드 베이스, 나머지 = 언어별 추가본`,
+    `• 기준 언어(${source.label}, ${source.code})로 들어온 파일 = 슬라이드 베이스, 나머지 = 언어별 추가본`,
     `• 슬라이드 1 예시: ${slide1}`,
     `• 설명 접미사 허용: 01-home.${source.code}.png, 02-add-pdf.${targets[0]?.code ?? source.code}.png`,
   ].join('\n')
