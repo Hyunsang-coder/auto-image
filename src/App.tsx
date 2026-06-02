@@ -9,6 +9,7 @@ import { useLibraryStore } from './store/useLibraryStore'
 import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
+import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
 
 function App() {
   const step = useProjectStore((s) => s.step)
@@ -64,6 +65,13 @@ function App() {
     window.setTimeout(() => setJustSaved(false), 1600)
   }
 
+  // Readiness flags for the step-nav dots. Same shared predicates ExportPanel
+  // uses, so the dot and the export banner can never disagree.
+  const untranslatedLocales = project ? getUntranslatedLocales(project) : []
+  const slidesMissingScreenshot = project ? getSlidesMissingScreenshot(project) : []
+  const localizeIncomplete = untranslatedLocales.length > 0
+  const editorIncomplete = slidesMissingScreenshot.length > 0
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3">
@@ -79,6 +87,18 @@ function App() {
           current={step}
           hasProject={!!project}
           onJump={(s) => setStep(s)}
+          editorIncomplete={editorIncomplete}
+          localizeIncomplete={localizeIncomplete}
+          editorHint={
+            editorIncomplete
+              ? `스크린샷 없는 슬라이드 ${slidesMissingScreenshot.length}개`
+              : undefined
+          }
+          localizeHint={
+            localizeIncomplete
+              ? `번역 미완료 로케일 ${untranslatedLocales.length}개`
+              : undefined
+          }
         />
         <div className="flex items-center gap-3">
           {project && (
