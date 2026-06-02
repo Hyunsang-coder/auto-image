@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Project, Slide, Step, ScreenshotImage, Badge, Background } from '../types/project'
+import type { Project, Slide, Step, ScreenshotImage, Background } from '../types/project'
 import { makeProject, makeSlide, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
@@ -97,16 +97,12 @@ async function buildIndependentFromLeader(
     background: leader.background,
     deviceFrame: { ...leader.deviceFrame },
     screenshot,
-    headline: {
-      ...leader.headline,
-      style: { ...leader.headline.style },
-      translations: { ...leader.headline.translations },
-    },
-    subheadline: {
-      ...leader.subheadline,
-      style: { ...leader.subheadline.style },
-      translations: { ...leader.subheadline.translations },
-    },
+    texts: leader.texts.map((c) => ({
+      ...c,
+      style: { ...c.style },
+      translations: { ...c.translations },
+      pos: c.pos ? { ...c.pos } : undefined,
+    })),
     badges,
     highlights,
     ornaments,
@@ -450,21 +446,12 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'auto-image:project',
       storage: createJSONStorage(() => safeLocalStorage),
-      version: 3,
-      // v1→v2: single `slide.badge` became `slide.badges` (array).
-      // v2→v3: project `themeColor` string became `themeBackground` Background.
-      migrate: (persisted, version) => {
-        const state = persisted as { project: Project | null }
-        if (version < 2 && state.project) {
-          for (const slide of state.project.slides as Array<Slide & { badge?: Badge | null }>) {
-            slide.badges = slide.badge ? [slide.badge] : []
-            delete slide.badge
-          }
-        }
-        if (version < 3 && state.project) {
-          state.project = ensureThemeBackground(state.project)
-        }
-        return state
+      version: 4,
+      // v3→v4: fixed `slide.headline`/`slide.subheadline` became `slide.texts[]`.
+      // No back-compat: any pre-v4 persisted project is dropped to a clean slate.
+      migrate: (_persisted, version) => {
+        if (version < 4) return { project: null, step: 1, activeSlideId: null }
+        return _persisted as { project: Project | null; step: Step; activeSlideId: string | null }
       },
       partialize: (state) => ({
         project: state.project,

@@ -3,6 +3,7 @@ import type { Background } from '../types/project'
 import {
   makeSlide,
   makeBadge,
+  makeTextBlock,
   presetFromSlide,
   templateFromSlide,
   applyTemplateToSlide,
@@ -26,8 +27,9 @@ describe('presetFromSlide', () => {
 
   it('captures the slide text colors', () => {
     const slide = makeSlide(0)
-    slide.headline.style.color = '#111111'
-    slide.subheadline.style.color = '#222222'
+    slide.texts.push(makeTextBlock(1, slide.template))
+    slide.texts[0].style.color = '#111111'
+    slide.texts[1].style.color = '#222222'
     const preset = presetFromSlide(slide, 'c')
     expect(preset.headlineColor).toBe('#111111')
     expect(preset.subheadlineColor).toBe('#222222')
@@ -42,9 +44,9 @@ describe('templateFromSlide', () => {
 
     expect(tpl.background).not.toBe(slide.background)
     slide.background = { type: 'solid', color: '#fff' }
-    slide.headline.style.color = '#abcdef'
+    slide.texts[0].style.color = '#abcdef'
     expect(tpl.background.type).toBe('image')
-    expect(tpl.headline.style.color).not.toBe('#abcdef')
+    expect(tpl.texts[0].style.color).not.toBe('#abcdef')
   })
 })
 
@@ -64,12 +66,12 @@ describe('applyTemplateToSlide', () => {
     const src = makeSlide(0)
     const tpl = templateFromSlide(src, 'T')
     const target = makeSlide(1)
-    target.headline.text = '내 헤드라인'
-    target.headline.translations = { en: 'My headline' }
+    target.texts[0].text = '내 헤드라인'
+    target.texts[0].translations = { en: 'My headline' }
 
     const patch = applyTemplateToSlide(target, tpl)
-    expect(patch.headline?.text).toBe('내 헤드라인')
-    expect(patch.headline?.translations).toEqual({ en: 'My headline' })
+    expect(patch.texts?.[0].text).toBe('내 헤드라인')
+    expect(patch.texts?.[0].translations).toEqual({ en: 'My headline' })
   })
 
   it('gives applied badges fresh ids and clones their nested objects', () => {

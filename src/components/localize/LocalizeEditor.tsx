@@ -34,10 +34,14 @@ function buildRows(slides: Slide[]): GridRow[] {
     const fields: { field: FieldKey; label: string; sourceText: string }[] = []
     if (slide.screenshot)
       fields.push({ field: 'image', label: '이미지', sourceText: '' })
-    if (slide.headline.text)
-      fields.push({ field: 'headline', label: '헤드라인', sourceText: slide.headline.text })
-    if (slide.subheadline.text)
-      fields.push({ field: 'subheadline', label: '서브', sourceText: slide.subheadline.text })
+    slide.texts.forEach((t, ti) => {
+      if (t.text)
+        fields.push({
+          field: `text:${ti}`,
+          label: slide.texts.length > 1 ? `텍스트${ti + 1}` : '텍스트',
+          sourceText: t.text,
+        })
+    })
     slide.badges?.forEach((b, bi) => {
       if (b.text)
         fields.push({
@@ -63,8 +67,10 @@ function buildRows(slides: Slide[]): GridRow[] {
 function getCellValue(slides: Slide[], slideId: string, field: FieldKey, locale: string): string {
   const slide = slides.find(s => s.id === slideId)
   if (!slide) return ''
-  if (field === 'headline') return slide.headline.translations[locale] ?? ''
-  if (field === 'subheadline') return slide.subheadline.translations[locale] ?? ''
+  if (field.startsWith('text:')) {
+    const ti = Number(field.slice(5))
+    return slide.texts[ti]?.translations[locale] ?? ''
+  }
   if (field.startsWith('badge:')) {
     const bi = Number(field.slice(6))
     return slide.badges?.[bi]?.translations[locale] ?? ''
@@ -300,8 +306,7 @@ export function LocalizeEditor() {
         continue
       }
       const fieldOk =
-        row.field === 'headline' ||
-        row.field === 'subheadline' ||
+        (row.field.startsWith('text:') && !!slide.texts[Number(row.field.slice(5))]) ||
         (row.field.startsWith('badge:') && !!slide.badges?.[Number(row.field.slice(6))])
       if (!fieldOk) {
         issues.push(`알 수 없는 필드 "${row.field}" (slide ${row.slide ?? ''})`)

@@ -10,16 +10,18 @@ function baseSlide(over: Partial<Slide> = {}): Slide {
     background: { type: 'solid', color: '#fff' },
     deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black', offsetX: 0, offsetY: 0, scale: 1 },
     screenshot: { id: 'sh', imageKey: 'img:base', originalWidth: 100, originalHeight: 200 },
-    headline: {
-      text: 'Hello',
-      translations: { fr: 'Bonjour' },
-      style: { fontFamily: 'Inter', fontSize: 76, fontWeight: 700, color: '#000', textAlign: 'center' },
-    },
-    subheadline: {
-      text: 'World',
-      translations: {},
-      style: { fontFamily: 'Inter', fontSize: 40, fontWeight: 400, color: '#000', textAlign: 'center' },
-    },
+    texts: [
+      {
+        text: 'Hello',
+        translations: { fr: 'Bonjour' },
+        style: { fontFamily: 'Inter', fontSize: 76, fontWeight: 700, color: '#000', textAlign: 'center' },
+      },
+      {
+        text: 'World',
+        translations: {},
+        style: { fontFamily: 'Inter', fontSize: 40, fontWeight: 400, color: '#000', textAlign: 'center' },
+      },
+    ],
     badges: [],
     highlights: [],
     ...over,
@@ -34,8 +36,8 @@ describe('resolveSlideForLocale', () => {
 
   it('applies translated text, falling back to base when absent', () => {
     const r = resolveSlideForLocale(baseSlide(), 'fr')
-    expect(r.headline.text).toBe('Bonjour')
-    expect(r.subheadline.text).toBe('World')
+    expect(r.texts[0].text).toBe('Bonjour')
+    expect(r.texts[1].text).toBe('World')
   })
 
   it('swaps in the locale screenshot override', () => {
@@ -53,15 +55,15 @@ describe('resolveSlideForLocale', () => {
   it('merges per-locale caption style/placement (partial style over base)', () => {
     const s = baseSlide({
       localeOverrides: {
-        fr: { headline: { pos: { x: 0.5, y: 0.1 }, boxWidth: 0.8, style: { fontSize: 60 } } },
+        fr: { texts: { 0: { pos: { x: 0.5, y: 0.1 }, boxWidth: 0.8, style: { fontSize: 60 } } } },
       },
     })
     const r = resolveSlideForLocale(s, 'fr')
-    expect(r.headline.pos).toEqual({ x: 0.5, y: 0.1 })
-    expect(r.headline.boxWidth).toBe(0.8)
-    expect(r.headline.style.fontSize).toBe(60)
-    expect(r.headline.style.color).toBe('#000') // untouched style prop kept from base
-    expect(s.headline.style.fontSize).toBe(76)  // base not mutated
+    expect(r.texts[0].pos).toEqual({ x: 0.5, y: 0.1 })
+    expect(r.texts[0].boxWidth).toBe(0.8)
+    expect(r.texts[0].style.fontSize).toBe(60)
+    expect(r.texts[0].style.color).toBe('#000') // untouched style prop kept from base
+    expect(s.texts[0].style.fontSize).toBe(76)  // base not mutated
   })
 
   it('merges per-locale device transform, template, background', () => {
@@ -82,9 +84,9 @@ describe('resolveSlideForLocale', () => {
   it('leaves everything on the base when the locale has no override', () => {
     const r = resolveSlideForLocale(baseSlide(), 'de')
     expect(r.template).toBe('text-bottom')
-    expect(r.headline.pos).toBeUndefined()
+    expect(r.texts[0].pos).toBeUndefined()
     expect(r.deviceFrame.offsetX).toBe(0)
-    expect(r.headline.text).toBe('Hello')
+    expect(r.texts[0].text).toBe('Hello')
   })
 
   it('borrows a donor locale screenshot via localeSource when set', () => {

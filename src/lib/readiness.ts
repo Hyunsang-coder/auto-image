@@ -10,18 +10,16 @@ function ownerSlides(project: Project): Slide[] {
 }
 
 /**
- * Target locales that still have at least one owner slide with untranslated
- * headline or subheadline text. Single source of truth shared by ExportPanel's
+ * Target locales that still have at least one owner slide with an untranslated
+ * text block. Single source of truth shared by ExportPanel's
  * pre-export banner and StepIndicator's readiness dot — do not duplicate this
  * predicate.
  */
 export function getUntranslatedLocales(project: Project): string[] {
   const owners = ownerSlides(project)
   return project.targetLocales.filter((locale) =>
-    owners.some(
-      (slide) =>
-        (slide.headline.text && !slide.headline.translations[locale]) ||
-        (slide.subheadline.text && !slide.subheadline.translations[locale]),
+    owners.some((slide) =>
+      slide.texts.some((t) => t.text && !t.translations[locale]),
     ),
   )
 }

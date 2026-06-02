@@ -7,7 +7,7 @@
 
 import type { Slide } from '../types/project'
 
-export type FieldKey = 'image' | 'headline' | 'subheadline' | `badge:${number}`
+export type FieldKey = 'image' | `text:${number}` | `badge:${number}`
 
 /** Write a translation into `translations[locale]` (used by the grid + non-source import columns). */
 export function buildTranslationPatch(
@@ -19,10 +19,15 @@ export function buildTranslationPatch(
 ): Partial<Slide> | null {
   const slide = slides.find(s => s.id === slideId)
   if (!slide) return null
-  if (field === 'headline')
-    return { headline: { ...slide.headline, translations: { ...slide.headline.translations, [locale]: value } } }
-  if (field === 'subheadline')
-    return { subheadline: { ...slide.subheadline, translations: { ...slide.subheadline.translations, [locale]: value } } }
+  if (field.startsWith('text:')) {
+    const ti = Number(field.slice(5))
+    if (!slide.texts[ti]) return null
+    return {
+      texts: slide.texts.map((c, i) =>
+        i === ti ? { ...c, translations: { ...c.translations, [locale]: value } } : c,
+      ),
+    }
+  }
   if (field.startsWith('badge:')) {
     const bi = Number(field.slice(6))
     if (!slide.badges?.[bi]) return null
@@ -44,8 +49,11 @@ export function buildBasePatch(
 ): Partial<Slide> | null {
   const slide = slides.find(s => s.id === slideId)
   if (!slide) return null
-  if (field === 'headline') return { headline: { ...slide.headline, text: value } }
-  if (field === 'subheadline') return { subheadline: { ...slide.subheadline, text: value } }
+  if (field.startsWith('text:')) {
+    const ti = Number(field.slice(5))
+    if (!slide.texts[ti]) return null
+    return { texts: slide.texts.map((c, i) => (i === ti ? { ...c, text: value } : c)) }
+  }
   if (field.startsWith('badge:')) {
     const bi = Number(field.slice(6))
     if (!slide.badges?.[bi]) return null

@@ -323,9 +323,9 @@ export function presetFromSlide(slide: Slide, label: string): ThemePreset {
     id: newId('preset'),
     label,
     background: structuredClone(slide.background),
-    headlineColor: slide.headline.style.color,
-    subheadlineColor: slide.subheadline.style.color,
-    accentColor: slide.badges[0]?.style.backgroundColor ?? slide.headline.style.color,
+    headlineColor: slide.texts[0].style.color,
+    subheadlineColor: slide.texts[1]?.style.color ?? slide.texts[0].style.color,
+    accentColor: slide.badges[0]?.style.backgroundColor ?? slide.texts[0].style.color,
   }
 }
 
@@ -340,8 +340,7 @@ export function templateFromSlide(slide: Slide, label: string): SlideTemplate {
     template: slide.template,
     background: structuredClone(slide.background),
     deviceFrame: { ...slide.deviceFrame },
-    headline: structuredClone(slide.headline),
-    subheadline: structuredClone(slide.subheadline),
+    texts: structuredClone(slide.texts),
     badges: structuredClone(slide.badges),
     ornaments: structuredClone(slide.ornaments ?? []),
     screenshotStyle: slide.screenshotStyle ? { ...slide.screenshotStyle } : undefined,
@@ -359,18 +358,12 @@ export function applyTemplateToSlide(slide: Slide, tpl: SlideTemplate): Partial<
     template: tpl.template,
     background: structuredClone(tpl.background),
     deviceFrame: { ...tpl.deviceFrame, model: slide.deviceFrame.model },
-    headline: {
-      ...slide.headline,
-      style: { ...tpl.headline.style },
-      pos: tpl.headline.pos ? { ...tpl.headline.pos } : undefined,
-      boxWidth: tpl.headline.boxWidth,
-    },
-    subheadline: {
-      ...slide.subheadline,
-      style: { ...tpl.subheadline.style },
-      pos: tpl.subheadline.pos ? { ...tpl.subheadline.pos } : undefined,
-      boxWidth: tpl.subheadline.boxWidth,
-    },
+    texts: tpl.texts.map((tplCap, i) => ({
+      ...(slide.texts[i] ?? makeTextBlock(i, tpl.template, '')),
+      style: { ...tplCap.style },
+      pos: tplCap.pos ? { ...tplCap.pos } : undefined,
+      boxWidth: tplCap.boxWidth,
+    })),
     badges: tpl.badges.map((b) => ({
       ...structuredClone(b),
       id: newId('badge'),
@@ -425,6 +418,31 @@ export function defaultCaption(text: string, style: TextStyle): Caption {
   return { text, translations: {}, style: { ...style } }
 }
 
+/** Max number of text blocks per slide. */
+export const MAX_TEXTS = 4
+
+/**
+ * Build a text block for a given index + template. Block 0 uses the headline
+ * style/color/size; every other index uses the subheadline style/color/size.
+ * Alignment follows the template default.
+ */
+export function makeTextBlock(index: number, template: TemplateType, text = ''): Caption {
+  const base = index === 0 ? HEADLINE_STYLE : SUBHEADLINE_STYLE
+  const color = index === 0 ? DEFAULT_HEADLINE_COLOR : DEFAULT_SUBHEADLINE_COLOR
+  const fontSize = index === 0
+    ? TEMPLATE_FONT_SIZES[template].headline
+    : TEMPLATE_FONT_SIZES[template].subheadline
+  const textAlign = TEMPLATE_TEXT_ALIGN[template]
+  return defaultCaption(text, { ...base, fontSize, textAlign, color })
+}
+
+/** The slide's display title — the first text block's text (locale-aware). */
+export function titleText(slide: Slide, locale?: string): string {
+  const t = slide.texts[0]
+  const text = t ? (locale ? t.translations[locale] ?? t.text : t.text) : ''
+  return text || `슬라이드 ${slide.index + 1}`
+}
+
 export function makeSlide(
   index: number,
   device: DeviceType = 'iphone',
@@ -435,7 +453,6 @@ export function makeSlide(
       ? crypto.randomUUID()
       : `slide-${index}-${Date.now()}`
   const template: TemplateType = 'text-top'
-  const sizes = TEMPLATE_FONT_SIZES[template]
   return {
     id,
     index,
@@ -443,18 +460,8 @@ export function makeSlide(
     background: structuredClone(background ?? DEFAULT_BACKGROUND),
     deviceFrame: defaultDeviceFrame(device),
     screenshot: null,
-    headline: defaultCaption('당신의 헤드라인', {
-      ...HEADLINE_STYLE,
-      fontSize: sizes.headline,
-      color: DEFAULT_HEADLINE_COLOR,
-    }),
-    // Reference layout is headline-only; the subheadline starts empty (the
-    // caption panel can fill it). Dark color so it reads once typed.
-    subheadline: defaultCaption('', {
-      ...SUBHEADLINE_STYLE,
-      fontSize: sizes.subheadline,
-      color: DEFAULT_SUBHEADLINE_COLOR,
-    }),
+    // Reference layout starts title-only; the caption panel adds more blocks.
+    texts: [makeTextBlock(0, template, '당신의 헤드라인')],
     badges: [],
     highlights: [],
     ornaments: [],

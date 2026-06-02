@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SUPPORTED_LOCALES, ascExportCode } from './defaults'
+import { SUPPORTED_LOCALES, ascExportCode, makeSlide } from './defaults'
 
 describe('ascExportCode — App Store Connect export folder codes', () => {
   it('canonicalizes bare codes that differ from ASC', () => {
@@ -24,5 +24,13 @@ describe('ascExportCode — App Store Connect export folder codes', () => {
     const codes = SUPPORTED_LOCALES.map(l => l.code)
     expect(codes).toContain('tr')
     expect(codes).toContain('es-MX')
+  })
+})
+
+describe('makeSlide', () => {
+  it('starts with exactly one text block (the title)', () => {
+    const slide = makeSlide(0)
+    expect(slide.texts).toHaveLength(1)
+    expect(slide.texts[0].text).toBe('당신의 헤드라인')
   })
 })

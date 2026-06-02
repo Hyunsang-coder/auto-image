@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getDeviceDimensions, getDeviceLayout } from './templateLayouts'
-import type { Slide } from '../types/project'
+import type { FabricObject } from 'fabric'
+import { addTextBlocks, getDeviceDimensions, getDeviceLayout } from './templateLayouts'
+import { LAYER_NAMES } from './layerNames'
+import type { Caption, Slide } from '../types/project'
 
 function makeSlide(
   template: Slide['template'],
@@ -10,8 +12,7 @@ function makeSlide(
     id: 's1',
     template,
     deviceFrame: { model: 'iphone-16-pro', show: true, color: 'graphite', scale: 1, ...deviceFrame },
-    headline: { text: '', style: { fontSize: 10, color: '#000', textAlign: 'center' } },
-    subheadline: { text: '', style: { fontSize: 10, color: '#000', textAlign: 'center' } },
+    texts: [{ text: '', translations: {}, style: { fontFamily: 'Inter', fontSize: 10, fontWeight: 400, color: '#000', textAlign: 'center' } }],
     background: { type: 'solid', color: '#fff' },
   } as Slide
 }
@@ -127,5 +128,82 @@ describe('device drag round-trip is exact (no snap)', () => {
         }
       }
     }
+  })
+})
+
+// addTextBlocks lays out slide.texts (1..4) as a vertical stack from headlineTop,
+// advancing the cursor by each block's rendered height + gap. A block carrying a
+// `pos` is absolute (positioned by its fractions) and must NOT advance the stack
+// cursor. Every block is tagged layerName 'text' + its textIndex. No size cap.
+type AddedObj = FabricObject & { layerName?: string; textIndex?: number; height: number; top: number }
+
+function fakeCanvas() {
+  const added: AddedObj[] = []
+  return {
+    canvas: { add: (o: AddedObj) => { added.push(o) } } as never,
+    added,
+  }
+}
+
+function cap(text: string, over: Partial<Caption> = {}): Caption {
+  return {
+    text,
+    translations: {},
+    style: { fontFamily: 'Inter', fontSize: 20, fontWeight: 700, color: '#000', textAlign: 'center' },
+    ...over,
+  }
+}
+
+function textSlide(texts: Caption[]): Slide {
+  const s = makeSlide('text-top')
+  s.texts = texts
+  return s
+}
+
+const OPTS = { cw: 440, ch: 956, headlineCenterX: 220, headlineTop: 50, width: 374, gap: 8, scale: 1 }
+
+describe('addTextBlocks', () => {
+  it('renders one object per block, tagged layerName "text" + textIndex', () => {
+    for (const n of [1, 2, 4]) {
+      const { canvas, added } = fakeCanvas()
+      const texts = Array.from({ length: n }, (_, i) => cap(`block ${i}`))
+      addTextBlocks(canvas, textSlide(texts), OPTS)
+      expect(added).toHaveLength(n)
+      added.forEach((o, i) => {
+        expect(o.layerName).toBe(LAYER_NAMES.TEXT)
+        expect(o.textIndex).toBe(i)
+      })
+    }
+  })
+
+  it('stacks non-positioned blocks: each starts below the previous + gap', () => {
+    const { canvas, added } = fakeCanvas()
+    addTextBlocks(canvas, textSlide([cap('one'), cap('two'), cap('three')]), OPTS)
+    expect(added[0].top).toBe(OPTS.headlineTop)
+    // Each subsequent block sits at prev.top + prev.height + gap*scale.
+    for (let i = 1; i < added.length; i++) {
+      const expected = added[i - 1].top + added[i - 1].height + OPTS.gap * OPTS.scale
+      expect(added[i].top).toBeCloseTo(expected, 6)
+    }
+  })
+
+  it('a block with pos is absolute and does NOT advance the stack cursor', () => {
+    const { canvas, added } = fakeCanvas()
+    // Middle block is absolutely positioned; the third block should stack right
+    // after the first (as if the middle one weren't in the flow).
+    const blocks = [cap('one'), cap('floating', { pos: { x: 0.5, y: 0.6 } }), cap('three')]
+    addTextBlocks(canvas, textSlide(blocks), OPTS)
+    expect(added[1].top).toBeCloseTo(0.6 * OPTS.ch, 6) // absolute placement
+    const afterFirst = added[0].top + added[0].height + OPTS.gap * OPTS.scale
+    expect(added[2].top).toBeCloseTo(afterFirst, 6) // cursor not advanced by the pos block
+  })
+
+  it('does not cap a later block to block 0 size (no size hierarchy)', () => {
+    const { canvas, added } = fakeCanvas()
+    const small = cap('a', { style: { fontFamily: 'Inter', fontSize: 12, fontWeight: 700, color: '#000', textAlign: 'center' } })
+    const big = cap('b', { style: { fontFamily: 'Inter', fontSize: 80, fontWeight: 700, color: '#000', textAlign: 'center' } })
+    addTextBlocks(canvas, textSlide([small, big]), OPTS)
+    // Block 1 keeps its own (larger) size; it is NOT clamped to block 0's.
+    expect((added[1] as AddedObj & { fontSize?: number }).fontSize).toBe(80)
   })
 })

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type React from 'react'
 import type { Slide } from '../../types/project'
 import { useProjectStore } from '../../store/useProjectStore'
+import { titleText } from '../../constants/defaults'
 import { useSlideThumbnails } from './useSlideThumbnails'
 
 /** Modifier keys read off the click event to drive selection semantics. */
@@ -23,7 +24,13 @@ interface Props {
   /** When previewing/editing a non-source locale, render that locale's thumbnail
    * (and title) so the list matches the canvas. '' / undefined = base. */
   previewLocale?: string
+  /** Thumbnail pixel height — the tray's resize handle drives this. Width follows
+   * the device aspect ratio, so height alone sizes every thumb (and the add/link
+   * buttons that share its height). */
+  thumbHeight?: number
 }
+
+const DEFAULT_THUMB_HEIGHT = 168
 
 const MAX_SLIDES = 10
 
@@ -31,13 +38,6 @@ const MAX_SLIDES = 10
 // the rendered image exactly (no letterboxing).
 function aspectOf(slide: Slide): string {
   return slide.deviceFrame.model === 'ipad-pro-13' ? '2048 / 2732' : '1284 / 2778'
-}
-
-function slideTitle(slide: Slide, locale?: string): string {
-  const text = locale
-    ? slide.headline.translations?.[locale] ?? slide.headline.text
-    : slide.headline.text
-  return text || `슬라이드 ${slide.index + 1}`
 }
 
 interface RowItem {
@@ -77,6 +77,7 @@ export function SlideList({
   onSelect,
   onRemoveSlides,
   previewLocale,
+  thumbHeight = DEFAULT_THUMB_HEIGHT,
 }: Props) {
   const addSlide = useProjectStore((s) => s.addSlide)
   const duplicateSlide = useProjectStore((s) => s.duplicateSlide)
@@ -166,6 +167,7 @@ export function SlideList({
             <SpanRow
               row={row}
               thumbs={thumbs}
+              thumbHeight={thumbHeight}
               activeSlideId={activeSlideId}
               selectedIds={selectedIds}
               onSelect={onSelect}
@@ -181,13 +183,14 @@ export function SlideList({
             <SingleRow
               slide={row.slides[0]}
               thumb={thumbs[row.slides[0].id]}
-              title={slideTitle(row.slides[0], previewLocale)}
+              thumbHeight={thumbHeight}
+              title={titleText(row.slides[0], previewLocale)}
               active={row.slides[0].id === activeSlideId}
               selected={selectedIds.has(row.slides[0].id)}
               onSelect={(mods) => onSelect(row.slides[0].id, mods)}
               onDuplicate={() => duplicateSlide(row.slides[0].id)}
               canDuplicate={canAdd}
-              onDelete={() => requestDelete(row.slides[0].id, slideTitle(row.slides[0], previewLocale))}
+              onDelete={() => requestDelete(row.slides[0].id, titleText(row.slides[0], previewLocale))}
               canDelete={slides.length > 1}
               dragId={dragId}
               dropTarget={dropTarget}
@@ -201,7 +204,8 @@ export function SlideList({
             <button
               type="button"
               onClick={() => tryLink(row.slides[0].id)}
-              className="group/link -mx-1 flex h-32 w-5 shrink-0 items-center justify-center text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)]"
+              style={{ height: thumbHeight }}
+              className="group/link -mx-1 flex w-5 shrink-0 items-center justify-center text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)]"
               title="옆 슬라이드와 한 장으로 묶기"
             >
               <span className="opacity-0 transition group-hover/link:opacity-100">🔗</span>
@@ -214,7 +218,8 @@ export function SlideList({
         onClick={addSlide}
         disabled={!canAdd}
         title={canAdd ? '슬라이드 추가' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
-        className="flex h-32 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
+        style={{ height: thumbHeight }}
+        className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
       >
         <span className="text-2xl leading-none">+</span>
       </button>
@@ -263,18 +268,21 @@ function ThumbImage({
   slide,
   thumb,
   title,
+  height,
   selected = false,
 }: {
   slide: Slide
   thumb?: string
   title: string
+  /** Pixel height set by the tray resize handle; width follows the device aspect. */
+  height: number
   /** Selected but not active → show a checkmark corner so it reads as part of a set. */
   selected?: boolean
 }) {
   return (
     <div
-      className="relative h-32 bg-[var(--color-surface-2)]"
-      style={{ aspectRatio: aspectOf(slide) }}
+      className="relative bg-[var(--color-surface-2)]"
+      style={{ height, aspectRatio: aspectOf(slide) }}
     >
       {thumb ? (
         <img src={thumb} alt={title} className="h-full w-full object-cover" />
@@ -314,6 +322,7 @@ function sideFromEvent(e: React.DragEvent<HTMLElement>): 'before' | 'after' {
 function SingleRow({
   slide,
   thumb,
+  thumbHeight,
   title,
   active,
   selected,
@@ -331,6 +340,7 @@ function SingleRow({
 }: {
   slide: Slide
   thumb?: string
+  thumbHeight: number
   title: string
   active: boolean
   selected: boolean
@@ -377,7 +387,7 @@ function SingleRow({
               : 'border-[var(--color-border)] hover:border-[var(--color-text-dim)]',
         ].join(' ')}
       >
-        <ThumbImage slide={slide} thumb={thumb} title={title} selected={selected && !active} />
+        <ThumbImage slide={slide} thumb={thumb} title={title} height={thumbHeight} selected={selected && !active} />
       </button>
       <div className="absolute right-1 top-1 hidden gap-1 group-hover:flex">
         <button
@@ -419,6 +429,7 @@ function DropIndicator({ side }: { side: 'before' | 'after' | null }) {
 function SpanRow({
   row,
   thumbs,
+  thumbHeight,
   activeSlideId,
   selectedIds,
   onSelect,
@@ -432,6 +443,7 @@ function SpanRow({
 }: {
   row: RowItem
   thumbs: Record<string, string | undefined>
+  thumbHeight: number
   activeSlideId: string | null
   selectedIds: Set<string>
   onSelect: (id: string, mods: ClickMods) => void
@@ -490,7 +502,7 @@ function SpanRow({
                     : 'border-[var(--color-border)] hover:border-[var(--color-text-dim)]',
               ].join(' ')}
             >
-              <ThumbImage slide={s} thumb={thumbs[s.id]} title={`${s.index + 1}`} selected={selected && !active} />
+              <ThumbImage slide={s} thumb={thumbs[s.id]} title={`${s.index + 1}`} height={thumbHeight - 12} selected={selected && !active} />
             </button>
           </div>
         )
