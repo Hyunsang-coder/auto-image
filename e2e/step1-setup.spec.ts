@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 test('Step 1 페이지가 올바르게 렌더됨', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '새 스크린샷 프로젝트' })).toBeVisible()
   await expect(page.getByPlaceholder('예: Dogo, Claude, ADHD')).toBeVisible()
-  await expect(page.getByRole('button', { name: /iPhone 16 Pro/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /iPhone/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /iPad Pro/ })).toBeVisible()
 })
 
@@ -22,7 +22,7 @@ test('앱 이름이 비어있으면 다음 버튼이 비활성화됨', async ({ 
 test('기기 선택 없으면 다음 버튼이 비활성화됨', async ({ page }) => {
   await page.fill('input[placeholder="예: Dogo, Claude, ADHD"]', 'My App')
   // iPhone은 기본 선택 — 해제
-  await page.getByRole('button', { name: /iPhone 16 Pro/ }).click()
+  await page.getByRole('button', { name: /iPhone/ }).click()
   const nextBtn = page.getByRole('button', { name: '다음 →' })
   await expect(nextBtn).toBeDisabled()
 })

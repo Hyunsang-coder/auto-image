@@ -14,6 +14,25 @@ export interface ParsedImageName {
   locale: string
 }
 
+// A copy-able cheat-sheet for the bulk-image filename convention, with concrete
+// examples built from the project's own source + target locales. The mirror of
+// buildTranslationPrompt for captions — users name their files off this.
+export function buildImageNamingGuide(
+  source: { code: string; label: string },
+  targets: { code: string; label: string }[],
+): string {
+  const slide1 = [source, ...targets]
+    .map((l) => (l.code === source.code ? `1.${l.code}.png(베이스)` : `1.${l.code}.png`))
+    .join(', ')
+  return [
+    '이미지 파일명 규칙 (벌크 업로드)',
+    '• 형식: {슬라이드번호}[-설명].{언어}.png — 모든 파일에 언어 접미사 필요',
+    `• 원본 언어(${source.label}, ${source.code})로 들어온 파일 = 슬라이드 베이스, 나머지 = 언어별 추가본`,
+    `• 슬라이드 1 예시: ${slide1}`,
+    `• 설명 접미사 허용: 01-home.${source.code}.png, 02-add-pdf.${targets[0]?.code ?? source.code}.png`,
+  ].join('\n')
+}
+
 export function parseImageName(
   filename: string,
   knownLocales: Set<string>,

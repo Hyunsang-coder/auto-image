@@ -1,6 +1,7 @@
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Badge } from '../../../types/project'
 import { makeBadge } from '../../../constants/defaults'
+import { useProjectStore } from '../../../store/useProjectStore'
 
 interface Props {
   value: Badge[]
@@ -9,11 +10,12 @@ interface Props {
 
 export function BadgePanel({ value, onChange }: Props) {
   const badges = value ?? []
+  const themeColor = useProjectStore((s) => s.project?.themeColor)
 
   function add() {
     // Stagger each new badge downward so it doesn't land exactly on the last.
     const top = Math.min(0.9, 0.03 + badges.length * 0.09)
-    onChange([...badges, { ...makeBadge(), top }])
+    onChange([...badges, { ...makeBadge(undefined, themeColor), top }])
   }
 
   function update(id: string, patch: Partial<Badge>) {

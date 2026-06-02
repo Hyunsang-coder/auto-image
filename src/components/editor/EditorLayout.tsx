@@ -53,6 +53,7 @@ export function EditorLayout() {
   const activeSlideId = useProjectStore((s) => s.activeSlideId)
   const setActiveSlide = useProjectStore((s) => s.setActiveSlide)
   const updateSlide = useProjectStore((s) => s.updateSlide)
+  const setStep = useProjectStore((s) => s.setStep)
 
   const canvasRef = useRef<FabricCanvasHandle>(null)
   const [canUndo, setCanUndo] = useState(false)
@@ -166,6 +167,24 @@ export function EditorLayout() {
   // shared base. Panel handlers build patches off this so they reflect what the
   // user sees; applyEdit then routes the patch to the right place.
   const editingSlide = canvasSlide
+
+  // Screenshot donor: in locale mode a locale with no own screenshot can borrow
+  // another locale's (default = base). Offer it only when there's a donor to
+  // borrow from and this locale hasn't uploaded its own.
+  const shotOverrides = slide?.screenshot?.localeOverrides ?? {}
+  const donorLocales = Object.keys(shotOverrides).filter((l) => l !== editLocale)
+  const showShotSource =
+    isLocaleMode && !!slide?.screenshot && !shotOverrides[editLocale] && donorLocales.length > 0
+
+  function setScreenshotSource(donor: string) {
+    if (!slide?.screenshot || !editTargetId) return
+    const next = { ...slide.screenshot.localeSource }
+    if (donor) next[editLocale] = donor
+    else delete next[editLocale]
+    updateSlide(editTargetId, {
+      screenshot: { ...slide.screenshot, localeSource: Object.keys(next).length ? next : undefined },
+    })
+  }
 
   // Single write path. In locale mode the patch is rerouted into that locale's
   // overrides (text → translations, look → localeOverrides, shared elements →
@@ -286,72 +305,99 @@ export function EditorLayout() {
         slides={project.slides}
         activeSlideId={activeSlideId}
         onSelect={switchSlide}
+        previewLocale={editLocale}
       />
 
       <main className="flex flex-col items-center bg-[var(--color-bg)] overflow-y-auto">
-        <div className="sticky top-0 z-10 flex w-full items-center justify-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] py-2">
-          <CanvasToolbar
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={() => canvasRef.current?.undo()}
-            onRedo={() => canvasRef.current?.redo()}
-          />
-          <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]">
+        <div className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+          <div className="flex-1" />
+          <div className="flex items-center gap-3">
+            <CanvasToolbar
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={() => canvasRef.current?.undo()}
+              onRedo={() => canvasRef.current?.redo()}
+            />
+            <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]">
+              <button
+                type="button"
+                title="축소 (Cmd −)"
+                onClick={() => setZoom((z) => clampZoom(z - 0.1))}
+                className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                title="100%로 맞춤 (Cmd 0)"
+                onClick={() => setZoom(1)}
+                className="w-12 text-center tabular-nums transition hover:text-[var(--color-text)]"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                type="button"
+                title="확대 (Cmd +)"
+                onClick={() => setZoom((z) => clampZoom(z + 0.1))}
+                className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+              >
+                +
+              </button>
+            </div>
+            {localeOptions.length > 0 && (
+              <select
+                value={editLocale}
+                onChange={(e) => switchLocale(e.target.value)}
+                title="편집 언어 — 공유(base)는 전체 공통, 특정 언어는 그 언어용 위치/크기/텍스트만 조정"
+                className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
+                  isLocaleMode
+                    ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                    : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
+                }`}
+              >
+                <option value="">공유 (base)</option>
+                {localeOptions.map((l) => (
+                  <option key={l} value={l}>
+                    {localeLabel(l)}
+                  </option>
+                ))}
+              </select>
+            )}
+            {isLocaleMode && (
+              <button
+                type="button"
+                onClick={() => slide && editTargetId && updateSlide(editTargetId, clearLocaleOverride(slide, editLocale))}
+                disabled={!slide?.localeOverrides?.[editLocale]}
+                title="이 언어의 레이아웃 override(위치·크기·템플릿·배경·디바이스)를 지웁니다. 번역 텍스트와 스크린샷은 유지됩니다."
+                className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                레이아웃 리셋
+              </button>
+            )}
+            {showShotSource && (
+              <select
+                value={slide!.screenshot!.localeSource?.[editLocale] ?? ''}
+                onChange={(e) => setScreenshotSource(e.target.value)}
+                title="이 언어는 자체 스크린샷이 없습니다. 어떤 언어의 스크린샷을 빌려올지 선택하세요 (기본: 원본)."
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
+              >
+                <option value="">스크린샷: 원본</option>
+                {donorLocales.map((l) => (
+                  <option key={l} value={l}>스크린샷: {localeLabel(l)}</option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div className="flex flex-1 justify-end">
             <button
               type="button"
-              title="축소 (Cmd −)"
-              onClick={() => setZoom((z) => clampZoom(z - 0.1))}
-              className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+              onClick={() => setStep(3)}
+              title="다음 단계: 로컬라이즈"
+              className="whitespace-nowrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
             >
-              −
-            </button>
-            <button
-              type="button"
-              title="100%로 맞춤 (Cmd 0)"
-              onClick={() => setZoom(1)}
-              className="w-12 text-center tabular-nums transition hover:text-[var(--color-text)]"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              type="button"
-              title="확대 (Cmd +)"
-              onClick={() => setZoom((z) => clampZoom(z + 0.1))}
-              className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
-            >
-              +
+              다음 →
             </button>
           </div>
-          {localeOptions.length > 0 && (
-            <select
-              value={editLocale}
-              onChange={(e) => switchLocale(e.target.value)}
-              title="편집 언어 — 공유(base)는 전체 공통, 특정 언어는 그 언어용 위치/크기/텍스트만 조정"
-              className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
-                isLocaleMode
-                  ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                  : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
-              }`}
-            >
-              <option value="">공유 (base)</option>
-              {localeOptions.map((l) => (
-                <option key={l} value={l}>
-                  {localeLabel(l)}
-                </option>
-              ))}
-            </select>
-          )}
-          {isLocaleMode && (
-            <button
-              type="button"
-              onClick={() => slide && editTargetId && updateSlide(editTargetId, clearLocaleOverride(slide, editLocale))}
-              disabled={!slide?.localeOverrides?.[editLocale]}
-              title="이 언어의 레이아웃 override(위치·크기·템플릿·배경·디바이스)를 지웁니다. 번역 텍스트와 스크린샷은 유지됩니다."
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              레이아웃 리셋
-            </button>
-          )}
         </div>
         <div className="flex flex-1 items-start justify-center p-6">
           <FabricCanvas

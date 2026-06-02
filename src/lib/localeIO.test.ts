@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { serializeTemplate, parseTemplate, type SerializeRow } from './localeIO'
+import { serializeTemplate, parseTemplate, buildTranslationPrompt, type SerializeRow } from './localeIO'
 
 const ROWS: SerializeRow[] = [
   { slideId: 's1', slideIndex: 0, field: 'headline', sourceText: 'Track your day' },
@@ -26,6 +26,24 @@ describe('serializeTemplate / parseTemplate round-trip', () => {
       expect(rows[2]).toMatchObject({ slideId: 's2', slide: 2, field: 'badge:0' })
     })
   }
+})
+
+describe('buildTranslationPrompt', () => {
+  it('names the source and every target language by label and code', () => {
+    const prompt = buildTranslationPrompt(
+      { code: 'en', label: 'English' },
+      [{ code: 'ja', label: '日本語' }, { code: 'ko', label: '한국어' }],
+    )
+    expect(prompt).toContain('Source language: English (en)')
+    expect(prompt).toContain('日本語 (ja), 한국어 (ko)')
+    // Must tell the model to leave the source column untouched.
+    expect(prompt).toContain('Leave the en column')
+  })
+
+  it('handles no target languages without crashing', () => {
+    const prompt = buildTranslationPrompt({ code: 'en', label: 'English' }, [])
+    expect(prompt).toContain('(no target languages selected)')
+  })
 })
 
 describe('csv parsing', () => {

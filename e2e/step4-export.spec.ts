@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 
 test('내보내기 패널이 렌더됨', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '내보내기' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '미리보기 렌더' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '미리보기' })).toBeVisible()
   await expect(page.getByRole('button', { name: /ZIP 내보내기/ })).toBeVisible()
 })
 
@@ -26,11 +26,8 @@ test('← 로컬라이즈 버튼으로 Step 3으로 이동', async ({ page }) =>
   await expect(page.getByRole('button', { name: /로컬라이즈/ })).toHaveClass(/bg-\[var\(--color-accent\)\]/)
 })
 
-test('미리보기 렌더 버튼이 클릭 가능하고 로딩 후 이미지 표시', async ({ page }) => {
-  await page.getByRole('button', { name: '미리보기 렌더' }).click()
-
-  // 렌더링 중 버튼이 비활성화됨
-  // (짧게 비활성화되다가 완료되면 다시 활성화)
+test('미리보기가 자동 렌더되어 이미지가 표시됨', async ({ page }) => {
+  // The panel renders previews on mount (no button) — wait for the blob images.
   await page.waitForFunction(
     () => {
       const img = document.querySelector('img[src^="blob:"]')
@@ -39,11 +36,10 @@ test('미리보기 렌더 버튼이 클릭 가능하고 로딩 후 이미지 표
     { timeout: 30_000 },
   )
 
-  await expect(page.locator('img[src^="blob:"]')).toBeVisible()
+  await expect(page.locator('img[src^="blob:"]').first()).toBeVisible()
 })
 
 test('내보낸 PNG에 알파 채널이 없음 (color type 2) — ASC 거부 방지', async ({ page }) => {
-  await page.getByRole('button', { name: '미리보기 렌더' }).click()
   await page.waitForFunction(() => document.querySelector('img[src^="blob:"]') !== null, {
     timeout: 30_000,
   })

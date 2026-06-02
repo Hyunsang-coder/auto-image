@@ -12,7 +12,7 @@ const IMG_BG: Background = { type: 'image', imageKey: 'img:bg-1', imageObjectFit
 
 describe('presetFromSlide', () => {
   it('deep-clones the background so the preset never aliases the live slide', () => {
-    const slide = makeSlide(0, '#102030')
+    const slide = makeSlide(0)
     slide.background = { ...IMG_BG }
     const preset = presetFromSlide(slide, 'My preset')
 
@@ -25,7 +25,7 @@ describe('presetFromSlide', () => {
   })
 
   it('captures the slide text colors', () => {
-    const slide = makeSlide(0, '#102030')
+    const slide = makeSlide(0)
     slide.headline.style.color = '#111111'
     slide.subheadline.style.color = '#222222'
     const preset = presetFromSlide(slide, 'c')
@@ -36,7 +36,7 @@ describe('presetFromSlide', () => {
 
 describe('templateFromSlide', () => {
   it('deep-clones background + captions so later slide edits do not mutate it', () => {
-    const slide = makeSlide(0, '#102030')
+    const slide = makeSlide(0)
     slide.background = { ...IMG_BG }
     const tpl = templateFromSlide(slide, 'T')
 
@@ -50,9 +50,9 @@ describe('templateFromSlide', () => {
 
 describe('applyTemplateToSlide', () => {
   it('keeps the target slide device model (iPhone template onto iPad slide)', () => {
-    const iphone = makeSlide(0, '#102030', 'iphone')
+    const iphone = makeSlide(0, 'iphone')
     const tpl = templateFromSlide(iphone, 'T')
-    const ipad = makeSlide(1, '#102030', 'ipad')
+    const ipad = makeSlide(1, 'ipad')
     expect(ipad.deviceFrame.model).toBe('ipad-pro-13')
 
     const patch = applyTemplateToSlide(ipad, tpl)
@@ -61,9 +61,9 @@ describe('applyTemplateToSlide', () => {
   })
 
   it('preserves the slide content (caption text + translations)', () => {
-    const src = makeSlide(0, '#102030')
+    const src = makeSlide(0)
     const tpl = templateFromSlide(src, 'T')
-    const target = makeSlide(1, '#102030')
+    const target = makeSlide(1)
     target.headline.text = '내 헤드라인'
     target.headline.translations = { en: 'My headline' }
 
@@ -73,11 +73,11 @@ describe('applyTemplateToSlide', () => {
   })
 
   it('gives applied badges fresh ids and clones their nested objects', () => {
-    const src = makeSlide(0, '#102030')
+    const src = makeSlide(0)
     src.badges = [makeBadge('NEW')]
     src.badges[0].translations = { en: 'NEW' }
     const tpl = templateFromSlide(src, 'T')
-    const target = makeSlide(1, '#102030')
+    const target = makeSlide(1)
 
     const patch = applyTemplateToSlide(target, tpl)
     const applied = patch.badges![0]
@@ -91,10 +91,10 @@ describe('applyTemplateToSlide', () => {
   })
 
   it('clones the background so editing the slide does not mutate the template', () => {
-    const src = makeSlide(0, '#102030')
+    const src = makeSlide(0)
     src.background = { ...IMG_BG }
     const tpl = templateFromSlide(src, 'T')
-    const target = makeSlide(1, '#102030')
+    const target = makeSlide(1)
 
     const patch = applyTemplateToSlide(target, tpl)
     ;(patch.background as Background).imageKey = 'img:mutated'

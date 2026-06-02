@@ -88,6 +88,52 @@ interface DeviceAnchorProps {
   _baseTop?: number
 }
 
+// Identity used to re-find a selected object after undo/redo replaces every
+// object via loadFromJSON. layerName alone identifies the structural singletons;
+// per-instance content layers also need their id.
+type ObjIdentity = {
+  layerName?: string
+  badgeId?: string
+  ornamentId?: string
+  highlightId?: string
+}
+type IdentifiedObject = FabricObject & ObjIdentity
+
+function objIdentity(o: FabricObject): ObjIdentity {
+  const x = o as IdentifiedObject
+  return { layerName: x.layerName, badgeId: x.badgeId, ornamentId: x.ornamentId, highlightId: x.highlightId }
+}
+
+function findByIdentity(canvas: Canvas, id: ObjIdentity): FabricObject | null {
+  if (!id.layerName) return null
+  return (
+    canvas.getObjects().find((o) => {
+      const x = o as IdentifiedObject
+      return (
+        x.layerName === id.layerName &&
+        x.badgeId === id.badgeId &&
+        x.ornamentId === id.ornamentId &&
+        x.highlightId === id.highlightId
+      )
+    }) ?? null
+  )
+}
+
+// Single-object selection identity to carry across an undo/redo reload.
+// Multi-selection (ActiveSelection) isn't restored: its children's coords are
+// group-relative and re-grouping after loadFromJSON isn't worth the complexity.
+function selectionIdentityToRestore(canvas: Canvas): ObjIdentity | null {
+  const active = canvas.getActiveObject()
+  if (!active || active.type === 'activeselection') return null
+  return objIdentity(active)
+}
+
+function restoreSelection(canvas: Canvas, id: ObjIdentity | null): void {
+  if (!id) return
+  const obj = findByIdentity(canvas, id)
+  if (obj && obj.selectable !== false) canvas.setActiveObject(obj)
+}
+
 export interface FabricCanvasHandle {
   undo: () => void
   redo: () => void
@@ -510,10 +556,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (!canvas || undoStack.current.length === 0) return
         isApplyingHistory.current = true
 
+        const selId = selectionIdentityToRestore(canvas)
         if (baselineRef.current) redoStack.current.push(baselineRef.current)
         const prev = undoStack.current.pop()!
         baselineRef.current = prev
         canvas.loadFromJSON(prev).then(() => {
+          restoreSelection(canvas, selId)
           canvas.renderAll()
           isApplyingHistory.current = false
           notifyHistory()
@@ -525,10 +573,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (!canvas || redoStack.current.length === 0) return
         isApplyingHistory.current = true
 
+        const selId = selectionIdentityToRestore(canvas)
         if (baselineRef.current) undoStack.current.push(baselineRef.current)
         const next = redoStack.current.pop()!
         baselineRef.current = next
         canvas.loadFromJSON(next).then(() => {
+          restoreSelection(canvas, selId)
           canvas.renderAll()
           isApplyingHistory.current = false
           notifyHistory()
@@ -891,6 +941,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
+        // The canvas can be disposed while we await image/font loads (StrictMode
+        // remount, fast slide/locale switch, unmount). Touching a disposed canvas
+        // — setDimensions destructures a null element — throws, so bail here.
+        if (fabricRef.current !== canvas) return
         // Locale edit mode: lock the shared-layout elements so only captions
         // and the device frame remain editable for this locale.
         if (lockSharedLayout) {

@@ -20,6 +20,7 @@ export function ProjectSetup() {
   const removeProject = useLibraryStore((s) => s.removeProject)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const [confirmLoad, setConfirmLoad] = useState<Project | null>(null)
+  const [confirmNew, setConfirmNew] = useState(false)
 
   const [name, setName] = useState(existingProject?.name ?? '내 앱')
   const [devices, setDevices] = useState<DeviceType[]>(
@@ -43,12 +44,23 @@ export function ProjectSetup() {
 
   function submit() {
     if (!canSubmit) return
+    // Creating a fresh project overwrites the active one — confirm first, like
+    // load/delete do, since this is the most destructive path here.
+    if (existingProject) {
+      setConfirmNew(true)
+      return
+    }
+    doCreate()
+  }
+
+  function doCreate() {
     createProject({
       name: name.trim(),
       devices,
       screenshotCount: count,
       themeColor: themeColor.toUpperCase(),
     })
+    setConfirmNew(false)
   }
 
   function handleDelete(id: string) {
@@ -86,6 +98,8 @@ export function ProjectSetup() {
           저장됩니다.
         </p>
       </header>
+
+      {!hasExisting && savedProjects.length === 0 && <FirstRunIntro />}
 
       <Section title="앱 이름">
         <input
@@ -161,7 +175,7 @@ export function ProjectSetup() {
         </div>
       </Section>
 
-      <Section title="테마 컬러" hint="배경 그라데이션과 배지 기본색에 사용됩니다.">
+      <Section title="테마 컬러" hint="배지 등 강조 요소의 기본 색으로 사용됩니다.">
         <ColorPickerPopover color={themeColor} onChange={setThemeColor} />
       </Section>
 
@@ -294,6 +308,66 @@ export function ProjectSetup() {
           </div>
         </div>
       )}
+
+      {confirmNew && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setConfirmNew(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text)]">새 프로젝트 만들기</h3>
+            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+              현재 편집 중인 프로젝트를 새 프로젝트로 덮어씁니다. 저장하지 않은
+              변경 사항은 사라집니다. 먼저 '저장'으로 보관해 두면 나중에 다시
+              불러올 수 있습니다.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmNew(false)}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={doCreate}
+                className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
+              >
+                새로 만들기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FirstRunIntro() {
+  const steps = [
+    { n: 1, label: '설정', desc: '기기 · 슬라이드 수 · 테마' },
+    { n: 2, label: '편집', desc: '스크린샷 올리고 문구 · 디자인' },
+    { n: 3, label: '현지화', desc: '언어별 문구 · 스크린샷' },
+    { n: 4, label: '내보내기', desc: 'PNG ZIP (App Store 규격)' },
+  ]
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <p className="mb-3 text-sm text-[var(--color-text)]">처음이신가요? 4단계로 만듭니다:</p>
+      <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {steps.map((s) => (
+          <li key={s.n} className="flex flex-col gap-1">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-xs font-semibold text-[var(--color-accent)]">
+              {s.n}
+            </span>
+            <span className="text-sm font-medium text-[var(--color-text)]">{s.label}</span>
+            <span className="text-xs text-[var(--color-text-dim)]">{s.desc}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

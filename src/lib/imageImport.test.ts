@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseImageName } from './imageImport'
+import { parseImageName, buildImageNamingGuide } from './imageImport'
 
 const known = new Set(['en', 'ja', 'de', 'zh-Hans', 'zh-Hant', 'pt-BR'])
 
@@ -35,5 +35,18 @@ describe('parseImageName', () => {
   it('rejects a non-numeric slide', () => {
     expect(parseImageName('cover.png', known)).toEqual({ error: expect.stringContaining('cover') })
     expect(parseImageName('0.en.png', known)).toEqual({ error: expect.stringContaining('0') })
+  })
+})
+
+describe('buildImageNamingGuide', () => {
+  it('builds project-specific examples with the source as base', () => {
+    const guide = buildImageNamingGuide(
+      { code: 'ko', label: '한국어' },
+      [{ code: 'en', label: 'English' }, { code: 'ja', label: '日本語' }],
+    )
+    expect(guide).toContain('1.ko.png(베이스)')
+    expect(guide).toContain('1.en.png')
+    expect(guide).toContain('1.ja.png')
+    expect(guide).toContain('원본 언어(한국어, ko)')
   })
 })
