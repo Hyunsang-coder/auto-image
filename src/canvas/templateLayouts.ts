@@ -1,6 +1,6 @@
 import { Canvas, FabricImage, Rect, Shadow } from 'fabric'
 import type { FabricObject } from 'fabric'
-import type { Slide, ScreenshotImage, ScreenshotStyle } from '../types/project'
+import type { Slide, ScreenshotImage, ScreenshotStyle, ScreenshotCrop } from '../types/project'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, frameSpecOf } from '../constants/deviceSpecs'
 import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
@@ -58,12 +58,27 @@ function effectiveShotStyle(slide: Slide): ScreenshotStyle {
   return slide.screenshotStyle ?? DEFAULT_SHOT_STYLE
 }
 
+/**
+ * Trim a screen box by per-edge fractions. Used by the floating screenshot's
+ * clip mask and its drag handle so both shrink to the same visible card.
+ */
+export function cropScreenBounds(bounds: ScreenBounds, crop?: ScreenshotCrop): ScreenBounds {
+  if (!crop) return bounds
+  return {
+    left: bounds.left + bounds.width * crop.left,
+    top: bounds.top + bounds.height * crop.top,
+    width: Math.max(0, bounds.width * (1 - crop.left - crop.right)),
+    height: Math.max(0, bounds.height * (1 - crop.top - crop.bottom)),
+    rx: bounds.rx,
+  }
+}
+
 async function renderScreenshotLayer(
   canvas: Canvas,
   screenshot: ScreenshotImage,
   bounds: ScreenBounds,
   resolveUrl: ImageUrlResolver,
-  opts?: { withShadow?: boolean; rotation?: number; pivot?: { x: number; y: number } },
+  opts?: { withShadow?: boolean; clip?: ScreenBounds; rotation?: number; pivot?: { x: number; y: number } },
 ): Promise<void> {
   const url = await resolveUrl(screenshot.imageKey)
   if (!url) return
@@ -87,13 +102,14 @@ async function renderScreenshotLayer(
     hoverCursor: 'default',
   })
 
+  const clip = opts?.clip ?? bounds
   img.clipPath = new Rect({
-    left: bounds.left,
-    top: bounds.top,
-    width: bounds.width,
-    height: bounds.height,
-    rx: bounds.rx,
-    ry: bounds.rx,
+    left: clip.left,
+    top: clip.top,
+    width: clip.width,
+    height: clip.height,
+    rx: clip.rx,
+    ry: clip.rx,
     originX: 'left',
     originY: 'top',
     absolutePositioned: true,
@@ -271,6 +287,7 @@ export async function applyTemplate(
         : undefined
       await renderScreenshotLayer(canvas, slide.screenshot, screenBounds, resolveUrl, {
         withShadow: floating && shotStyle.shadow,
+        clip: floating ? cropScreenBounds(screenBounds, shotStyle.crop) : undefined,
         rotation,
         pivot,
       })
@@ -393,6 +410,20 @@ function addDeviceFrame(
   // so move/scale sync works identically in both rendering modes. No screenshot
   // and no frame → nothing visible to move; skip the handle entirely.
   if (!slide.deviceFrame.show && !slide.screenshot) return
+  // Floating crop shrinks the handle to the visible card; the same shift is
+  // applied to _baseLeft/_baseTop below so syncToZustand's delta stays exactly
+  // the user's drag offset.
+  const shotCrop = slide.deviceFrame.show ? undefined : effectiveShotStyle(slide).crop
+  const handle = cropScreenBounds(
+    {
+      left: layout.centerX - layout.width / 2,
+      top: layout.top,
+      width: layout.width,
+      height: layout.height,
+      rx: 0,
+    },
+    shotCrop,
+  )
   const paths: FabricObject[] = slide.deviceFrame.show
     ? renderDeviceFrame(slide.deviceFrame, {
         left: layout.centerX,
@@ -404,10 +435,10 @@ function addDeviceFrame(
     : [
         Object.assign(
           new Rect({
-            left: layout.centerX - layout.width / 2,
-            top: layout.top,
-            width: layout.width,
-            height: layout.height,
+            left: handle.left,
+            top: handle.top,
+            width: handle.width,
+            height: handle.height,
             fill: 'transparent',
             strokeWidth: 0,
             // Fabric 7 defaults to center origin; the body anchor/sync math is
@@ -427,8 +458,10 @@ function addDeviceFrame(
   // layout.centerX/top already bake in offsetX/offsetY * scale, so recover the
   // offset-free anchor by subtracting the same scaled offset.
   const { offsetX = 0, offsetY = 0 } = slide.deviceFrame
-  const baseLeft = (layout.centerX - offsetX * scale) - layout.width / 2
-  const baseTop = layout.top - offsetY * scale
+  const cropDx = shotCrop ? layout.width * shotCrop.left : 0
+  const cropDy = shotCrop ? layout.height * shotCrop.top : 0
+  const baseLeft = (layout.centerX - offsetX * scale) - layout.width / 2 + cropDx
+  const baseTop = layout.top - offsetY * scale + cropDy
   const angle = slide.deviceFrame.rotation ?? 0
   const pivotX = layout.centerX
   const pivotY = layout.top + layout.height / 2

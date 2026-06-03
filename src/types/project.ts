@@ -127,6 +127,19 @@ export interface ScreenshotStyle {
   /** 0–1 fraction of screenshot width; 0 = sharp corners. */
   cornerRadiusRatio: number
   shadow: boolean
+  /**
+   * Floating mode (frame hidden) only: fraction of each edge to trim off the
+   * screenshot card. The image fit is unchanged — trimming cuts the card
+   * smaller rather than rescaling its content.
+   */
+  crop?: ScreenshotCrop
+}
+
+export interface ScreenshotCrop {
+  top: number
+  right: number
+  bottom: number
+  left: number
 }
 
 export interface Ornament {

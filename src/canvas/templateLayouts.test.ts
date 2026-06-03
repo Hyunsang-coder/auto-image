@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FabricObject } from 'fabric'
-import { addTextBlocks, getDeviceDimensions, getDeviceLayout } from './templateLayouts'
+import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout } from './templateLayouts'
 import { LAYER_NAMES } from './layerNames'
 import type { Caption, Slide } from '../types/project'
 
@@ -127,6 +127,52 @@ describe('device drag round-trip is exact (no snap)', () => {
           }
         }
       }
+    }
+  })
+})
+
+// Floating-mode edge trim: cropScreenBounds shrinks the visible card by per-edge
+// fractions without touching the image fit. The drag handle and the clip mask
+// both go through it, so the handle's base shift must keep the drag round-trip
+// exact (same invariant as the uncropped cases above).
+describe('cropScreenBounds (floating edge trim)', () => {
+  const B = { left: 100, top: 200, width: 400, height: 800, rx: 24 }
+
+  it('no crop → identity', () => {
+    expect(cropScreenBounds(B)).toEqual(B)
+    expect(cropScreenBounds(B, { top: 0, right: 0, bottom: 0, left: 0 })).toEqual(B)
+  })
+
+  it('bottom trim shortens the card, top edge fixed', () => {
+    const c = cropScreenBounds(B, { top: 0, right: 0, bottom: 0.3, left: 0 })
+    expect(c.top).toBe(B.top)
+    expect(c.height).toBeCloseTo(B.height * 0.7, 6)
+    expect(c.left).toBe(B.left)
+    expect(c.width).toBe(B.width)
+  })
+
+  it('per-edge trims shift origin and shrink size, rx unchanged', () => {
+    const c = cropScreenBounds(B, { top: 0.1, right: 0.2, bottom: 0.3, left: 0.05 })
+    expect(c.left).toBeCloseTo(100 + 400 * 0.05, 6)
+    expect(c.top).toBeCloseTo(200 + 800 * 0.1, 6)
+    expect(c.width).toBeCloseTo(400 * 0.75, 6)
+    expect(c.height).toBeCloseTo(800 * 0.6, 6)
+    expect(c.rx).toBe(B.rx)
+  })
+
+  it('drag round-trip stays exact with a crop applied', () => {
+    const crop = { top: 0.1, right: 0.15, bottom: 0.3, left: 0.05 }
+    for (const [dx, dy] of [[0, 0], [60, 40], [-50, -30]] as const) {
+      const L = layout('text-top', 440, 956, false, { show: false, offsetX: dx, offsetY: dy })!
+      const base = layout('text-top', 440, 956, false, { show: false, offsetX: 0, offsetY: 0 })!
+      // Production derivation (templateLayouts.addDeviceFrame, floating branch):
+      // both the handle and _baseLeft/_baseTop get the same crop shift, so the
+      // captured delta is still exactly the user's offset.
+      const body = cropScreenBounds({ left: L.centerX - L.width / 2, top: L.top, width: L.width, height: L.height, rx: 0 }, crop)
+      const baseLeft = (base.centerX - base.width / 2) + base.width * crop.left
+      const baseTop = base.top + base.height * crop.top
+      expect(Math.round(body.left - baseLeft)).toBe(dx)
+      expect(Math.round(body.top - baseTop)).toBe(dy)
     }
   })
 })

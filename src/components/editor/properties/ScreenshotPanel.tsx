@@ -7,6 +7,13 @@ import { gcImages } from '../../../lib/imageRefs'
 import { importBulkImages } from '../../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../../constants/defaults'
 
+const CROP_EDGES = [
+  ['top', '위'],
+  ['bottom', '아래'],
+  ['left', '왼쪽'],
+  ['right', '오른쪽'],
+] as const
+
 interface Props {
   value: ScreenshotImage | null
   onChange: (screenshot: ScreenshotImage | null) => void
@@ -32,6 +39,8 @@ export function ScreenshotPanel({
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [bulkMsg, setBulkMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [bulkIssues, setBulkIssues] = useState<string[]>([])
+
+  const crop = screenshotStyle.crop ?? { top: 0, right: 0, bottom: 0, left: 0 }
 
   const sourceLocale = useProjectStore(s => s.project?.sourceLocale ?? 'en')
   const deviceModels = useProjectStore(s => s.project?.deviceModels)
@@ -317,6 +326,31 @@ export function ScreenshotPanel({
                 className="accent-[var(--color-accent)]"
               />
             </label>
+            <div className="space-y-2">
+              <p className="text-xs text-[var(--color-text-dim)]">가장자리 잘라내기</p>
+              {CROP_EDGES.map(([edge, label]) => (
+                <div key={edge}>
+                  <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+                    <span>{label}</span>
+                    <span>{Math.round(crop[edge] * 100)}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={0.45}
+                    step={0.01}
+                    value={crop[edge]}
+                    onChange={(e) =>
+                      onScreenshotStyleChange({
+                        ...screenshotStyle,
+                        crop: { ...crop, [edge]: Number(e.target.value) },
+                      })
+                    }
+                    className="w-full accent-[var(--color-accent)]"
+                  />
+                </div>
+              ))}
+            </div>
           </>
         )}
       </div>
