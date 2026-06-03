@@ -3,6 +3,7 @@ import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Highlight, Slide } from '../../types/project'
 import { applyTemplate } from '../../canvas/templateLayouts'
+import { awaitSlideFonts } from '../../lib/fonts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { newId } from '../../constants/defaults'
@@ -955,6 +956,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // remount, fast slide/locale switch, unmount). Touching a disposed canvas
         // — setDimensions destructures a null element — throws, so bail here.
         if (fabricRef.current !== canvas) return
+        // Non-Latin preview locales need their Noto webfont; load it off the
+        // critical path and re-render once it arrives so the preview matches the
+        // export (don't block the layout/snapshot flow on a font CDN).
+        awaitSlideFonts(activeSlide!).then(() => {
+          if (fabricRef.current === canvas) canvas.requestRenderAll()
+        })
         // Locale edit mode: lock the shared-layout elements so only captions
         // and the device frame remain editable for this locale.
         if (lockSharedLayout) {

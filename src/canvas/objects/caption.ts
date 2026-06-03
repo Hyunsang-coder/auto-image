@@ -1,6 +1,7 @@
 import { Text, Textbox } from 'fabric'
 import type { Caption } from '../../types/project'
 import type { LayerName } from '../layerNames'
+import { scriptFallback } from '../../lib/fonts'
 
 export interface CaptionOptions {
   left: number
@@ -15,14 +16,6 @@ export interface CaptionOptions {
   // identical in proportion at every resolution.
   scale?: number
 }
-
-// The display fonts (Inter/Montserrat/Poppins) only cover Latin, so non-Latin
-// locales (Thai, Traditional Chinese, Japanese, …) render tofu on export unless
-// the family ends in a fallback chain. Names not installed/loaded are skipped;
-// the trailing sans-serif lets the browser's per-glyph system fallback cover the
-// rest. Pretendard handles Korean + Vietnamese-diacritic Latin.
-const SCRIPT_FALLBACK =
-  "'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans Thai', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans', sans-serif"
 
 // Shrink-only fit policy: the base (design) size is the ceiling, so a short
 // locale keeps the intended size while text wider than the box is reduced just
@@ -70,7 +63,9 @@ export function renderCaption(
 ): Textbox {
   const { style } = caption
   const textAlign = style.textAlign ?? 'center'
-  const fontFamily = `${style.fontFamily}, ${SCRIPT_FALLBACK}`
+  // Lead the fallback with the font matching this caption's script so non-Latin
+  // text (Japanese/Chinese/Thai) renders the right glyphs instead of tofu.
+  const fontFamily = `${style.fontFamily}, ${scriptFallback(caption.text)}`
   const charSpacing = (style.letterSpacing ?? 0) * 10
   const minFontSize = 10 * (opts.scale ?? 1)
   const fontSize = style.fitToBox

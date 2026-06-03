@@ -5,6 +5,7 @@ import { applyTemplate } from '../canvas/templateLayouts'
 import { createImageUrlCache } from './imageStore'
 import { encodeOpaquePng } from './encodePng'
 import { resolveSlideForLocale } from './resolveSlide'
+import { awaitSlideFonts } from './fonts'
 
 function withScaledFonts(slide: Slide, scale: number): Slide {
   return {
@@ -50,7 +51,7 @@ export async function renderSlide(
 
   try {
     await applyTemplate(canvas, exportSlide, { width, height }, { resolveUrl: urls.get })
-    await document.fonts.ready
+    await awaitSlideFonts(exportSlide)
     canvas.renderAll()
 
     return encodeOpaquePng(el)
@@ -89,7 +90,7 @@ export async function renderSpanGroup(
 
   try {
     await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, { spanCentered: true, resolveUrl: urls.get })
-    await document.fonts.ready
+    await awaitSlideFonts(exportSlide)
     canvas.renderAll()
 
     // Slice — read pixel data from the wide DOM canvas (Fabric writes its render

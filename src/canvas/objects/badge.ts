@@ -2,6 +2,7 @@ import { FabricText, Group, Rect } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Badge } from '../../types/project'
 import { LAYER_NAMES } from '../layerNames'
+import { scriptFallback } from '../../lib/fonts'
 
 function measureTextWidth(
   text: string,
@@ -23,7 +24,8 @@ export interface BadgeRenderOpts {
 
 export function renderBadge(badge: Badge, opts: BadgeRenderOpts): FabricObject {
   const { style } = badge
-  const textW = measureTextWidth(badge.text, style.fontSize, style.fontWeight, 'Inter')
+  const fontFamily = `Inter, ${scriptFallback(badge.text)}`
+  const textW = measureTextWidth(badge.text, style.fontSize, style.fontWeight, fontFamily)
   const badgeW = textW + style.paddingX * 2
   const badgeH = style.fontSize + style.paddingY * 2
   const rx = Math.min(style.borderRadius, badgeH / 2)
@@ -46,7 +48,7 @@ export function renderBadge(badge: Badge, opts: BadgeRenderOpts): FabricObject {
     left: opts.centerX,
     top: opts.top + style.paddingY,
     fontSize: style.fontSize,
-    fontFamily: 'Inter',
+    fontFamily,
     fontWeight: String(style.fontWeight),
     fill: style.textColor,
     originX: 'center',
