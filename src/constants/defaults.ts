@@ -254,35 +254,76 @@ export interface ThemePreset {
   accentColor: string
 }
 
-// 파스텔 + 선명 믹스. 시커먼 다크 톤은 두지 않는다.
+// 기본 제공 템플릿 배경(#ECEAF3→#F2EEE7)과 같은 결 — 은은한 휴 시프트
+// 그라디언트 + 잉크 톤 텍스트. 채도 높은 원색/시커먼 다크 톤은 두지 않는다.
 export const THEME_PRESETS: ThemePreset[] = [
   {
-    id: 'mint',
-    label: 'Mint',
+    id: 'porcelain',
+    label: 'Porcelain',
     background: {
       type: 'gradient',
       gradient: {
-        direction: 200,
+        direction: 145,
         stops: [
-          { color: '#2BBE60', position: 0 },
-          { color: '#14843C', position: 1 },
+          { color: '#ECEAF3', position: 0 },
+          { color: '#F2EEE7', position: 1 },
         ],
       },
     },
-    headlineColor: '#FFFFFF',
-    subheadlineColor: '#E8FFEF',
-    accentColor: '#FFD84D',
+    headlineColor: '#1C1C24',
+    subheadlineColor: '#5A5564',
+    accentColor: '#6366F1',
   },
   {
-    id: 'tan',
-    label: 'Tan',
+    id: 'mist',
+    label: 'Mist',
     background: {
-      type: 'solid',
-      color: '#C99973',
+      type: 'gradient',
+      gradient: {
+        direction: 145,
+        stops: [
+          { color: '#DFEAF6', position: 0 },
+          { color: '#F0F4F4', position: 1 },
+        ],
+      },
     },
-    headlineColor: '#1B0F08',
-    subheadlineColor: '#3C271C',
-    accentColor: '#FF5722',
+    headlineColor: '#15263E',
+    subheadlineColor: '#4E617B',
+    accentColor: '#3B82F6',
+  },
+  {
+    id: 'sage',
+    label: 'Sage',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 145,
+        stops: [
+          { color: '#DFECE2', position: 0 },
+          { color: '#F1F4EA', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#1C2B22',
+    subheadlineColor: '#52645A',
+    accentColor: '#2F9E68',
+  },
+  {
+    id: 'sand',
+    label: 'Sand',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 145,
+        stops: [
+          { color: '#F0E7D8', position: 0 },
+          { color: '#F7F1E8', position: 1 },
+        ],
+      },
+    },
+    headlineColor: '#2D2317',
+    subheadlineColor: '#6A5C49',
+    accentColor: '#B97F45',
   },
   {
     id: 'blush',
@@ -290,67 +331,33 @@ export const THEME_PRESETS: ThemePreset[] = [
     background: {
       type: 'gradient',
       gradient: {
-        direction: 180,
+        direction: 145,
         stops: [
-          { color: '#FCE4EC', position: 0 },
-          { color: '#F6C9D8', position: 1 },
+          { color: '#F5E2E9', position: 0 },
+          { color: '#FAF0EE', position: 1 },
         ],
       },
     },
-    headlineColor: '#3B1721',
-    subheadlineColor: '#6E3A45',
-    accentColor: '#E0457B',
+    headlineColor: '#38202C',
+    subheadlineColor: '#72525F',
+    accentColor: '#D45C8A',
   },
   {
-    id: 'sky',
-    label: 'Sky',
+    id: 'lavender',
+    label: 'Lavender',
     background: {
       type: 'gradient',
       gradient: {
-        direction: 180,
+        direction: 145,
         stops: [
-          { color: '#DEEDFB', position: 0 },
-          { color: '#C2DBF6', position: 1 },
+          { color: '#E6E1F5', position: 0 },
+          { color: '#F2EFF9', position: 1 },
         ],
       },
     },
-    headlineColor: '#0F2440',
-    subheadlineColor: '#38506E',
-    accentColor: '#2563EB',
-  },
-  {
-    id: 'coral',
-    label: 'Coral',
-    background: {
-      type: 'gradient',
-      gradient: {
-        direction: 200,
-        stops: [
-          { color: '#FF9A6B', position: 0 },
-          { color: '#F4602E', position: 1 },
-        ],
-      },
-    },
-    headlineColor: '#FFFFFF',
-    subheadlineColor: '#FFF0EA',
-    accentColor: '#FFD27A',
-  },
-  {
-    id: 'azure',
-    label: 'Azure',
-    background: {
-      type: 'gradient',
-      gradient: {
-        direction: 180,
-        stops: [
-          { color: '#4D90F5', position: 0 },
-          { color: '#1F5FD6', position: 1 },
-        ],
-      },
-    },
-    headlineColor: '#FFFFFF',
-    subheadlineColor: '#E7EFFF',
-    accentColor: '#FFD166',
+    headlineColor: '#241D41',
+    subheadlineColor: '#5A5278',
+    accentColor: '#7757DB',
   },
 ]
 
