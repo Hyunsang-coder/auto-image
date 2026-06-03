@@ -61,21 +61,26 @@ export async function createProject(
 
   await page.fill('input[placeholder="예: Dogo, Claude, ADHD"]', name)
 
-  // Deselect all devices first by clicking active ones, then select desired
-  const iPhoneBtn = page.getByRole('button', { name: /iPhone/ })
-  const iPadBtn = page.getByRole('button', { name: /iPad Pro/ })
+  // Device type cards are clickable divs (not buttons). The title span uses
+  // font-medium; go up one level (xpath=..) to get the card div which carries
+  // the active border class.
+  const deviceCard = (label: string) =>
+    page.locator('span[class*="font-medium"]', { hasText: new RegExp(`^${label}$`) }).locator('xpath=..')
 
-  const iPhoneActive = await iPhoneBtn.evaluate((el) =>
+  const iPhoneCard = deviceCard('iPhone')
+  const iPadCard = deviceCard('iPad')
+
+  const iPhoneActive = await iPhoneCard.evaluate((el) =>
     el.className.includes('border-[var(--color-accent)]'),
   )
-  const iPadActive = await iPadBtn.evaluate((el) =>
+  const iPadActive = await iPadCard.evaluate((el) =>
     el.className.includes('border-[var(--color-accent)]'),
   )
 
-  if (iPhoneActive && !devices.includes('iphone')) await iPhoneBtn.click()
-  if (!iPhoneActive && devices.includes('iphone')) await iPhoneBtn.click()
-  if (iPadActive && !devices.includes('ipad')) await iPadBtn.click()
-  if (!iPadActive && devices.includes('ipad')) await iPadBtn.click()
+  if (iPhoneActive && !devices.includes('iphone')) await iPhoneCard.click()
+  if (!iPhoneActive && devices.includes('iphone')) await iPhoneCard.click()
+  if (iPadActive && !devices.includes('ipad')) await iPadCard.click()
+  if (!iPadActive && devices.includes('ipad')) await iPadCard.click()
 
   if (slideCount !== undefined) {
     const input = page.locator('input[type="number"]')

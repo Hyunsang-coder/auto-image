@@ -803,6 +803,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           canvas.getObjects().find(
             (o) => (o as FabricObject & { layerName?: string }).layerName === name,
           ) ?? null,
+        // True once the first render adopted its undo baseline — before that,
+        // object:modified has no pre-change state to push onto the undo stack.
+        hasBaseline: () => baselineRef.current != null,
       }
 
       canvas.on('mouse:down', () => {
@@ -916,6 +919,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const prevSlideDataRef = useRef<string>('')
     const prevGroupedRef = useRef<boolean>(false)
     const prevLockRef = useRef<boolean>(false)
+    // Template renders await fonts/images, so two effect runs can overlap. Each
+    // applyTemplate clears the canvas up front and then adds objects across
+    // awaits — an older render resuming after a newer one would permanently
+    // re-pollute the canvas with stale duplicates. Chain renders so they never
+    // interleave, and skip any render that was superseded while it waited.
+    const renderSeqRef = useRef(0)
+    const renderChainRef = useRef<Promise<void>>(Promise.resolve())
     useEffect(() => {
       const canvas = fabricRef.current
       if (!canvas || !activeSlide) return
@@ -963,7 +973,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       prevGroupedRef.current = isGrouped
       prevLockRef.current = lockSharedLayout
 
-      ;(async () => {
+      const seq = ++renderSeqRef.current
+      renderChainRef.current = renderChainRef.current.then(async () => {
+        // Superseded while waiting in the chain — the newest run renders the
+        // latest data, so doing this one would only waste a clear+layout.
+        if (seq !== renderSeqRef.current) return
         // Span groups: render leader's data onto a 2× wide canvas and lay a
         // dashed seam guide on top. Editor-only — export takes a different
         // code path that crops the wide render into L/R halves.
@@ -977,7 +991,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // The canvas can be disposed while we await image/font loads (StrictMode
         // remount, fast slide/locale switch, unmount). Touching a disposed canvas
         // — setDimensions destructures a null element — throws, so bail here.
-        if (fabricRef.current !== canvas) return
+        if (fabricRef.current !== canvas || seq !== renderSeqRef.current) return
         if (isGrouped) {
           const w = EDITOR_CANVAS_WIDTH * 2
           await applyTemplate(canvas, activeSlide!, { width: w, height: h }, { spanCentered: true, resolveUrl })
@@ -1009,7 +1023,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // object. Stacks are still only cleared on a fresh load (above).
         baselineRef.current = takeSnapshot(canvas)
         notifyHistory()
-      })()
+      })
     }, [activeSlide, isGrouped, lockSharedLayout])
 
     return (

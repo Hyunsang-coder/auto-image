@@ -30,7 +30,7 @@ test('이미지 일괄 가져오기: 베이스 + 언어별 override를 파일명
   await expect(imageRow.locator('img')).toHaveCount(2)
 })
 
-test('이미지 일괄 가져오기: 기기 불일치는 덮어쓰지 않고 건너뜀', async ({ page }) => {
+test('이미지 일괄 가져오기: 기기 불일치 이미지는 시각 프레임 오버라이드로 수용됨', async ({ page }) => {
   await clearAppState(page)
   await page.goto('/')
   await createProject(page, { name: 'Device Guard', slideCount: 1 })
@@ -45,13 +45,14 @@ test('이미지 일괄 가져오기: 기기 불일치는 덮어쓰지 않고 건
   ])
   await expect(page.getByText(/이미지를 가져왔습니다/)).toBeVisible()
 
-  // An iPad-aspect image for the same slide must be skipped, not silently swapped.
+  // Cross-type (iPad aspect on iPhone project): accepted with a visual frameModel
+  // override — canvas stays iPhone-sized, but the iPad frame shape is drawn.
   await page.locator('input[accept="image/*"][multiple]').setInputFiles([
     { name: '1.ko.png', mimeType: 'image/png', buffer: ipad },
   ])
-  // The per-file "건너뜀" detail now lives inside a collapsed <details>; the
-  // always-visible summary surfaces the warning count ("경고 N건 (아래 목록 확인)").
-  await expect(page.getByText(/아래 목록 확인/)).toBeVisible()
+  await expect(page.getByText(/이미지를 가져왔습니다/)).toBeVisible()
+  // No skip warning should appear for a cross-type import.
+  await expect(page.getByText(/아래 목록 확인/)).not.toBeVisible()
 })
 
 test('이미지 일괄 가져오기: 알 수 없는 파일명은 경고로 건너뜀', async ({ page }) => {

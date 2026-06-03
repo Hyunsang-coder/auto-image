@@ -60,9 +60,9 @@ test('per-locale screenshot override swaps the rendered image; absent locale fal
       return { r, g, b }
     }
 
-    const base = await centerColor(await renderSlide(slide, 'iphone', null))
-    const ja = await centerColor(await renderSlide(slide, 'iphone', 'ja'))
-    const en = await centerColor(await renderSlide(slide, 'iphone', 'en')) // no override → fallback
+    const base = await centerColor(await renderSlide(slide, null))
+    const ja = await centerColor(await renderSlide(slide, 'ja'))
+    const en = await centerColor(await renderSlide(slide, 'en')) // no override → fallback
     return { base, ja, en }
     })
 

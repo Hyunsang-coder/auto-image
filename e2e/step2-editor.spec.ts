@@ -55,7 +55,11 @@ test('초기 진입 시 Undo/Redo 버튼이 비활성화됨', async ({ page }) =
 })
 
 test('편집(object:modified) 후 Undo 버튼이 활성화됨', async ({ page }) => {
-  await page.waitForFunction(() => (window as { __editor?: unknown }).__editor != null)
+  // Wait for the first render to adopt its undo baseline — an object:modified
+  // fired before that has no pre-change state to push, so Undo stays disabled.
+  await page.waitForFunction(() =>
+    (window as { __editor?: { hasBaseline: () => boolean } }).__editor?.hasBaseline(),
+  )
   await page.evaluate(() => {
     ;(window as unknown as { __editor: { canvas: { fire: (e: string) => void } } }).__editor.canvas.fire(
       'object:modified',
@@ -270,14 +274,14 @@ test('드래그한 헤드라인 위치가 슬라이드 전환 후에도 유지�
     page.evaluate(() => {
       const o = (window as unknown as { __editor: Ed }).__editor
         .getState()
-        .objects.find((x) => x.layerName === 'headline')!
+        .objects.find((x) => x.layerName === 'text')!
       return { left: o.left, top: o.top, width: o.width, height: o.height }
     })
 
   // Give the headline real text so it has a clickable footprint.
   await page.getByRole('button', { name: '텍스트', exact: true }).click()
   await page.locator('textarea').first().fill('내 헤드라인')
-  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.getState().objects.some((o) => o.layerName === 'headline'))
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.getState().objects.some((o) => o.layerName === 'text'))
 
   const box = (await page.locator('canvas').last().boundingBox())!
   const st = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.getState())
@@ -293,7 +297,7 @@ test('드래그한 헤드라인 위치가 슬라이드 전환 후에도 유지�
   await page.mouse.up()
   await page.waitForFunction(
     (t) => {
-      const o = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((x) => x.layerName === 'headline')!
+      const o = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((x) => x.layerName === 'text')!
       return o.top < t - 40
     },
     orig.top,
@@ -304,7 +308,7 @@ test('드래그한 헤드라인 위치가 슬라이드 전환 후에도 유지�
   const slides = slideThumbs(page)
   await slides.nth(1).click()
   await slides.nth(0).click()
-  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.getState().objects.some((o) => o.layerName === 'headline'))
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.getState().objects.some((o) => o.layerName === 'text'))
 
   const afterSwitch = await headline()
   // Headline must stay where it was dragged, not snap back to the template top.
@@ -312,7 +316,7 @@ test('드래그한 헤드라인 위치가 슬라이드 전환 후에도 유지�
   expect(afterSwitch.top).toBeLessThan(orig.top - 40)
 })
 
-test('넓힌 텍스트 박스 너비가 슬라이드 전환 후에도 유지됨', async ({ page }) => {
+test('줄인 텍스트 박스 너비가 슬라이드 전환 후에도 유지됨', async ({ page }) => {
   type Ed = {
     findByLayer: (n: string) => { width: number; set: (k: string, v: number) => void; setCoords: () => void } | null
     canvas: { setActiveObject: (o: unknown) => void; fire: (e: string, opts: { target: unknown }) => void }
@@ -320,37 +324,40 @@ test('넓힌 텍스트 박스 너비가 슬라이드 전환 후에도 유지됨'
   }
   const hlWidth = () =>
     page.evaluate(
-      () => (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'headline')!.width,
+      () => (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'text')!.width,
     )
 
   await page.getByRole('button', { name: '텍스트', exact: true }).click()
   await page.locator('textarea').first().fill('두 줄로 감기는 제법 긴 헤드라인 문구입니다')
-  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('headline') != null)
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('text') != null)
   const before = await hlWidth()
 
-  // widen the headline box by 150px and commit it like a real resize
+  // Shrink the box by 100px and commit it like a real resize. (Shrinking, not
+  // widening: syncToZustand caps boxWidth at the slide width, and the text-top
+  // template's default box is already 85% of the canvas — too little headroom
+  // to widen meaningfully.)
   await page.evaluate(() => {
     const ed = (window as unknown as { __editor: Ed }).__editor
-    const hl = ed.findByLayer('headline')!
-    hl.set('width', hl.width + 150)
+    const hl = ed.findByLayer('text')!
+    hl.set('width', hl.width - 100)
     hl.setCoords()
     ed.canvas.setActiveObject(hl)
     ed.canvas.fire('object:modified', { target: hl })
   })
   await page.waitForFunction((w) => {
-    const hl = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'headline')
-    return !!hl && hl.width > w + 80
+    const hl = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'text')
+    return !!hl && hl.width < w - 80
   }, before)
-  const widened = await hlWidth()
+  const resized = await hlWidth()
 
-  // switch slide and back → must keep the wider box, not snap to template width
+  // switch slide and back → must keep the narrower box, not snap to template width
   const slides = slideThumbs(page)
   await slides.nth(1).click()
   await slides.nth(0).click()
-  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('headline') != null)
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('text') != null)
   const afterSwitch = await hlWidth()
-  expect(Math.abs(afterSwitch - widened)).toBeLessThan(8)
-  expect(afterSwitch).toBeGreaterThan(before + 80)
+  expect(Math.abs(afterSwitch - resized)).toBeLessThan(8)
+  expect(afterSwitch).toBeLessThan(before - 80)
 })
 
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
