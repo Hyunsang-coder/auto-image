@@ -109,7 +109,7 @@ export function ExportPanel() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const prevUrlsRef = useRef<(string | null)[]>([])
   // Preview thumbnail size: 1 (small, more columns) … 5 (large, single column).
-  const [previewSize, setPreviewSize] = useState(1)
+  const [previewSize, setPreviewSize] = useState(4)
   // Locales the user unticked for export; empty = export everything.
   const [excludedLocales, setExcludedLocales] = useState<Set<string>>(new Set())
 
@@ -183,7 +183,7 @@ export function ExportPanel() {
       .sort((a, b) => localeOrder(a) - localeOrder(b)),
   ]
   const exportLocales = allLocales.filter((l) => !excludedLocales.has(l))
-  const previewCols = [8, 6, 4, 2, 1][previewSize - 1]
+  const previewCols = [14, 12, 10, 8, 6][previewSize - 1]
   // Each slide exports to exactly one device — the one its screenshot belongs
   // to (auto-detected on upload). project.devices is no longer multiplied in.
   const total = project.slides.length * exportLocales.length
@@ -433,24 +433,16 @@ export function ExportPanel() {
               </span>
             </div>
             <div>
-              <div className="mb-1.5 flex justify-between">
-                <span>로케일</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setExcludedLocales(new Set())}
-                    className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
-                  >
-                    모두 선택
-                  </button>
-                  <button
-                    onClick={() => setExcludedLocales(new Set(allLocales))}
-                    className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
-                  >
-                    전체 해제
-                  </button>
-                </div>
-              </div>
+              <div className="mb-1.5">로케일</div>
               <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() =>
+                    setExcludedLocales(excludedLocales.size === 0 ? new Set(allLocales) : new Set())
+                  }
+                  className="rounded border border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-text-dim)] transition-colors hover:border-[var(--color-text-dim)]"
+                >
+                  {excludedLocales.size === 0 ? '전체 해제' : '전체 선택'}
+                </button>
                 {allLocales.map((l) => {
                   const on = !excludedLocales.has(l)
                   return (
