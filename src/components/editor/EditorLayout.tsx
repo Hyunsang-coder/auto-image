@@ -301,22 +301,34 @@ export function EditorLayout() {
   }
 
   function handleScreenshotChange(screenshot: ScreenshotImage | null) {
-    // In locale mode with a base screenshot: route to localeOverrides so the
-    // upload only affects this locale, not the shared base.
-    if (isLocaleMode && editLocale && slide?.screenshot && screenshot && editTargetId) {
-      updateSlide(editTargetId, {
-        screenshot: {
-          ...slide.screenshot,
-          localeOverrides: {
-            ...slide.screenshot.localeOverrides,
-            [editLocale]: {
-              imageKey: screenshot.imageKey,
-              originalWidth: screenshot.originalWidth,
-              originalHeight: screenshot.originalHeight,
+    if (isLocaleMode && editLocale && editTargetId) {
+      if (screenshot && slide?.screenshot) {
+        // Upload in locale mode: write to localeOverrides only, leave base untouched.
+        updateSlide(editTargetId, {
+          screenshot: {
+            ...slide.screenshot,
+            localeOverrides: {
+              ...slide.screenshot.localeOverrides,
+              [editLocale]: {
+                imageKey: screenshot.imageKey,
+                originalWidth: screenshot.originalWidth,
+                originalHeight: screenshot.originalHeight,
+              },
             },
           },
-        },
-      })
+        })
+      } else if (screenshot && !slide?.screenshot) {
+        // No base yet: first upload sets the base even in locale mode.
+        applyEdit({ screenshot })
+      } else if (!screenshot && slide?.screenshot?.localeOverrides?.[editLocale]) {
+        // Deletion in locale mode: remove only this locale's override, not the base.
+        const rest = { ...slide.screenshot.localeOverrides }
+        delete rest[editLocale]
+        updateSlide(editTargetId, {
+          screenshot: { ...slide.screenshot, localeOverrides: rest },
+        })
+      }
+      // null with no override → nothing to do (cannot delete the shared base while in locale mode).
     } else {
       applyEdit({ screenshot })
     }

@@ -121,7 +121,9 @@ export async function importBulkImages(
         ? { frameModel: detected }
         : detected !== slide.deviceFrame.model
           ? { model: detected, frameModel: undefined }
-          : {}
+          : slide.deviceFrame.frameModel !== undefined
+            ? { frameModel: undefined }
+            : {}
       patch = {
         screenshot: {
           id: key,

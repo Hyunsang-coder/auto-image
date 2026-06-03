@@ -245,12 +245,16 @@ export const useProjectStore = create<ProjectState>()(
             return { ...b, text: promoted ?? b.text, translations: { ...rest, [prev]: b.text } }
           }),
         }))
+        // Only add prev to targetLocales if there were already targets — a
+        // project with no targets is in single-locale mode and should stay that way.
+        const prevTargets = cur.targetLocales.filter((l) => l !== next)
+        const nextTargets = cur.targetLocales.length > 0 ? [...prevTargets, prev] : prevTargets
         set({
           project: touch({
             ...cur,
             slides,
             sourceLocale: next,
-            targetLocales: [...cur.targetLocales.filter((l) => l !== next), prev],
+            targetLocales: nextTargets,
           }),
         })
       },

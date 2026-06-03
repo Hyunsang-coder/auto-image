@@ -106,8 +106,13 @@ export function ScreenshotPanel({
     const canvasType = typeOfModel(deviceFrame.model)
     const frameModel = deviceModels?.[detectedType] ?? DEFAULT_MODEL[detectedType]
     if (detectedType === canvasType) {
-      // Same type: update model normally (size may differ within the type).
-      if (frameModel !== deviceFrame.model) onDeviceFrameChange({ ...deviceFrame, model: frameModel, frameModel: undefined })
+      if (frameModel !== deviceFrame.model) {
+        // Same type, different size: update model and clear any stale cross-type override.
+        onDeviceFrameChange({ ...deviceFrame, model: frameModel, frameModel: undefined })
+      } else if (deviceFrame.frameModel !== undefined) {
+        // Same type, same size: clear a stale cross-type visual override if present.
+        onDeviceFrameChange({ ...deviceFrame, frameModel: undefined })
+      }
     } else {
       // Cross-type: keep canvas dimensions (model), override only the visual frame.
       onDeviceFrameChange({ ...deviceFrame, frameModel })
