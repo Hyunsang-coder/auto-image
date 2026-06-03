@@ -103,6 +103,36 @@ export interface CropHandleProps {
   _crop?: ScreenshotCrop
   _fullW?: number
   _fullH?: number
+  // Unrotated offset-free anchors stashed by addDeviceFrame. A left/top trim
+  // moves the body anchor, so the raw anchors must follow or syncToZustand
+  // reads the crop shift as a drag offset.
+  _baseRawLeft?: number
+  _baseRawTop?: number
+}
+
+/**
+ * Offset-free raw anchors + pivot stashed on the device body so syncToZustand
+ * can re-derive the base at whatever angle a gesture ends on. The pivot is the
+ * offset-free twin of the render pivot — it must mirror it exactly, in
+ * particular it must NOT carry the crop shift the anchors have, or sync
+ * re-rotates about a different point than the render used and a
+ * rotated+cropped card jumps on release.
+ */
+export function deviceBodyAnchors(
+  layout: { centerX: number; top: number; width: number; height: number },
+  offsetX: number,
+  offsetY: number,
+  scale: number,
+  shotCrop?: ScreenshotCrop,
+): { rawLeft: number; rawTop: number; pivotX: number; pivotY: number } {
+  const cropDx = shotCrop ? layout.width * shotCrop.left : 0
+  const cropDy = shotCrop ? layout.height * shotCrop.top : 0
+  return {
+    rawLeft: layout.centerX - offsetX * scale - layout.width / 2 + cropDx,
+    rawTop: layout.top - offsetY * scale + cropDy,
+    pivotX: layout.centerX - offsetX * scale,
+    pivotY: layout.top - offsetY * scale + layout.height / 2,
+  }
 }
 
 function cropEdgeAction(edge: CropEdge, target: FabricObject, px: number, py: number): boolean {
@@ -128,6 +158,10 @@ function cropEdgeAction(edge: CropEdge, target: FabricObject, px: number, py: nu
   target.set(geo)
   target.setCoords()
   t._crop = next
+  // The raw anchors live in the unrotated frame, so they advance by the plain
+  // (dL, dT) while the body anchor above moved along its rotated axes.
+  if (t._baseRawLeft !== undefined) t._baseRawLeft += dL
+  if (t._baseRawTop !== undefined) t._baseRawTop += dT
   // Mirror the geometry onto the screenshot's absolutely-positioned clip so the
   // trim is visible mid-drag. The image itself doesn't move — only the mask.
   const canvas = target.canvas
@@ -565,18 +599,10 @@ function addDeviceFrame(
   // layout.centerX/top already bake in offsetX/offsetY * scale, so recover the
   // offset-free anchor by subtracting the same scaled offset.
   const { offsetX = 0, offsetY = 0 } = slide.deviceFrame
-  const cropDx = shotCrop ? layout.width * shotCrop.left : 0
-  const cropDy = shotCrop ? layout.height * shotCrop.top : 0
-  const baseLeft = (layout.centerX - offsetX * scale) - layout.width / 2 + cropDx
-  const baseTop = layout.top - offsetY * scale + cropDy
+  const anchors = deviceBodyAnchors(layout, offsetX, offsetY, scale, shotCrop)
   const angle = slide.deviceFrame.rotation ?? 0
   const pivotX = layout.centerX
   const pivotY = layout.top + layout.height / 2
-  // Offset-free pivot, used to store the body's _baseLeft/_baseTop already
-  // rotated — that keeps syncToZustand's `body.left - _baseLeft` capturing only
-  // the user's drag offset even when the device is tilted.
-  const basePivotX = layout.centerX - offsetX * scale
-  const basePivotY = baseTop + layout.height / 2
   paths.forEach((obj, i) => {
     if (i === 0) {
       obj.set({
@@ -600,17 +626,19 @@ function addDeviceFrame(
       // Corner handles scale, mtr rotates; standard middle handles stay hidden
       // (they'd break aspect) — floating mode replaces them with crop controls.
       obj.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: true })
-      const base = angle ? rotateAround(baseLeft, baseTop, basePivotX, basePivotY, angle) : { x: baseLeft, y: baseTop }
+      const base = angle
+        ? rotateAround(anchors.rawLeft, anchors.rawTop, anchors.pivotX, anchors.pivotY, angle)
+        : { x: anchors.rawLeft, y: anchors.rawTop }
       Object.assign(obj, {
         _baseLeft: base.x,
         _baseTop: base.y,
         // Unrotated anchors so syncToZustand can re-derive the base at whatever
         // angle an mtr drag ends on (the pre-rotated _baseLeft/_baseTop only
         // hold for the angle this render used).
-        _baseRawLeft: baseLeft,
-        _baseRawTop: baseTop,
-        _basePivotX: basePivotX,
-        _basePivotY: basePivotY,
+        _baseRawLeft: anchors.rawLeft,
+        _baseRawTop: anchors.rawTop,
+        _basePivotX: anchors.pivotX,
+        _basePivotY: anchors.pivotY,
       })
       if (!slide.deviceFrame.show) {
         Object.assign(obj, {

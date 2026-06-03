@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { FabricObject } from 'fabric'
-import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout, rotateAround, trimCrop } from './templateLayouts'
+import { Rect, type FabricObject, type TPointerEvent, type Transform } from 'fabric'
+import { addTextBlocks, attachCropControls, cropScreenBounds, deviceBodyAnchors, getDeviceDimensions, getDeviceLayout, rotateAround, trimCrop } from './templateLayouts'
 import { canvasPointToRegionOrigin, regionCenterOnCanvas } from './objects/highlight'
 import { LAYER_NAMES } from './layerNames'
 import type { Caption, Slide } from '../types/project'
@@ -220,6 +220,79 @@ describe('trimCrop (edge-control drag)', () => {
   })
 })
 
+// cropEdgeAction through the real attached controls: a left/top trim moves the
+// body anchor, so the raw anchors must advance by the same (unrotated) delta or
+// syncToZustand reads the shift as a drag offset and the card jumps on release.
+describe('cropEdgeAction keeps the raw anchors in step with the trim', () => {
+  const FULL = { w: 320, h: 640 }
+  const OFFSET = { x: 60, y: 40 }
+
+  function makeBody(angle = 0) {
+    const body = new Rect({ left: 100, top: 150, width: FULL.w, height: FULL.h, originX: 'left', originY: 'top', angle })
+    Object.assign(body, {
+      _crop: { top: 0, right: 0, bottom: 0, left: 0 },
+      _fullW: FULL.w,
+      _fullH: FULL.h,
+      _baseRawLeft: 100 - OFFSET.x,
+      _baseRawTop: 150 - OFFSET.y,
+    })
+    attachCropControls(body)
+    return body as Rect & { _crop: { top: number; right: number; bottom: number; left: number }; _baseRawLeft: number; _baseRawTop: number }
+  }
+
+  function dragEdge(body: Rect, key: string, local: { x: number; y: number }) {
+    // Control handlers receive the pointer in scene coords; map the local
+    // (center-origin, rotated-with-the-body) point the way Fabric would.
+    const c = body.getCenterPoint()
+    const p = rotateAround(local.x, local.y, 0, 0, body.angle ?? 0)
+    return body.controls[key].actionHandler({} as TPointerEvent, { target: body } as unknown as Transform, c.x + p.x, c.y + p.y)
+  }
+
+  it('left trim moves anchor + raw together, offset capture unchanged', () => {
+    const body = makeBody()
+    dragEdge(body, 'cropL', { x: -FULL.w / 2 + 40, y: 0 })
+    expect(body.left).toBeCloseTo(140, 6)
+    expect(body._crop.left).toBeCloseTo(40 / FULL.w, 6)
+    expect(body._baseRawLeft).toBeCloseTo(80, 6)
+    // Sync derivation (FabricCanvas.syncToZustand, angle 0):
+    expect(Math.round((body.left ?? 0) - body._baseRawLeft)).toBe(OFFSET.x)
+  })
+
+  it('top trim moves anchor + raw together, offset capture unchanged', () => {
+    const body = makeBody()
+    dragEdge(body, 'cropT', { x: 0, y: -FULL.h / 2 + 50 })
+    expect(body.top).toBeCloseTo(200, 6)
+    expect(body._crop.top).toBeCloseTo(50 / FULL.h, 6)
+    expect(body._baseRawTop).toBeCloseTo(160, 6)
+    expect(Math.round((body.top ?? 0) - body._baseRawTop)).toBe(OFFSET.y)
+  })
+
+  it('right/bottom trims leave both anchors fixed', () => {
+    const body = makeBody()
+    dragEdge(body, 'cropR', { x: FULL.w / 2 - 30, y: 0 })
+    dragEdge(body, 'cropB', { x: 0, y: FULL.h / 2 - 60 })
+    expect(body.left).toBeCloseTo(100, 6)
+    expect(body.top).toBeCloseTo(150, 6)
+    expect(body._baseRawLeft).toBeCloseTo(100 - OFFSET.x, 6)
+    expect(body._baseRawTop).toBeCloseTo(150 - OFFSET.y, 6)
+    expect(body._crop.right).toBeCloseTo(30 / FULL.w, 6)
+    expect(body._crop.bottom).toBeCloseTo(60 / FULL.h, 6)
+  })
+
+  it('on a tilted body the anchor moves along rotated axes, the raw along plain axes', () => {
+    const body = makeBody(30)
+    dragEdge(body, 'cropT', { x: 0, y: -FULL.h / 2 + 50 })
+    // Raw anchors live in the unrotated frame: plain (0, dT).
+    expect(body._baseRawLeft).toBeCloseTo(100 - OFFSET.x, 6)
+    expect(body._baseRawTop).toBeCloseTo(150 - OFFSET.y + 50, 6)
+    // Body anchor moves by R(30°)·(0, 50) — the same vector sync re-derives via
+    // rotateAround on the raws, so the captured offset stays the user's drag.
+    const d = rotateAround(0, 50, 0, 0, 30)
+    expect(body.left).toBeCloseTo(100 + d.x, 6)
+    expect(body.top).toBeCloseTo(150 + d.y, 6)
+  })
+})
+
 // Rotation-aware offset capture: after an mtr drag, sync re-derives the base by
 // rotating the raw (unrotated) anchors at the NEW angle. The identity
 // rotate(P+o, C+o, θ) = rotate(P, C, θ) + o guarantees the captured delta is
@@ -248,6 +321,72 @@ describe('offset capture stays exact under rotation', () => {
       }
     }
   })
+})
+
+// Full mtr round-trip: render places the (possibly cropped) floating card and
+// rotates it about the device center; an mtr drag then spins it about its OWN
+// center (Fabric centeredRotation); sync re-derives the base about the stored
+// pivot. The released anchor and the next render must coincide for any crop
+// and any starting angle — this only holds when the stored pivot is the
+// offset-free twin of the render pivot (crop-free!), which is what regressed
+// when basePivotY inherited the crop shift.
+describe('mtr rotation round-trip is exact for cropped cards and non-zero start angles', () => {
+  const ZERO = { top: 0, right: 0, bottom: 0, left: 0 }
+  const CROPS = [
+    ZERO,
+    { ...ZERO, top: 0.2 },
+    { ...ZERO, left: 0.2 },
+    { top: 0.1, right: 0.15, bottom: 0.3, left: 0.05 },
+  ]
+  const SPINS = [
+    [0, 30],
+    [30, 75],
+    [45, -60],
+  ] as const
+  const OFFSETS = [
+    [0, 0],
+    [60, 40],
+  ] as const
+
+  // Render placement replicated from addDeviceFrame's floating branch; the
+  // stored anchors/pivot come from the REAL deviceBodyAnchors so this test
+  // breaks if the production derivation regresses.
+  function renderBody(crop: typeof ZERO, dx: number, dy: number, θ: number) {
+    const L = layout('text-top', 440, 956, false, { show: false, offsetX: dx, offsetY: dy })!
+    const C = cropScreenBounds({ left: L.centerX - L.width / 2, top: L.top, width: L.width, height: L.height, rx: 0 }, crop)
+    const pivot = { x: L.centerX, y: L.top + L.height / 2 }
+    const a = deviceBodyAnchors(L, dx, dy, 1, crop)
+    return {
+      anchor: rotateAround(C.left, C.top, pivot.x, pivot.y, θ),
+      center: rotateAround(C.left + C.width / 2, C.top + C.height / 2, pivot.x, pivot.y, θ),
+      size: { w: C.width, h: C.height },
+      raw: { x: a.rawLeft, y: a.rawTop },
+      basePivot: { x: a.pivotX, y: a.pivotY },
+    }
+  }
+
+  for (const crop of CROPS) {
+    for (const [from, to] of SPINS) {
+      for (const [dx, dy] of OFFSETS) {
+        it(`crop(${crop.top},${crop.right},${crop.bottom},${crop.left}) · ${from}°→${to}° · offset(${dx},${dy})`, () => {
+          const r = renderBody(crop, dx, dy, from)
+          // mtr drag: Fabric keeps the body center fixed and re-derives the
+          // anchor for the new angle: anchor = center − R(θ)·(w/2, h/2).
+          const half = rotateAround(r.size.w / 2, r.size.h / 2, 0, 0, to)
+          const released = { x: r.center.x - half.x, y: r.center.y - half.y }
+          // Sync derivation (FabricCanvas.syncToZustand), without the int
+          // rounding production applies to the stored offset:
+          const base = rotateAround(r.raw.x, r.raw.y, r.basePivot.x, r.basePivot.y, to)
+          const captured = { x: released.x - base.x, y: released.y - base.y }
+          // Next render at the captured offset must land exactly on the
+          // released anchor — otherwise the card visibly snaps.
+          const again = renderBody(crop, captured.x, captured.y, to)
+          expect(again.anchor.x).toBeCloseTo(released.x, 6)
+          expect(again.anchor.y).toBeCloseTo(released.y, 6)
+        })
+      }
+    }
+  }
 })
 
 // Loupe geometry: the card renders at regionCenterOnCanvas, and a dragged

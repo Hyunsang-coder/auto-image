@@ -120,4 +120,12 @@ test('플로팅 모드에서 엣지 컨트롤 드래그가 크롭을 만든다',
   expect(crop!.bottom).toBe(0)
   expect(crop!.left).toBe(0)
   expect(crop!.right).toBe(0)
+  // 크롭만 했으므로 디바이스 오프셋은 그대로 0 — 크롭 드래그가 오프셋으로
+  // 새어들면 카드가 트림한 만큼 점프한다 (regression).
+  const df = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    const slide = raw ? JSON.parse(raw).state?.project?.slides?.[0] : null
+    return slide ? { offsetX: slide.deviceFrame.offsetX ?? 0, offsetY: slide.deviceFrame.offsetY ?? 0 } : null
+  })
+  expect(df).toEqual({ offsetX: 0, offsetY: 0 })
 })
