@@ -1,6 +1,6 @@
 import { Path } from 'fabric'
 import type { DeviceFrame } from '../../types/project'
-import { DEVICE_SPECS } from '../../constants/deviceSpecs'
+import { frameSpecOf } from '../../constants/deviceSpecs'
 import { LAYER_NAMES } from '../layerNames'
 
 export interface DeviceFrameOptions {
@@ -77,7 +77,7 @@ export function renderDeviceFrame(
 
   // Symmetric bezel — uniform on all 4 sides. Ratio is taken from the spec
   // (fraction of device width) so the editor matches Apple's device dimensions.
-  const spec = DEVICE_SPECS[deviceFrame.model]
+  const spec = frameSpecOf(deviceFrame)
   const hasIsland = spec.hasIsland
   const bezel = fw * spec.screenInsetRatio
   const screenW = fw - bezel * 2

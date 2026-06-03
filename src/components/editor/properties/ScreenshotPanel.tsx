@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DeviceFrame, ScreenshotImage, ScreenshotStyle, TemplateType } from '../../../types/project'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
-import { detectTypeFromAspect, DEFAULT_MODEL } from '../../../constants/deviceSpecs'
+import { detectTypeFromAspect, DEFAULT_MODEL, typeOfModel } from '../../../constants/deviceSpecs'
 import { useProjectStore } from '../../../store/useProjectStore'
 import { gcImages } from '../../../lib/imageRefs'
 import { importBulkImages } from '../../../lib/bulkImageImport'
@@ -102,14 +102,15 @@ export function ScreenshotPanel({
       // localized screenshots, not derived from this image.
       ...(value?.localeOverrides && { localeOverrides: value.localeOverrides }),
     })
-    // Lock the slide's device to the screenshot's aspect — an iPhone screenshot
-    // belongs in an iPhone frame, an iPad shot in an iPad frame. Avoids the
-    // cover-mode center-crop that used to silently chop off content. The size
-    // within the type follows the project's chosen App Store size.
-    const type = detectTypeFromAspect(width, height)
-    const model = deviceModels?.[type] ?? DEFAULT_MODEL[type]
-    if (model !== deviceFrame.model) {
-      onDeviceFrameChange({ ...deviceFrame, model })
+    const detectedType = detectTypeFromAspect(width, height)
+    const canvasType = typeOfModel(deviceFrame.model)
+    const frameModel = deviceModels?.[detectedType] ?? DEFAULT_MODEL[detectedType]
+    if (detectedType === canvasType) {
+      // Same type: update model normally (size may differ within the type).
+      if (frameModel !== deviceFrame.model) onDeviceFrameChange({ ...deviceFrame, model: frameModel, frameModel: undefined })
+    } else {
+      // Cross-type: keep canvas dimensions (model), override only the visual frame.
+      onDeviceFrameChange({ ...deviceFrame, frameModel })
     }
   }
 

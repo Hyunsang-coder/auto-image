@@ -10,6 +10,12 @@ const ID_COLUMNS = ['slide', 'slideId', 'field']
  * legacy column from the old format — kept for reference, never routed. */
 const RESERVED_COLUMNS = [...ID_COLUMNS, 'source']
 
+// Legacy field names from before the text:N / badge:N schema.
+const FIELD_ALIASES: Record<string, string> = { headline: 'text:0', subheadline: 'text:1' }
+function normalizeField(f: string): string {
+  return FIELD_ALIASES[f] ?? f
+}
+
 export interface SerializeRow {
   slideId: string
   /** 0-based slide position; written 1-based as the `slide` column. */
@@ -124,7 +130,7 @@ function parseJsonTemplate(text: string): ParseResult {
   const localeSet = new Set<string>()
   const rows: ParsedRow[] = []
   for (const raw of rawRows as Record<string, unknown>[]) {
-    const field = typeof raw.field === 'string' ? raw.field : ''
+    const field = normalizeField(typeof raw.field === 'string' ? raw.field : '')
     if (!field) {
       warnings.push('`field`가 없는 행을 건너뜀')
       continue
@@ -164,7 +170,7 @@ function parseCsvTemplate(text: string): ParseResult {
   for (let i = 1; i < grid.length; i++) {
     const cells = grid[i]
     if (cells.every(c => c.trim() === '')) continue
-    const field = (cells[fieldIdx] ?? '').trim()
+    const field = normalizeField((cells[fieldIdx] ?? '').trim())
     if (!field) continue
     const values: Record<string, string> = {}
     for (const loc of localeColumns) {

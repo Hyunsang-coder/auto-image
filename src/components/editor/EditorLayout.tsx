@@ -300,9 +300,25 @@ export function EditorLayout() {
   }
 
   function handleScreenshotChange(screenshot: ScreenshotImage | null) {
-    applyEdit({ screenshot })
-    // Reference-checked: the replaced screenshot's blob is swept only if no
-    // saved project/preset/template still points at it.
+    // In locale mode with a base screenshot: route to localeOverrides so the
+    // upload only affects this locale, not the shared base.
+    if (isLocaleMode && editLocale && slide?.screenshot && screenshot && editTargetId) {
+      updateSlide(editTargetId, {
+        screenshot: {
+          ...slide.screenshot,
+          localeOverrides: {
+            ...slide.screenshot.localeOverrides,
+            [editLocale]: {
+              imageKey: screenshot.imageKey,
+              originalWidth: screenshot.originalWidth,
+              originalHeight: screenshot.originalHeight,
+            },
+          },
+        },
+      })
+    } else {
+      applyEdit({ screenshot })
+    }
     gcImages()
   }
 
@@ -446,14 +462,14 @@ export function EditorLayout() {
               <select
                 value={editLocale}
                 onChange={(e) => switchLocale(e.target.value)}
-                title={`편집 언어 — 기본 레이아웃은 전체 공통이며, 여기 입력한 텍스트가 로컬라이즈의 기준 언어(${localeLabel(project.sourceLocale)}) 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다.`}
+                title={`편집 언어 — 기준 언어(${localeLabel(project.sourceLocale)})는 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다.`}
                 className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
                   isLocaleMode
                     ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
                 }`}
               >
-                <option value="">기본 레이아웃 (기준: {localeLabel(project.sourceLocale)})</option>
+                <option value="">기준 언어 ({localeLabel(project.sourceLocale)})</option>
                 {localeOptions.map((l) => (
                   <option key={l} value={l}>
                     {localeLabel(l)}
@@ -476,10 +492,10 @@ export function EditorLayout() {
               <select
                 value={slide!.screenshot!.localeSource?.[editLocale] ?? ''}
                 onChange={(e) => setScreenshotSource(e.target.value)}
-                title="이 언어는 자체 스크린샷이 없습니다. 어떤 언어의 스크린샷을 빌려올지 선택하세요 (기본: 원본)."
+                title="이 언어는 자체 스크린샷이 없습니다. 어떤 언어의 스크린샷을 빌려올지 선택하세요 (기본: 기준 언어)."
                 className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
               >
-                <option value="">스크린샷: 원본</option>
+                <option value="">스크린샷: 기준 언어</option>
                 {donorLocales.map((l) => (
                   <option key={l} value={l}>스크린샷: {localeLabel(l)}</option>
                 ))}

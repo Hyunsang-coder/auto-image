@@ -81,6 +81,11 @@ export function deviceSpecOf(type: DeviceType): DeviceSpec {
   return DEVICE_SPECS[DEFAULT_MODEL[type]]
 }
 
+/** Spec for the visual frame drawn. Uses frameModel when set, else model. */
+export function frameSpecOf(df: { model: DeviceModel; frameModel?: DeviceModel }): DeviceSpec {
+  return DEVICE_SPECS[df.frameModel ?? df.model]
+}
+
 // iPhone portrait aspect ≈ 0.46; iPad ≈ 0.75. Midpoint at ~0.60 cleanly
 // separates portrait phones (always < 0.55) from tablets and near-square shots
 // (≥ 0.65). Anything wider than 1 is landscape and buckets as iPad — iPhone

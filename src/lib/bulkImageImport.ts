@@ -24,7 +24,6 @@ export interface BulkImageImportResult {
   issues: string[]
 }
 
-const devLabel = (m: DeviceModel) => (typeOfModel(m) === 'ipad' ? 'iPad' : 'iPhone')
 
 /**
  * Import a batch of screenshot files. `slides` is the current slide snapshot,
@@ -114,18 +113,15 @@ export async function importBulkImages(
     const { key, width, height } = result
     const detectedType = detectTypeFromAspect(width, height)
     const detected = deviceModels?.[detectedType] ?? DEFAULT_MODEL[detectedType]
-    // Don't let a stray file from the other device's set silently overwrite a
-    // populated slide and flip its device (e.g. an iPad shot landing on an
-    // iPhone slide). An empty base slot is the first upload, so it may set the
-    // device; overrides must match the slide's existing device.
-    if ((locale || slide.screenshot) && detected !== slide.deviceFrame.model) {
-      issues.push(
-        `슬라이드 ${slideNum}(${devLabel(slide.deviceFrame.model)})에 ${devLabel(detected)} 이미지 — 건너뜀: "${file.name}"`,
-      )
-      continue
-    }
+    const canvasType = typeOfModel(slide.deviceFrame.model)
+    const crossType = detectedType !== canvasType
     let patch: Partial<Slide>
     if (!locale) {
+      const frameOverride: Partial<typeof slide.deviceFrame> = crossType
+        ? { frameModel: detected }
+        : detected !== slide.deviceFrame.model
+          ? { model: detected, frameModel: undefined }
+          : {}
       patch = {
         screenshot: {
           id: key,
@@ -136,8 +132,8 @@ export async function importBulkImages(
             localeOverrides: slide.screenshot.localeOverrides,
           }),
         },
-        ...(detected !== slide.deviceFrame.model && {
-          deviceFrame: { ...slide.deviceFrame, model: detected },
+        ...(Object.keys(frameOverride).length && {
+          deviceFrame: { ...slide.deviceFrame, ...frameOverride },
         }),
       }
     } else {

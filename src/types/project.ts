@@ -169,6 +169,13 @@ export interface DeviceFrame {
   scale?: number
   /** Tilt of the device + screenshot in degrees, about the device center. 0 = upright. */
   rotation?: number
+  /**
+   * Optional override for the visual frame drawn. When set, the frame shape
+   * (aspect ratio, corner radius, screen inset, Dynamic Island) comes from this
+   * model while the canvas export size still comes from `model`. Allows e.g. an
+   * iPhone screenshot inside an iPad-sized canvas.
+   */
+  frameModel?: DeviceModel
 }
 
 export interface ScreenshotImage {

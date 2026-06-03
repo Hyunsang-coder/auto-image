@@ -1,7 +1,7 @@
 import { Canvas, FabricImage, Rect, Shadow } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Slide, ScreenshotImage, ScreenshotStyle } from '../types/project'
-import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../constants/deviceSpecs'
+import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, frameSpecOf } from '../constants/deviceSpecs'
 import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
 import { renderCaption } from './objects/caption'
@@ -26,7 +26,7 @@ function getCanvasHeight(slide: Slide): number {
 const DEVICE_WIDTH_RATIO = 0.78
 
 export function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h: number } {
-  const spec = DEVICE_SPECS[slide.deviceFrame.model]
+  const spec = frameSpecOf(slide.deviceFrame)
   const w = canvasWidth * DEVICE_WIDTH_RATIO
   const h = Math.round((w / spec.exportWidth) * spec.exportHeight)
   return { w, h }
@@ -169,7 +169,7 @@ export function getDeviceLayout(
   // rx must scale with the rendered device width, not the canvas width —
   // otherwise templates that shrink the device (split, hero-bleed) get
   // exaggerated corner radii that don't match the device's real proportions.
-  const spec = DEVICE_SPECS[slide.deviceFrame.model]
+  const spec = frameSpecOf(slide.deviceFrame)
   const rx = Math.round((spec.cornerRadius * width) / spec.exportWidth)
   // offsetX/offsetY are stored in editor-canvas pixels (EDITOR_CANVAS_WIDTH).
   // Scale them to the current canvas so a dragged device lands in the same

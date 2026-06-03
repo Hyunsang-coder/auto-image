@@ -296,20 +296,21 @@ export function LocalizeEditor() {
     const localesSeen = new Set<string>()
     let written = 0
     let baseWritten = 0
+    let skippedRows = 0
     const issues = [...warnings]
     for (const row of parsed) {
       const slide =
         (row.slideId && fresh.find(s => s.id === row.slideId)) ||
         (row.slide != null ? fresh[row.slide - 1] : undefined)
       if (!slide) {
-        issues.push(`행 매칭 실패 (slide ${row.slideId ?? row.slide})`)
+        skippedRows++
         continue
       }
       const fieldOk =
         (row.field.startsWith('text:') && !!slide.texts[Number(row.field.slice(5))]) ||
         (row.field.startsWith('badge:') && !!slide.badges?.[Number(row.field.slice(6))])
       if (!fieldOk) {
-        issues.push(`알 수 없는 필드 "${row.field}" (slide ${row.slide ?? ''})`)
+        skippedRows++
         continue
       }
       for (const [locale, value] of Object.entries(row.values)) {
@@ -328,6 +329,7 @@ export function LocalizeEditor() {
         written++
       }
     }
+    if (skippedRows > 0) issues.push(`${skippedRows}행 건너뜀 (슬라이드 또는 필드 없음)`)
     // Surface any locale that arrived with values but wasn't selected yet.
     const toAdd = [...localesSeen].filter(l => !targetLocales.includes(l))
     if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
@@ -408,7 +410,7 @@ export function LocalizeEditor() {
         <div>
           <div
             className="mb-1.5 text-xs text-[var(--color-text-dim)]"
-            title="에디터의 '기본 레이아웃'에 입력한 텍스트가 이 기준 언어의 원본이 됩니다. 나머지 언어는 여기서 번역됩니다."
+            title="에디터에서 기준 언어로 입력한 텍스트가 번역 원본이 됩니다. 스크린샷이 없는 언어는 기준 언어 스크린샷을 사용합니다."
           >
             기준 언어
           </div>
@@ -416,9 +418,30 @@ export function LocalizeEditor() {
             value={sourceLocale}
             onChange={e => {
               const next = e.target.value
+              const prev = sourceLocale
+              if (next === prev) return
+              // Swap base text ↔ translation: the old source locale's base text
+              // moves into translations[prev], and translations[next] becomes
+              // the new base. Without this, the editor keeps showing the old
+              // language's text as the base even after the source changes.
+              const currentSlides = useProjectStore.getState().project?.slides ?? slides
+              const patches: Record<string, Partial<Slide>> = {}
+              for (const slide of currentSlides) {
+                patches[slide.id] = {
+                  texts: slide.texts.map(c => {
+                    const { [next]: promoted, ...rest } = c.translations
+                    return { ...c, text: promoted ?? c.text, translations: { ...rest, [prev]: c.text } }
+                  }),
+                  badges: slide.badges.map(b => {
+                    const { [next]: promoted, ...rest } = b.translations
+                    return { ...b, text: promoted ?? b.text, translations: { ...rest, [prev]: b.text } }
+                  }),
+                }
+              }
+              if (Object.keys(patches).length) updateSlides(patches)
               // Source and targets must stay disjoint — a locale can't be both
               // the base language and a translation target.
-              updateProject({ sourceLocale: next, targetLocales: targetLocales.filter(l => l !== next) })
+              updateProject({ sourceLocale: next, targetLocales: [...targetLocales.filter(l => l !== next), prev] })
             }}
             className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-sm text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
           >
