@@ -386,14 +386,38 @@ function addDeviceFrame(
   layout: DeviceLayout | null,
   scale = 1,
 ): void {
-  if (!layout || !slide.deviceFrame.show) return
-  const { paths } = renderDeviceFrame(slide.deviceFrame, {
-    left: layout.centerX,
-    top: layout.top,
-    width: layout.width,
-    height: layout.height,
-    rx: layout.rx,
-  })
+  if (!layout) return
+  // Frame hidden → the floating screenshot itself is non-evented, so add an
+  // invisible rect over the device footprint as the drag/scale handle. It goes
+  // through the same body setup (anchor, controls, rotation) as the frame body,
+  // so move/scale sync works identically in both rendering modes. No screenshot
+  // and no frame → nothing visible to move; skip the handle entirely.
+  if (!slide.deviceFrame.show && !slide.screenshot) return
+  const paths: FabricObject[] = slide.deviceFrame.show
+    ? renderDeviceFrame(slide.deviceFrame, {
+        left: layout.centerX,
+        top: layout.top,
+        width: layout.width,
+        height: layout.height,
+        rx: layout.rx,
+      }).paths
+    : [
+        Object.assign(
+          new Rect({
+            left: layout.centerX - layout.width / 2,
+            top: layout.top,
+            width: layout.width,
+            height: layout.height,
+            fill: 'transparent',
+            strokeWidth: 0,
+            // Fabric 7 defaults to center origin; the body anchor/sync math is
+            // all top-left based, so pin it like every other object here.
+            originX: 'left',
+            originY: 'top',
+          }),
+          { layerName: LAYER_NAMES.DEVICE_FRAME },
+        ),
+      ]
   // The body's offset-free position, derived from the actual layout minus the
   // user's drag offset. Deriving it this way (rather than from a separately
   // computed anchor) keeps syncToZustand's `body.left - _baseLeft` exactly equal
