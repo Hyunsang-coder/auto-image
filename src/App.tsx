@@ -122,12 +122,12 @@ function App() {
           }
         />
         <div className="flex items-center gap-3">
-          {project && (
+          {project && step !== 1 && (
             <span className="text-xs text-[var(--color-text-dim)]">
               {project.name} · {project.slides.length}장
             </span>
           )}
-          {project && (
+          {project && step !== 1 && (
             <button
               type="button"
               onClick={openSaveModal}
@@ -136,7 +136,7 @@ function App() {
               {justSaved ? '저장됨 ✓' : '저장'}
             </button>
           )}
-          {project && (
+          {project && step !== 1 && (
             <button
               type="button"
               onClick={openTemplateModal}
