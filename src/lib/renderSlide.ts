@@ -50,9 +50,12 @@ export async function renderSlide(
   const urls = createImageUrlCache()
 
   try {
-    await applyTemplate(canvas, exportSlide, { width, height }, { resolveUrl: urls.get })
+    // Fonts must be loaded BEFORE applyTemplate: it measures text for fit-to-box
+    // sizing and badge width, and Fabric caches those dimensions at layout time
+    // (a later renderAll repaints glyphs but won't recompute them). Measuring
+    // against an unloaded Noto JP would bake fallback-font metrics into the export.
     await awaitSlideFonts(exportSlide)
-    canvas.renderAll()
+    await applyTemplate(canvas, exportSlide, { width, height }, { resolveUrl: urls.get })
 
     return encodeOpaquePng(el)
   } finally {
@@ -89,9 +92,10 @@ export async function renderSpanGroup(
   const urls = createImageUrlCache()
 
   try {
-    await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, { spanCentered: true, resolveUrl: urls.get })
+    // Load fonts before layout — applyTemplate measures text for fit/badge sizing
+    // and Fabric won't recompute those dimensions on a later render (see renderSlide).
     await awaitSlideFonts(exportSlide)
-    canvas.renderAll()
+    await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, { spanCentered: true, resolveUrl: urls.get })
 
     // Slice — read pixel data from the wide DOM canvas (Fabric writes its render
     // there) into two half-size canvases, then toBlob each.

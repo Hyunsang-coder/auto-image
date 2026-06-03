@@ -945,6 +945,15 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // code path that crops the wide render into L/R halves.
         const h = getEditorCanvasHeight(activeSlide!)
         const resolveUrl = urlCacheRef.current.get
+        // Load fonts before layout so fit-to-box sizing and badge widths are
+        // measured against the real glyphs and the undo baseline snapshots a
+        // correct layout (Fabric caches text dimensions at layout time). Cheap
+        // for Korean/Latin; only a JP preview waits on the Noto CDN.
+        await awaitSlideFonts(activeSlide!)
+        // The canvas can be disposed while we await image/font loads (StrictMode
+        // remount, fast slide/locale switch, unmount). Touching a disposed canvas
+        // — setDimensions destructures a null element — throws, so bail here.
+        if (fabricRef.current !== canvas) return
         if (isGrouped) {
           const w = EDITOR_CANVAS_WIDTH * 2
           await applyTemplate(canvas, activeSlide!, { width: w, height: h }, { spanCentered: true, resolveUrl })
@@ -952,16 +961,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
-        // The canvas can be disposed while we await image/font loads (StrictMode
-        // remount, fast slide/locale switch, unmount). Touching a disposed canvas
-        // — setDimensions destructures a null element — throws, so bail here.
         if (fabricRef.current !== canvas) return
-        // Non-Latin preview locales need their Noto webfont; load it off the
-        // critical path and re-render once it arrives so the preview matches the
-        // export (don't block the layout/snapshot flow on a font CDN).
-        awaitSlideFonts(activeSlide!).then(() => {
-          if (fabricRef.current === canvas) canvas.requestRenderAll()
-        })
         // Locale edit mode: lock the shared-layout elements so only captions
         // and the device frame remain editable for this locale.
         if (lockSharedLayout) {
