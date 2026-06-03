@@ -155,6 +155,7 @@ export function LocalizeEditor() {
   const updateProject = useProjectStore(s => s.updateProject)
   const updateSlide = useProjectStore(s => s.updateSlide)
   const updateSlides = useProjectStore(s => s.updateSlides)
+  const changeSourceLocale = useProjectStore(s => s.changeSourceLocale)
   const setStep = useProjectStore(s => s.setStep)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -416,33 +417,7 @@ export function LocalizeEditor() {
           </div>
           <select
             value={sourceLocale}
-            onChange={e => {
-              const next = e.target.value
-              const prev = sourceLocale
-              if (next === prev) return
-              // Swap base text ↔ translation: the old source locale's base text
-              // moves into translations[prev], and translations[next] becomes
-              // the new base. Without this, the editor keeps showing the old
-              // language's text as the base even after the source changes.
-              const currentSlides = useProjectStore.getState().project?.slides ?? slides
-              const patches: Record<string, Partial<Slide>> = {}
-              for (const slide of currentSlides) {
-                patches[slide.id] = {
-                  texts: slide.texts.map(c => {
-                    const { [next]: promoted, ...rest } = c.translations
-                    return { ...c, text: promoted ?? c.text, translations: { ...rest, [prev]: c.text } }
-                  }),
-                  badges: slide.badges.map(b => {
-                    const { [next]: promoted, ...rest } = b.translations
-                    return { ...b, text: promoted ?? b.text, translations: { ...rest, [prev]: b.text } }
-                  }),
-                }
-              }
-              if (Object.keys(patches).length) updateSlides(patches)
-              // Source and targets must stay disjoint — a locale can't be both
-              // the base language and a translation target.
-              updateProject({ sourceLocale: next, targetLocales: [...targetLocales.filter(l => l !== next), prev] })
-            }}
+            onChange={e => changeSourceLocale(e.target.value)}
             className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-sm text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
           >
             {SUPPORTED_LOCALES.map(l => (

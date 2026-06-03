@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Caption, TemplateType, TextStyle } from '../../../types/project'
 import { FONT_OPTIONS, MAX_TEXTS, makeTextBlock } from '../../../constants/defaults'
@@ -138,9 +139,15 @@ interface Props {
   texts: Caption[]
   template: TemplateType
   onChange: (texts: Caption[]) => void
+  bulkEnabled?: boolean
+  selectedCount?: number
+  slideCount?: number
+  onApplyTextStyleToSlides?: (style: Partial<TextStyle>, scope: 'all' | 'selected') => void
 }
 
-export function CaptionPanel({ texts, template, onChange }: Props) {
+export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedCount = 1, slideCount = 1, onApplyTextStyleToSlides }: Props) {
+  const [bulkStyle, setBulkStyle] = useState<Partial<TextStyle>>({})
+  const showBulk = bulkEnabled && onApplyTextStyleToSlides
   function addBlock() {
     onChange([...texts, makeTextBlock(texts.length, template, '')])
   }
@@ -153,6 +160,75 @@ export function CaptionPanel({ texts, template, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
+      {showBulk && (
+        <div className="rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-3 flex flex-col gap-3">
+          <p className="text-xs font-semibold text-[var(--color-accent)]">여러 슬라이드 일괄 스타일</p>
+          <div>
+            <label className="mb-1 block text-xs text-[var(--color-text-dim)]">폰트</label>
+            <select
+              value={bulkStyle.fontFamily ?? ''}
+              onChange={(e) => setBulkStyle((s) => ({ ...s, fontFamily: e.target.value || undefined }))}
+              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
+              style={bulkStyle.fontFamily ? { fontFamily: bulkStyle.fontFamily } : undefined}
+            >
+              <option value="">변경 안 함</option>
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">크기</label>
+              <input
+                type="number"
+                min={10}
+                max={300}
+                placeholder="변경 안 함"
+                value={bulkStyle.fontSize ?? ''}
+                onChange={(e) => setBulkStyle((s) => ({ ...s, fontSize: e.target.value ? Number(e.target.value) : undefined }))}
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">굵기</label>
+              <select
+                value={bulkStyle.fontWeight ?? ''}
+                onChange={(e) => setBulkStyle((s) => ({ ...s, fontWeight: e.target.value ? Number(e.target.value) : undefined }))}
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
+              >
+                <option value="">변경 안 함</option>
+                <option value={400}>Regular</option>
+                <option value={500}>Medium</option>
+                <option value={600}>SemiBold</option>
+                <option value={700}>Bold</option>
+                <option value={800}>ExtraBold</option>
+                <option value={900}>Black</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {selectedCount > 1 && (
+              <button
+                type="button"
+                disabled={Object.keys(bulkStyle).filter((k) => bulkStyle[k as keyof TextStyle] !== undefined).length === 0}
+                onClick={() => { onApplyTextStyleToSlides(bulkStyle, 'selected'); setBulkStyle({}) }}
+                className="flex-1 rounded-lg bg-[var(--color-accent)] px-2 py-1.5 text-xs text-white disabled:opacity-40 hover:opacity-90"
+              >
+                선택 {selectedCount}개에 적용
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={Object.keys(bulkStyle).filter((k) => bulkStyle[k as keyof TextStyle] !== undefined).length === 0}
+              onClick={() => { onApplyTextStyleToSlides(bulkStyle, 'all'); setBulkStyle({}) }}
+              className="flex-1 rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-xs text-[var(--color-text-dim)] disabled:opacity-40 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            >
+              전체 {slideCount}개에 적용
+            </button>
+          </div>
+        </div>
+      )}
       {texts.map((caption, i) => (
         <div key={i} className="relative">
           <CaptionField

@@ -8,6 +8,7 @@ import type {
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
+  TextStyle,
 } from '../../../types/project'
 import type { ThemePreset } from '../../../constants/defaults'
 import { BackgroundPanel } from './BackgroundPanel'
@@ -55,6 +56,7 @@ interface Props {
   /** Total base slides — the "전체" target count. */
   slideCount: number
   onApplyThemePresetToSlides: (preset: ThemePreset, scope: 'all' | 'selected') => void
+  onApplyTextStyleToSlides: (style: Partial<TextStyle>, scope: 'all' | 'selected') => void
 }
 
 export function PropertiesPanel({
@@ -75,6 +77,7 @@ export function PropertiesPanel({
   selectedCount,
   slideCount,
   onApplyThemePresetToSlides,
+  onApplyTextStyleToSlides,
 }: Props) {
   const screenshotStyle: ScreenshotStyle =
     slide.screenshotStyle ?? { cornerRadiusRatio: 0.06, shadow: true }
@@ -117,6 +120,10 @@ export function PropertiesPanel({
             texts={slide.texts}
             template={slide.template}
             onChange={onTextsChange}
+            bulkEnabled={bulkEnabled}
+            selectedCount={selectedCount}
+            slideCount={slideCount}
+            onApplyTextStyleToSlides={onApplyTextStyleToSlides}
           />
         )}
         {tab === 'screenshot' && (

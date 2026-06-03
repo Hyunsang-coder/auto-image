@@ -53,6 +53,7 @@ export function EditorLayout() {
   const removeSlides = useProjectStore((s) => s.removeSlides)
   const setStep = useProjectStore((s) => s.setStep)
   const setDeviceSize = useProjectStore((s) => s.setDeviceSize)
+  const changeSourceLocale = useProjectStore((s) => s.changeSourceLocale)
 
   const canvasRef = useRef<FabricCanvasHandle>(null)
   const [canUndo, setCanUndo] = useState(false)
@@ -397,6 +398,18 @@ export function EditorLayout() {
     updateSlides(patches)
   }
 
+  function applyTextStyleToSlides(stylePatch: Partial<import('../../types/project').TextStyle>, scope: 'all' | 'selected') {
+    const targets = resolveBulkTargets(scope)
+    if (!targets.length) return
+    const patches: Record<string, Partial<Slide>> = {}
+    for (const s of targets) {
+      patches[s.id] = {
+        texts: s.texts.map((c) => ({ ...c, style: { ...c.style, ...stylePatch } })),
+      }
+    }
+    updateSlides(patches)
+  }
+
   return (
     <div
       className="grid h-full gap-0 border-t border-[var(--color-border)] overflow-hidden"
@@ -458,6 +471,18 @@ export function EditorLayout() {
                 +
               </button>
             </div>
+            {localeOptions.length > 0 && (
+              <select
+                value={project.sourceLocale}
+                onChange={(e) => changeSourceLocale(e.target.value)}
+                title="기준 언어 — 텍스트 원본 언어. 변경 시 기존 번역과 자동 교환됩니다."
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
+              >
+                {SUPPORTED_LOCALES.map((l) => (
+                  <option key={l.code} value={l.code}>{`기준: ${l.label}`}</option>
+                ))}
+              </select>
+            )}
             {localeOptions.length > 0 && (
               <select
                 value={editLocale}
@@ -583,6 +608,7 @@ export function EditorLayout() {
             selectedCount={displaySelectedIds.size}
             slideCount={project.slides.length}
             onApplyThemePresetToSlides={applyThemePresetToSlides}
+            onApplyTextStyleToSlides={applyTextStyleToSlides}
           />
         ) : (
           <aside className="flex-1 overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">

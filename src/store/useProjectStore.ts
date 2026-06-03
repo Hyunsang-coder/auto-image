@@ -135,6 +135,8 @@ interface ProjectState {
    * slide's current model's type, so iPhone and iPad sizes change independently.
    */
   setDeviceSize: (type: DeviceType, model: DeviceModel) => void
+  /** Change sourceLocale and swap base ↔ translation for all slides atomically. */
+  changeSourceLocale: (next: string) => void
 
   setStep: (step: Step) => void
   setActiveSlide: (slideId: string) => void
@@ -226,6 +228,31 @@ export const useProjectStore = create<ProjectState>()(
         const cur = get().project
         if (!cur) return
         set({ project: touch({ ...cur, ...patch }) })
+      },
+
+      changeSourceLocale: (next) => {
+        const cur = get().project
+        if (!cur || cur.sourceLocale === next) return
+        const prev = cur.sourceLocale
+        const slides = cur.slides.map((s) => ({
+          ...s,
+          texts: s.texts.map((c) => {
+            const { [next]: promoted, ...rest } = c.translations
+            return { ...c, text: promoted ?? c.text, translations: { ...rest, [prev]: c.text } }
+          }),
+          badges: s.badges.map((b) => {
+            const { [next]: promoted, ...rest } = b.translations
+            return { ...b, text: promoted ?? b.text, translations: { ...rest, [prev]: b.text } }
+          }),
+        }))
+        set({
+          project: touch({
+            ...cur,
+            slides,
+            sourceLocale: next,
+            targetLocales: [...cur.targetLocales.filter((l) => l !== next), prev],
+          }),
+        })
       },
 
       setDeviceSize: (type, model) => {
