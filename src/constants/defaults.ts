@@ -24,22 +24,18 @@ export const DEFAULT_TRANSLATION_API: TranslationAPI = 'claude'
 // `label` is the Korean UI name shown on the localize page; `name` is the
 // English language name fed to the translation prompt (kept unambiguous so a
 // Korean UI doesn't leak into the LLM instruction). Order = display order.
+// Scoped to the ASO/ASC seed-locale set we ship store copy for (all Latin +
+// Korean + Japanese) — Chinese/Thai/etc. are intentionally out of scope, which
+// is also why Noto Sans JP is the only non-Latin webfont we load.
 export const SUPPORTED_LOCALES = [
   { code: 'en', label: '영어', name: 'English' },
   { code: 'ko', label: '한국어', name: 'Korean' },
   { code: 'ja', label: '일본어', name: 'Japanese' },
-  { code: 'zh-Hans', label: '중국어(간체)', name: 'Simplified Chinese' },
-  { code: 'zh-Hant', label: '중국어(번체)', name: 'Traditional Chinese' },
   { code: 'de', label: '독일어', name: 'German' },
   { code: 'fr', label: '프랑스어', name: 'French' },
   { code: 'es', label: '스페인어', name: 'Spanish' },
   { code: 'it', label: '이탈리아어', name: 'Italian' },
   { code: 'pt-BR', label: '포르투갈어(브라질)', name: 'Brazilian Portuguese' },
-  { code: 'pl', label: '폴란드어', name: 'Polish' },
-  { code: 'th', label: '태국어', name: 'Thai' },
-  { code: 'id', label: '인도네시아어', name: 'Indonesian' },
-  { code: 'vi', label: '베트남어', name: 'Vietnamese' },
-  { code: 'tr', label: '튀르키예어', name: 'Turkish' },
   { code: 'es-MX', label: '스페인어(멕시코)', name: 'Mexican Spanish' },
 ] as const
 

@@ -10,7 +10,7 @@ describe('ascExportCode — App Store Connect export folder codes', () => {
   })
 
   it('passes through codes that already match ASC', () => {
-    for (const code of ['ko', 'ja', 'zh-Hans', 'zh-Hant', 'pt-BR', 'it', 'pl', 'th', 'id', 'vi', 'tr', 'es-MX']) {
+    for (const code of ['ko', 'ja', 'pt-BR', 'it', 'es-MX']) {
       expect(ascExportCode(code)).toBe(code)
     }
   })
@@ -20,10 +20,12 @@ describe('ascExportCode — App Store Connect export folder codes', () => {
     expect(new Set(dirs).size).toBe(dirs.length)
   })
 
-  it('includes the newly added Turkish and Mexican Spanish locales', () => {
+  it('is scoped to the ASO seed-locale set (no Chinese/Thai/etc.)', () => {
     const codes = SUPPORTED_LOCALES.map(l => l.code)
-    expect(codes).toContain('tr')
     expect(codes).toContain('es-MX')
+    for (const dropped of ['zh-Hans', 'zh-Hant', 'pl', 'th', 'id', 'vi', 'tr']) {
+      expect(codes).not.toContain(dropped)
+    }
   })
 })
 
