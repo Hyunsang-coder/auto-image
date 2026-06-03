@@ -6,6 +6,7 @@ import { applyTemplate } from '../../canvas/templateLayouts'
 import { awaitSlideFonts } from '../../lib/fonts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
+import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
 import { newId } from '../../constants/defaults'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
 
@@ -36,7 +37,7 @@ function addSpanSeamGuide(canvas: Canvas, midX: number, height: number): void {
 }
 
 const DRAG_GUIDE_LAYER = 'drag-guide'
-const GUIDE_THRESHOLD = 6 // px proximity (canvas coords) at which a guide appears
+const SNAP_PX = 6 // screen-px proximity at which an edge/center snaps to a guide
 const GUIDE_PADDING_RATIO = 0.04 // safe-margin lines this far in from each edge
 
 function clearDragGuides(canvas: Canvas): void {
@@ -60,26 +61,48 @@ function addGuideLine(canvas: Canvas, coords: [number, number, number, number]):
   canvas.add(line)
 }
 
-// Show center + safe-padding guides whenever the dragged object lines up with
-// them. Visual only (no snap) so it can't perturb the device/popup move math.
-// Bbox is approximated as center ± scaled size (ignores rotation) — fine for a
-// subtle alignment hint.
-function updateDragGuides(canvas: Canvas, target: FabricObject): void {
-  clearDragGuides(canvas)
-  const cw = canvas.width ?? 0
-  const ch = canvas.height ?? 0
-  const pad = Math.round(cw * GUIDE_PADDING_RATIO)
-  const c = target.getCenterPoint()
-  const halfW = target.getScaledWidth() / 2
-  const halfH = target.getScaledHeight() / 2
-  const near = (a: number, b: number) => Math.abs(a - b) <= GUIDE_THRESHOLD
+// Axis-aligned bbox in model (un-zoomed) coords. Center ± scaled size ignores
+// rotation — fine for an alignment hint.
+function boxOf(obj: FabricObject): SnapBox {
+  const c = obj.getCenterPoint()
+  const hw = obj.getScaledWidth() / 2
+  const hh = obj.getScaledHeight() / 2
+  return { left: c.x - hw, centerX: c.x, right: c.x + hw, top: c.y - hh, centerY: c.y, bottom: c.y + hh }
+}
 
-  if (near(c.x, cw / 2)) addGuideLine(canvas, [cw / 2, 0, cw / 2, ch])
-  if (near(c.y, ch / 2)) addGuideLine(canvas, [0, ch / 2, cw, ch / 2])
-  if (near(c.x - halfW, pad)) addGuideLine(canvas, [pad, 0, pad, ch])
-  if (near(c.x + halfW, cw - pad)) addGuideLine(canvas, [cw - pad, 0, cw - pad, ch])
-  if (near(c.y - halfH, pad)) addGuideLine(canvas, [0, pad, cw, pad])
-  if (near(c.y + halfH, ch - pad)) addGuideLine(canvas, [0, ch - pad, cw, ch - pad])
+// Snap the dragged object to the nearest alignment guide — canvas center, safe
+// margins, and every other object's edges/centers — then draw the coincident
+// lines. Works in model coords (canvas.width is zoom-scaled, so divide by zoom)
+// and snaps BEFORE the device/popup move math runs so siblings track the snap.
+function applySnapGuides(canvas: Canvas, target: FabricObject, ln: string | undefined): void {
+  clearDragGuides(canvas)
+  const zoom = canvas.getZoom() || 1
+  const w = (canvas.width ?? 0) / zoom
+  const h = (canvas.height ?? 0) / zoom
+  const pad = Math.round(w * GUIDE_PADDING_RATIO)
+  const threshold = SNAP_PX / zoom
+
+  const candX = [w / 2, pad, w - pad]
+  const candY = [h / 2, pad, h - pad]
+  const isDevice = ln === LAYER_NAMES.DEVICE_FRAME
+  for (const o of canvas.getObjects()) {
+    if (o === target) continue
+    const oln = (o as FabricObject & { layerName?: string }).layerName
+    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND) continue
+    // The screenshot moves with the device — don't let the device snap to it.
+    if (isDevice && oln === LAYER_NAMES.SCREENSHOT) continue
+    const b = boxOf(o)
+    candX.push(b.left, b.centerX, b.right)
+    candY.push(b.top, b.centerY, b.bottom)
+  }
+
+  const r = computeSnap(boxOf(target), candX, candY, threshold)
+  if (r.dx !== 0 || r.dy !== 0) {
+    target.set({ left: (target.left ?? 0) + r.dx, top: (target.top ?? 0) + r.dy })
+    target.setCoords()
+  }
+  for (const x of r.vLines) addGuideLine(canvas, [x, 0, x, h])
+  for (const y of r.hLines) addGuideLine(canvas, [0, y, w, y])
 }
 
 // Custom props we stash on the device-body Path so we can compute its offset
@@ -808,6 +831,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const target = e.target
         if (!target) return
         const ln = (target as FabricObject & { layerName?: string }).layerName
+        // Snap first so the device/popup coupling below reads the snapped position.
+        applySnapGuides(canvas, target, ln)
         if (ln === LAYER_NAMES.DEVICE_FRAME) {
           handleDeviceMove(canvas, target)
         } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
@@ -819,7 +844,6 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             clip.set({ left: target.left ?? 0, top: target.top ?? 0 })
           }
         }
-        updateDragGuides(canvas, target)
       })
 
       canvas.on('mouse:up', () => {
