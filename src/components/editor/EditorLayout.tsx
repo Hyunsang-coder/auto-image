@@ -53,7 +53,6 @@ export function EditorLayout() {
   const removeSlides = useProjectStore((s) => s.removeSlides)
   const setStep = useProjectStore((s) => s.setStep)
   const setDeviceSize = useProjectStore((s) => s.setDeviceSize)
-  const changeSourceLocale = useProjectStore((s) => s.changeSourceLocale)
 
   const canvasRef = useRef<FabricCanvasHandle>(null)
   const [canUndo, setCanUndo] = useState(false)
@@ -485,21 +484,9 @@ export function EditorLayout() {
             </div>
             {localeOptions.length > 0 && (
               <select
-                value={project.sourceLocale}
-                onChange={(e) => changeSourceLocale(e.target.value)}
-                title="기준 언어 — 텍스트 원본 언어. 변경 시 기존 번역과 자동 교환됩니다."
-                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
-              >
-                {SUPPORTED_LOCALES.map((l) => (
-                  <option key={l.code} value={l.code}>{`기준: ${l.label}`}</option>
-                ))}
-              </select>
-            )}
-            {localeOptions.length > 0 && (
-              <select
                 value={editLocale}
                 onChange={(e) => switchLocale(e.target.value)}
-                title={`편집 대상 — 원본(${localeLabel(project.sourceLocale)})은 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다.`}
+                title={`편집 언어 — 원본(${localeLabel(project.sourceLocale)})은 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다. 원본 언어 변경은 3. 로컬라이즈에서.`}
                 className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
                   isLocaleMode
                     ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
