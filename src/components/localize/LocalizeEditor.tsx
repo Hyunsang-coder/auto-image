@@ -163,6 +163,7 @@ export function LocalizeEditor() {
   const [ioIssues, setIoIssues] = useState<string[]>([])
   const [imgMsg, setImgMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [imgIssues, setImgIssues] = useState<string[]>([])
+  const [promptPreview, setPromptPreview] = useState<string | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
@@ -262,17 +263,24 @@ export function LocalizeEditor() {
     saveAs(blob, filename)
   }
 
-  async function copyTranslationPrompt() {
-    const prompt = buildTranslationPrompt(
-      { code: sourceLocale, label: localeLabel(sourceLocale) },
-      targetLocales.map(c => ({ code: c, label: localeLabel(c) })),
+  function openTranslationPrompt() {
+    setPromptPreview(
+      buildTranslationPrompt(
+        { code: sourceLocale, label: localeLabel(sourceLocale) },
+        targetLocales.map(c => ({ code: c, label: localeLabel(c) })),
+      ),
     )
+  }
+
+  async function copyTranslationPrompt() {
+    if (!promptPreview) return
     try {
-      await navigator.clipboard.writeText(prompt)
+      await navigator.clipboard.writeText(promptPreview)
       setIoMsg({ kind: 'ok', text: '번역 프롬프트를 복사했습니다 — AI 도구에 붙여넣고 양식을 첨부하세요' })
     } catch {
       setIoMsg({ kind: 'err', text: '복사 실패 — 클립보드 권한을 확인하세요' })
     }
+    setPromptPreview(null)
   }
 
   async function copyImageNamingGuide() {
@@ -479,11 +487,11 @@ export function LocalizeEditor() {
               JSON 내보내기
             </button>
             <button
-              onClick={copyTranslationPrompt}
+              onClick={openTranslationPrompt}
               disabled={textRows.length === 0 || targetLocales.length === 0}
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
             >
-              프롬프트 복사
+              번역 프롬프트
             </button>
             <button
               onClick={() => importInputRef.current?.click()}
@@ -664,6 +672,43 @@ export function LocalizeEditor() {
           </table>
         )}
       </div>
+
+      {promptPreview !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setPromptPreview(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text)]">번역 프롬프트</h3>
+            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+              AI 도구에 붙여넣고, 내보낸 CSV/JSON 양식을 함께 첨부하세요. 결과 파일은
+              「가져오기」로 다시 불러옵니다.
+            </p>
+            <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-xs leading-relaxed text-[var(--color-text)]">
+              {promptPreview}
+            </pre>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPromptPreview(null)}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                onClick={copyTranslationPrompt}
+                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                복사
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
