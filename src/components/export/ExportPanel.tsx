@@ -183,7 +183,7 @@ export function ExportPanel() {
       .sort((a, b) => localeOrder(a) - localeOrder(b)),
   ]
   const exportLocales = allLocales.filter((l) => !excludedLocales.has(l))
-  const previewCols = 6 - previewSize
+  const previewCols = [8, 6, 4, 2, 1][previewSize - 1]
   // Each slide exports to exactly one device — the one its screenshot belongs
   // to (auto-detected on upload). project.devices is no longer multiplied in.
   const total = project.slides.length * exportLocales.length
