@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Project, Slide, Step, ScreenshotImage, Background, DeviceType, DeviceModel } from '../types/project'
-import { makeProject, makeSlide, DEFAULT_BACKGROUND } from '../constants/defaults'
+import { makeProject, makeSlide, relocalizePlaceholder, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { typeOfModel } from '../constants/deviceSpecs'
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
@@ -238,11 +238,19 @@ export const useProjectStore = create<ProjectState>()(
           ...s,
           texts: s.texts.map((c) => {
             const { [next]: promoted, ...rest } = c.translations
-            return { ...c, text: promoted ?? c.text, translations: { ...rest, [prev]: c.text } }
+            return {
+              ...c,
+              text: promoted ?? relocalizePlaceholder(c.text, prev, next),
+              translations: { ...rest, [prev]: c.text },
+            }
           }),
           badges: s.badges.map((b) => {
             const { [next]: promoted, ...rest } = b.translations
-            return { ...b, text: promoted ?? b.text, translations: { ...rest, [prev]: b.text } }
+            return {
+              ...b,
+              text: promoted ?? relocalizePlaceholder(b.text, prev, next),
+              translations: { ...rest, [prev]: b.text },
+            }
           }),
         }))
         // Only add prev to targetLocales if there were already targets — a
@@ -321,7 +329,7 @@ export const useProjectStore = create<ProjectState>()(
         if (!cur) return
         if (cur.slides.length >= 10) return
         const type = cur.devices[0]
-        const newSlide = makeSlide(cur.slides.length, type)
+        const newSlide = makeSlide(cur.slides.length, type, undefined, cur.sourceLocale)
         // Honor the project's chosen export size for this type (makeSlide seeds
         // the type's default model).
         const sized = cur.deviceModels?.[type]

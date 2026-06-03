@@ -98,3 +98,46 @@ describe('duplicateSlide', () => {
     expect(useProjectStore.getState().project!.slides).toHaveLength(10)
   })
 })
+
+describe('changeSourceLocale', () => {
+  beforeEach(() => setup())
+
+  it('re-localizes untouched placeholder text and badges to the new source locale', () => {
+    const { project, updateSlide, changeSourceLocale } = useProjectStore.getState()
+    const src = project!.slides[0]
+    expect(src.texts[0].text).toBe('당신의 헤드라인')
+    updateSlide(src.id, {
+      badges: [{ id: 'b1', text: '새 기능', translations: {}, style: {} as never, top: 0.1 }],
+    })
+
+    changeSourceLocale('en')
+
+    const after = useProjectStore.getState().project!
+    expect(after.sourceLocale).toBe('en')
+    expect(after.slides[0].texts[0].text).toBe('Your headline')
+    expect(after.slides[0].badges[0].text).toBe('New')
+  })
+
+  it('keeps user-written text and promotes an existing translation over the placeholder', () => {
+    const { project, updateSlide, changeSourceLocale } = useProjectStore.getState()
+    const [a, b] = project!.slides
+    updateSlide(a.id, { texts: [{ ...a.texts[0], text: '내가 쓴 카피' }] })
+    updateSlide(b.id, { texts: [{ ...b.texts[0], translations: { en: 'Track your day' } }] })
+
+    changeSourceLocale('en')
+
+    const after = useProjectStore.getState().project!
+    expect(after.slides[0].texts[0].text).toBe('내가 쓴 카피') // user text passes through
+    expect(after.slides[0].texts[0].translations.ko).toBe('내가 쓴 카피')
+    expect(after.slides[1].texts[0].text).toBe('Track your day') // translation wins
+  })
+
+  it('round-trips: flipping back restores the original placeholder', () => {
+    const { changeSourceLocale } = useProjectStore.getState()
+    changeSourceLocale('en')
+    useProjectStore.getState().changeSourceLocale('ko')
+    const after = useProjectStore.getState().project!
+    expect(after.sourceLocale).toBe('ko')
+    expect(after.slides[0].texts[0].text).toBe('당신의 헤드라인')
+  })
+})

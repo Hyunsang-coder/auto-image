@@ -39,6 +39,40 @@ export const SUPPORTED_LOCALES = [
   { code: 'es-MX', label: '스페인어(멕시코)', name: 'Mexican Spanish' },
 ] as const
 
+// Canvas placeholder copy per locale. The canonical string is first; extra
+// entries are recognized as placeholders too (the starter template uses a
+// different Korean phrasing). Locales without copy fall back to English.
+const HEADLINE_PLACEHOLDERS: Record<string, readonly string[]> = {
+  ko: ['당신의 헤드라인', '헤드라인을 작성하세요'],
+  en: ['Your headline'],
+  ja: ['あなたの見出し'],
+}
+const BADGE_PLACEHOLDERS: Record<string, readonly string[]> = {
+  ko: ['새 기능'],
+  en: ['New'],
+  ja: ['新機能'],
+}
+
+export function headlinePlaceholder(locale: string): string {
+  return (HEADLINE_PLACEHOLDERS[locale] ?? HEADLINE_PLACEHOLDERS.en)[0]
+}
+
+export function badgePlaceholder(locale: string): string {
+  return (BADGE_PLACEHOLDERS[locale] ?? BADGE_PLACEHOLDERS.en)[0]
+}
+
+/**
+ * Re-localize untouched placeholder text when the source locale changes, so a
+ * project whose 기준 언어 flips to English doesn't keep Korean placeholders on
+ * the canvas. User-written text never matches and passes through unchanged.
+ */
+export function relocalizePlaceholder(text: string, from: string, to: string): string {
+  for (const table of [HEADLINE_PLACEHOLDERS, BADGE_PLACEHOLDERS]) {
+    if ((table[from] ?? table.en).includes(text)) return (table[to] ?? table.en)[0]
+  }
+  return text
+}
+
 // In-app locale codes that differ from App Store Connect's canonical codes.
 // Used only for export folder names so a deliver/fastlane-style upload lands in
 // the right ASC locale dir; the stored translation keys keep the in-app code.
@@ -402,6 +436,7 @@ export function makeSlide(
   index: number,
   device: DeviceType = 'iphone',
   background?: Background,
+  sourceLocale: string = DEFAULT_SOURCE_LOCALE,
 ): Slide {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -416,7 +451,7 @@ export function makeSlide(
     deviceFrame: defaultDeviceFrame(device),
     screenshot: null,
     // Reference layout starts title-only; the caption panel adds more blocks.
-    texts: [makeTextBlock(0, template, '당신의 헤드라인')],
+    texts: [makeTextBlock(0, template, headlinePlaceholder(sourceLocale))],
     badges: [],
     highlights: [],
     ornaments: [],
