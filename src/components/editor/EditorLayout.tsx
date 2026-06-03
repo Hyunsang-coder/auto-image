@@ -40,7 +40,6 @@ const LAYER_TAB: Record<string, PanelTab> = {
   [LAYER_NAMES.DEVICE_FRAME]: 'screenshot',
   [LAYER_NAMES.BADGE]: 'badge',
   [LAYER_NAMES.ORNAMENT]: 'ornaments',
-  [LAYER_NAMES.HIGHLIGHT_SOURCE]: 'highlights',
   [LAYER_NAMES.HIGHLIGHT_POPUP]: 'highlights',
 }
 

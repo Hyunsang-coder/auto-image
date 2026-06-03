@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FabricObject } from 'fabric'
-import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout, highlightSpawn, rotateAround, trimCrop } from './templateLayouts'
+import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout, rotateAround, trimCrop } from './templateLayouts'
+import { canvasPointToRegionOrigin, regionCenterOnCanvas } from './objects/highlight'
 import { LAYER_NAMES } from './layerNames'
 import type { Caption, Slide } from '../types/project'
 
@@ -249,28 +250,37 @@ describe('offset capture stays exact under rotation', () => {
   })
 })
 
-// highlightSpawn: a new highlight's popup lands centered over its source
-// region (loupe behavior), magnified 1.4× — in editor-canvas fractions.
-describe('highlightSpawn (loupe placement)', () => {
-  const REGION = { x: 0.08, y: 0.42, w: 0.84, h: 0.18 }
+// Loupe geometry: the card renders at regionCenterOnCanvas, and a dragged
+// card maps back to a region origin via canvasPointToRegionOrigin. The two
+// must be exact inverses at any device tilt, or the loupe jumps on release.
+describe('loupe region ↔ canvas mapping', () => {
+  const SB = { left: 48.4, top: 286.8, width: 343.2, height: 745.7 }
+  const REGION = { x: 0.2, y: 0.35, w: 0.4, h: 0.12 }
 
-  it('centers the popup on the source region inside the device footprint', () => {
-    const slide = makeSlide('text-top')
-    const spawn = highlightSpawn(slide, REGION)!
-    expect(spawn).not.toBeNull()
-    const cw = 440
-    const L = getDeviceLayout(slide, cw, 956, getDeviceDimensions(slide, cw))!
-    // Horizontally-centered region on a centered device → canvas center.
-    expect(spawn.x).toBeCloseTo(0.5, 3)
-    // Vertical center maps through the device box.
-    const expectedY = (L.top + L.height * (REGION.y + REGION.h / 2)) / 956
-    expect(spawn.y).toBeCloseTo(expectedY, 4)
-    // 1.4× the region's on-canvas width.
-    expect(spawn.width).toBeCloseTo(Math.min((L.width * REGION.w * 1.4) / cw, 0.95), 4)
+  it('center lands inside the screen box, tilt rotates it about the box center', () => {
+    const flat = regionCenterOnCanvas(SB, REGION, 0)
+    expect(flat.x).toBeCloseTo(SB.left + SB.width * 0.4, 6)
+    expect(flat.y).toBeCloseTo(SB.top + SB.height * 0.41, 6)
+    const tilted = regionCenterOnCanvas(SB, REGION, 30)
+    const expected = rotateAround(flat.x, flat.y, SB.left + SB.width / 2, SB.top + SB.height / 2, 30)
+    expect(tilted.x).toBeCloseTo(expected.x, 6)
+    expect(tilted.y).toBeCloseTo(expected.y, 6)
   })
 
-  it('returns null for hero (no device footprint)', () => {
-    expect(highlightSpawn(makeSlide('hero'), REGION)).toBeNull()
+  it('round-trips exactly at any rotation', () => {
+    for (const θ of [0, 33, -120, 179]) {
+      const center = regionCenterOnCanvas(SB, REGION, θ)
+      const origin = canvasPointToRegionOrigin(SB, { w: REGION.w, h: REGION.h }, center, θ)
+      expect(origin.x).toBeCloseTo(REGION.x, 6)
+      expect(origin.y).toBeCloseTo(REGION.y, 6)
+    }
+  })
+
+  it('clamps the dragged loupe so the sampling window stays inside the shot', () => {
+    const farOut = { x: SB.left - 500, y: SB.top + SB.height + 500 }
+    const origin = canvasPointToRegionOrigin(SB, { w: 0.4, h: 0.12 }, farOut, 0)
+    expect(origin.x).toBe(0)
+    expect(origin.y).toBe(1 - 0.12)
   })
 })
 

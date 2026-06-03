@@ -1,20 +1,15 @@
-import type { Highlight, Slide } from '../../../types/project'
+import type { Highlight } from '../../../types/project'
 import { makeHighlight } from '../../../constants/defaults'
-import { highlightSpawn } from '../../../canvas/templateLayouts'
 
 interface Props {
   value: Highlight[]
   hasScreenshot: boolean
-  slide: Slide | null
   onChange: (next: Highlight[]) => void
 }
 
-export function HighlightPanel({ value, hasScreenshot, slide, onChange }: Props) {
+export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
   function add() {
-    const h = makeHighlight()
-    // Loupe behavior: spawn the magnified card right over its source region.
-    const spawn = slide ? highlightSpawn(slide, h.sourceRegion) : null
-    onChange([...value, spawn ? { ...h, popup: { ...h.popup, ...spawn } } : h])
+    onChange([...value, makeHighlight()])
   }
   function update(id: string, patch: Partial<Highlight>) {
     onChange(value.map((h) => (h.id === id ? { ...h, ...patch } : h)))
@@ -120,22 +115,6 @@ export function HighlightPanel({ value, hasScreenshot, slide, onChange }: Props)
 
           <Group label="확대 카드">
             <Slider
-              label="가로 위치"
-              value={h.popup.x}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(v) => updatePopup(h.id, { x: v })}
-            />
-            <Slider
-              label="세로 위치"
-              value={h.popup.y}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(v) => updatePopup(h.id, { y: v })}
-            />
-            <Slider
               label="크기"
               value={h.popup.width}
               min={0.2}
@@ -157,33 +136,6 @@ export function HighlightPanel({ value, hasScreenshot, slide, onChange }: Props)
               <span className="w-10 text-right text-[var(--color-text-dim)]">
                 {Math.round(h.popup.rotation ?? 0)}°
               </span>
-            </label>
-          </Group>
-
-          <Group label="원본 표시">
-            <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
-              <span>테두리 굵기</span>
-              <input
-                type="range"
-                min={0}
-                max={6}
-                step={1}
-                value={h.borderWidth}
-                onChange={(e) => update(h.id, { borderWidth: Number(e.target.value) })}
-                className="ml-2 w-28 accent-[var(--color-accent)]"
-              />
-              <span className="w-6 text-right text-[var(--color-text-dim)]">
-                {h.borderWidth}
-              </span>
-            </label>
-            <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
-              <span>테두리 색</span>
-              <input
-                type="color"
-                value={h.borderColor}
-                onChange={(e) => update(h.id, { borderColor: e.target.value })}
-                className="h-6 w-8 cursor-pointer rounded border border-[var(--color-border)] bg-transparent"
-              />
             </label>
           </Group>
         </div>

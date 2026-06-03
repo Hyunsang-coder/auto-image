@@ -15,10 +15,7 @@ function setup(slideCount = 2) {
 const sampleHighlight: Highlight = {
   id: 'hl-old',
   sourceRegion: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
-  shape: 'rect',
-  borderColor: '#fff',
-  borderWidth: 2,
-  popup: { x: 0.5, y: 0.5, width: 0.3 },
+  popup: { width: 0.3 },
 }
 const sampleOrnament: Ornament = {
   id: 'orn-old',

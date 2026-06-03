@@ -178,17 +178,12 @@ export function makeHighlight(): Highlight {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `hl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-  // Default: sample the middle band of the screenshot, float a 1.5×-ish
-  // magnified card just below the device's vertical center. Users move both.
+  // Default: sample the middle band of the screenshot. The loupe card renders
+  // on top of this region; dragging the card on canvas moves the region.
   return {
     id,
     sourceRegion: { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
-    shape: 'rect',
-    borderColor: '#FFFFFF',
-    borderWidth: 0,
     popup: {
-      x: 0.5,
-      y: 0.66,
       width: 0.78,
     },
   }

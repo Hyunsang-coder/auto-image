@@ -91,6 +91,29 @@ test('새 하이라이트 팝업이 원본 영역 위에 생성됨 (돋보기)',
   expect(result.dy).toBeLessThan(12)
 })
 
+test('돋보기를 드래그하면 샘플 영역이 따라 움직임', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    return ed.findByLayer('highlight-popup')!.getCenterPoint()
+  })
+  const box = (await page.locator('canvas.upper-canvas').boundingBox())!
+  await selectLayer(page, 'highlight-popup')
+  await drag(
+    page,
+    { x: box.x + before.x, y: box.y + before.y },
+    { x: box.x + before.x, y: box.y + before.y - 80 },
+  )
+  // 릴리즈 → sourceRegion.y 갱신 → 재렌더된 카드가 새 지점 위에 그대로 있다.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const ed = (window as unknown as { __editor?: EditorSurface }).__editor
+        return ed?.findByLayer('highlight-popup')?.getCenterPoint().y ?? 0
+      }),
+    )
+    .toBeLessThan(before.y - 40)
+})
+
 test('팝업을 mtr 핸들로 회전하면 rotation이 저장·복원됨', async ({ page }) => {
   await selectLayer(page, 'highlight-popup')
   const mtr = await controlPos(page, 'highlight-popup', 'mtr')
@@ -104,4 +127,43 @@ test('팝업을 mtr 핸들로 회전하면 rotation이 저장·복원됨', async
       }),
     )
     .not.toBe(0)
+})
+
+test('기기를 회전하면 돋보기가 원본 지점을 따라간다', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    const popup = ed.findByLayer('highlight-popup')!.getCenterPoint()
+    const body = ed.findByLayer('device-frame')!
+    return {
+      popup,
+      pivot: {
+        x: (body.left ?? 0) + (body.width ?? 0) / 2,
+        y: (body.top ?? 0) + (body.height ?? 0) / 2,
+      },
+    }
+  })
+  // 기기 회전 슬라이더 → 30°
+  await page.getByRole('button', { name: '디바이스' }).click()
+  await page.getByRole('slider').first().evaluate((el: HTMLInputElement) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!
+    setter.call(el, '30')
+    el.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  // 돋보기 카드가 기기 중심을 피벗으로 같이 회전한 위치에 재렌더된다.
+  const rad = (30 * Math.PI) / 180
+  const dx = before.popup.x - before.pivot.x
+  const dy = before.popup.y - before.pivot.y
+  const expected = {
+    x: before.pivot.x + dx * Math.cos(rad) - dy * Math.sin(rad),
+    y: before.pivot.y + dx * Math.sin(rad) + dy * Math.cos(rad),
+  }
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const ed = (window as unknown as { __editor?: EditorSurface }).__editor
+        const c = ed?.findByLayer('highlight-popup')?.getCenterPoint()
+        return c ? { x: Math.round(c.x), y: Math.round(c.y) } : null
+      }),
+    )
+    .toEqual({ x: Math.round(expected.x), y: Math.round(expected.y) })
 })

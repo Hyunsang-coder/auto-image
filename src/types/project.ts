@@ -11,7 +11,6 @@ export type DeviceModel =
   | 'ipad-pro-13'
   | 'ipad-11'
 export type DeviceColor = 'black' | 'silver'
-export type HighlightShape = 'rect' | 'circle'
 export type BackgroundType = 'solid' | 'gradient' | 'image'
 export type TranslationAPI = 'claude' | 'openai' | 'gemini'
 export type OrnamentShape =
@@ -269,6 +268,12 @@ export interface BadgeStyle {
   iconPosition?: 'left' | 'right'
 }
 
+/**
+ * A loupe: the magnified card renders glued onto its source region's current
+ * on-canvas position (device offset/scale/rotation included). Dragging the
+ * card on canvas moves `sourceRegion` — there is no independent card position
+ * and no separate source marker.
+ */
 export interface Highlight {
   id: string
   sourceRegion: {
@@ -277,12 +282,8 @@ export interface Highlight {
     w: number
     h: number
   }
-  shape: HighlightShape
-  borderColor: string
-  borderWidth: number
   popup: {
-    x: number
-    y: number
+    /** Card width as a fraction of canvas width (its height follows the region's aspect). */
     width: number
     /** Tilt of the magnified card in degrees, about its center. 0 = upright. */
     rotation?: number

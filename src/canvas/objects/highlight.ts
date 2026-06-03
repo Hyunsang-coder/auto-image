@@ -9,58 +9,57 @@ export interface HighlightRenderCtx {
   canvasWidth: number
   canvasHeight: number
   screenBounds: ScreenBounds
+  /** Device tilt in degrees — the loupe rides the rotated screenshot. */
+  rotation?: number
   screenshot: ScreenshotImage
   resolveUrl: ImageUrlResolver
 }
 
-export interface HighlightRender {
-  source: Rect | null
-  popup: FabricImage | null
+type RegionBox = { left: number; top: number; width: number; height: number }
+
+/**
+ * Where a source region's center lands on canvas, device tilt included.
+ * The rotation pivot is the screen box center — identical to the device
+ * pivot for both the bezel-inset and floating footprints.
+ */
+export function regionCenterOnCanvas(
+  sb: RegionBox,
+  region: { x: number; y: number; w: number; h: number },
+  rotation = 0,
+): { x: number; y: number } {
+  const cx = sb.left + sb.width * (region.x + region.w / 2)
+  const cy = sb.top + sb.height * (region.y + region.h / 2)
+  if (!rotation) return { x: cx, y: cy }
+  return rotateAround(cx, cy, sb.left + sb.width / 2, sb.top + sb.height / 2, rotation)
 }
 
-function makeSourceRect(highlight: Highlight, ctx: HighlightRenderCtx): Rect {
-  const { sourceRegion, borderColor, borderWidth } = highlight
-  const sb = ctx.screenBounds
-  const left = sb.left + sb.width * sourceRegion.x
-  const top = sb.top + sb.height * sourceRegion.y
-  const w = sb.width * sourceRegion.w
-  const h = sb.height * sourceRegion.h
-
-  const rect = new Rect({
-    left,
-    top,
-    width: w,
-    height: h,
-    fill: 'transparent',
-    stroke: borderColor,
-    strokeWidth: borderWidth,
-    strokeDashArray: [borderWidth * 2, borderWidth * 2],
-    rx: Math.min(w, h) * 0.06,
-    ry: Math.min(w, h) * 0.06,
-    originX: 'left',
-    originY: 'top',
-    selectable: true,
-    evented: true,
-    hasControls: true,
-    hasBorders: true,
-    lockRotation: true,
-    lockSkewingX: true,
-    lockSkewingY: true,
-    borderColor: '#6366F1',
-    cornerColor: '#6366F1',
-    hoverCursor: 'move',
-  })
-  // Hide middle handles — corner-only resize keeps the region rectangular and
-  // predictable. Aspect doesn't need to be locked since users may want to crop
-  // wider or taller regions independently.
-  rect.setControlsVisibility({ mtr: false })
-  ;(rect as Rect & { layerName: string; highlightId: string }).layerName =
-    LAYER_NAMES.HIGHLIGHT_SOURCE
-  ;(rect as Rect & { highlightId: string }).highlightId = highlight.id
-  return rect
+/**
+ * Inverse of regionCenterOnCanvas: a canvas point (the dragged loupe's
+ * center) back to a region origin, clamped so the sampling window stays
+ * inside the screenshot.
+ */
+export function canvasPointToRegionOrigin(
+  sb: RegionBox,
+  size: { w: number; h: number },
+  point: { x: number; y: number },
+  rotation = 0,
+): { x: number; y: number } {
+  const p = rotation
+    ? rotateAround(point.x, point.y, sb.left + sb.width / 2, sb.top + sb.height / 2, -rotation)
+    : point
+  const x = (p.x - sb.left) / sb.width - size.w / 2
+  const y = (p.y - sb.top) / sb.height - size.h / 2
+  return {
+    x: Math.max(0, Math.min(1 - size.w, x)),
+    y: Math.max(0, Math.min(1 - size.h, y)),
+  }
 }
 
-async function makePopupImage(
+/**
+ * Render a highlight: a single magnified card (loupe) glued onto its source
+ * region's current on-canvas position. There is no separate source marker.
+ */
+export async function renderHighlight(
   highlight: Highlight,
   ctx: HighlightRenderCtx,
 ): Promise<FabricImage | null> {
@@ -86,14 +85,14 @@ async function makePopupImage(
   const popupH = popupW * (cropH / cropW)
   const scale = popupW / cropW
 
-  const centerX = ctx.canvasWidth * popup.x
-  const centerY = ctx.canvasHeight * popup.y
+  // Loupe placement: centered on the source region's rendered position.
+  const center = regionCenterOnCanvas(ctx.screenBounds, sourceRegion, ctx.rotation ?? 0)
   // The card tilts about its center: spin the top-left anchor around it and
   // let Fabric's `angle` do the rest (origin is top-left).
   const rotation = popup.rotation ?? 0
   const anchor = rotation
-    ? rotateAround(centerX - popupW / 2, centerY - popupH / 2, centerX, centerY, rotation)
-    : { x: centerX - popupW / 2, y: centerY - popupH / 2 }
+    ? rotateAround(center.x - popupW / 2, center.y - popupH / 2, center.x, center.y, rotation)
+    : { x: center.x - popupW / 2, y: center.y - popupH / 2 }
   const left = anchor.x
   const top = anchor.y
 
@@ -157,19 +156,12 @@ async function makePopupImage(
   ;(img as FabricImage & { layerName: string; highlightId: string }).layerName =
     LAYER_NAMES.HIGHLIGHT_POPUP
   ;(img as FabricImage & { highlightId: string }).highlightId = highlight.id
+  // The device tilt this render used. Sync un-rotates the dragged loupe with
+  // THIS value (not the store's current one), so a device-rotation gesture —
+  // which leaves the loupe object where it was — derives the unchanged region
+  // instead of drifting it.
+  ;(img as FabricImage & { _renderRot: number })._renderRot = ctx.rotation ?? 0
   return img
-}
-
-export async function renderHighlight(
-  highlight: Highlight,
-  ctx: HighlightRenderCtx,
-): Promise<HighlightRender> {
-  // Source rect only renders if the user wants a visible border; borderWidth 0
-  // hides it. Either way the popup still renders so a "hidden source / visible
-  // magnified card" composition (like the Claude reference) is possible.
-  const source = highlight.borderWidth > 0 ? makeSourceRect(highlight, ctx) : null
-  const popup = await makePopupImage(highlight, ctx)
-  return { source, popup }
 }
 
 /**

@@ -303,30 +303,6 @@ function heroScreenBounds(cw: number, ch: number): ScreenBounds {
   return { left: 0, top: 0, width: cw, height: ch, rx: 0 }
 }
 
-/**
- * Loupe spawn point for a new highlight: the popup lands centered over its
- * source region (in editor-canvas fractions), slightly magnified so it reads
- * as a magnifying glass on the spot. Uses the device-layout footprint — the
- * bezel inset is too small to matter for a starting position. Null for hero
- * (no device footprint); the caller keeps makeHighlight's canvas default.
- */
-export function highlightSpawn(
-  slide: Slide,
-  region: { x: number; y: number; w: number; h: number },
-): { x: number; y: number; width: number } | null {
-  const cw = EDITOR_CANVAS_WIDTH
-  const ch = getCanvasHeight(slide)
-  const layout = getDeviceLayout(slide, cw, ch, getDeviceDimensions(slide, cw))
-  if (!layout) return null
-  const left = layout.centerX - layout.width / 2
-  const MAGNIFY = 1.4
-  return {
-    x: (left + layout.width * (region.x + region.w / 2)) / cw,
-    y: (layout.top + layout.height * (region.y + region.h / 2)) / ch,
-    width: Math.min((layout.width * region.w * MAGNIFY) / cw, 0.95),
-  }
-}
-
 function deviceScreenBounds(layout: DeviceLayout, slide: Slide): ScreenBounds {
   const { screen } = renderDeviceFrame(slide.deviceFrame, {
     left: layout.centerX,
@@ -437,19 +413,20 @@ export async function applyTemplate(
     applySplit(canvas, slide, cw, ch, deviceLayout, scale)
   }
 
-  // 5. Highlights — magnified pop-out cards. Rendered after the device so they
-  // can float above the bezel, but before the badge so the badge stays the
-  // top-most attention element.
+  // 5. Highlights — magnified loupe cards glued onto their source spot.
+  // Rendered after the device so they can float above the bezel, but before
+  // the badge so the badge stays the top-most attention element.
   if (slide.highlights && slide.highlights.length > 0 && slide.screenshot && screenBounds) {
+    const hlRotation = deviceLayout ? (slide.deviceFrame.rotation ?? 0) : 0
     for (const h of slide.highlights) {
-      const { source, popup } = await renderHighlight(h, {
+      const popup = await renderHighlight(h, {
         canvasWidth: cw,
         canvasHeight: ch,
         screenBounds,
+        rotation: hlRotation,
         screenshot: slide.screenshot,
         resolveUrl,
       })
-      if (source) canvas.add(source)
       if (popup) canvas.add(popup)
     }
   }
