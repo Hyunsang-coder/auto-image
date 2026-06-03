@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Background } from '../../../types/project'
-import { THEME_PRESETS, type ThemePreset } from '../../../constants/defaults'
+import { THEME_PRESETS, DEFAULT_BACKGROUND, type ThemePreset } from '../../../constants/defaults'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 import { useCustomStore } from '../../../store/useCustomStore'
 
@@ -158,12 +158,16 @@ export function BackgroundPanel({
       const color = value.color ?? value.gradient?.stops[0]?.color ?? '#6366F1'
       onChange({ type: 'solid', color })
     } else if (tab === 'gradient') {
-      const color1 = value.color ?? value.gradient?.stops[0]?.color ?? '#6366F1'
-      const color2 = value.gradient?.stops[1]?.color ?? '#4F46E5'
+      // Fall back to the recommended preset's gradient so re-entering the tab
+      // (which dropped the gradient when leaving for solid/image) restores the
+      // same default the project starts with, not an arbitrary color.
+      const preset = DEFAULT_BACKGROUND.gradient!
+      const color1 = value.color ?? value.gradient?.stops[0]?.color ?? preset.stops[0].color
+      const color2 = value.gradient?.stops[1]?.color ?? preset.stops[1].color
       onChange({
         type: 'gradient',
         gradient: {
-          direction: value.gradient?.direction ?? 180,
+          direction: value.gradient?.direction ?? preset.direction,
           stops: [
             { color: color1, position: 0 },
             { color: color2, position: 1 },
