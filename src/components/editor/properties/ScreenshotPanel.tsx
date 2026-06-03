@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DeviceFrame, ScreenshotImage, ScreenshotStyle, TemplateType } from '../../../types/project'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
-import { detectDeviceFromAspect } from '../../../constants/deviceSpecs'
+import { detectTypeFromAspect, DEFAULT_MODEL } from '../../../constants/deviceSpecs'
 import { useProjectStore } from '../../../store/useProjectStore'
 import { gcImages } from '../../../lib/imageRefs'
 import { importBulkImages } from '../../../lib/bulkImageImport'
@@ -34,6 +34,7 @@ export function ScreenshotPanel({
   const [bulkIssues, setBulkIssues] = useState<string[]>([])
 
   const sourceLocale = useProjectStore(s => s.project?.sourceLocale ?? 'en')
+  const deviceModels = useProjectStore(s => s.project?.deviceModels)
   const targetLocales = useProjectStore(s => s.project?.targetLocales ?? [])
   const updateSlides = useProjectStore(s => s.updateSlides)
   const updateProject = useProjectStore(s => s.updateProject)
@@ -51,6 +52,7 @@ export function ScreenshotPanel({
       targetLocales,
       knownLocales: known,
       labelOf,
+      deviceModels,
     })
     if (Object.keys(patches).length) updateSlides(patches)
     if (addedLocales.length) updateProject({ targetLocales: [...targetLocales, ...addedLocales] })
@@ -102,10 +104,12 @@ export function ScreenshotPanel({
     })
     // Lock the slide's device to the screenshot's aspect — an iPhone screenshot
     // belongs in an iPhone frame, an iPad shot in an iPad frame. Avoids the
-    // cover-mode center-crop that used to silently chop off content.
-    const detected = detectDeviceFromAspect(width, height)
-    if (detected !== deviceFrame.model) {
-      onDeviceFrameChange({ ...deviceFrame, model: detected })
+    // cover-mode center-crop that used to silently chop off content. The size
+    // within the type follows the project's chosen App Store size.
+    const type = detectTypeFromAspect(width, height)
+    const model = deviceModels?.[type] ?? DEFAULT_MODEL[type]
+    if (model !== deviceFrame.model) {
+      onDeviceFrameChange({ ...deviceFrame, model })
     }
   }
 
@@ -152,7 +156,7 @@ export function ScreenshotPanel({
           )}
           <p className="text-xs text-[var(--color-text-dim)]">
             {value.originalWidth} × {value.originalHeight}px ·{' '}
-            {detectDeviceFromAspect(value.originalWidth, value.originalHeight) === 'iphone-16-pro'
+            {detectTypeFromAspect(value.originalWidth, value.originalHeight) === 'iphone'
               ? 'iPhone'
               : 'iPad'}{' '}
             스크린샷

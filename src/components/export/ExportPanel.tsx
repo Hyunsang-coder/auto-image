@@ -6,11 +6,12 @@ import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
+import { typeOfModel } from '../../constants/deviceSpecs'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from '../../lib/readiness'
 import type { DeviceType, Slide } from '../../types/project'
 
 function deviceOf(slide: Slide): DeviceType {
-  return slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone'
+  return typeOfModel(slide.deviceFrame.model)
 }
 
 const localeLabel = (code: string) =>
@@ -127,7 +128,6 @@ export function ExportPanel() {
       for (const slide of slides) {
         if (cancelled) break
         try {
-          const device = deviceOf(slide)
           let blob: Blob
           if (slide.spanGroupId) {
             const isLeader = slide.spanRole === 'leader'
@@ -143,10 +143,10 @@ export function ExportPanel() {
             // constants (fit-to-box floor, headline gap) otherwise diverge
             // between the 440px preview scale and the export scale. CSS scales it
             // down for display.
-            const halves = await renderSpanGroup(leader, device, renderLocale)
+            const halves = await renderSpanGroup(leader, renderLocale)
             blob = isLeader ? halves.leader : halves.follower
           } else {
-            blob = await renderSlide(slide, device, renderLocale)
+            blob = await renderSlide(slide, renderLocale)
           }
           urls.push(URL.createObjectURL(blob))
         } catch {
@@ -257,7 +257,6 @@ export function ExportPanel() {
               try {
                 const { leader: leftBlob, follower: rightBlob } = await renderSpanGroup(
                   slide,
-                  device,
                   renderLocale,
                 )
                 const lName = String(slide.index + 1).padStart(2, '0')
@@ -286,7 +285,7 @@ export function ExportPanel() {
           // Per-slide guard: record the failure and continue so the rest of the
           // batch still renders and a partial ZIP/folder is produced.
           try {
-            const blob = await renderSlide(slide, device, renderLocale)
+            const blob = await renderSlide(slide, renderLocale)
             const name = String(slide.index + 1).padStart(2, '0')
             await emit(filePath(localeDir, device, name), blob)
           } catch (e) {

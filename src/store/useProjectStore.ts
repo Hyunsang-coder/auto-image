@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Project, Slide, Step, ScreenshotImage, Background } from '../types/project'
+import type { Project, Slide, Step, ScreenshotImage, Background, DeviceType, DeviceModel } from '../types/project'
 import { makeProject, makeSlide, DEFAULT_BACKGROUND } from '../constants/defaults'
+import { typeOfModel } from '../constants/deviceSpecs'
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
@@ -127,6 +128,12 @@ interface ProjectState {
   /** Replace the active project with a saved one (deep-cloned), jump to editor. */
   loadProject: (project: Project) => void
   updateProject: (patch: Partial<Project>) => void
+  /**
+   * Set the App Store export size for a device type, remapping every slide of
+   * that type to the new model in one write. The type↔slide partition is by the
+   * slide's current model's type, so iPhone and iPad sizes change independently.
+   */
+  setDeviceSize: (type: DeviceType, model: DeviceModel) => void
 
   setStep: (step: Step) => void
   setActiveSlide: (slideId: string) => void
@@ -220,6 +227,22 @@ export const useProjectStore = create<ProjectState>()(
         set({ project: touch({ ...cur, ...patch }) })
       },
 
+      setDeviceSize: (type, model) => {
+        const cur = get().project
+        if (!cur) return
+        set({
+          project: touch({
+            ...cur,
+            deviceModels: { ...cur.deviceModels, [type]: model },
+            slides: cur.slides.map((s) =>
+              typeOfModel(s.deviceFrame.model) === type
+                ? { ...s, deviceFrame: { ...s.deviceFrame, model } }
+                : s,
+            ),
+          }),
+        })
+      },
+
       setStep: (step) => set({ step }),
 
       setActiveSlide: (slideId) => set({ activeSlideId: slideId }),
@@ -265,7 +288,12 @@ export const useProjectStore = create<ProjectState>()(
         const cur = get().project
         if (!cur) return
         if (cur.slides.length >= 10) return
-        const newSlide = makeSlide(cur.slides.length, cur.devices[0])
+        const type = cur.devices[0]
+        const newSlide = makeSlide(cur.slides.length, type)
+        // Honor the project's chosen export size for this type (makeSlide seeds
+        // the type's default model).
+        const sized = cur.deviceModels?.[type]
+        if (sized) newSlide.deviceFrame = { ...newSlide.deviceFrame, model: sized }
         set({
           project: touch({
             ...cur,

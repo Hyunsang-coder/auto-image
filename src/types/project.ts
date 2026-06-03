@@ -5,7 +5,12 @@ export type TemplateType =
   | 'text-top'
   | 'text-bottom'
   | 'split'
-export type DeviceModel = 'iphone-16-pro' | 'ipad-pro-13'
+export type DeviceModel =
+  | 'iphone-16-pro'
+  | 'iphone-6-5'
+  | 'ipad-pro-13'
+  | 'ipad-12-9'
+  | 'ipad-11'
 export type DeviceColor = 'black' | 'silver'
 export type HighlightShape = 'rect' | 'circle'
 export type BackgroundType = 'solid' | 'gradient' | 'image'
@@ -36,6 +41,13 @@ export interface Project {
   createdAt: string
   updatedAt: string
   devices: DeviceType[]
+  /**
+   * Which export resolution to use per device type (App Store screenshot size).
+   * Every slide of a given type renders/exports at this model's spec. Absent →
+   * the default model for each type (iphone-16-pro / ipad-pro-13). A size change
+   * remaps all slides of that type (see `setDeviceSize`).
+   */
+  deviceModels?: Partial<Record<DeviceType, DeviceModel>>
   screenshotCount: number
   /** Default background applied to every slide of a new project. */
   themeBackground: Background

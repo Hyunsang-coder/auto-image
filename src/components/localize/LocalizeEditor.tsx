@@ -352,6 +352,7 @@ export function LocalizeEditor() {
       targetLocales,
       knownLocales: known,
       labelOf,
+      deviceModels: useProjectStore.getState().project?.deviceModels,
     })
     if (Object.keys(patches).length) updateSlides(patches)
     // Surface any override locale that wasn't selected yet, mirroring the caption

@@ -26,6 +26,8 @@ import { gcImages } from '../../lib/imageRefs'
 import { resolveSlideForLocale } from '../../lib/resolveSlide'
 import { routeLocalePatch, clearLocaleOverride } from '../../lib/localeOverride'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
+import { MODELS_BY_TYPE, DEVICE_SPECS, DEFAULT_MODEL } from '../../constants/deviceSpecs'
+import type { DeviceModel } from '../../types/project'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 3
@@ -50,6 +52,7 @@ export function EditorLayout() {
   const updateSlides = useProjectStore((s) => s.updateSlides)
   const removeSlides = useProjectStore((s) => s.removeSlides)
   const setStep = useProjectStore((s) => s.setStep)
+  const setDeviceSize = useProjectStore((s) => s.setDeviceSize)
 
   const canvasRef = useRef<FabricCanvasHandle>(null)
   const [canUndo, setCanUndo] = useState(false)
@@ -386,7 +389,26 @@ export function EditorLayout() {
       <div className="flex min-w-0 flex-col overflow-hidden">
         <main className="flex flex-1 flex-col items-center overflow-y-auto bg-[var(--color-bg)]">
         <div className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
-          <div className="flex-1" />
+          <div className="flex flex-1 items-center gap-2">
+            {project.devices.map((dev) => {
+              const model = project.deviceModels?.[dev] ?? DEFAULT_MODEL[dev]
+              return (
+                <select
+                  key={dev}
+                  value={model}
+                  onChange={(e) => setDeviceSize(dev, e.target.value as DeviceModel)}
+                  title={`${dev === 'iphone' ? 'iPhone' : 'iPad'} App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다.`}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
+                >
+                  {MODELS_BY_TYPE[dev].map((m) => (
+                    <option key={m} value={m}>
+                      {DEVICE_SPECS[m].label}
+                    </option>
+                  ))}
+                </select>
+              )
+            })}
+          </div>
           <div className="flex items-center gap-3">
             <CanvasToolbar
               canUndo={canUndo}

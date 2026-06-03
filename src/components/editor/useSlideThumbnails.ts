@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { DeviceType, Slide } from '../../types/project'
+import type { Slide } from '../../types/project'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 
 const THUMB_WIDTH = 220
 const DEBOUNCE_MS = 300
-
-function deviceOf(slide: Slide): DeviceType {
-  return slide.deviceFrame.model === 'ipad-pro-13' ? 'ipad' : 'iphone'
-}
 
 function leaderOf(slide: Slide, slides: Slide[]): Slide | undefined {
   if (slide.spanRole === 'leader') return slide
@@ -72,15 +68,14 @@ export function useSlideThumbnails(
         const key = renderKey(slide, slides, locale)
         if (cache.has(key)) continue
         try {
-          const device = deviceOf(slide)
           let blob: Blob
           if (slide.spanGroupId) {
             const leader = leaderOf(slide, slides)
             if (!leader) continue
-            const halves = await renderSpanGroup(leader, device, renderLocale, THUMB_WIDTH)
+            const halves = await renderSpanGroup(leader, renderLocale, THUMB_WIDTH)
             blob = slide.spanRole === 'leader' ? halves.leader : halves.follower
           } else {
-            blob = await renderSlide(slide, device, renderLocale, THUMB_WIDTH)
+            blob = await renderSlide(slide, renderLocale, THUMB_WIDTH)
           }
           if (cancelled) return
           const url = URL.createObjectURL(blob)

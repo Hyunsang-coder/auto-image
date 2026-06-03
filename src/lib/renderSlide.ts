@@ -1,6 +1,6 @@
 import { Canvas } from 'fabric'
-import type { Slide, DeviceType } from '../types/project'
-import { deviceSpecOf, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
+import type { Slide } from '../types/project'
+import { DEVICE_SPECS, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 import { applyTemplate } from '../canvas/templateLayouts'
 import { createImageUrlCache } from './imageStore'
 import { encodeOpaquePng } from './encodePng'
@@ -33,11 +33,10 @@ function withScaledFonts(slide: Slide, scale: number): Slide {
 
 export async function renderSlide(
   slide: Slide,
-  deviceType: DeviceType,
   locale: string | null,
   previewWidth?: number,
 ): Promise<Blob> {
-  const spec = deviceSpecOf(deviceType)
+  const spec = DEVICE_SPECS[slide.deviceFrame.model]
   const width = previewWidth ?? spec.exportWidth
   const height = previewWidth
     ? Math.round(previewWidth * spec.exportHeight / spec.exportWidth)
@@ -72,11 +71,10 @@ export async function renderSlide(
  */
 export async function renderSpanGroup(
   leader: Slide,
-  deviceType: DeviceType,
   locale: string | null,
   previewHalfWidth?: number,
 ): Promise<{ leader: Blob; follower: Blob }> {
-  const spec = deviceSpecOf(deviceType)
+  const spec = DEVICE_SPECS[leader.deviceFrame.model]
   const halfWidth = previewHalfWidth ?? spec.exportWidth
   const fullWidth = halfWidth * 2
   const height = previewHalfWidth

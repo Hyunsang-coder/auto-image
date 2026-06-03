@@ -73,13 +73,12 @@ export function renderDeviceFrame(
   const fl = opts.left - fw / 2
   const ft = opts.top
 
-  const isIphone = deviceFrame.model === 'iphone-16-pro'
   const frameColor = deviceFrame.color === 'silver' ? '#E2E2E2' : '#1C1C1E'
 
-  // Symmetric bezel — real iPhone 16 Pro / iPad Pro 13" have uniform bezels on
-  // all 4 sides. Ratio is taken from the spec (fraction of device width) so the
-  // editor matches Apple's published device dimensions.
+  // Symmetric bezel — uniform on all 4 sides. Ratio is taken from the spec
+  // (fraction of device width) so the editor matches Apple's device dimensions.
   const spec = DEVICE_SPECS[deviceFrame.model]
+  const hasIsland = spec.hasIsland
   const bezel = fw * spec.screenInsetRatio
   const screenW = fw - bezel * 2
   const screenH = fh - bezel * 2
@@ -97,7 +96,7 @@ export function renderDeviceFrame(
 
   const paths: Path[] = [body]
 
-  if (isIphone) {
+  if (hasIsland) {
     // Dynamic Island: real iPhone 16 Pro has it at ~25% of screen width.
     // Was 0.30 which made the phone look toy-ish in reference comparisons.
     const islandH = fh * 0.028

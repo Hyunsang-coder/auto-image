@@ -3,6 +3,7 @@ import type React from 'react'
 import type { Slide } from '../../types/project'
 import { useProjectStore } from '../../store/useProjectStore'
 import { titleText } from '../../constants/defaults'
+import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { useSlideThumbnails } from './useSlideThumbnails'
 
 /** Modifier keys read off the click event to drive selection semantics. */
@@ -37,7 +38,8 @@ const MAX_SLIDES = 10
 // Aspect ratio of each device's exported PNG — used so the thumbnail box matches
 // the rendered image exactly (no letterboxing).
 function aspectOf(slide: Slide): string {
-  return slide.deviceFrame.model === 'ipad-pro-13' ? '2048 / 2732' : '1284 / 2778'
+  const spec = DEVICE_SPECS[slide.deviceFrame.model]
+  return `${spec.exportWidth} / ${spec.exportHeight}`
 }
 
 interface RowItem {

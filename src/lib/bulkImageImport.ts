@@ -8,10 +8,10 @@
 // skip-with-warning, dedupe, the "override needs a base" skip, and locale
 // auto-add.
 
-import type { Slide } from '../types/project'
+import type { Slide, DeviceModel, DeviceType } from '../types/project'
 import { fileToImageKey } from './imageStore'
 import { parseImageName } from './imageImport'
-import { detectDeviceFromAspect } from '../constants/deviceSpecs'
+import { detectTypeFromAspect, typeOfModel, DEFAULT_MODEL } from '../constants/deviceSpecs'
 
 export interface BulkImageImportResult {
   /** Per-slide screenshot patch, keyed by slide id — apply via `updateSlides`. */
@@ -24,7 +24,7 @@ export interface BulkImageImportResult {
   issues: string[]
 }
 
-const devLabel = (m: string) => (m === 'ipad-pro-13' ? 'iPad' : 'iPhone')
+const devLabel = (m: DeviceModel) => (typeOfModel(m) === 'ipad' ? 'iPad' : 'iPhone')
 
 /**
  * Import a batch of screenshot files. `slides` is the current slide snapshot,
@@ -40,9 +40,11 @@ export async function importBulkImages(
     targetLocales: string[]
     knownLocales: Set<string>
     labelOf: (code: string) => string
+    /** The project's chosen size per type; an upload's type resolves to this. */
+    deviceModels?: Partial<Record<DeviceType, DeviceModel>>
   },
 ): Promise<BulkImageImportResult> {
-  const { sourceLocale, targetLocales, knownLocales, labelOf } = opts
+  const { sourceLocale, targetLocales, knownLocales, labelOf, deviceModels } = opts
   const issues: string[] = []
 
   // Every file carries a locale; the one matching the project's sourceLocale
@@ -110,7 +112,8 @@ export async function importBulkImages(
       continue
     }
     const { key, width, height } = result
-    const detected = detectDeviceFromAspect(width, height)
+    const detectedType = detectTypeFromAspect(width, height)
+    const detected = deviceModels?.[detectedType] ?? DEFAULT_MODEL[detectedType]
     // Don't let a stray file from the other device's set silently overwrite a
     // populated slide and flip its device (e.g. an iPad shot landing on an
     // iPhone slide). An empty base slot is the first upload, so it may set the
