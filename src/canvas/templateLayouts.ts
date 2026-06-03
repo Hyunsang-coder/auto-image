@@ -2,6 +2,8 @@ import { Canvas, Control, FabricImage, Point, Rect, Shadow, util } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Slide, ScreenshotImage, ScreenshotStyle, ScreenshotCrop } from '../types/project'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, frameSpecOf } from '../constants/deviceSpecs'
+import { rotateAround } from './geometry'
+export { rotateAround }
 import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
 import { renderCaption } from './objects/caption'
@@ -32,17 +34,6 @@ export function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: num
   return { w, h }
 }
 
-// Rotate a point around a pivot in canvas (y-down) space. Positive degrees =
-// clockwise, matching Fabric's `angle`. Exported so FabricCanvas's sync can
-// re-derive the body's rotated base anchor at the angle the user dragged to.
-export function rotateAround(x: number, y: number, cx: number, cy: number, deg: number): { x: number; y: number } {
-  const rad = (deg * Math.PI) / 180
-  const cos = Math.cos(rad)
-  const sin = Math.sin(rad)
-  const dx = x - cx
-  const dy = y - cy
-  return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos }
-}
 
 // Tilt a top-left-origin object about an external pivot: spin it on its own
 // origin (angle) and swing that origin around the pivot so the whole device +
@@ -242,6 +233,14 @@ async function renderScreenshotLayer(
   }
 
   ;(img as FabricImage & { layerName: string }).layerName = LAYER_NAMES.SCREENSHOT
+  // The full (uncropped, unrotated) screen box highlights normalize against.
+  // Sync reads this instead of the clipPath, which crop/rotation can distort.
+  ;(img as FabricImage & { _screenBounds: object })._screenBounds = {
+    left: bounds.left,
+    top: bounds.top,
+    width: bounds.width,
+    height: bounds.height,
+  }
   canvas.add(img)
 }
 
@@ -302,6 +301,30 @@ export function getDeviceLayout(
 
 function heroScreenBounds(cw: number, ch: number): ScreenBounds {
   return { left: 0, top: 0, width: cw, height: ch, rx: 0 }
+}
+
+/**
+ * Loupe spawn point for a new highlight: the popup lands centered over its
+ * source region (in editor-canvas fractions), slightly magnified so it reads
+ * as a magnifying glass on the spot. Uses the device-layout footprint — the
+ * bezel inset is too small to matter for a starting position. Null for hero
+ * (no device footprint); the caller keeps makeHighlight's canvas default.
+ */
+export function highlightSpawn(
+  slide: Slide,
+  region: { x: number; y: number; w: number; h: number },
+): { x: number; y: number; width: number } | null {
+  const cw = EDITOR_CANVAS_WIDTH
+  const ch = getCanvasHeight(slide)
+  const layout = getDeviceLayout(slide, cw, ch, getDeviceDimensions(slide, cw))
+  if (!layout) return null
+  const left = layout.centerX - layout.width / 2
+  const MAGNIFY = 1.4
+  return {
+    x: (left + layout.width * (region.x + region.w / 2)) / cw,
+    y: (layout.top + layout.height * (region.y + region.h / 2)) / ch,
+    width: Math.min((layout.width * region.w * MAGNIFY) / cw, 0.95),
+  }
 }
 
 function deviceScreenBounds(layout: DeviceLayout, slide: Slide): ScreenBounds {

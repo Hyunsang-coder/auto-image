@@ -141,6 +141,7 @@ export function PropertiesPanel({
           <HighlightPanel
             value={slide.highlights ?? []}
             hasScreenshot={!!slide.screenshot}
+            slide={slide}
             onChange={onHighlightsChange}
           />
         )}

@@ -1,6 +1,7 @@
 import { FabricImage, Rect, Shadow } from 'fabric'
 import type { Highlight, ScreenshotImage } from '../../types/project'
 import { LAYER_NAMES } from '../layerNames'
+import { rotateAround } from '../geometry'
 import type { ImageUrlResolver } from '../../lib/imageStore'
 import type { ScreenBounds } from './deviceFrame'
 
@@ -87,8 +88,14 @@ async function makePopupImage(
 
   const centerX = ctx.canvasWidth * popup.x
   const centerY = ctx.canvasHeight * popup.y
-  const left = centerX - popupW / 2
-  const top = centerY - popupH / 2
+  // The card tilts about its center: spin the top-left anchor around it and
+  // let Fabric's `angle` do the rest (origin is top-left).
+  const rotation = popup.rotation ?? 0
+  const anchor = rotation
+    ? rotateAround(centerX - popupW / 2, centerY - popupH / 2, centerX, centerY, rotation)
+    : { x: centerX - popupW / 2, y: centerY - popupH / 2 }
+  const left = anchor.x
+  const top = anchor.y
 
   img.set({
     cropX,
@@ -99,22 +106,26 @@ async function makePopupImage(
     scaleY: scale,
     left,
     top,
+    angle: rotation,
     originX: 'left',
     originY: 'top',
     selectable: true,
     evented: true,
     hasControls: true,
     hasBorders: true,
-    lockRotation: true,
+    lockRotation: false,
     lockSkewingX: true,
     lockSkewingY: true,
     lockUniScaling: true,
     centeredScaling: true,
+    // Same gentle magnetism as the device body so the loupe squares up easily.
+    snapAngle: 45,
+    snapThreshold: 4,
     borderColor: '#6366F1',
     cornerColor: '#6366F1',
     hoverCursor: 'move',
   })
-  img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: false })
+  img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: true })
 
   // Round the popup card. clipPath uses absolute coords so it tracks the image
   // position; sync code re-creates the clip after a drag.
@@ -126,6 +137,7 @@ async function makePopupImage(
     height: popupH,
     rx: radius,
     ry: radius,
+    angle: rotation,
     originX: 'left',
     originY: 'top',
     absolutePositioned: true,
@@ -177,6 +189,7 @@ export function syncPopupClipPath(img: FabricImage): void {
     height: h,
     rx: radius,
     ry: radius,
+    angle: img.angle ?? 0,
     originX: 'left',
     originY: 'top',
     absolutePositioned: true,

@@ -217,11 +217,16 @@ const HISTORY_LIMIT = 50
 const HISTORY_PROPS = [
   'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex',
   '_baseLeft', '_baseTop', '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
-  '_crop', '_fullW', '_fullH',
+  '_crop', '_fullW', '_fullH', '_screenBounds',
 ]
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
+}
+
+/** Fabric angles can run past ±360; fold into the sliders' (-180, 180]. */
+function normalizeAngle(a: number): number {
+  return Math.round((((a + 180) % 360 + 360) % 360 - 180) * 10) / 10
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
@@ -390,7 +395,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // for the angle the render used). Rotating about the body center vs the
         // render's device-center pivot differ — the offset absorbs the gap, so
         // the re-render lands exactly where the user left the card.
-        const nextRotation = Math.round(((((body.angle ?? 0) + 180) % 360 + 360) % 360 - 180) * 10) / 10
+        const nextRotation = normalizeAngle(body.angle ?? 0)
         const base = nextRotation
           ? rotateAround(body._baseRawLeft, body._baseRawTop, body._basePivotX ?? 0, body._basePivotY ?? 0, nextRotation)
           : { x: body._baseRawLeft, y: body._baseRawTop }
@@ -496,20 +501,24 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.HIGHLIGHT_POPUP,
       )
       if ((hlSourceObjs.length > 0 || hlPopupObjs.length > 0) && slide.highlights) {
-        // Find screen bounds by inspecting the screenshot's clipPath (it tracks
-        // the visible window). Falls back to canvas if no screenshot.
+        // Screen bounds the regions normalize against. Prefer the full box the
+        // render stashed — the clipPath used to stand in for it, but crop
+        // shrinks the clip and rotation tilts it, so it no longer matches the
+        // space sourceRegion fractions live in.
         const shotObj = objects.find(
           (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.SCREENSHOT,
-        ) as (FabricImage & { clipPath?: Rect }) | undefined
+        ) as (FabricImage & { clipPath?: Rect; _screenBounds?: { left: number; top: number; width: number; height: number } }) | undefined
         const clip = shotObj?.clipPath
-        const sb = clip
-          ? {
-              left: clip.left ?? 0,
-              top: clip.top ?? 0,
-              width: (clip.width ?? cw) * (clip.scaleX ?? 1),
-              height: (clip.height ?? ch) * (clip.scaleY ?? 1),
-            }
-          : { left: 0, top: 0, width: cw, height: ch }
+        const sb = shotObj?._screenBounds
+          ? shotObj._screenBounds
+          : clip
+            ? {
+                left: clip.left ?? 0,
+                top: clip.top ?? 0,
+                width: (clip.width ?? cw) * (clip.scaleX ?? 1),
+                height: (clip.height ?? ch) * (clip.scaleY ?? 1),
+              }
+            : { left: 0, top: 0, width: cw, height: ch }
 
         let dirty = false
         const next: Highlight[] = slide.highlights.map((h) => {
@@ -542,18 +551,20 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           )
           if (pop) {
             const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
-            const pH = (pop.height ?? 0) * (pop.scaleY ?? 1)
-            const pCx = (pop.left ?? 0) + pW / 2
-            const pCy = (pop.top ?? 0) + pH / 2
-            const nx = clamp01(pCx / cw)
-            const ny = clamp01(pCy / ch)
+            // getCenterPoint is rotation-safe; left/top + w/2 is not once the
+            // card can tilt.
+            const c = pop.getCenterPoint()
+            const nx = clamp01(c.x / cw)
+            const ny = clamp01(c.y / ch)
             const nWidth = clamp01(pW / cw)
+            const nRot = normalizeAngle(pop.angle ?? 0)
             if (
               Math.abs(nx - h.popup.x) > 0.001 ||
               Math.abs(ny - h.popup.y) > 0.001 ||
-              Math.abs(nWidth - h.popup.width) > 0.002
+              Math.abs(nWidth - h.popup.width) > 0.002 ||
+              Math.abs(nRot - (h.popup.rotation ?? 0)) > 0.05
             ) {
-              n = { ...n, popup: { ...n.popup, x: nx, y: ny, width: nWidth } }
+              n = { ...n, popup: { ...n.popup, x: nx, y: ny, width: nWidth, rotation: nRot } }
               dirty = true
             }
           }
@@ -895,7 +906,16 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const target = e.target
         if (!target) return
         const ln = (target as FabricObject & { layerName?: string }).layerName
-        if (ln === LAYER_NAMES.DEVICE_FRAME) handleDeviceRotate(canvas, target)
+        if (ln === LAYER_NAMES.DEVICE_FRAME) {
+          handleDeviceRotate(canvas, target)
+        } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
+          // Keep the rounded mask glued to the spinning card — same shape, so
+          // mirroring the anchor + angle is enough.
+          const clip = (target as FabricObject & { clipPath?: Rect }).clipPath
+          if (clip) {
+            clip.set({ left: target.left ?? 0, top: target.top ?? 0, angle: target.angle ?? 0 })
+          }
+        }
       })
 
       // Double-click surfaces the object's layer so the panel can jump to the
@@ -959,6 +979,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           height: h,
           rx: r,
           ry: r,
+          angle: target.angle ?? 0,
           scaleX: 1,
           scaleY: 1,
         })

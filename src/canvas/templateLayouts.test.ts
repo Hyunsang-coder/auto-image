@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FabricObject } from 'fabric'
-import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout, rotateAround, trimCrop } from './templateLayouts'
+import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout, highlightSpawn, rotateAround, trimCrop } from './templateLayouts'
 import { LAYER_NAMES } from './layerNames'
 import type { Caption, Slide } from '../types/project'
 
@@ -246,6 +246,31 @@ describe('offset capture stays exact under rotation', () => {
         expect(Math.round(body.y - base.y)).toBe(dy)
       }
     }
+  })
+})
+
+// highlightSpawn: a new highlight's popup lands centered over its source
+// region (loupe behavior), magnified 1.4× — in editor-canvas fractions.
+describe('highlightSpawn (loupe placement)', () => {
+  const REGION = { x: 0.08, y: 0.42, w: 0.84, h: 0.18 }
+
+  it('centers the popup on the source region inside the device footprint', () => {
+    const slide = makeSlide('text-top')
+    const spawn = highlightSpawn(slide, REGION)!
+    expect(spawn).not.toBeNull()
+    const cw = 440
+    const L = getDeviceLayout(slide, cw, 956, getDeviceDimensions(slide, cw))!
+    // Horizontally-centered region on a centered device → canvas center.
+    expect(spawn.x).toBeCloseTo(0.5, 3)
+    // Vertical center maps through the device box.
+    const expectedY = (L.top + L.height * (REGION.y + REGION.h / 2)) / 956
+    expect(spawn.y).toBeCloseTo(expectedY, 4)
+    // 1.4× the region's on-canvas width.
+    expect(spawn.width).toBeCloseTo(Math.min((L.width * REGION.w * 1.4) / cw, 0.95), 4)
+  })
+
+  it('returns null for hero (no device footprint)', () => {
+    expect(highlightSpawn(makeSlide('hero'), REGION)).toBeNull()
   })
 })
 

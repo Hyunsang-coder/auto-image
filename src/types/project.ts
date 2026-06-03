@@ -284,6 +284,8 @@ export interface Highlight {
     x: number
     y: number
     width: number
+    /** Tilt of the magnified card in degrees, about its center. 0 = upright. */
+    rotation?: number
     borderRadius?: number
     shadowColor?: string
   }

@@ -1,15 +1,20 @@
-import type { Highlight } from '../../../types/project'
+import type { Highlight, Slide } from '../../../types/project'
 import { makeHighlight } from '../../../constants/defaults'
+import { highlightSpawn } from '../../../canvas/templateLayouts'
 
 interface Props {
   value: Highlight[]
   hasScreenshot: boolean
+  slide: Slide | null
   onChange: (next: Highlight[]) => void
 }
 
-export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
+export function HighlightPanel({ value, hasScreenshot, slide, onChange }: Props) {
   function add() {
-    onChange([...value, makeHighlight()])
+    const h = makeHighlight()
+    // Loupe behavior: spawn the magnified card right over its source region.
+    const spawn = slide ? highlightSpawn(slide, h.sourceRegion) : null
+    onChange([...value, spawn ? { ...h, popup: { ...h.popup, ...spawn } } : h])
   }
   function update(id: string, patch: Partial<Highlight>) {
     onChange(value.map((h) => (h.id === id ? { ...h, ...patch } : h)))
@@ -138,6 +143,21 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
               step={0.01}
               onChange={(v) => updatePopup(h.id, { width: v })}
             />
+            <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
+              <span className="w-16 text-[var(--color-text-dim)]">회전</span>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={h.popup.rotation ?? 0}
+                onChange={(e) => updatePopup(h.id, { rotation: Number(e.target.value) })}
+                className="ml-2 flex-1 accent-[var(--color-accent)]"
+              />
+              <span className="w-10 text-right text-[var(--color-text-dim)]">
+                {Math.round(h.popup.rotation ?? 0)}°
+              </span>
+            </label>
           </Group>
 
           <Group label="원본 표시">
