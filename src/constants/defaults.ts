@@ -427,6 +427,7 @@ export function makeSlide(
 export function makeProject(input: {
   name: string
   devices: Project['devices']
+  deviceModels?: Project['deviceModels']
   screenshotCount: number
   themeBackground: Background
 }): Project {
@@ -435,20 +436,25 @@ export function makeProject(input: {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `project-${Date.now()}`
+  const seedModel = input.deviceModels?.[input.devices[0]]
   return {
     id,
     name: input.name,
     createdAt: now,
     updatedAt: now,
     devices: input.devices,
+    deviceModels: input.deviceModels,
     screenshotCount: input.screenshotCount,
     themeBackground: structuredClone(input.themeBackground),
     sourceLocale: DEFAULT_SOURCE_LOCALE,
     targetLocales: [...DEFAULT_TARGET_LOCALES],
     translationApi: DEFAULT_TRANSLATION_API,
-    slides: Array.from({ length: input.screenshotCount }, (_, i) =>
-      makeSlide(i, input.devices[0], input.themeBackground),
-    ),
+    slides: Array.from({ length: input.screenshotCount }, (_, i) => {
+      const slide = makeSlide(i, input.devices[0], input.themeBackground)
+      // Seed slides at the project's chosen size (makeSlide uses the type default).
+      if (seedModel) slide.deviceFrame = { ...slide.deviceFrame, model: seedModel }
+      return slide
+    }),
   }
 }
 

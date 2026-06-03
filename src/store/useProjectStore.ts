@@ -121,6 +121,7 @@ interface ProjectState {
   createProject: (input: {
     name: string
     devices: Project['devices']
+    deviceModels?: Project['deviceModels']
     screenshotCount: number
     themeBackground: Background
   }) => void

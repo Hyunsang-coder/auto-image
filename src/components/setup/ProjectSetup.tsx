@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { Background, DeviceType, Project } from '../../types/project'
+import type { Background, DeviceType, DeviceModel, Project } from '../../types/project'
 import { DEFAULT_BACKGROUND } from '../../constants/defaults'
-import { DEVICE_SPECS } from '../../constants/deviceSpecs'
+import { DEVICE_SPECS, MODELS_BY_TYPE, DEFAULT_MODEL } from '../../constants/deviceSpecs'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useLibraryStore } from '../../store/useLibraryStore'
 import { useCustomStore } from '../../store/useCustomStore'
@@ -28,9 +28,15 @@ export function ProjectSetup() {
   const [confirmNew, setConfirmNew] = useState(false)
 
   const [name, setName] = useState(existingProject?.name ?? '내 앱')
-  const [devices, setDevices] = useState<DeviceType[]>(
-    existingProject?.devices ?? ['iphone'],
+  // Exactly one device type per project (radio, never both/neither). The chosen
+  // App Store size per type is picked here too and seeds project.deviceModels.
+  const [device, setDevice] = useState<DeviceType>(
+    existingProject?.devices?.[0] ?? 'iphone',
   )
+  const [deviceModel, setDeviceModel] = useState<Record<DeviceType, DeviceModel>>({
+    iphone: existingProject?.deviceModels?.iphone ?? DEFAULT_MODEL.iphone,
+    ipad: existingProject?.deviceModels?.ipad ?? DEFAULT_MODEL.ipad,
+  })
   const [count, setCount] = useState<number>(
     existingProject?.screenshotCount ?? 5,
   )
@@ -38,14 +44,8 @@ export function ProjectSetup() {
     existingProject?.themeBackground ?? structuredClone(DEFAULT_BACKGROUND),
   )
 
-  const canSubmit = name.trim().length > 0 && devices.length > 0
+  const canSubmit = name.trim().length > 0
   const hasExisting = !!existingProject
-
-  function toggleDevice(d: DeviceType) {
-    setDevices((cur) =>
-      cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d],
-    )
-  }
 
   function submit() {
     if (!canSubmit) return
@@ -61,7 +61,8 @@ export function ProjectSetup() {
   function doCreate() {
     createProject({
       name: name.trim(),
-      devices,
+      devices: [device],
+      deviceModels: { [device]: deviceModel[device] },
       screenshotCount: count,
       themeBackground,
     })
@@ -209,31 +210,49 @@ export function ProjectSetup() {
 
       <Section
         title="기기"
-        hint="iPhone과 iPad를 동시에 만들 수 있습니다 (각자 별도 세트로 export됨)."
+        hint="한 종류만 선택합니다. 사이즈는 App Store에 등록 가능한 해상도입니다."
       >
         <div className="flex flex-wrap gap-3">
           {(['iphone', 'ipad'] as DeviceType[]).map((d) => {
-            const spec = DEVICE_SPECS[d === 'iphone' ? 'iphone-16-pro' : 'ipad-pro-13']
-            const active = devices.includes(d)
+            const active = device === d
+            const model = deviceModel[d]
+            const spec = DEVICE_SPECS[model]
             return (
-              <button
+              <div
                 key={d}
-                type="button"
-                onClick={() => toggleDevice(d)}
+                onClick={() => setDevice(d)}
                 className={[
-                  'flex flex-1 min-w-[200px] flex-col items-start gap-1 rounded-xl border px-4 py-3 text-left transition',
+                  'flex flex-1 min-w-[200px] cursor-pointer flex-col items-start gap-2 rounded-xl border px-4 py-3 text-left transition',
                   active
                     ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
                     : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
                 ].join(' ')}
               >
                 <span className="text-base font-medium text-[var(--color-text)]">
-                  {spec.label}
+                  {d === 'iphone' ? 'iPhone' : 'iPad'}
                 </span>
-                <span className="text-xs text-[var(--color-text-dim)]">
-                  {spec.exportWidth} × {spec.exportHeight} px
-                </span>
-              </button>
+                {active ? (
+                  <select
+                    value={model}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) =>
+                      setDeviceModel((m) => ({ ...m, [d]: e.target.value as DeviceModel }))
+                    }
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                  >
+                    {MODELS_BY_TYPE[d].map((mm) => (
+                      <option key={mm} value={mm}>
+                        {DEVICE_SPECS[mm].label} · {DEVICE_SPECS[mm].exportWidth}×
+                        {DEVICE_SPECS[mm].exportHeight}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs text-[var(--color-text-dim)]">
+                    {spec.label} · {spec.exportWidth} × {spec.exportHeight} px
+                  </span>
+                )}
+              </div>
             )
           })}
         </div>
