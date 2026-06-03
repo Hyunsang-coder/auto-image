@@ -11,16 +11,18 @@ export interface DeviceSpec {
   hasIsland: boolean
 }
 
-// Every resolution here is an App Store Connect-accepted portrait screenshot
-// size. Apple requires only the largest per type (iPhone 6.9", iPad 13") and
-// auto-scales smaller devices from it; the rest are offered for users who want
-// to ship a tailored set. cornerRadius is in export px and scales to the
+// One spec per App Store Connect screenshot upload slot (labels match ASC's
+// "<size>" Display" wording). Each resolution is an ASC-accepted portrait size;
+// Apple requires only the largest per type (6.9" iPhone, 13" iPad) and
+// auto-scales the rest, so these are for users shipping a tailored set. iPad
+// 12.9" is intentionally absent — ASC folds 2048×2732 into the 13" slot, so it's
+// the same upload target as 13". cornerRadius is in export px and scales to the
 // rendered device width (templateLayouts), so it just needs to be proportional.
 export const DEVICE_SPECS: Record<DeviceModel, DeviceSpec> = {
   'iphone-16-pro': {
     type: 'iphone',
     model: 'iphone-16-pro',
-    label: 'iPhone 6.9"',
+    label: 'iPhone 6.9" Display',
     exportWidth: 1320,
     exportHeight: 2868,
     cornerRadius: 206,
@@ -30,7 +32,7 @@ export const DEVICE_SPECS: Record<DeviceModel, DeviceSpec> = {
   'iphone-6-5': {
     type: 'iphone',
     model: 'iphone-6-5',
-    label: 'iPhone 6.5"',
+    label: 'iPhone 6.5" Display',
     exportWidth: 1242,
     exportHeight: 2688,
     cornerRadius: 194,
@@ -40,27 +42,17 @@ export const DEVICE_SPECS: Record<DeviceModel, DeviceSpec> = {
   'ipad-pro-13': {
     type: 'ipad',
     model: 'ipad-pro-13',
-    label: 'iPad 13"',
+    label: 'iPad 13" Display',
     exportWidth: 2064,
     exportHeight: 2752,
     cornerRadius: 81,
     screenInsetRatio: 0.046,
     hasIsland: false,
   },
-  'ipad-12-9': {
-    type: 'ipad',
-    model: 'ipad-12-9',
-    label: 'iPad 12.9"',
-    exportWidth: 2048,
-    exportHeight: 2732,
-    cornerRadius: 80,
-    screenInsetRatio: 0.046,
-    hasIsland: false,
-  },
   'ipad-11': {
     type: 'ipad',
     model: 'ipad-11',
-    label: 'iPad 11"',
+    label: 'iPad 11" Display',
     exportWidth: 1668,
     exportHeight: 2388,
     cornerRadius: 65,
@@ -78,7 +70,7 @@ export const DEFAULT_MODEL: Record<DeviceType, DeviceModel> = {
 
 export const MODELS_BY_TYPE: Record<DeviceType, DeviceModel[]> = {
   iphone: ['iphone-16-pro', 'iphone-6-5'],
-  ipad: ['ipad-pro-13', 'ipad-12-9', 'ipad-11'],
+  ipad: ['ipad-pro-13', 'ipad-11'],
 }
 
 export function typeOfModel(model: DeviceModel): DeviceType {

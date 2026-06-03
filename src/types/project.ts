@@ -9,7 +9,6 @@ export type DeviceModel =
   | 'iphone-16-pro'
   | 'iphone-6-5'
   | 'ipad-pro-13'
-  | 'ipad-12-9'
   | 'ipad-11'
 export type DeviceColor = 'black' | 'silver'
 export type HighlightShape = 'rect' | 'circle'
