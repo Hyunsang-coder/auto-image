@@ -499,17 +499,17 @@ export function EditorLayout() {
               <select
                 value={editLocale}
                 onChange={(e) => switchLocale(e.target.value)}
-                title={`편집 언어 — 기준 언어(${localeLabel(project.sourceLocale)})는 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다.`}
+                title={`편집 대상 — 원본(${localeLabel(project.sourceLocale)})은 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다.`}
                 className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
                   isLocaleMode
                     ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
                 }`}
               >
-                <option value="">기준 언어 ({localeLabel(project.sourceLocale)})</option>
+                <option value="">편집: 원본 ({localeLabel(project.sourceLocale)})</option>
                 {localeOptions.map((l) => (
                   <option key={l} value={l}>
-                    {localeLabel(l)}
+                    {`편집: ${localeLabel(l)}`}
                   </option>
                 ))}
               </select>
