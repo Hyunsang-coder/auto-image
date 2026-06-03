@@ -1,8 +1,8 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
-import type { Highlight, Slide } from '../../types/project'
-import { applyTemplate } from '../../canvas/templateLayouts'
+import type { Highlight, ScreenshotCrop, Slide } from '../../types/project'
+import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, rotateAround } from '../../canvas/templateLayouts'
 import { awaitSlideFonts } from '../../lib/fonts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
@@ -106,10 +106,19 @@ function applySnapGuides(canvas: Canvas, target: FabricObject, ln: string | unde
 }
 
 // Custom props we stash on the device-body Path so we can compute its offset
-// from drag end position without re-deriving template anchors.
+// from drag end position without re-deriving template anchors. The raw (un-
+// rotated) anchors + pivot let sync re-derive the base at whatever angle an
+// mtr drag ends on; _crop carries the floating card's edge trim.
 interface DeviceAnchorProps {
   _baseLeft?: number
   _baseTop?: number
+  _baseRawLeft?: number
+  _baseRawTop?: number
+  _basePivotX?: number
+  _basePivotY?: number
+  _crop?: ScreenshotCrop
+  _fullW?: number
+  _fullH?: number
 }
 
 // Identity used to re-find a selected object after undo/redo replaces every
@@ -205,7 +214,11 @@ const HISTORY_LIMIT = 50
 // Custom per-object props that must survive a history snapshot → loadFromJSON
 // round-trip, otherwise restored objects lose their identity and syncToZustand
 // can't map them back to the store (positions would silently un-revert).
-const HISTORY_PROPS = ['layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex', '_baseLeft', '_baseTop']
+const HISTORY_PROPS = [
+  'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex',
+  '_baseLeft', '_baseTop', '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
+  '_crop', '_fullW', '_fullH',
+]
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
@@ -306,6 +319,14 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       return null
     }
 
+    // loadFromJSON rebuilds objects without their controls — re-attach the
+    // floating handle's crop controls (its _crop/_fullW/_fullH props DO survive
+    // via HISTORY_PROPS).
+    function restoreCropControls(canvas: Canvas): void {
+      const body = findDeviceBody(canvas)
+      if (body?._crop) attachCropControls(body)
+    }
+
     function syncToZustand(canvas: Canvas, movedTarget?: FabricObject) {
       const slide = activeSlideRef.current
       if (!slide) return
@@ -362,7 +383,17 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       }
 
       const body = findDeviceBody(canvas)
-      if (body && body._baseLeft !== undefined && body._baseTop !== undefined) {
+      if (body && body._baseRawLeft !== undefined && body._baseRawTop !== undefined) {
+        // An mtr drag leaves body.angle at the new tilt. Normalize to the
+        // slider's (-180, 180] range; re-derive the rotated base from the raw
+        // anchors at THIS angle (the render-time _baseLeft/_baseTop only hold
+        // for the angle the render used). Rotating about the body center vs the
+        // render's device-center pivot differ — the offset absorbs the gap, so
+        // the re-render lands exactly where the user left the card.
+        const nextRotation = Math.round(((((body.angle ?? 0) + 180) % 360 + 360) % 360 - 180) * 10) / 10
+        const base = nextRotation
+          ? rotateAround(body._baseRawLeft, body._baseRawTop, body._basePivotX ?? 0, body._basePivotY ?? 0, nextRotation)
+          : { x: body._baseRawLeft, y: body._baseRawTop }
         // Uniform scale only — lockUniScaling guarantees scaleX === scaleY.
         // With centeredScaling, Fabric shifts body.left/top by -deltaW/2/-deltaH/2
         // so the visual *center* stays fixed during a resize. That shift is
@@ -373,8 +404,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const baseH = body.height ?? 0
         const deltaW = baseW * (scaleX - 1)
         const deltaH = baseH * (scaleX - 1)
-        const nextOffsetX = Math.round((body.left ?? 0) - body._baseLeft + deltaW / 2)
-        const nextOffsetY = Math.round((body.top ?? 0) - body._baseTop + deltaH / 2)
+        const nextOffsetX = Math.round((body.left ?? 0) - base.x + deltaW / 2)
+        const nextOffsetY = Math.round((body.top ?? 0) - base.y + deltaH / 2)
         const curScale = slide.deviceFrame.scale ?? 1
         const proposedScale = curScale * scaleX
         // Keep the device within a sane range so users can't accidentally
@@ -384,12 +415,25 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const curX = slide.deviceFrame.offsetX ?? 0
         const curY = slide.deviceFrame.offsetY ?? 0
         const scaleChanged = Math.abs(nextScale - curScale) > 0.001
-        if (nextOffsetX !== curX || nextOffsetY !== curY || scaleChanged) {
+        const rotationChanged = Math.abs(nextRotation - (slide.deviceFrame.rotation ?? 0)) > 0.05
+        if (nextOffsetX !== curX || nextOffsetY !== curY || scaleChanged || rotationChanged) {
           slidePatch.deviceFrame = {
             ...slide.deviceFrame,
             offsetX: nextOffsetX,
             offsetY: nextOffsetY,
             scale: nextScale,
+            rotation: nextRotation,
+          }
+        }
+
+        // Floating-card edge trim: the crop controls keep body._crop current,
+        // and history snapshots carry it — so this same read path restores the
+        // old crop on undo.
+        if (body._crop) {
+          const cur = slide.screenshotStyle?.crop ?? { top: 0, right: 0, bottom: 0, left: 0 }
+          const edges = ['top', 'right', 'bottom', 'left'] as const
+          if (edges.some((k) => Math.abs(body._crop![k] - cur[k]) > 1e-4)) {
+            slidePatch.screenshotStyle = { ...DEFAULT_SHOT_STYLE, ...slide.screenshotStyle, crop: body._crop }
           }
         }
       }
@@ -585,6 +629,36 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       lastBodyPos.current = { left: body.left ?? 0, top: body.top ?? 0 }
     }
 
+    // mtr-drag counterpart of handleDeviceMove: spin the rest of the device
+    // (decorative paths + screenshot + clip) around the body's center — which
+    // centeredRotation keeps fixed mid-drag — by the per-tick angle delta.
+    const lastBodyAngle = useRef<number | null>(null)
+
+    function handleDeviceRotate(canvas: Canvas, body: FabricObject) {
+      // First tick: the render-time angle is the slide's stored rotation.
+      const last = lastBodyAngle.current ?? (activeSlideRef.current?.deviceFrame.rotation ?? 0)
+      const angle = body.angle ?? 0
+      // Normalize so a drag crossing the ±180° seam doesn't spin siblings 360°.
+      const delta = ((angle - last + 540) % 360) - 180
+      lastBodyAngle.current = angle
+      if (!delta) return
+      const pivot = body.getCenterPoint()
+      for (const obj of canvas.getObjects()) {
+        if (obj === body) continue
+        const ln = (obj as FabricObject & { layerName?: string }).layerName
+        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT) continue
+        const p = rotateAround(obj.left ?? 0, obj.top ?? 0, pivot.x, pivot.y, delta)
+        obj.set({ left: p.x, top: p.y, angle: (obj.angle ?? 0) + delta })
+        const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
+        if (clip) {
+          const cp = rotateAround(clip.left ?? 0, clip.top ?? 0, pivot.x, pivot.y, delta)
+          clip.set({ left: cp.x, top: cp.y, angle: (clip.angle ?? 0) + delta })
+          ;(obj as FabricObject).dirty = true
+        }
+        obj.setCoords()
+      }
+    }
+
     useImperativeHandle(ref, () => ({
       undo() {
         const canvas = fabricRef.current
@@ -596,6 +670,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const prev = undoStack.current.pop()!
         baselineRef.current = prev
         canvas.loadFromJSON(prev).then(() => {
+          restoreCropControls(canvas)
           restoreSelection(canvas, selId)
           canvas.renderAll()
           isApplyingHistory.current = false
@@ -613,6 +688,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const next = redoStack.current.pop()!
         baselineRef.current = next
         canvas.loadFromJSON(next).then(() => {
+          restoreCropControls(canvas)
           restoreSelection(canvas, selId)
           canvas.renderAll()
           isApplyingHistory.current = false
@@ -791,11 +867,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               top: o.top,
               width: o.width,
               height: o.height,
+              angle: o.angle,
               text: (o as Textbox).text,
               selectable: o.selectable,
               evented: o.evented,
               baseLeft: base._baseLeft,
               baseTop: base._baseTop,
+              crop: base._crop,
             }
           }),
         }),
@@ -810,6 +888,14 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       canvas.on('mouse:down', () => {
         lastBodyPos.current = null
+        lastBodyAngle.current = null
+      })
+
+      canvas.on('object:rotating', (e) => {
+        const target = e.target
+        if (!target) return
+        const ln = (target as FabricObject & { layerName?: string }).layerName
+        if (ln === LAYER_NAMES.DEVICE_FRAME) handleDeviceRotate(canvas, target)
       })
 
       // Double-click surfaces the object's layer so the panel can jump to the
@@ -880,6 +966,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       canvas.on('object:modified', (e) => {
         lastBodyPos.current = null
+        lastBodyAngle.current = null
         // Drop guides before snapshotting so they never enter history/sync.
         clearDragGuides(canvas)
         // Inside an ActiveSelection, child left/top are relative to the group

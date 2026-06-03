@@ -1,4 +1,4 @@
-import { Canvas, FabricImage, Rect, Shadow } from 'fabric'
+import { Canvas, Control, FabricImage, Point, Rect, Shadow, util } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Slide, ScreenshotImage, ScreenshotStyle, ScreenshotCrop } from '../types/project'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, frameSpecOf } from '../constants/deviceSpecs'
@@ -33,8 +33,9 @@ export function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: num
 }
 
 // Rotate a point around a pivot in canvas (y-down) space. Positive degrees =
-// clockwise, matching Fabric's `angle`.
-function rotateAround(x: number, y: number, cx: number, cy: number, deg: number): { x: number; y: number } {
+// clockwise, matching Fabric's `angle`. Exported so FabricCanvas's sync can
+// re-derive the body's rotated base anchor at the angle the user dragged to.
+export function rotateAround(x: number, y: number, cx: number, cy: number, deg: number): { x: number; y: number } {
   const rad = (deg * Math.PI) / 180
   const cos = Math.cos(rad)
   const sin = Math.sin(rad)
@@ -52,7 +53,7 @@ function rotateObjectAround(obj: FabricObject, cx: number, cy: number, deg: numb
   obj.set({ left: p.x, top: p.y, angle: deg })
 }
 
-const DEFAULT_SHOT_STYLE: ScreenshotStyle = { cornerRadiusRatio: 0.06, shadow: true }
+export const DEFAULT_SHOT_STYLE: ScreenshotStyle = { cornerRadiusRatio: 0.06, shadow: true }
 
 function effectiveShotStyle(slide: Slide): ScreenshotStyle {
   return slide.screenshotStyle ?? DEFAULT_SHOT_STYLE
@@ -71,6 +72,112 @@ export function cropScreenBounds(bounds: ScreenBounds, crop?: ScreenshotCrop): S
     height: Math.max(0, bounds.height * (1 - crop.top - crop.bottom)),
     rx: bounds.rx,
   }
+}
+
+export type CropEdge = 'top' | 'right' | 'bottom' | 'left'
+
+// Per-edge ceiling shared with the panel sliders; 0.45 + 0.45 still leaves 10%
+// of the card, so no pairwise min-size guard is needed.
+const CROP_EDGE_MAX = 0.45
+
+/**
+ * New crop fractions after dragging one edge of the floating-card handle to a
+ * pointer position in the handle's local plane (center origin, unrotated
+ * units). Pure — cropEdgeAction applies the result to the handle + clip.
+ */
+export function trimCrop(
+  edge: CropEdge,
+  local: { x: number; y: number },
+  crop: ScreenshotCrop,
+  full: { w: number; h: number },
+  size: { w: number; h: number },
+): ScreenshotCrop {
+  const clampEdge = (v: number) => Math.min(CROP_EDGE_MAX, Math.max(0, v))
+  switch (edge) {
+    case 'left':
+      return { ...crop, left: clampEdge(crop.left + (local.x + size.w / 2) / full.w) }
+    case 'right':
+      return { ...crop, right: clampEdge(crop.right + (size.w / 2 - local.x) / full.w) }
+    case 'top':
+      return { ...crop, top: clampEdge(crop.top + (local.y + size.h / 2) / full.h) }
+    case 'bottom':
+      return { ...crop, bottom: clampEdge(crop.bottom + (size.h / 2 - local.y) / full.h) }
+  }
+}
+
+// Crop state the floating handle carries so the edge controls (and the sync
+// code) can work without closures — these survive history snapshots, so an
+// undo restores the old crop through the same read path as a live drag.
+export interface CropHandleProps {
+  _crop?: ScreenshotCrop
+  _fullW?: number
+  _fullH?: number
+}
+
+function cropEdgeAction(edge: CropEdge, target: FabricObject, px: number, py: number): boolean {
+  const t = target as FabricObject & CropHandleProps
+  const crop = t._crop
+  const fullW = t._fullW
+  const fullH = t._fullH
+  if (!crop || !fullW || !fullH) return false
+  const local = util.sendPointToPlane(new Point(px, py), undefined, target.calcTransformMatrix())
+  const next = trimCrop(edge, local, crop, { w: fullW, h: fullH }, { w: target.width ?? 0, h: target.height ?? 0 })
+  const dL = (next.left - crop.left) * fullW
+  const dT = (next.top - crop.top) * fullH
+  if (!dL && !dT && next.right === crop.right && next.bottom === crop.bottom) return false
+  // The top-left anchor moves along the handle's rotated axes when the left/top
+  // edge is the one being trimmed; right/bottom trims keep it fixed.
+  const rad = ((target.angle ?? 0) * Math.PI) / 180
+  const geo = {
+    left: (target.left ?? 0) + dL * Math.cos(rad) - dT * Math.sin(rad),
+    top: (target.top ?? 0) + dL * Math.sin(rad) + dT * Math.cos(rad),
+    width: fullW * (1 - next.left - next.right),
+    height: fullH * (1 - next.top - next.bottom),
+  }
+  target.set(geo)
+  target.setCoords()
+  t._crop = next
+  // Mirror the geometry onto the screenshot's absolutely-positioned clip so the
+  // trim is visible mid-drag. The image itself doesn't move — only the mask.
+  const canvas = target.canvas
+  if (canvas) {
+    for (const obj of canvas.getObjects()) {
+      if ((obj as FabricObject & { layerName?: string }).layerName !== LAYER_NAMES.SCREENSHOT) continue
+      const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
+      if (clip) clip.set(geo)
+      // The clip isn't part of the object's transform, so the image's cache
+      // doesn't know it changed — invalidate it explicitly.
+      obj.dirty = true
+      break
+    }
+  }
+  return true
+}
+
+const CROP_CONTROLS: Array<{ key: string; edge: CropEdge; x: number; y: number; cursor: string }> = [
+  { key: 'cropT', edge: 'top', x: 0, y: -0.5, cursor: 'ns-resize' },
+  { key: 'cropB', edge: 'bottom', x: 0, y: 0.5, cursor: 'ns-resize' },
+  { key: 'cropL', edge: 'left', x: -0.5, y: 0, cursor: 'ew-resize' },
+  { key: 'cropR', edge: 'right', x: 0.5, y: 0, cursor: 'ew-resize' },
+]
+
+/**
+ * Edge-trim controls for the floating handle. Reads _crop/_fullW/_fullH off
+ * the body, so FabricCanvas can re-attach after an undo/redo loadFromJSON
+ * (Fabric doesn't serialize controls).
+ */
+export function attachCropControls(body: FabricObject): void {
+  const controls: Record<string, Control> = { ...body.controls }
+  for (const { key, edge, x, y, cursor } of CROP_CONTROLS) {
+    controls[key] = new Control({
+      x,
+      y,
+      cursorStyle: cursor,
+      actionName: 'cropping',
+      actionHandler: (_e, transform, px, py) => cropEdgeAction(edge, transform.target, px, py),
+    })
+  }
+  body.controls = controls
 }
 
 async function renderScreenshotLayer(
@@ -480,17 +587,39 @@ function addDeviceFrame(
         borderColor: '#6366F1',
         cornerColor: '#6366F1',
         hoverCursor: 'move',
-        lockRotation: true,
+        lockRotation: false,
         lockSkewingX: true,
         lockSkewingY: true,
         lockUniScaling: true,
         centeredScaling: true,
+        // Gentle magnetism at the cardinal/diagonal angles so a hand-rotated
+        // device is easy to square back up.
+        snapAngle: 45,
+        snapThreshold: 4,
       })
-      // Only corner handles — middle handles would let the user break aspect.
-      obj.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: false })
+      // Corner handles scale, mtr rotates; standard middle handles stay hidden
+      // (they'd break aspect) — floating mode replaces them with crop controls.
+      obj.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: true })
       const base = angle ? rotateAround(baseLeft, baseTop, basePivotX, basePivotY, angle) : { x: baseLeft, y: baseTop }
-      ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseLeft = base.x
-      ;(obj as typeof obj & { _baseLeft?: number; _baseTop?: number })._baseTop = base.y
+      Object.assign(obj, {
+        _baseLeft: base.x,
+        _baseTop: base.y,
+        // Unrotated anchors so syncToZustand can re-derive the base at whatever
+        // angle an mtr drag ends on (the pre-rotated _baseLeft/_baseTop only
+        // hold for the angle this render used).
+        _baseRawLeft: baseLeft,
+        _baseRawTop: baseTop,
+        _basePivotX: basePivotX,
+        _basePivotY: basePivotY,
+      })
+      if (!slide.deviceFrame.show) {
+        Object.assign(obj, {
+          _crop: { top: 0, right: 0, bottom: 0, left: 0, ...shotCrop },
+          _fullW: layout.width,
+          _fullH: layout.height,
+        })
+        attachCropControls(obj)
+      }
     }
     rotateObjectAround(obj, pivotX, pivotY, angle)
     canvas.add(obj)

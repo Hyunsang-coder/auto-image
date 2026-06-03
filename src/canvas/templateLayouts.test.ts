@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FabricObject } from 'fabric'
-import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout } from './templateLayouts'
+import { addTextBlocks, cropScreenBounds, getDeviceDimensions, getDeviceLayout, rotateAround, trimCrop } from './templateLayouts'
 import { LAYER_NAMES } from './layerNames'
 import type { Caption, Slide } from '../types/project'
 
@@ -173,6 +173,78 @@ describe('cropScreenBounds (floating edge trim)', () => {
       const baseTop = base.top + base.height * crop.top
       expect(Math.round(body.left - baseLeft)).toBe(dx)
       expect(Math.round(body.top - baseTop)).toBe(dy)
+    }
+  })
+})
+
+// trimCrop: dragging one edge control of the floating handle, in handle-local
+// coords (center origin). Only the dragged edge's fraction changes; each edge
+// clamps to [0, 0.45].
+describe('trimCrop (edge-control drag)', () => {
+  const FULL = { w: 400, h: 800 }
+  const ZERO = { top: 0, right: 0, bottom: 0, left: 0 }
+
+  it('drags each edge inward by the local-space distance', () => {
+    const size = { w: 400, h: 800 } // uncropped: handle == full
+    expect(trimCrop('right', { x: 100, y: 0 }, ZERO, FULL, size).right).toBeCloseTo(0.25, 6)
+    expect(trimCrop('left', { x: -100, y: 0 }, ZERO, FULL, size).left).toBeCloseTo(0.25, 6)
+    expect(trimCrop('top', { x: 0, y: -300 }, ZERO, FULL, size).top).toBeCloseTo(0.125, 6)
+    expect(trimCrop('bottom', { x: 0, y: 200 }, ZERO, FULL, size).bottom).toBeCloseTo(0.25, 6)
+  })
+
+  it('leaves the other edges untouched', () => {
+    const crop = { top: 0.1, right: 0.2, bottom: 0.05, left: 0.15 }
+    const size = { w: FULL.w * 0.65, h: FULL.h * 0.85 }
+    const next = trimCrop('right', { x: 0, y: 0 }, crop, FULL, size)
+    expect(next.top).toBe(crop.top)
+    expect(next.bottom).toBe(crop.bottom)
+    expect(next.left).toBe(crop.left)
+  })
+
+  it('accumulates on top of an existing crop', () => {
+    const crop = { ...ZERO, right: 0.2 }
+    const size = { w: FULL.w * 0.8, h: FULL.h } // 320 wide
+    // Right edge sits at local x=160; dragging to 120 trims 40px = 0.1 more.
+    expect(trimCrop('right', { x: 120, y: 0 }, crop, FULL, size).right).toBeCloseTo(0.3, 6)
+  })
+
+  it('clamps to the 0.45 ceiling and the 0 floor (no negative crop)', () => {
+    const size = { w: 400, h: 800 }
+    // Massive inward drag → ceiling.
+    expect(trimCrop('right', { x: -300, y: 0 }, ZERO, FULL, size).right).toBe(0.45)
+    // Outward drag past the full footprint → floor.
+    const cropped = { ...ZERO, right: 0.2 }
+    const croppedSize = { w: 320, h: 800 }
+    expect(trimCrop('right', { x: 400, y: 0 }, cropped, FULL, croppedSize).right).toBe(0)
+  })
+})
+
+// Rotation-aware offset capture: after an mtr drag, sync re-derives the base by
+// rotating the raw (unrotated) anchors at the NEW angle. The identity
+// rotate(P+o, C+o, θ) = rotate(P, C, θ) + o guarantees the captured delta is
+// exactly the user's offset at any tilt.
+describe('offset capture stays exact under rotation', () => {
+  const ANGLES = [0, 15, -30, 90, 179]
+  const OFFSETS = [[0, 0], [60, 40], [-50, -30]] as const
+
+  it('body − rotated raw base === offset for every angle', () => {
+    for (const θ of ANGLES) {
+      for (const [dx, dy] of OFFSETS) {
+        const L = layout('text-top', 440, 956, false, { offsetX: dx, offsetY: dy })!
+        // Production placement (templateLayouts.addDeviceFrame):
+        const bodyLeft = L.centerX - L.width / 2
+        const bodyTop = L.top
+        const pivot = { x: L.centerX, y: L.top + L.height / 2 }
+        const body = rotateAround(bodyLeft, bodyTop, pivot.x, pivot.y, θ)
+        // Raw anchors stored on the body (offset-free):
+        const rawLeft = bodyLeft - dx
+        const rawTop = bodyTop - dy
+        const basePivot = { x: pivot.x - dx, y: pivot.y - dy }
+        // Sync derivation (FabricCanvas.syncToZustand):
+        const base = rotateAround(rawLeft, rawTop, basePivot.x, basePivot.y, θ)
+        expect(Math.round(body.x - base.x)).toBe(dx)
+        expect(Math.round(body.y - base.y)).toBe(dy)
+      }
     }
   })
 })
