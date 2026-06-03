@@ -39,18 +39,31 @@ export const SUPPORTED_LOCALES = [
   { code: 'es-MX', label: '스페인어(멕시코)', name: 'Mexican Spanish' },
 ] as const
 
-// Canvas placeholder copy per locale. The canonical string is first; extra
-// entries are recognized as placeholders too (the starter template uses a
-// different Korean phrasing). Locales without copy fall back to English.
+// Canvas placeholder copy per locale — covers every SUPPORTED_LOCALES entry.
+// The canonical string is first; extra entries are recognized as placeholders
+// too (the starter template uses a different Korean phrasing). Anything
+// outside the map falls back to English.
 const HEADLINE_PLACEHOLDERS: Record<string, readonly string[]> = {
   ko: ['당신의 헤드라인', '헤드라인을 작성하세요'],
   en: ['Your headline'],
   ja: ['あなたの見出し'],
+  de: ['Deine Überschrift'],
+  fr: ['Votre titre'],
+  es: ['Tu titular'],
+  it: ['Il tuo titolo'],
+  'pt-BR': ['Seu título'],
+  'es-MX': ['Tu titular'],
 }
 const BADGE_PLACEHOLDERS: Record<string, readonly string[]> = {
   ko: ['새 기능'],
   en: ['New'],
   ja: ['新機能'],
+  de: ['Neu'],
+  fr: ['Nouveau'],
+  es: ['Nuevo'],
+  it: ['Novità'],
+  'pt-BR': ['Novo'],
+  'es-MX': ['Nuevo'],
 }
 
 export function headlinePlaceholder(locale: string): string {
