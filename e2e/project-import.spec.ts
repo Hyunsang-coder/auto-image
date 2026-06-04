@@ -14,7 +14,7 @@ const MANIFEST = JSON.stringify({
   sourceLocale: 'ko',
   targetLocales: ['en'],
   slides: [
-    { textBlocks: 1, badges: 1 },
+    { textBlocks: 1 },
     { layout: 'text-bottom', textBlocks: 2 },
     { layout: 'hero' },
     { layout: 'split' },
@@ -24,7 +24,6 @@ const MANIFEST = JSON.stringify({
 const CSV = [
   'slide,slideId,field,ko,en',
   '1,,text:0,산책을 기록하세요,Track every walk',
-  '1,,badge:0,새 기능,New',
   '2,,text:0,건강 리포트,Health reports',
   '2,,text:1,매일 자동 정리,Summarized daily',
 ].join('\n')
@@ -49,9 +48,9 @@ test('프로젝트 가져오기: manifest + 이미지 + CSV가 한 번에 프로
     { name: '2.ko.png', mimeType: 'image/png', buffer: decks },
   ])
 
-  // Result modal: 4 slides, 3 screenshots (base+override+base), 8 caption cells.
+  // Result modal: 4 slides, 3 screenshots (base+override+base), 6 caption cells.
   await expect(
-    page.getByText('슬라이드 4장 · 스크린샷 3개 · 캡션 8개 적용'),
+    page.getByText('슬라이드 4장 · 스크린샷 3개 · 캡션 6개 적용'),
   ).toBeVisible()
   await expect(page.getByText(/경고 \d+건 보기/)).not.toBeVisible()
 

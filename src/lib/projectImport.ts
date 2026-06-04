@@ -19,18 +19,14 @@ import {
   MAX_TEXTS,
   SUPPORTED_LOCALES,
   TEMPLATE_FONT_SIZES,
-  accentFromBackground,
-  badgePlaceholder,
   findThemePreset,
   headlinePlaceholder,
-  makeBadge,
   makeProject,
   makeTextBlock,
 } from '../constants/defaults'
 import { DEFAULT_MODEL, MODELS_BY_TYPE } from '../constants/deviceSpecs'
 
 const MAX_SLIDES = 10
-const MAX_BADGES = 10
 
 /** Normalized manifest: defaults resolved, invalid values replaced + warned. */
 export interface ParsedManifest {
@@ -43,10 +39,11 @@ export interface ParsedManifest {
   slides: ParsedSlide[]
 }
 
+// Imported slides are deliberately text + image only — no badge slots, so
+// badge rows in the caption file are skipped (badges stay an editor feature).
 export interface ParsedSlide {
   layout: TemplateType
   textBlocks: number
-  badges: number
   background?: Background
   showDeviceFrame: boolean
 }
@@ -236,16 +233,6 @@ export function parseManifest(text: string): ManifestParseResult {
       }
     }
 
-    let badges = 0
-    if (s.badges !== undefined) {
-      const n = typeof s.badges === 'number' ? Math.floor(s.badges) : NaN
-      if (Number.isInteger(n) && n >= 0 && n <= MAX_BADGES) {
-        badges = n
-      } else {
-        issues.push(`${where}: badges는 0~${MAX_BADGES} — 0 사용`)
-      }
-    }
-
     const background =
       s.background !== undefined
         ? coerceBackground(s.background, where, issues)
@@ -254,7 +241,6 @@ export function parseManifest(text: string): ManifestParseResult {
     return {
       layout,
       textBlocks,
-      badges,
       ...(background ? { background } : {}),
       showDeviceFrame: s.deviceFrame !== false,
     }
@@ -284,7 +270,6 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
   project.sourceLocale = sourceLocale
   project.targetLocales = [...manifest.targetLocales]
 
-  const accent = accentFromBackground(manifest.themeBackground)
   project.slides = project.slides.map((slide, i) => {
     const spec = manifest.slides[i]
     return {
@@ -296,11 +281,6 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
       texts: Array.from({ length: spec.textBlocks }, (_, ti) =>
         makeTextBlock(ti, spec.layout, ti === 0 ? headlinePlaceholder(sourceLocale) : ''),
       ),
-      // Mirror BadgePanel's add(): theme-accent badge, staggered downward.
-      badges: Array.from({ length: spec.badges }, (_, bi) => ({
-        ...makeBadge(badgePlaceholder(sourceLocale), accent),
-        top: Math.min(0.9, 0.03 + bi * 0.09),
-      })),
       ...(spec.background ? { background: structuredClone(spec.background) } : {}),
       ...(spec.showDeviceFrame ? {} : { deviceFrame: { ...slide.deviceFrame, show: false } }),
     }

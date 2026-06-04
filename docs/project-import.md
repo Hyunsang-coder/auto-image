@@ -8,7 +8,7 @@
 |---|---|---|
 | 매니페스트 `.json` | 1 (필수) | 프로젝트 구조 — 이름·기기·로케일·슬라이드 레이아웃/슬롯 |
 | 스크린샷 `.png/.jpg/.webp` | 0+ | `{n}[-설명].{locale}.{ext}` 파일명 규칙으로 슬라이드에 배치 |
-| 캡션 `.csv` 또는 `.json` | 0–1 | localize 템플릿 형식 — 헤드라인/배지 텍스트 + 번역 |
+| 캡션 `.csv` 또는 `.json` | 0–1 | localize 템플릿 형식 — 헤드라인/서브헤드 텍스트 + 번역 |
 
 파일명은 자유 — 매니페스트와 캡션 JSON은 **내용 모양**으로 구분한다: `version` + `slides` 배열이 있으면 매니페스트, `rows` 배열이 있으면 캡션. CSV와 캡션 JSON이 둘 다 있으면 CSV가 이긴다.
 
@@ -24,7 +24,7 @@
   "targetLocales": ["en", "ja"], // 추가 언어 — 기본 []
   "themeBackground": "porcelain",// 프리셋 id 또는 인라인 배경(아래) — 기본: 레퍼런스 그라디언트
   "slides": [                    // 필수, 1~10장. 순서 = 슬라이드 순서
-    { "layout": "text-top", "textBlocks": 1, "badges": 1 },
+    { "layout": "text-top", "textBlocks": 1 },
     { "layout": "text-bottom", "textBlocks": 2 },
     { "layout": "hero", "deviceFrame": false },
     { "layout": "split", "background": { "type": "solid", "color": "#101015" } }
@@ -45,11 +45,12 @@
 | `themeBackground` | string \| object | 레퍼런스 그라디언트 | 문자열 = 테마 프리셋 id. 객체 = `{"type":"solid","color":"#…"}` 또는 `{"type":"gradient","gradient":{"direction":145,"stops":[{"color":"#…","position":0},…]}}`. `image` 불가 |
 | `slides[].layout` | string | `text-top` | `hero` \| `hero-bleed` \| `text-top` \| `text-bottom` \| `split` |
 | `slides[].textBlocks` | 1–4 | `1` | **캡션 슬롯 수.** 텍스트 블록 0 = 헤드라인 |
-| `slides[].badges` | 0–10 | `0` | **배지 슬롯 수** |
 | `slides[].background` | string \| object | 테마 배경 | 슬라이드별 오버라이드 |
 | `slides[].deviceFrame` | boolean | `true` | `false` = 기기 베젤 숨김(스크린샷만 플로팅) |
 
-> **핵심 규칙 — 슬롯이 먼저다.** 캡션 파일의 `text:N` / `badge:N` 행은 매니페스트가 그 슬롯을 선언한 경우에만 채워진다. `textBlocks: 1`인 슬라이드에 `text:1`(서브헤드) 행을 보내면 조용히 건너뛴다(경고 카운트에만 잡힘). 서브헤드가 있는 슬라이드는 `textBlocks: 2`, 배지가 있으면 `badges: 1`을 반드시 선언할 것.
+> **핵심 규칙 — 슬롯이 먼저다.** 캡션 파일의 `text:N` 행은 매니페스트가 그 슬롯을 선언한 경우에만 채워진다. `textBlocks: 1`인 슬라이드에 `text:1`(서브헤드) 행을 보내면 조용히 건너뛴다(경고 카운트에만 잡힘). 서브헤드가 있는 슬라이드는 반드시 `textBlocks: 2`를 선언할 것.
+>
+> **배지는 import 대상이 아니다.** 가져온 슬라이드는 텍스트 + 이미지로만 구성된다(심플 기본형). 캡션 파일의 `badge:N` 행은 건너뛰며, 배지가 필요하면 에디터에서 추가한다.
 
 복구 가능한 문제(미지원 locale/layout/model, 11장 초과, image 배경)는 기본값으로 대체되고 가져오기 결과 모달에 경고로 표시된다. 잘못된 JSON·버전·이름/슬라이드 누락만 전체 실패.
 
@@ -70,13 +71,12 @@
 ```csv
 slide,slideId,field,ko,en,ja
 1,,text:0,산책을 기록하세요,Track every walk,散歩を記録
-1,,badge:0,새 기능,New,新機能
 2,,text:0,건강 리포트,Health reports,健康レポート
 2,,text:1,매일 자동 정리,Summarized daily,毎日自動でまとめ
 ```
 
 - `slideId`는 **비워둘 것** — 새 프로젝트의 슬라이드 id는 가져오기 시점에 생성되므로 1-based `slide` 번호로 매칭된다
-- `field`: `text:0`(헤드라인), `text:1`(서브), `badge:0`…
+- `field`: `text:0`(헤드라인), `text:1`(서브). `badge:N` 행은 건너뜀(배지는 에디터 전용)
 - 언어 열은 자유 구성. `sourceLocale` 열 = 슬라이드 기본 텍스트, 나머지 = 번역. 매니페스트의 `targetLocales`에 없는 언어 열이 와도 자동 추가된다
 - 빈 셀은 건너뜀. JSON 형식도 동일 의미: `{"rows":[{"slide":1,"field":"text:0","texts":{"ko":"…","en":"…"}}]}`
 

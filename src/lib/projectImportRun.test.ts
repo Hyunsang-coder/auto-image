@@ -10,7 +10,7 @@ const MANIFEST = JSON.stringify({
   name: 'Dogo',
   sourceLocale: 'ko',
   targetLocales: ['en'],
-  slides: [{ textBlocks: 1, badges: 1 }, { layout: 'split', textBlocks: 2 }],
+  slides: [{ textBlocks: 1 }, { layout: 'split', textBlocks: 2 }],
 })
 
 describe('routeImportFiles', () => {
@@ -59,11 +59,13 @@ describe('runProjectImport', () => {
       ],
     })
     const r = await runProjectImport([f('copy.json', captions), f('manifest.json', MANIFEST)])
-    expect(r.applied.captions).toBe(4)
+    // The badge row is skipped — imported slides carry no badge slots.
+    expect(r.applied.captions).toBe(3)
+    expect(r.issues.some(i => i.includes('건너뜀'))).toBe(true)
     const s1 = r.project!.slides[0]
     expect(s1.texts[0].text).toBe('홈 화면')
     expect(s1.texts[0].translations.en).toBe('Home')
-    expect(s1.badges[0].text).toBe('새 기능')
+    expect(s1.badges).toHaveLength(0)
     expect(r.project!.slides[1].texts[1].translations.en).toBe('Sub')
   })
 

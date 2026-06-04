@@ -46,7 +46,7 @@ describe('parseManifest normalization', () => {
       sourceLocale: 'ko',
       targetLocales: [],
       themeBackground: DEFAULT_BACKGROUND,
-      slides: [{ layout: 'text-top', textBlocks: 1, badges: 0, showDeviceFrame: true }],
+      slides: [{ layout: 'text-top', textBlocks: 1, showDeviceFrame: true }],
     })
   })
 
@@ -110,21 +110,19 @@ describe('parseManifest normalization', () => {
   it('normalizes per-slide fields with warnings', () => {
     const { manifest, issues } = parseManifest(
       minimal({}, [
-        { layout: 'mosaic', textBlocks: 9, badges: -1 },
-        { layout: 'split', textBlocks: 2, badges: 1, deviceFrame: false },
+        { layout: 'mosaic', textBlocks: 9 },
+        { layout: 'split', textBlocks: 2, deviceFrame: false },
       ]),
     )
     expect(manifest?.slides[0]).toEqual({
       layout: 'text-top',
       textBlocks: 1,
-      badges: 0,
       showDeviceFrame: true,
     })
-    expect(issues).toHaveLength(3)
+    expect(issues).toHaveLength(2)
     expect(manifest?.slides[1]).toEqual({
       layout: 'split',
       textBlocks: 2,
-      badges: 1,
       showDeviceFrame: false,
     })
   })
@@ -135,7 +133,7 @@ describe('buildProjectFromManifest', () => {
     minimal(
       { sourceLocale: 'en', targetLocales: ['ko', 'ja'], device: 'iphone', deviceModel: 'iphone-6-5' },
       [
-        { layout: 'split', textBlocks: 2, badges: 1 },
+        { layout: 'split', textBlocks: 2 },
         { layout: 'hero', deviceFrame: false, background: { type: 'solid', color: '#101010' } },
       ],
     ),
@@ -152,12 +150,12 @@ describe('buildProjectFromManifest', () => {
     expect(p.slides[0].deviceFrame.model).toBe('iphone-6-5')
   })
 
-  it('creates the declared text-block and badge slots', () => {
+  it('creates the declared text-block slots and no badges (text+image only)', () => {
     const p = buildProjectFromManifest(base())
     expect(p.slides[0].texts).toHaveLength(2)
     expect(p.slides[0].texts[0].text).toBe(headlinePlaceholder('en'))
     expect(p.slides[0].texts[1].text).toBe('')
-    expect(p.slides[0].badges).toHaveLength(1)
+    expect(p.slides[0].badges).toHaveLength(0)
     expect(p.slides[1].texts).toHaveLength(1)
     expect(p.slides[1].badges).toHaveLength(0)
   })

@@ -24,7 +24,7 @@ stdout `::` lines. Read the screenshots — the numbers alone are not the verdic
 
 | Step | Expected (with the bundled sample) |
 |---|---|
-| happy-path modal | `Flashcard PDF — 슬라이드 4장 · 스크린샷 4개 · 캡션 21개 적용`, no 경고 toggle |
+| happy-path modal | `Flashcard PDF — 슬라이드 4장 · 스크린샷 4개 · 캡션 18개 적용`, no 경고 toggle |
 | editor thumbs | 4, aria-labels = the CSV's ko headlines |
 | IDB blobs | 0 → 4 after commit → 8 during re-import dry-run → 4 after cancel (gc sweep) |
 | per-locale | slide 1 `편집 언어: en` shows its own screenshot override; `ja` borrows the base |
@@ -43,6 +43,6 @@ stdout `::` lines. Read the screenshots — the numbers alone are not the verdic
   deleting. Keep it that way.
 - Screenshots reuse `e2e/fixtures/iphone_*.png` so `detectTypeFromAspect`
   sees real iPhone aspect ratios. Don't substitute arbitrary images.
-- Known cosmetic default: an imported badge sits at `top: 0.03` (BadgePanel's
-  default) and overlaps the headline on `text-top` slides — flagged
-  2026-06-04, not a harness failure.
+- Imported slides are text + image only by design — the manifest has no badge
+  field and `badge:N` caption rows are skipped with a 건너뜀 warning. A badge
+  appearing on a freshly imported slide is a regression.
