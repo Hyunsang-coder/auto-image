@@ -4,6 +4,7 @@ import {
   buildProjectFromTemplate,
   projectTemplateFromProject,
 } from './projectTemplates'
+import { relocalizePlaceholder } from './defaults'
 
 const REF = BUILTIN_PROJECT_TEMPLATES[0]
 
@@ -31,6 +32,34 @@ describe('buildProjectFromTemplate', () => {
     const b = buildProjectFromTemplate(REF, 'B').slides.find((s) => s.spanGroupId)?.spanGroupId
     expect(a).toBeTruthy()
     expect(a).not.toBe(b)
+  })
+
+  // Built projects start at sourceLocale 'ko'; flipping the locale later relies
+  // on changeSourceLocale recognizing every template string as a placeholder.
+  // If a template literal drifts out of the placeholder tables, the project
+  // gets stranded with Korean text for non-ko users — pin the registration.
+  it('every builtin template text is a registered ko placeholder', () => {
+    for (const tpl of BUILTIN_PROJECT_TEMPLATES) {
+      for (const s of tpl.slides) {
+        for (const c of s.texts) {
+          expect(relocalizePlaceholder(c.text, 'ko', 'en'), c.text).not.toBe(c.text)
+        }
+        for (const b of s.badges ?? []) {
+          expect(relocalizePlaceholder(b.text, 'ko', 'en'), b.text).not.toBe(b.text)
+        }
+      }
+    }
+  })
+
+  it('seeds template text through the placeholder mechanism for the project source locale', () => {
+    const p = buildProjectFromTemplate(REF, 'Loc')
+    for (const s of p.slides) {
+      for (const c of s.texts) {
+        // sourceLocale is ko today, so the seeded text must be the ko
+        // placeholder the template declared (relocalize = identity).
+        expect(relocalizePlaceholder(c.text, p.sourceLocale, 'en')).not.toBe(c.text)
+      }
+    }
   })
 })
 

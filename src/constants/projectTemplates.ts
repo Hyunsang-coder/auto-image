@@ -1,5 +1,10 @@
 import type { Background, Badge, Caption, DeviceType, Ornament, Project, ScreenshotStyle, Slide } from '../types/project'
-import { makeProject, newId } from './defaults'
+import { makeProject, newId, relocalizePlaceholder } from './defaults'
+
+// Templates are authored in Korean; every text literal below must be a
+// registered placeholder (HEADLINE_PLACEHOLDERS.ko) so build-time and
+// changeSourceLocale relocalization recognize it.
+const TEMPLATE_LOCALE = 'ko'
 
 /**
  * A built-in starter that is a whole *set* of slides (a curated multi-slide
@@ -149,8 +154,17 @@ export function buildProjectFromTemplate(tpl: ProjectTemplate, name: string): Pr
       background: structuredClone(s.background),
       deviceFrame: { ...s.deviceFrame },
       screenshot: null,
-      texts: structuredClone(s.texts),
-      badges: (s.badges ?? []).map((b) => ({ ...structuredClone(b), id: newId('badge') })),
+      // Seed placeholder copy in the project's source locale (same mechanism
+      // changeSourceLocale uses), so the template isn't welded to Korean.
+      texts: structuredClone(s.texts).map((c) => ({
+        ...c,
+        text: relocalizePlaceholder(c.text, TEMPLATE_LOCALE, base.sourceLocale),
+      })),
+      badges: (s.badges ?? []).map((b) => ({
+        ...structuredClone(b),
+        id: newId('badge'),
+        text: relocalizePlaceholder(b.text, TEMPLATE_LOCALE, base.sourceLocale),
+      })),
       highlights: [],
       ornaments: (s.ornaments ?? []).map((o) => ({ ...structuredClone(o), id: newId('orn') })),
       screenshotStyle: s.screenshotStyle ? { ...s.screenshotStyle } : undefined,
