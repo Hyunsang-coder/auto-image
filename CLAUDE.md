@@ -34,6 +34,10 @@ E2E specs live in `e2e/` (one per step + a top-level navigation spec). `playwrig
 3. **LocalizeEditor** — translation table (Claude / OpenAI / Gemini)
 4. **ExportPanel** — renders slides to PNG and packages as ZIP
 
+### Project import (step 1)
+
+ProjectSetup also accepts a flat multi-file selection (an AI-authored manifest JSON + screenshots named `{n}[-desc].{locale}.{ext}` + a caption CSV/JSON in the localize template format) and assembles a complete pre-export project in one uncommitted pass; a single result modal shows the summary/warnings and doubles as the overwrite confirmation, committing via one `loadProject`. The manifest is a thin schema over `makeProject`/`makeSlide` (NOT the internal `Project` type) — its per-slide `textBlocks`/`badges` counts pre-create the slots the caption file fills, because caption rows whose slot doesn't exist are skipped. Fresh slide ids can't match a pre-authored file, so caption rows match by 1-based `slide` index (`slideId` left blank). `.json` files are classified by shape (`version`+`slides` = manifest, `rows` = captions; CSV wins over caption JSON). Pure pipeline: `src/lib/projectImport.ts` (parse/normalize → build) + `src/lib/projectImportRun.ts` (routing + orchestration, returns an uncommitted Project; cancel relies on `gcImages` to sweep the blobs `importBulkImages` already persisted). Agent-facing spec: `docs/project-import.md`.
+
 ### State management
 
 Two Zustand stores (both with `localStorage` persist):
