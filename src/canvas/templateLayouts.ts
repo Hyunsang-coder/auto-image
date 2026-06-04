@@ -1,6 +1,6 @@
 import { Canvas, Control, FabricImage, Point, Rect, Shadow, util } from 'fabric'
 import type { FabricObject } from 'fabric'
-import type { Slide, ScreenshotImage, ScreenshotStyle, ScreenshotCrop } from '../types/project'
+import type { Slide, Caption, TemplateType, ScreenshotImage, ScreenshotStyle, ScreenshotCrop } from '../types/project'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, frameSpecOf } from '../constants/deviceSpecs'
 import { rotateAround } from './geometry'
 import { renderBackground } from './objects/background'
@@ -365,11 +365,28 @@ function floatingScreenBounds(layout: DeviceLayout, style: ScreenshotStyle): Scr
   }
 }
 
+/**
+ * Which page a text pass belongs to on a 2-page span. Caption fractions
+ * (pos/boxWidth) denormalize against `cw` (the page width, not the wide
+ * canvas) and shift by `offsetX` (follower = one page right), so each slide's
+ * texts are normalized to its own page. Absent = single-slide render.
+ */
+interface TextRegion {
+  cw: number
+  offsetX: number
+  owner: 'leader' | 'follower'
+}
+
 export async function applyTemplate(
   canvas: Canvas,
   slide: Slide,
   dims?: { width: number; height: number },
-  opts?: { spanCentered?: boolean; resolveUrl?: ImageUrlResolver },
+  opts?: {
+    spanCentered?: boolean
+    resolveUrl?: ImageUrlResolver
+    /** Span only: the follower's texts, laid on the right page with its own template anchors. */
+    spanFollower?: { texts: Caption[]; template: TemplateType }
+  },
 ): Promise<void> {
   canvas.clear()
 
@@ -436,17 +453,23 @@ export async function applyTemplate(
     }
   }
 
-  // 4. Text + device frame border
-  if (template === 'hero') {
-    applyHero(canvas, slide, cw, ch, scale)
-  } else if (template === 'hero-bleed') {
-    applyHeroBleed(canvas, slide, cw, ch, deviceLayout, scale)
-  } else if (template === 'text-top') {
-    applyTextTop(canvas, slide, cw, ch, deviceLayout, scale)
-  } else if (template === 'text-bottom') {
-    applyTextBottom(canvas, slide, cw, ch, deviceLayout, scale)
-  } else if (template === 'split') {
-    applySplit(canvas, slide, cw, ch, deviceLayout, scale)
+  // 4. Text + device frame border. On a span each slide's texts lay out
+  // against its own page width: leader on the left page, follower on the
+  // right. The follower pass reuses its own template's text anchors with a
+  // null device layout (the shared frame was already laid by the leader), so
+  // its texts sit above the device but below highlights/badges.
+  const leaderRegion: TextRegion | undefined = spanCentered
+    ? { cw: cw / 2, offsetX: 0, owner: 'leader' }
+    : undefined
+  applyTextAndFrame(canvas, slide, cw, ch, deviceLayout, scale, leaderRegion)
+  if (spanCentered && opts?.spanFollower) {
+    const f = opts.spanFollower
+    const shim = { ...slide, texts: f.texts, template: f.template }
+    applyTextAndFrame(canvas, shim, cw, ch, null, scale, {
+      cw: cw / 2,
+      offsetX: cw / 2,
+      owner: 'follower',
+    })
   }
 
   // 5. Highlights — magnified loupe cards glued onto their source spot.
@@ -480,6 +503,7 @@ export function addTextBlocks(
   canvas: Canvas,
   slide: Slide,
   opts: {
+    /** Page width the caption fractions denormalize against (span: halfWidth). */
     cw: number
     ch: number
     headlineCenterX: number
@@ -488,10 +512,14 @@ export function addTextBlocks(
     align?: 'left' | 'center' | 'right'
     gap?: number
     scale: number
+    /** Canvas-x of the owning page's left edge (span follower: halfWidth). */
+    offsetX?: number
+    owner?: 'leader' | 'follower'
   },
 ): void {
   const align = opts.align ?? 'center'
   const gap = (opts.gap ?? 12) * opts.scale
+  const offsetX = opts.offsetX ?? 0
 
   // A caption with a user-dragged `pos` overrides the template anchor (absolute,
   // does NOT advance the stack); the stored fractions are denormalized against
@@ -500,7 +528,7 @@ export function addTextBlocks(
   let cursorTop = opts.headlineTop
   slide.texts.forEach((caption, i) => {
     const absolute = !!caption.pos
-    const centerX = absolute ? caption.pos!.x * opts.cw : opts.headlineCenterX
+    const centerX = offsetX + (absolute ? caption.pos!.x * opts.cw : opts.headlineCenterX)
     const top = absolute ? caption.pos!.y * opts.ch : cursorTop
     const width = caption.boxWidth != null ? Math.min(caption.boxWidth, 1) * opts.cw : opts.width
     const obj = renderCaption(caption, {
@@ -509,6 +537,7 @@ export function addTextBlocks(
       width,
       layerName: LAYER_NAMES.TEXT,
       textIndex: i,
+      owner: opts.owner,
       scale: opts.scale,
     })
     // The caption's own textAlign is the source of truth (the panel sets it, and
@@ -523,20 +552,53 @@ export function addTextBlocks(
   })
 }
 
+/**
+ * Text + device-frame pass for one slide's template. `text` scopes the text
+ * layout to one page of a span (page width + offset + owner tag); the device
+ * frame always lays against the full canvas via `layout` — pass null to skip
+ * it (the span follower pass: the shared frame is the leader's).
+ */
+function applyTextAndFrame(
+  canvas: Canvas,
+  slide: Slide,
+  cw: number,
+  ch: number,
+  layout: DeviceLayout | null,
+  scale: number,
+  text?: TextRegion,
+): void {
+  const template = slide.template
+  if (template === 'hero') {
+    applyHero(canvas, slide, cw, ch, scale, text)
+  } else if (template === 'hero-bleed') {
+    applyHeroBleed(canvas, slide, cw, ch, layout, scale, text)
+  } else if (template === 'text-top') {
+    applyTextTop(canvas, slide, cw, ch, layout, scale, text)
+  } else if (template === 'text-bottom') {
+    applyTextBottom(canvas, slide, cw, ch, layout, scale, text)
+  } else if (template === 'split') {
+    applySplit(canvas, slide, cw, ch, layout, scale, text)
+  }
+}
+
 function applyHero(
   canvas: Canvas,
   slide: Slide,
   cw: number,
   ch: number,
   scale: number,
+  text?: TextRegion,
 ): void {
+  const tw = text?.cw ?? cw
   addTextBlocks(canvas, slide, {
-    cw,
+    cw: tw,
     ch,
-    headlineCenterX: cw / 2,
+    headlineCenterX: tw / 2,
     headlineTop: ch * 0.42,
-    width: cw * 0.85,
+    width: tw * 0.85,
     scale,
+    offsetX: text?.offsetX,
+    owner: text?.owner,
   })
 }
 
@@ -657,15 +719,19 @@ function applyTextTop(
   ch: number,
   layout: DeviceLayout | null,
   scale: number,
+  text?: TextRegion,
 ): void {
+  const tw = text?.cw ?? cw
   addTextBlocks(canvas, slide, {
-    cw,
+    cw: tw,
     ch,
-    headlineCenterX: cw / 2,
+    headlineCenterX: tw / 2,
     headlineTop: ch * 0.05,
-    width: cw * 0.85,
+    width: tw * 0.85,
     gap: 8,
     scale,
+    offsetX: text?.offsetX,
+    owner: text?.owner,
   })
   addDeviceFrame(canvas, slide, layout, scale)
 }
@@ -677,16 +743,20 @@ function applyTextBottom(
   ch: number,
   layout: DeviceLayout | null,
   scale: number,
+  text?: TextRegion,
 ): void {
   addDeviceFrame(canvas, slide, layout, scale)
+  const tw = text?.cw ?? cw
   addTextBlocks(canvas, slide, {
-    cw,
+    cw: tw,
     ch,
-    headlineCenterX: cw / 2,
+    headlineCenterX: tw / 2,
     headlineTop: ch * 0.74,
-    width: cw * 0.85,
+    width: tw * 0.85,
     gap: 8,
     scale,
+    offsetX: text?.offsetX,
+    owner: text?.owner,
   })
 }
 
@@ -697,16 +767,20 @@ function applySplit(
   ch: number,
   layout: DeviceLayout | null,
   scale: number,
+  text?: TextRegion,
 ): void {
+  const tw = text?.cw ?? cw
   addTextBlocks(canvas, slide, {
-    cw,
+    cw: tw,
     ch,
-    headlineCenterX: cw * 0.21,
+    headlineCenterX: tw * 0.21,
     headlineTop: ch * 0.32,
-    width: cw * 0.37,
+    width: tw * 0.37,
     align: 'left',
     gap: 10,
     scale,
+    offsetX: text?.offsetX,
+    owner: text?.owner,
   })
   addDeviceFrame(canvas, slide, layout, scale)
 }
@@ -722,16 +796,20 @@ function applyHeroBleed(
   ch: number,
   layout: DeviceLayout | null,
   scale: number,
+  text?: TextRegion,
 ): void {
+  const tw = text?.cw ?? cw
   addTextBlocks(canvas, slide, {
-    cw,
+    cw: tw,
     ch,
-    headlineCenterX: cw * 0.25,
+    headlineCenterX: tw * 0.25,
     headlineTop: ch * 0.06,
-    width: cw * 0.46,
+    width: tw * 0.46,
     align: 'left',
     gap: 10,
     scale,
+    offsetX: text?.offsetX,
+    owner: text?.owner,
   })
   addDeviceFrame(canvas, slide, layout, scale)
 }
