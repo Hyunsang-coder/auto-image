@@ -9,6 +9,7 @@ import { useProjectStore } from './store/useProjectStore'
 import { useLibraryStore } from './store/useLibraryStore'
 import { useCustomStore } from './store/useCustomStore'
 import { projectTemplateFromProject } from './constants/projectTemplates'
+import { newId } from './constants/defaults'
 import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
@@ -21,6 +22,7 @@ function App() {
   const resetProject = useProjectStore((s) => s.resetProject)
   const updateProject = useProjectStore((s) => s.updateProject)
   const saveProject = useLibraryStore((s) => s.saveProject)
+  const savedProjects = useLibraryStore((s) => s.projects)
   const addProjectTemplate = useCustomStore((s) => s.addProjectTemplate)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -62,9 +64,16 @@ function App() {
     setShowSaveModal(true)
   }
 
-  function handleSaveProject() {
+  // Whether the active project already has a saved snapshot — gates the
+  // overwrite-vs-save-as-new choice in the save modal.
+  const existsInLibrary = !!project && savedProjects.some((p) => p.id === project.id)
+
+  function handleSaveProject(asNew = false) {
     const name = saveName.trim() || project?.name || '제목 없음'
-    updateProject({ name })
+    // A fresh id makes the library upsert create a separate entry; the active
+    // project becomes that copy, so the original snapshot stays untouched and
+    // later saves update the copy.
+    updateProject(asNew ? { id: newId('project'), name } : { name })
     const current = useProjectStore.getState().project
     if (current) saveProject(current)
     setShowSaveModal(false)
@@ -184,7 +193,9 @@ function App() {
       {showSaveModal && (
         <Modal title="프로젝트 저장" onClose={() => setShowSaveModal(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              현재 작업을 보관합니다. 이미 저장한 프로젝트라면 이 이름으로 갱신됩니다.
+              {existsInLibrary
+                ? '이미 저장된 프로젝트입니다. 기존 항목을 이 이름으로 덮어쓰거나, 원본은 그대로 두고 새 프로젝트로 저장할 수 있습니다.'
+                : '현재 작업을 보관합니다.'}
             </p>
             <input
               value={saveName}
@@ -205,12 +216,21 @@ function App() {
               >
                 취소
               </button>
+              {existsInLibrary && (
+                <button
+                  type="button"
+                  onClick={() => handleSaveProject(true)}
+                  className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+                >
+                  새 프로젝트로 저장
+                </button>
+              )}
               <button
                 type="button"
-                onClick={handleSaveProject}
+                onClick={() => handleSaveProject()}
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
-                저장
+                {existsInLibrary ? '덮어쓰기' : '저장'}
               </button>
             </div>
         </Modal>
