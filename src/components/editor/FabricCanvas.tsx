@@ -492,9 +492,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       // Sync the loupe cards. A dragged card moves its sampling region: the
       // card's center maps back through the screen box (un-rotating with the
-      // tilt the card was RENDERED at — _renderRot — so a device-rotation
-      // gesture, which leaves the card object untouched, derives the unchanged
-      // region instead of drifting it).
+      // tilt the card was RENDERED at — _renderRot. A device move/rotate
+      // gesture carries the card along AND keeps _renderRot/_screenBounds in
+      // step, so the same inverse mapping derives the unchanged region).
       const hlPopupObjs = objects.filter(
         (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.HIGHLIGHT_POPUP,
       )
@@ -613,11 +613,17 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       for (const obj of canvas.getObjects()) {
         if (obj === body) continue
         const ln = (obj as FabricObject & { layerName?: string }).layerName
-        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT) continue
+        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.HIGHLIGHT_POPUP) continue
         obj.set({ left: (obj.left ?? 0) + dx, top: (obj.top ?? 0) + dy })
         const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
         if (clip) {
           clip.set({ left: (clip.left ?? 0) + dx, top: (clip.top ?? 0) + dy })
+        }
+        // Shift the screen-box stash with the shot so the loupe sync still maps
+        // the (also shifted) card center back to the unchanged region.
+        const stash = obj as FabricObject & { _screenBounds?: { left: number; top: number; width: number; height: number } }
+        if (stash._screenBounds) {
+          stash._screenBounds = { ...stash._screenBounds, left: stash._screenBounds.left + dx, top: stash._screenBounds.top + dy }
         }
         obj.setCoords()
       }
@@ -641,6 +647,23 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       for (const obj of canvas.getObjects()) {
         if (obj === body) continue
         const ln = (obj as FabricObject & { layerName?: string }).layerName
+        if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
+          // The loupe rides its region's pixel position but keeps its own tilt:
+          // orbit the card's center around the pivot without spinning it.
+          const o = obj as FabricObject & { clipPath?: FabricObject; _renderRot?: number }
+          const c = obj.getCenterPoint()
+          const nc = rotateAround(c.x, c.y, pivot.x, pivot.y, delta)
+          obj.set({ left: (obj.left ?? 0) + nc.x - c.x, top: (obj.top ?? 0) + nc.y - c.y })
+          if (o.clipPath) {
+            o.clipPath.set({ left: (o.clipPath.left ?? 0) + nc.x - c.x, top: (o.clipPath.top ?? 0) + nc.y - c.y })
+            obj.dirty = true
+          }
+          // Sync un-rotates the card center with the tilt it was rendered at —
+          // the gesture has effectively re-rendered it at +delta.
+          o._renderRot = (o._renderRot ?? 0) + delta
+          obj.setCoords()
+          continue
+        }
         if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT) continue
         const p = rotateAround(obj.left ?? 0, obj.top ?? 0, pivot.x, pivot.y, delta)
         obj.set({ left: p.x, top: p.y, angle: (obj.angle ?? 0) + delta })
@@ -649,6 +672,15 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           const cp = rotateAround(clip.left ?? 0, clip.top ?? 0, pivot.x, pivot.y, delta)
           clip.set({ left: cp.x, top: cp.y, angle: (clip.angle ?? 0) + delta })
           ;(obj as FabricObject).dirty = true
+        }
+        // Swing the screen-box stash's center around the pivot too, so the
+        // loupe sync (which un-rotates about the stash center) keeps deriving
+        // the unchanged region from the orbited card.
+        const stash = obj as FabricObject & { _screenBounds?: { left: number; top: number; width: number; height: number } }
+        if (stash._screenBounds) {
+          const s = stash._screenBounds
+          const sc = rotateAround(s.left + s.width / 2, s.top + s.height / 2, pivot.x, pivot.y, delta)
+          stash._screenBounds = { ...s, left: sc.x - s.width / 2, top: sc.y - s.height / 2 }
         }
         obj.setCoords()
       }

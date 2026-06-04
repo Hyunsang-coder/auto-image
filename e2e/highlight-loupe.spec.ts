@@ -129,6 +129,89 @@ test('팝업을 mtr 핸들로 회전하면 rotation이 저장·복원됨', async
     .not.toBe(0)
 })
 
+test('기기 드래그 중에도 돋보기가 함께 움직이고 영역은 변하지 않는다', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    const body = ed.findByLayer('device-frame')!
+    const shot = ed.findByLayer('screenshot')!
+    return {
+      popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
+      shot: { left: shot.left ?? 0, top: shot.top ?? 0 },
+      grab: { x: (body.left ?? 0) + (body.width ?? 0) / 2, y: (body.top ?? 0) + 20 },
+    }
+  })
+  const regionBefore = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0]?.sourceRegion : null
+  })
+  const box = (await page.locator('canvas.upper-canvas').boundingBox())!
+  // 팝업 밖(기기 상단)을 잡고 드래그 — mouse.up 전 중간 상태를 검사한다.
+  const grab = { x: box.x + before.grab.x, y: box.y + before.grab.y }
+  await page.mouse.move(grab.x, grab.y)
+  await page.mouse.down()
+  for (let i = 1; i <= 6; i++) {
+    await page.mouse.move(grab.x + (90 * i) / 6, grab.y + (60 * i) / 6)
+  }
+  // 드래그 중간(릴리즈 전): 돋보기는 스크린샷 픽셀에 붙어 있어야 한다 —
+  // 카드의 이동량이 스크린샷의 이동량과 같다.
+  const mid = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    const shot = ed.findByLayer('screenshot')!
+    return {
+      popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
+      shot: { left: shot.left ?? 0, top: shot.top ?? 0 },
+    }
+  })
+  const shotDelta = { x: mid.shot.left - before.shot.left, y: mid.shot.top - before.shot.top }
+  expect(Math.abs(shotDelta.x)).toBeGreaterThan(40) // 실제로 끌렸는지부터 확인
+  expect(mid.popup.x - before.popup.x).toBeCloseTo(shotDelta.x, 0)
+  expect(mid.popup.y - before.popup.y).toBeCloseTo(shotDelta.y, 0)
+  await page.mouse.up()
+  // 릴리즈 → sync가 오프셋을 기록할 때까지 대기한 뒤, 영역은 그대로인지 확인
+  // (글루 이동이 sourceRegion으로 새어들면 안 된다).
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('auto-image:project')
+        const df = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.deviceFrame : null
+        return df ? (df.offsetX ?? 0) !== 0 || (df.offsetY ?? 0) !== 0 : false
+      }),
+    )
+    .toBe(true)
+  const regionAfter = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0]?.sourceRegion : null
+  })
+  expect(regionAfter).toEqual(regionBefore)
+})
+
+test('기기를 mtr로 회전시켜도 영역과 팝업 기울기는 변하지 않는다', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0] : null
+    return h ? { sourceRegion: h.sourceRegion, rotation: h.popup.rotation ?? 0 } : null
+  })
+  await selectLayer(page, 'device-frame')
+  const mtr = await controlPos(page, 'device-frame', 'mtr')
+  await drag(page, mtr, { x: mtr.x + 90, y: mtr.y + 40 })
+  // 회전이 스토어에 기록될 때까지 대기 — 그 sync가 영역을 건드리면 안 된다.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('auto-image:project')
+        const df = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.deviceFrame : null
+        return df ? (df.rotation ?? 0) !== 0 : false
+      }),
+    )
+    .toBe(true)
+  const after = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0] : null
+    return h ? { sourceRegion: h.sourceRegion, rotation: h.popup.rotation ?? 0 } : null
+  })
+  expect(after).toEqual(before)
+})
+
 test('기기를 회전하면 돋보기가 원본 지점을 따라간다', async ({ page }) => {
   const before = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!

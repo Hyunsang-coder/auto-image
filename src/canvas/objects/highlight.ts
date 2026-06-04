@@ -157,9 +157,9 @@ export async function renderHighlight(
     LAYER_NAMES.HIGHLIGHT_POPUP
   ;(img as FabricImage & { highlightId: string }).highlightId = highlight.id
   // The device tilt this render used. Sync un-rotates the dragged loupe with
-  // THIS value (not the store's current one), so a device-rotation gesture —
-  // which leaves the loupe object where it was — derives the unchanged region
-  // instead of drifting it.
+  // THIS value (not the store's current one); a device-rotation gesture orbits
+  // the card and advances _renderRot in step, so the inverse mapping keeps
+  // deriving the unchanged region.
   ;(img as FabricImage & { _renderRot: number })._renderRot = ctx.rotation ?? 0
   return img
 }
