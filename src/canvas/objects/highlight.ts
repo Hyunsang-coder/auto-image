@@ -128,7 +128,7 @@ export async function renderHighlight(
 
   // Round the popup card. clipPath uses absolute coords so it tracks the image
   // position; sync code re-creates the clip after a drag.
-  const radius = popup.borderRadius ?? Math.min(popupW, popupH) * 0.06
+  const radius = Math.min(popupW, popupH) * 0.06
   img.clipPath = new Rect({
     left,
     top,
@@ -145,7 +145,7 @@ export async function renderHighlight(
   // Soft floating-card shadow. nonScaling keeps the shadow constant if the
   // user resizes the popup so it doesn't blow up to an unusable blur.
   img.shadow = new Shadow({
-    color: popup.shadowColor ?? 'rgba(15, 23, 42, 0.32)',
+    color: 'rgba(15, 23, 42, 0.32)',
     blur: Math.max(14, popupW * 0.04),
     offsetX: 0,
     offsetY: Math.max(8, popupW * 0.025),
@@ -162,28 +162,4 @@ export async function renderHighlight(
   // deriving the unchanged region.
   ;(img as FabricImage & { _renderRot: number })._renderRot = ctx.rotation ?? 0
   return img
-}
-
-/**
- * Recompute the popup's clipPath after a drag/resize so its rounded mask
- * tracks the image's new absolute position.
- */
-export function syncPopupClipPath(img: FabricImage): void {
-  const w = (img.width ?? 0) * (img.scaleX ?? 1)
-  const h = (img.height ?? 0) * (img.scaleY ?? 1)
-  const left = img.left ?? 0
-  const top = img.top ?? 0
-  const radius = Math.min(w, h) * 0.06
-  img.clipPath = new Rect({
-    left,
-    top,
-    width: w,
-    height: h,
-    rx: radius,
-    ry: radius,
-    angle: img.angle ?? 0,
-    originX: 'left',
-    originY: 'top',
-    absolutePositioned: true,
-  })
 }
