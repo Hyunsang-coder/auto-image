@@ -1,5 +1,6 @@
 import type { Background, Badge, Caption, DeviceType, Ornament, Project, ScreenshotStyle, Slide } from '../types/project'
 import { makeProject, newId, relocalizePlaceholder } from './defaults'
+import { splitLeaderTexts } from '../lib/spanTextMigration'
 
 // Templates are authored in Korean; every text literal below must be a
 // registered placeholder (HEADLINE_PLACEHOLDERS.ko) so build-time and
@@ -86,6 +87,8 @@ export const BUILTIN_PROJECT_TEMPLATES: ProjectTemplate[] = [
           },
         ],
       },
+      // Span pair: texts are per-slide (each normalized to its own page) —
+      // the leader holds the left page's caption, the follower the right's.
       {
         template: 'text-bottom',
         background: REFERENCE_BG,
@@ -95,15 +98,8 @@ export const BUILTIN_PROJECT_TEMPLATES: ProjectTemplate[] = [
             text: '헤드라인을 작성하세요',
             translations: {},
             style: { fontFamily: 'Pretendard', fontSize: 35, fontWeight: 700, color: '#1C1C24', textAlign: 'left', letterSpacing: -2.2, lineHeight: 1 },
-            pos: { x: 0.2542, y: 0.1704 },
-            boxWidth: 0.4312,
-          },
-          {
-            text: '헤드라인을 작성하세요',
-            translations: {},
-            style: { fontFamily: 'Pretendard', fontSize: 35, fontWeight: 700, color: '#000000', textAlign: 'right', letterSpacing: -0.4, lineHeight: 1.22 },
-            pos: { x: 0.7355, y: 0.8873 },
-            boxWidth: 0.4267,
+            pos: { x: 0.5084, y: 0.1704 },
+            boxWidth: 0.8624,
           },
         ],
         span: { group: 'a', role: 'leader' },
@@ -114,9 +110,11 @@ export const BUILTIN_PROJECT_TEMPLATES: ProjectTemplate[] = [
         deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black' },
         texts: [
           {
-            text: '당신의 헤드라인',
+            text: '헤드라인을 작성하세요',
             translations: {},
-            style: { fontFamily: 'Pretendard', fontSize: 40, fontWeight: 900, color: '#1C1C24', textAlign: 'center', letterSpacing: -2.2, lineHeight: 1.02 },
+            style: { fontFamily: 'Pretendard', fontSize: 35, fontWeight: 700, color: '#000000', textAlign: 'right', letterSpacing: -0.4, lineHeight: 1.22 },
+            pos: { x: 0.471, y: 0.8873 },
+            boxWidth: 0.8534,
           },
         ],
         span: { group: 'a', role: 'follower' },
@@ -173,6 +171,32 @@ export function buildProjectFromTemplate(tpl: ProjectTemplate, name: string): Pr
     }
   })
   return { ...base, slides }
+}
+
+/**
+ * One-time custom-store v2→v3 transform: templates saved before the span
+ * text-ownership change carry every span caption on the leader in wide-canvas
+ * coordinates. Split them into per-slide ownership (right-half captions move
+ * to the follower, fractions renormalize to the owning page).
+ */
+export function migrateTemplateSpanTexts(tpl: ProjectTemplate): ProjectTemplate {
+  const byGroup = new Map<string, { leader?: number; follower?: number }>()
+  tpl.slides.forEach((s, i) => {
+    if (!s.span) return
+    const entry = byGroup.get(s.span.group) ?? {}
+    entry[s.span.role] = i
+    byGroup.set(s.span.group, entry)
+  })
+  let changed = false
+  const slides = tpl.slides.slice()
+  for (const { leader, follower } of byGroup.values()) {
+    if (leader == null || follower == null) continue
+    const { leaderTexts, followerTexts } = splitLeaderTexts(slides[leader].texts)
+    slides[leader] = { ...slides[leader], texts: leaderTexts }
+    slides[follower] = { ...slides[follower], texts: followerTexts }
+    changed = true
+  }
+  return changed ? { ...tpl, slides } : tpl
 }
 
 /**
