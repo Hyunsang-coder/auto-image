@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
-import { useProjectStore, spanLeaderOf } from '../../store/useProjectStore'
+import { useProjectStore, spanLeaderOf, findSpanPartner } from '../../store/useProjectStore'
 import { SlideList } from './SlideList'
 import { useResizable } from './useResizable'
 import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
@@ -93,15 +93,6 @@ export function EditorLayout() {
     direction: 'invert',
   })
 
-  function handleElementActivate(layerName: string | null) {
-    if (layerName === null) {
-      setPanelTab('background')
-      return
-    }
-    const tab = LAYER_TAB[layerName]
-    if (tab) setPanelTab(tab)
-  }
-
   // Canvas keyboard shortcuts wired to the canvas handle.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -180,17 +171,23 @@ export function EditorLayout() {
   if (activeSlideId && liveIds.has(activeSlideId)) displaySelectedIds.add(activeSlideId)
 
   const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
-  // When the clicked slide is part of a span group, the leader owns all the
-  // layer data — route both the canvas render and every update target there.
-  // `clickedSlide` is still useful for SlideList highlighting (kept in store).
+  // When the clicked slide is part of a span group, the leader owns the shared
+  // layers — route the canvas render and non-text update targets there. Texts
+  // are per-slide: the follower owns the right page's captions, so the caption
+  // tab follows `clickedSlide` (see captionSlide below).
   const slide = spanLeaderOf(project.slides, clickedSlide)
   const editTargetId = slide?.id ?? null
   const isGrouped = !!slide?.spanGroupId
+  const spanFollower = isGrouped && slide
+    ? findSpanPartner(project.slides, slide)?.follower ?? null
+    : null
 
   // Locale edit mode: the canvas renders the slide resolved for that locale and
   // routes edits into its overrides. '' = shared/base view (edit everything).
   const isLocaleMode = !!editLocale
   const canvasSlide = isLocaleMode && slide ? resolveSlideForLocale(slide, editLocale) : slide
+  const canvasFollower =
+    isLocaleMode && spanFollower ? resolveSlideForLocale(spanFollower, editLocale) : spanFollower
   // Editable locales. project.locales is the new peer list; until setup writes
   // it (a later phase), fall back to the translation targets.
   const localeOptions = project.locales ?? project.targetLocales
@@ -200,6 +197,29 @@ export function EditorLayout() {
   // shared base. Panel handlers build patches off this so they reflect what the
   // user sees; applyEdit then routes the patch to the right place.
   const editingSlide = canvasSlide
+
+  // Caption ownership follows the clicked slide: clicking the follower half
+  // edits ITS texts (the right page); every other tab keeps the leader.
+  const isFollowerActive = !!spanFollower && clickedSlide?.spanRole === 'follower'
+  const captionSlide = isFollowerActive ? canvasFollower : null
+
+  function handleElementActivate(layerName: string | null, owner?: 'leader' | 'follower') {
+    if (layerName === null) {
+      setPanelTab('background')
+      return
+    }
+    // Dblclicking a span caption hands the active slide to its owner so the
+    // caption tab edits the text that was actually clicked.
+    if (layerName === LAYER_NAMES.TEXT && isGrouped && owner) {
+      const ownerId = owner === 'follower' ? spanFollower?.id : slide?.id
+      if (ownerId && ownerId !== activeSlideId) {
+        setActiveSlide(ownerId)
+        setSelectedIds(new Set([ownerId]))
+      }
+    }
+    const tab = LAYER_TAB[layerName]
+    if (tab) setPanelTab(tab)
+  }
 
   // Screenshot donor: in locale mode a locale with no own screenshot can borrow
   // another locale's (default = base). Offer it only when there's a donor to
@@ -221,15 +241,27 @@ export function EditorLayout() {
 
   // Single write path. In locale mode the patch is rerouted into that locale's
   // overrides (text → translations, look → localeOverrides, shared elements →
-  // base); otherwise it edits the shared base directly.
-  function applyEdit(patch: Partial<Slide>) {
+  // base); otherwise it edits the shared base directly. `followerPatch` carries
+  // span-follower text edits (from the canvas sync or theme presets) — routed
+  // against the follower's own base and written in the same store set().
+  function applyEdit(patch: Partial<Slide>, followerPatch?: Partial<Slide>) {
     if (!editTargetId) return
+    const patches: Record<string, Partial<Slide>> = {}
     if (isLocaleMode && slide) {
       const routed = routeLocalePatch(slide, editLocale, patch)
-      if (Object.keys(routed).length) updateSlide(editTargetId, routed)
-      return
+      if (Object.keys(routed).length) patches[editTargetId] = routed
+      if (followerPatch && spanFollower) {
+        const routedF = routeLocalePatch(spanFollower, editLocale, followerPatch)
+        if (Object.keys(routedF).length) patches[spanFollower.id] = routedF
+      }
+    } else {
+      patches[editTargetId] = patch
+      if (followerPatch && spanFollower) patches[spanFollower.id] = followerPatch
     }
-    updateSlide(editTargetId, patch)
+    const ids = Object.keys(patches)
+    if (!ids.length) return
+    if (ids.length === 1) updateSlide(ids[0], patches[ids[0]])
+    else updateSlides(patches)
   }
 
   const handleSlideChange = applyEdit
@@ -296,6 +328,17 @@ export function EditorLayout() {
   }
 
   function handleTextsChange(texts: Caption[]) {
+    // Caption-tab edits target the clicked slide: the follower's texts are its
+    // own (right page), so they bypass the leader-routed applyEdit.
+    if (isFollowerActive && spanFollower) {
+      if (isLocaleMode) {
+        const routed = routeLocalePatch(spanFollower, editLocale, { texts })
+        if (Object.keys(routed).length) updateSlide(spanFollower.id, routed)
+      } else {
+        updateSlide(spanFollower.id, { texts })
+      }
+      return
+    }
     applyEdit({ texts })
   }
 
@@ -356,7 +399,12 @@ export function EditorLayout() {
 
   function handleApplyThemePreset(preset: ThemePreset) {
     if (!editingSlide) return
-    applyEdit(themePresetPatch(editingSlide, preset))
+    // A preset recolors texts too — the follower owns the right page's texts,
+    // so hand it the text portion (its background/badges are leader-owned).
+    const followerTexts = canvasFollower
+      ? { texts: themePresetPatch(canvasFollower, preset).texts }
+      : undefined
+    applyEdit(themePresetPatch(editingSlide, preset), followerTexts)
   }
 
   function handleSavePreset(name: string) {
@@ -386,19 +434,29 @@ export function EditorLayout() {
 
   // Bulk theme preset: mirror handleApplyThemePreset's single-slide patch, but
   // derived PER target slide (its own text blocks), then write the whole map in
-  // one store set().
+  // one store set(). Span followers ride along with the text portion only.
   function applyThemePresetToSlides(preset: ThemePreset, scope: 'all' | 'selected') {
     const targets = resolveBulkTargets(scope)
-    if (!targets.length) return
+    if (!targets.length || !project) return
     const patches: Record<string, Partial<Slide>> = {}
     for (const s of targets) {
       patches[s.id] = themePresetPatch(s, preset)
+      if (s.spanGroupId && s.spanRole === 'leader') {
+        const follower = findSpanPartner(project.slides, s)?.follower
+        if (follower) patches[follower.id] = { texts: themePresetPatch(follower, preset).texts }
+      }
     }
     updateSlides(patches)
   }
 
   function applyTextStyleToSlides(stylePatch: Partial<import('../../types/project').TextStyle>, scope: 'all' | 'selected') {
-    const targets = resolveBulkTargets(scope)
+    if (!project) return
+    // Texts are per-slide (span followers own theirs) — no leader dedup here,
+    // every targeted slide restyles its own captions.
+    const ids = scope === 'all' ? project.slides.map((s) => s.id) : [...displaySelectedIds]
+    const targets = ids
+      .map((id) => project.slides.find((s) => s.id === id))
+      .filter((s): s is Slide => !!s)
     if (!targets.length) return
     const patches: Record<string, Partial<Slide>> = {}
     for (const s of targets) {
@@ -530,6 +588,7 @@ export function EditorLayout() {
             ref={canvasRef}
             activeSlide={canvasSlide}
             isGrouped={isGrouped}
+            followerSlide={canvasFollower}
             lockSharedLayout={isLocaleMode}
             zoom={zoom}
             onSlideChange={handleSlideChange}
@@ -579,6 +638,7 @@ export function EditorLayout() {
         {editingSlide ? (
           <PropertiesPanel
             slide={editingSlide}
+            captionSlide={captionSlide}
             tab={panelTab}
             onTabChange={setPanelTab}
             onBackgroundChange={handleBackgroundChange}

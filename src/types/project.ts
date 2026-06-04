@@ -80,10 +80,13 @@ export interface Slide {
   screenshotStyle?: ScreenshotStyle
   /**
    * Span-group membership. When set, this slide is one half of a 2-page
-   * App-Store-style spanning composition. Leader owns all layers (rendered on
-   * a 2×-wide canvas); follower is a pointer whose own layer fields are
-   * ignored while grouped. Adjacency (leader.index + 1 === follower.index) is
-   * a structural invariant enforced by the store.
+   * App-Store-style spanning composition rendered on a 2×-wide canvas. The
+   * leader owns the shared layers (background, device, screenshot, ornaments,
+   * highlights, badges); `texts` are per-slide — the leader's render on the
+   * left page, the follower's on the right (its other layer fields are ignored
+   * while grouped). Caption pos/boxWidth normalize against the owning page's
+   * width, not the wide canvas. Adjacency (leader.index + 1 === follower.index)
+   * is a structural invariant enforced by the store.
    */
   spanGroupId?: string
   spanRole?: 'leader' | 'follower'

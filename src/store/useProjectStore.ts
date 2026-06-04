@@ -1,11 +1,12 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Project, Slide, Step, ScreenshotImage, Background, DeviceType, DeviceModel } from '../types/project'
+import type { Project, Slide, Step, ScreenshotImage, Background, DeviceType, DeviceModel, LocaleOverride } from '../types/project'
 import { makeProject, makeSlide, relocalizePlaceholder, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { typeOfModel } from '../constants/deviceSpecs'
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
+import { migrateSpanSlides } from '../lib/spanTextMigration'
 
 function newId(prefix: string): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -79,9 +80,11 @@ async function duplicateScreenshot(
 }
 
 /**
- * Clone every visual field from `leader` onto `follower`, giving it brand new
- * IDs for IDed sub-objects and a duplicated screenshot blob so the two slides
- * become fully independent. Identity (id/index) and span markers are reset.
+ * Clone the shared look from `leader` onto `follower`, giving it brand new IDs
+ * for IDed sub-objects and a duplicated screenshot blob so the two slides
+ * become fully independent. Texts are NOT cloned — the follower owned the
+ * right page's captions while grouped and keeps them (with the text portion of
+ * its locale overrides). Identity (id/index) and span markers are reset.
  */
 async function buildIndependentFromLeader(
   leader: Slide,
@@ -91,6 +94,14 @@ async function buildIndependentFromLeader(
   const highlights = leader.highlights.map((h) => ({ ...h, id: newId('hl') }))
   const ornaments = leader.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
   const badges = leader.badges.map((b) => ({ ...b, id: newId('badge') }))
+  // Look overrides referenced the follower's pre-link look, which the leader
+  // clone replaces — keep only the caption overrides that belong to its texts.
+  let localeOverrides: Record<string, LocaleOverride> | undefined
+  for (const [locale, ov] of Object.entries(follower.localeOverrides ?? {})) {
+    if (ov.texts && Object.keys(ov.texts).length) {
+      ;(localeOverrides ??= {})[locale] = { texts: ov.texts }
+    }
+  }
   return {
     id: follower.id,
     index: follower.index,
@@ -98,18 +109,14 @@ async function buildIndependentFromLeader(
     background: leader.background,
     deviceFrame: { ...leader.deviceFrame },
     screenshot,
-    texts: leader.texts.map((c) => ({
-      ...c,
-      style: { ...c.style },
-      translations: { ...c.translations },
-      pos: c.pos ? { ...c.pos } : undefined,
-    })),
+    texts: follower.texts,
     badges,
     highlights,
     ornaments,
     screenshotStyle: leader.screenshotStyle ? { ...leader.screenshotStyle } : undefined,
     spanGroupId: undefined,
     spanRole: undefined,
+    localeOverrides,
   }
 }
 
@@ -169,9 +176,10 @@ interface ProjectState {
    */
   linkSpanWithNext: (slideId: string) => string | null
   /**
-   * Dissolve a span group. Clones leader's full layout onto follower (with a
-   * duplicated screenshot blob and fresh IDs), then clears spanGroupId/Role on
-   * both slides. Async because of the IndexedDB image duplication.
+   * Dissolve a span group. Clones leader's shared look onto follower (with a
+   * duplicated screenshot blob and fresh IDs) while the follower keeps its own
+   * texts, then clears spanGroupId/Role on both slides. Async because of the
+   * IndexedDB image duplication.
    */
   unlinkSpan: (groupId: string) => Promise<void>
 }
@@ -514,12 +522,18 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'auto-image:project',
       storage: createJSONStorage(() => safeLocalStorage),
-      version: 4,
+      version: 5,
       // v3→v4: fixed `slide.headline`/`slide.subheadline` became `slide.texts[]`.
       // No back-compat: any pre-v4 persisted project is dropped to a clean slate.
+      // v4→v5: span texts moved from wide-canvas normalization on the leader to
+      // per-slide ownership — right-half captions migrate onto the follower.
       migrate: (_persisted, version) => {
         if (version < 4) return { project: null, step: 1, activeSlideId: null }
-        return _persisted as { project: Project | null; step: Step; activeSlideId: string | null }
+        const state = _persisted as { project: Project | null; step: Step; activeSlideId: string | null }
+        if (version < 5 && state.project) {
+          state.project = { ...state.project, slides: migrateSpanSlides(state.project.slides) }
+        }
+        return state
       },
       partialize: (state) => ({
         project: state.project,

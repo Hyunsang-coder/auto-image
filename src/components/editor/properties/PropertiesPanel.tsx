@@ -37,6 +37,12 @@ const TABS: { id: PanelTab; label: string }[] = [
 
 interface Props {
   slide: Slide
+  /**
+   * Span: caption ownership follows the clicked slide. When set (the follower
+   * half is active), the caption tab edits THIS slide's texts while every
+   * other tab keeps editing `slide` (the leader's shared layers).
+   */
+  captionSlide?: Slide | null
   tab: PanelTab
   onTabChange: (t: PanelTab) => void
   onBackgroundChange: (bg: Background) => void
@@ -61,6 +67,7 @@ interface Props {
 
 export function PropertiesPanel({
   slide,
+  captionSlide,
   tab,
   onTabChange,
   onBackgroundChange,
@@ -117,8 +124,8 @@ export function PropertiesPanel({
         )}
         {tab === 'caption' && (
           <CaptionPanel
-            texts={slide.texts}
-            template={slide.template}
+            texts={(captionSlide ?? slide).texts}
+            template={(captionSlide ?? slide).template}
             onChange={onTextsChange}
             bulkEnabled={bulkEnabled}
             selectedCount={selectedCount}

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ThemePreset } from '../constants/defaults'
-import type { ProjectTemplate } from '../constants/projectTemplates'
+import { migrateTemplateSpanTexts, type ProjectTemplate } from '../constants/projectTemplates'
 import { safeLocalStorage } from '../lib/safeStorage'
 
 interface CustomState {
@@ -32,9 +32,15 @@ export const useCustomStore = create<CustomState>()(
       name: 'auto-image:custom',
       storage: createJSONStorage(() => safeLocalStorage),
       // v1 stored single-slide `templates`; v2 replaces them with whole-project
-      // `projectTemplates`. No back-compat for the old shape — reset that slice.
-      version: 2,
-      migrate: () => ({ presets: [], projectTemplates: [] }),
+      // `projectTemplates` (no back-compat for the old shape — reset). v2→v3:
+      // span texts moved to per-slide ownership — right-half captions migrate
+      // from the leader onto the follower slide.
+      version: 3,
+      migrate: (persisted, version) => {
+        if (version < 2) return { presets: [], projectTemplates: [] }
+        const state = persisted as Pick<CustomState, 'presets' | 'projectTemplates'>
+        return { ...state, projectTemplates: state.projectTemplates.map(migrateTemplateSpanTexts) }
+      },
     },
   ),
 )

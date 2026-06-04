@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   BUILTIN_PROJECT_TEMPLATES,
   buildProjectFromTemplate,
+  migrateTemplateSpanTexts,
   projectTemplateFromProject,
 } from './projectTemplates'
 import { relocalizePlaceholder } from './defaults'
@@ -25,6 +26,17 @@ describe('buildProjectFromTemplate', () => {
     expect(leader?.spanGroupId).toBeTruthy()
     expect(leader?.spanGroupId).toBe(follower?.spanGroupId)
     expect(follower?.index).toBe((leader?.index ?? -2) + 1)
+  })
+
+  it('span texts are per-slide: each half owns one page-normalized caption', () => {
+    const p = buildProjectFromTemplate(REF, 'X')
+    const leader = p.slides.find((s) => s.spanRole === 'leader')!
+    const follower = p.slides.find((s) => s.spanRole === 'follower')!
+    expect(leader.texts).toHaveLength(1)
+    expect(follower.texts).toHaveLength(1)
+    // Page-local fractions (would be ~0.25 / ~0.74 in legacy wide-canvas space).
+    expect(leader.texts[0].pos?.x).toBeCloseTo(0.5084)
+    expect(follower.texts[0].pos?.x).toBeCloseTo(0.471)
   })
 
   it('does not share span ids between two builds', () => {
@@ -78,5 +90,47 @@ describe('projectTemplateFromProject', () => {
     const leader = rebuilt.slides.find((s) => s.spanRole === 'leader')
     const follower = rebuilt.slides.find((s) => s.spanRole === 'follower')
     expect(leader?.spanGroupId).toBe(follower?.spanGroupId)
+    // Per-slide span texts survive the round-trip on their own slides.
+    expect(leader?.texts).toHaveLength(1)
+    expect(follower?.texts).toHaveLength(1)
+    expect(follower?.texts[0].pos?.x).toBeCloseTo(0.471)
+  })
+})
+
+describe('migrateTemplateSpanTexts (custom store v2→v3)', () => {
+  it('moves wide-space right-half leader texts to the follower, renormalized', () => {
+    // A pre-change saved template: both captions on the leader in wide coords,
+    // a dormant placeholder on the follower.
+    const legacy = {
+      ...REF,
+      slides: REF.slides.map((s) => {
+        if (s.span?.role === 'leader')
+          return {
+            ...s,
+            texts: [
+              { ...s.texts[0], pos: { x: 0.2542, y: 0.1704 }, boxWidth: 0.4312 },
+              { ...s.texts[0], pos: { x: 0.7355, y: 0.8873 }, boxWidth: 0.4267 },
+            ],
+          }
+        if (s.span?.role === 'follower')
+          return { ...s, texts: [{ ...s.texts[0], pos: undefined, boxWidth: undefined }] }
+        return s
+      }),
+    }
+    const migrated = migrateTemplateSpanTexts(legacy)
+    const leader = migrated.slides.find((s) => s.span?.role === 'leader')!
+    const follower = migrated.slides.find((s) => s.span?.role === 'follower')!
+    expect(leader.texts).toHaveLength(1)
+    expect(leader.texts[0].pos?.x).toBeCloseTo(0.5084)
+    expect(leader.texts[0].boxWidth).toBeCloseTo(0.8624)
+    // The dormant follower text is replaced by the migrated right-half caption.
+    expect(follower.texts).toHaveLength(1)
+    expect(follower.texts[0].pos?.x).toBeCloseTo(0.471)
+    expect(follower.texts[0].boxWidth).toBeCloseTo(0.8534)
+  })
+
+  it('leaves templates without span pairs untouched (same reference)', () => {
+    const noSpan = { ...REF, slides: REF.slides.filter((s) => !s.span) }
+    expect(migrateTemplateSpanTexts(noSpan)).toBe(noSpan)
   })
 })

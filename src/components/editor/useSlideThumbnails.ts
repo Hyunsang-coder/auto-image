@@ -5,18 +5,25 @@ import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
 const THUMB_WIDTH = 220
 const DEBOUNCE_MS = 300
 
-function leaderOf(slide: Slide, slides: Slide[]): Slide | undefined {
-  if (slide.spanRole === 'leader') return slide
-  return slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'leader')
+function spanMemberOf(slide: Slide, slides: Slide[], role: 'leader' | 'follower'): Slide | undefined {
+  if (slide.spanRole === role) return slide
+  return slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === role)
 }
 
 // A slide re-renders only when its render-relevant data changes. For span
-// followers the pixels come from the leader, so fold the leader's content (and
-// which half) into the key instead of the follower's own (mostly empty) data.
+// members the pixels come from one shared wide render (leader's layers + both
+// slides' texts), so fold both members' content (and which half) into the key
+// instead of just the slide's own data.
 function renderKey(slide: Slide, slides: Slide[], locale: string): string {
   if (slide.spanGroupId) {
-    const leader = leaderOf(slide, slides)
-    return JSON.stringify({ locale, role: slide.spanRole, leader: leader ?? null })
+    const leader = spanMemberOf(slide, slides, 'leader')
+    const follower = spanMemberOf(slide, slides, 'follower')
+    return JSON.stringify({
+      locale,
+      role: slide.spanRole,
+      leader: leader ?? null,
+      follower: follower ?? null,
+    })
   }
   return JSON.stringify({ locale, slide })
 }
@@ -70,9 +77,10 @@ export function useSlideThumbnails(
         try {
           let blob: Blob
           if (slide.spanGroupId) {
-            const leader = leaderOf(slide, slides)
-            if (!leader) continue
-            const halves = await renderSpanGroup(leader, renderLocale, THUMB_WIDTH)
+            const leader = spanMemberOf(slide, slides, 'leader')
+            const follower = spanMemberOf(slide, slides, 'follower')
+            if (!leader || !follower) continue
+            const halves = await renderSpanGroup(leader, follower, renderLocale, THUMB_WIDTH)
             blob = slide.spanRole === 'leader' ? halves.leader : halves.follower
           } else {
             blob = await renderSlide(slide, renderLocale, THUMB_WIDTH)

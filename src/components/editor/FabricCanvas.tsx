@@ -185,6 +185,12 @@ interface Props {
    */
   isGrouped?: boolean
   /**
+   * Span only: the follower slide. Its texts render on the right page (it owns
+   * them), and text edits with owner 'follower' sync back to it via the second
+   * argument of onSlideChange. All other layers stay the leader's.
+   */
+  followerSlide?: Slide | null
+  /**
    * Per-locale edit mode: lock the shared-layout elements (badges, ornaments,
    * highlights) so only captions and the device frame can be tweaked for this
    * locale. EditorLayout routes the resulting edits into that locale's
@@ -193,12 +199,14 @@ interface Props {
   lockSharedLayout?: boolean
   /** View-only magnification of the editor canvas. 1 = base size. */
   zoom?: number
-  onSlideChange: (patch: Partial<Slide>) => void
+  /** Second argument carries span-follower text edits (one atomic emit per sync). */
+  onSlideChange: (patch: Partial<Slide>, followerPatch?: Partial<Slide>) => void
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
   /** Ctrl/Cmd + wheel (and trackpad pinch) asks the parent to change zoom. */
   onZoomChange?: (next: number) => void
-  /** Double-click on an object surfaces its layer so the panel can open its tab. */
-  onElementActivate?: (layerName: string | null) => void
+  /** Double-click on an object surfaces its layer (and, for span texts, its
+   * owning half) so the panel can open the right tab on the right slide. */
+  onElementActivate?: (layerName: string | null, owner?: 'leader' | 'follower') => void
 }
 
 // Elements that belong to the shared base layout (not per-locale). Locked in
@@ -214,7 +222,7 @@ const HISTORY_LIMIT = 50
 // round-trip, otherwise restored objects lose their identity and syncToZustand
 // can't map them back to the store (positions would silently un-revert).
 const HISTORY_PROPS = [
-  'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex',
+  'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex', 'owner',
   '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
   '_crop', '_fullW', '_fullH', '_screenBounds', '_renderRot',
 ]
@@ -224,7 +232,7 @@ function clamp01(n: number): number {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, lockSharedLayout = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, followerSlide = null, lockSharedLayout = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
     // Zoom is a pure view transform: the template always lays out at base dims,
@@ -245,6 +253,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const urlCacheRef = useRef<ImageUrlCache>(createImageUrlCache())
     const onSlideChangeRef = useRef(onSlideChange)
     const activeSlideRef = useRef(activeSlide)
+    const followerSlideRef = useRef(followerSlide)
     const onHistoryChangeRef = useRef(onHistoryChange)
     const onZoomChangeRef = useRef(onZoomChange)
     const onElementActivateRef = useRef(onElementActivate)
@@ -257,6 +266,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     })
     useEffect(() => {
       activeSlideRef.current = activeSlide
+    })
+    useEffect(() => {
+      followerSlideRef.current = followerSlide
     })
     useEffect(() => {
       onHistoryChangeRef.current = onHistoryChange
@@ -329,9 +341,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     function syncToZustand(canvas: Canvas, movedTarget?: FabricObject) {
       const slide = activeSlideRef.current
       if (!slide) return
+      const followerSlide = followerSlideRef.current
 
       const objects = canvas.getObjects()
       const slidePatch: Partial<Slide> = {}
+      const followerPatch: Partial<Slide> = {}
       // Object coords stay in base (unzoomed) layout space, but canvas.width is
       // scaled by the current zoom (applyZoom sets dimensions to base × zoom).
       // Normalize against the base dims — otherwise a drag while zoomed ≠ 100%
@@ -340,17 +354,24 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const zoom = canvas.getZoom() || 1
       const cw = (canvas.width ?? 1) / zoom
       const ch = (canvas.height ?? 1) / zoom
+      // On a span canvas each slide's text fractions normalize to its own page
+      // (half the wide canvas), matching applyTemplate's per-page layout.
+      const halfW = followerSlide ? cw / 2 : cw
 
       for (const obj of objects) {
         const ln = (obj as Textbox & { layerName?: string }).layerName
         if (ln === LAYER_NAMES.TEXT) {
-          const itext = obj as Textbox & { textIndex?: number }
+          const itext = obj as Textbox & { textIndex?: number; owner?: 'leader' | 'follower' }
           const i = itext.textIndex ?? 0
-          const existing = slide.texts[i]
+          // Route by the owner tag: follower texts live on the follower slide.
+          const isFollower = itext.owner === 'follower' && !!followerSlide
+          const ownerSlide = isFollower ? followerSlide! : slide
+          const ownerPatch = isFollower ? followerPatch : slidePatch
+          const existing = ownerSlide.texts[i]
           if (!existing) continue
           // Seed from the current array (or a prior text patch in this same sync)
           // and replace only index i, so multiple text objects don't clobber.
-          const texts = (slidePatch.texts ?? slide.texts).slice()
+          const texts = (ownerPatch.texts ?? ownerSlide.texts).slice()
           let next: typeof existing = {
             ...existing,
             text: itext.text ?? existing.text,
@@ -369,15 +390,19 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             // Side-handle resize grows width (scaleX stays 1); fold in scaleX so
             // a corner-scale still bakes into the stored width.
             const boxW = (itext.width ?? 0) * (itext.scaleX ?? 1)
+            // Page-local fraction: the follower's page starts at halfW. May
+            // leave [0,1] when a text is dragged across the seam — ownership
+            // stays with its slide, so don't clamp.
+            const pageX = isFollower ? c.x - halfW : c.x
             next = {
               ...next,
-              pos: { x: c.x / cw, y: (itext.top ?? 0) / ch },
-              // A text box can never be wider than the slide.
-              boxWidth: Math.min(boxW / cw, 1),
+              pos: { x: pageX / halfW, y: (itext.top ?? 0) / ch },
+              // A text box can never be wider than one page.
+              boxWidth: Math.min(boxW / halfW, 1),
             }
           }
           texts[i] = next
-          slidePatch.texts = texts
+          ownerPatch.texts = texts
         }
       }
 
@@ -584,8 +609,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (dirty) slidePatch.ornaments = next
       }
 
-      if (Object.keys(slidePatch).length > 0) {
-        onSlideChangeRef.current(slidePatch)
+      const hasFollowerPatch = Object.keys(followerPatch).length > 0
+      if (Object.keys(slidePatch).length > 0 || hasFollowerPatch) {
+        onSlideChangeRef.current(slidePatch, hasFollowerPatch ? followerPatch : undefined)
       }
     }
 
@@ -922,8 +948,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       // Double-click surfaces the object's layer so the panel can jump to the
       // matching tab. Background dblclick (no target) reports null.
       canvas.on('mouse:dblclick', (opt) => {
-        const ln = (opt.target as (FabricObject & { layerName?: string }) | undefined)?.layerName ?? null
-        onElementActivateRef.current?.(ln)
+        const target = opt.target as (FabricObject & { layerName?: string; owner?: 'leader' | 'follower' }) | undefined
+        onElementActivateRef.current?.(target?.layerName ?? null, target?.owner)
       })
 
       // Ctrl/Cmd + wheel (and trackpad pinch, which arrives as ctrlKey wheel)
@@ -1052,6 +1078,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // Include grouped state in the cache key so toggling link/unlink
         // forces a re-render even when the slide data didn't change.
         isGrouped,
+        // The follower's texts render on the right page of a span — a panel
+        // edit to them must repaint even though the leader didn't change.
+        followerTexts: isGrouped ? followerSlide?.texts ?? null : null,
+        followerTemplate: isGrouped ? followerSlide?.template ?? null : null,
         // A locale whose overrides match the base renders identical content, so
         // key on the lock too — otherwise entering such a locale wouldn't
         // re-render and shared elements would stay editable.
@@ -1097,13 +1127,20 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // correct layout (Fabric caches text dimensions at layout time). Cheap
         // for Korean/Latin; only a JP preview waits on the Noto CDN.
         await awaitSlideFonts(activeSlide!)
+        if (isGrouped && followerSlide) await awaitSlideFonts(followerSlide)
         // The canvas can be disposed while we await image/font loads (StrictMode
         // remount, fast slide/locale switch, unmount). Touching a disposed canvas
         // — setDimensions destructures a null element — throws, so bail here.
         if (fabricRef.current !== canvas || seq !== renderSeqRef.current) return
         if (isGrouped) {
           const w = EDITOR_CANVAS_WIDTH * 2
-          await applyTemplate(canvas, activeSlide!, { width: w, height: h }, { spanCentered: true, resolveUrl })
+          await applyTemplate(canvas, activeSlide!, { width: w, height: h }, {
+            spanCentered: true,
+            resolveUrl,
+            spanFollower: followerSlide
+              ? { texts: followerSlide.texts, template: followerSlide.template }
+              : undefined,
+          })
           addSpanSeamGuide(canvas, w / 2, h)
         } else {
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
@@ -1133,7 +1170,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         baselineRef.current = takeSnapshot(canvas)
         notifyHistory()
       })
-    }, [activeSlide, isGrouped, lockSharedLayout])
+    }, [activeSlide, isGrouped, followerSlide, lockSharedLayout])
 
     return (
       <div className="relative flex items-start justify-center">

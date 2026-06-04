@@ -11,6 +11,10 @@ export interface CaptionOptions {
   /** Index of this block within slide.texts; tagged onto the object so sync can
    * map it back to the right entry. */
   textIndex?: number
+  /** Which span half owns this block. On a 2-page span the leader's and the
+   * follower's texts share one wide canvas, so textIndex alone isn't unique —
+   * sync routes by (owner, textIndex). Absent = leader (single-slide render). */
+  owner?: 'leader' | 'follower'
   // Canvas/font scale relative to the editor (1 in the editor, ~3 at export
   // resolution). Absolute floors must scale with it so the fit-to-box result is
   // identical in proportion at every resolution.
@@ -92,6 +96,7 @@ export function renderCaption(
   })
   ;(obj as Textbox & { layerName: string }).layerName = opts.layerName
   ;(obj as Textbox & { textIndex?: number }).textIndex = opts.textIndex
+  ;(obj as Textbox & { owner?: 'leader' | 'follower' }).owner = opts.owner ?? 'leader'
 
   return obj
 }

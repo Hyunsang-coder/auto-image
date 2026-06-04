@@ -64,13 +64,15 @@ export async function renderSlide(
 }
 
 /**
- * Render a 2-page span group: produces a single 2×-wide canvas from the
- * leader's data, then slices it into two device-sized PNGs. Sequential render
- * → cheaper than two separate full renders, and guarantees objects crossing
- * the seam (device frame, text) line up pixel-perfect across the split.
+ * Render a 2-page span group: produces a single 2×-wide canvas — the leader's
+ * shared layers plus each slide's own texts on its own page — then slices it
+ * into two device-sized PNGs. Sequential render → cheaper than two separate
+ * full renders, and guarantees objects crossing the seam (device frame, text)
+ * line up pixel-perfect across the split.
  */
 export async function renderSpanGroup(
   leader: Slide,
+  follower: Slide,
   locale: string | null,
   previewHalfWidth?: number,
 ): Promise<{ leader: Blob; follower: Blob }> {
@@ -84,6 +86,7 @@ export async function renderSpanGroup(
   // scales by the same single-slide ratio (halfWidth / EDITOR_CANVAS_WIDTH).
   const scale = halfWidth / EDITOR_CANVAS_WIDTH
   const exportSlide = withScaledFonts(resolveSlideForLocale(leader, locale), scale)
+  const exportFollower = withScaledFonts(resolveSlideForLocale(follower, locale), scale)
 
   const el = document.createElement('canvas')
   const canvas = new Canvas(el, { enableRetinaScaling: false })
@@ -93,7 +96,12 @@ export async function renderSpanGroup(
     // Load fonts before layout — applyTemplate measures text for fit/badge sizing
     // and Fabric won't recompute those dimensions on a later render (see renderSlide).
     await awaitSlideFonts(exportSlide)
-    await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, { spanCentered: true, resolveUrl: urls.get })
+    await awaitSlideFonts(exportFollower)
+    await applyTemplate(canvas, exportSlide, { width: fullWidth, height }, {
+      spanCentered: true,
+      resolveUrl: urls.get,
+      spanFollower: { texts: exportFollower.texts, template: exportFollower.template },
+    })
 
     // Slice — read pixel data from the wide DOM canvas (Fabric writes its render
     // there) into two half-size canvases, then toBlob each.
