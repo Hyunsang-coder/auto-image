@@ -1,68 +1,20 @@
-import { test, expect, type Page } from '@playwright/test'
-import { clearAppState, createProject, uploadScreenshot } from './helpers'
+import { test, expect } from '@playwright/test'
+import {
+  clearAppState,
+  controlPos,
+  createProject,
+  drag,
+  findLayer,
+  selectLayer,
+  uploadScreenshot,
+  type EditorSurface,
+} from './helpers'
 
 // Loupe highlights: a new highlight's popup spawns centered over its source
 // region, and the popup can be tilted with the mtr handle (rotation persists
 // through the store round-trip).
 
 test.use({ viewport: { width: 1440, height: 1200 } })
-
-type FabObj = {
-  left?: number
-  top?: number
-  width?: number
-  height?: number
-  angle?: number
-  setCoords(): void
-  getCenterPoint(): { x: number; y: number }
-  oCoords?: Record<string, { x: number; y: number }>
-}
-type EditorSurface = {
-  canvas: { setActiveObject(o: unknown): void; renderAll(): void }
-  findByLayer(n: string): FabObj | null
-}
-
-function findLayer(page: Page, layer: string) {
-  return page.evaluate((l) => {
-    const ed = (window as unknown as { __editor?: EditorSurface }).__editor
-    return ed?.findByLayer(l) != null
-  }, layer)
-}
-
-async function selectLayer(page: Page, layer: string) {
-  await expect.poll(() => findLayer(page, layer)).toBe(true)
-  await page.evaluate((l) => {
-    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
-    const obj = ed.findByLayer(l)!
-    ed.canvas.setActiveObject(obj)
-    obj.setCoords()
-    ed.canvas.renderAll()
-  }, layer)
-}
-
-async function controlPos(page: Page, layer: string, name: string): Promise<{ x: number; y: number }> {
-  const local = await page.evaluate(
-    ([l, n]) => {
-      const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
-      const obj = ed.findByLayer(l)!
-      obj.setCoords()
-      const c = obj.oCoords![n]
-      return { x: c.x, y: c.y }
-    },
-    [layer, name] as [string, string],
-  )
-  const box = (await page.locator('canvas.upper-canvas').boundingBox())!
-  return { x: box.x + local.x, y: box.y + local.y }
-}
-
-async function drag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
-  for (let i = 1; i <= 6; i++) {
-    await page.mouse.move(from.x + ((to.x - from.x) * i) / 6, from.y + ((to.y - from.y) * i) / 6)
-  }
-  await page.mouse.up()
-}
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)

@@ -1,5 +1,13 @@
 import { test, expect, type Page } from '@playwright/test'
-import { clearAppState, createProject, uploadScreenshot } from './helpers'
+import {
+  clearAppState,
+  controlPos,
+  createProject,
+  drag,
+  selectLayer,
+  uploadScreenshot,
+  type EditorSurface,
+} from './helpers'
 
 // On-canvas direct manipulation: the mtr handle rotates the device, and in
 // floating mode (frame hidden) the edge controls trim the screenshot card.
@@ -7,65 +15,11 @@ import { clearAppState, createProject, uploadScreenshot } from './helpers'
 
 test.use({ viewport: { width: 1440, height: 1200 } })
 
-type EditorSurface = {
-  canvas: { setActiveObject(o: unknown): void; renderAll(): void }
-  findByLayer(n: string): {
-    angle?: number
-    setCoords(): void
-    oCoords?: Record<string, { x: number; y: number }>
-    _crop?: { top: number; right: number; bottom: number; left: number }
-  } | null
-}
-
 function editor(page: Page) {
   return page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor
     return ed?.findByLayer('device-frame')?.angle ?? null
   })
-}
-
-async function waitForDeviceBody(page: Page) {
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const ed = (window as unknown as { __editor?: EditorSurface }).__editor
-        return ed?.findByLayer('device-frame') != null
-      }),
-    )
-    .toBe(true)
-}
-
-async function selectDeviceBody(page: Page) {
-  await waitForDeviceBody(page)
-  await page.evaluate(() => {
-    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
-    const body = ed.findByLayer('device-frame')!
-    ed.canvas.setActiveObject(body)
-    body.setCoords()
-    ed.canvas.renderAll()
-  })
-}
-
-/** Page coords of a Fabric control point on the device body. */
-async function controlPos(page: Page, name: string): Promise<{ x: number; y: number }> {
-  const local = await page.evaluate((n) => {
-    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
-    const body = ed.findByLayer('device-frame')!
-    body.setCoords()
-    const c = body.oCoords![n]
-    return { x: c.x, y: c.y }
-  }, name)
-  const box = (await page.locator('canvas.upper-canvas').boundingBox())!
-  return { x: box.x + local.x, y: box.y + local.y }
-}
-
-async function drag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
-  for (let i = 1; i <= 6; i++) {
-    await page.mouse.move(from.x + ((to.x - from.x) * i) / 6, from.y + ((to.y - from.y) * i) / 6)
-  }
-  await page.mouse.up()
 }
 
 test.beforeEach(async ({ page }) => {
@@ -75,8 +29,8 @@ test.beforeEach(async ({ page }) => {
 
 test('mtr 드래그로 기기가 회전하고 회전값이 저장됨', async ({ page }) => {
   await createProject(page, { name: 'Rotate Drag' })
-  await selectDeviceBody(page)
-  const mtr = await controlPos(page, 'mtr')
+  await selectLayer(page, 'device-frame')
+  const mtr = await controlPos(page, 'device-frame', 'mtr')
   await drag(page, mtr, { x: mtr.x + 90, y: mtr.y + 40 })
   // Sync wrote the angle to the store; the re-render restores it on the body.
   await expect.poll(() => editor(page)).not.toBe(0)
@@ -100,8 +54,8 @@ test('플로팅 모드에서 엣지 컨트롤 드래그가 크롭을 만든다',
       }),
     )
     .toBe(true)
-  await selectDeviceBody(page)
-  const top = await controlPos(page, 'cropT')
+  await selectLayer(page, 'device-frame')
+  const top = await controlPos(page, 'device-frame', 'cropT')
   await drag(page, top, { x: top.x, y: top.y + 100 })
   // 릴리즈 → sync → 스토어 crop.top 반영 → 재렌더된 핸들에도 유지.
   await expect
