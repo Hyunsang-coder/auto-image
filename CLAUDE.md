@@ -54,6 +54,12 @@ Sync is **one-directional**: user edits → Fabric internal state → `object:mo
 
 Layer objects are tagged with `layerName` constants from `src/canvas/layerNames.ts`. Per-instance objects (ornaments, highlights) additionally carry an id (`ornamentId`, `highlightId`) so the sync code can map them back to the corresponding store entry.
 
+### 2-page span groups
+
+Two adjacent slides can link into an App-Store-style spanning pair (`spanGroupId` + `spanRole: leader|follower`; adjacency `leader.index + 1 === follower.index` is enforced by the store). Ownership is split: the **leader owns the shared layers** (background, device frame, screenshot, ornaments, highlights, badges — anything that crosses the seam), while **`texts` are per-slide** — the leader's captions render on the left page, the follower's on the right, so the localize table/CSV addresses each half by its own slide number and `unlinkSpan` keeps the follower's captions (only the look is cloned from the leader). The follower's *other* layer fields are ignored while grouped.
+
+Coordinate invariant: a span slide's `Caption.pos.x`/`boxWidth` normalize against its **own page width** (halfWidth of the wide canvas), not the wide canvas — values may leave [0,1] when a box crosses the seam; ownership is array membership, not position. Rendering composes one 2×-wide canvas (`renderSpanGroup(leader, follower, …)` → sliced into two PNGs; same composition in the editor) where `applyTemplate`'s `spanFollower` opt lays the follower's texts with its own template anchors offset one page right. Canvas text objects carry an `owner: 'leader'|'follower'` tag (in `HISTORY_PROPS`, since `textIndex` alone isn't unique on a span) and `syncToZustand` emits a dual patch — `onSlideChange(leaderPatch, followerPatch?)` — written atomically via `updateSlides`. In the editor, the caption tab follows the *clicked* slide (follower half → its texts); every other tab routes to the leader via `spanLeaderOf`. Legacy data (leader-owned texts in wide-canvas coords) is migrated by `src/lib/spanTextMigration.ts` — project persist v4→v5 and custom-template store v2→v3 split right-half captions onto the follower with renormalized fractions.
+
 ### Export pipeline
 
 `renderSlide()` creates an offscreen `fabric.Canvas` at full Apple resolution, waits for `document.fonts.ready`, renders, calls `toBlob('image/png')`, then immediately `canvas.dispose()`. Slides render sequentially (not in parallel) to avoid memory exhaustion. JSZip + FileSaver packages output as `{locale}/{device}/{index}.png`.
