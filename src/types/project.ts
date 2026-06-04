@@ -97,9 +97,9 @@ export interface Slide {
    * still propagates to un-overridden locales. Text and the screenshot image
    * have their own per-locale channels (`Caption.translations`,
    * `ScreenshotImage.localeOverrides`); this covers the look: template,
-   * background, device transform, screenshot style, and caption style/placement.
-   * Badges/ornaments/highlights stay shared (their text is still per-locale via
-   * `translations`).
+   * background, device transform, screenshot style, caption style/placement,
+   * and ornaments. Badges/highlights stay shared (badge text is still
+   * per-locale via `translations`).
    */
   localeOverrides?: Record<string, LocaleOverride>
 }
@@ -123,6 +123,9 @@ export interface LocaleOverride {
   }
   screenshotStyle?: ScreenshotStyle
   texts?: Record<number, CaptionOverride>
+  /** Whole-array copy-on-write: a locale that touches any ornament owns the
+   * full set from then on (base ornament edits stop showing through). */
+  ornaments?: Ornament[]
 }
 
 export interface ScreenshotStyle {

@@ -89,6 +89,14 @@ describe('resolveSlideForLocale', () => {
     expect(r.texts[0].text).toBe('Hello')
   })
 
+  it('applies per-locale ornaments, falling back to base when absent', () => {
+    const baseOrn = [{ id: 'o1', shape: 'star' as const, x: 0.1, y: 0.1, size: 0.1, rotation: 0, color: '#fff', opacity: 1 }]
+    const frOrn = [{ ...baseOrn[0], x: 0.9 }]
+    const s = baseSlide({ ornaments: baseOrn, localeOverrides: { fr: { ornaments: frOrn } } })
+    expect(resolveSlideForLocale(s, 'fr').ornaments).toBe(frOrn)
+    expect(resolveSlideForLocale(s, 'de').ornaments).toBe(baseOrn)
+  })
+
   it('borrows a donor locale screenshot via localeSource when set', () => {
     const s = baseSlide({
       screenshot: {

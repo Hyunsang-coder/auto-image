@@ -191,8 +191,8 @@ interface Props {
    */
   followerSlide?: Slide | null
   /**
-   * Per-locale edit mode: lock the shared-layout elements (badges, ornaments,
-   * highlights) so only captions and the device frame can be tweaked for this
+   * Per-locale edit mode: lock the shared-layout elements (badges, highlights)
+   * so only captions, ornaments, and the device frame can be tweaked for this
    * locale. EditorLayout routes the resulting edits into that locale's
    * overrides; shared elements stay editable only in the base/shared view.
    */
@@ -211,9 +211,9 @@ interface Props {
 
 // Elements that belong to the shared base layout (not per-locale). Locked in
 // locale edit mode so a locale tweak can't move content meant to stay common.
+// Ornaments are per-locale (LocaleOverride.ornaments), so they stay editable.
 const SHARED_LAYER_NAMES = new Set<string>([
   LAYER_NAMES.BADGE,
-  LAYER_NAMES.ORNAMENT,
   LAYER_NAMES.HIGHLIGHT_POPUP,
 ])
 

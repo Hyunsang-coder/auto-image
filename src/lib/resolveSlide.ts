@@ -47,6 +47,7 @@ export function resolveSlideForLocale(slide: Slide, locale: string | null): Slid
           }
         : shot,
     texts: slide.texts.map((c, i) => resolveCaption(c, locale, ov?.texts?.[i])),
+    ornaments: ov?.ornaments ?? slide.ornaments,
     badges: slide.badges.map((b) => ({
       ...b,
       text: b.translations[locale] ?? b.text,

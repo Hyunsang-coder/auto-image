@@ -82,12 +82,22 @@ describe('routeLocalePatch', () => {
     expect(fr?.screenshotStyle).toEqual({ cornerRadiusRatio: 0.1, shadow: false })
   })
 
-  it('passes shared elements (badges/ornaments/highlights/screenshot) to the base', () => {
+  it('passes shared elements (badges/highlights/screenshot) to the base', () => {
     const base = baseSlide()
     const badges = [{ id: 'b1', text: 'New', translations: {}, style: {} as never, top: 0.1 }]
     const out = routeLocalePatch(base, 'fr', { badges })
     expect(out.badges).toBe(badges)
     expect(out.localeOverrides).toBeUndefined()
+  })
+
+  it('routes ornaments to the override, not the base', () => {
+    const base = baseSlide()
+    const ornaments = [
+      { id: 'o1', shape: 'star' as const, x: 0.2, y: 0.3, size: 0.1, rotation: 0, color: '#fff', opacity: 1 },
+    ]
+    const out = routeLocalePatch(base, 'fr', { ornaments })
+    expect(out.ornaments).toBeUndefined()
+    expect(out.localeOverrides?.fr.ornaments).toBe(ornaments)
   })
 
   it('merges onto an existing override and preserves other locales', () => {

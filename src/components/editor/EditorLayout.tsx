@@ -106,8 +106,8 @@ export function EditorLayout() {
         canvasRef.current?.discardSelection()
         return
       }
-      // In locale mode, delete/nudge are safe (delete only hits shared elements,
-      // which are locked → inert; nudge routes through sync into the locale's
+      // In locale mode, delete/nudge are safe (shared elements are locked →
+      // inert; ornament deletes and nudges route through sync into the locale's
       // overrides). Undo/redo/duplicate work off raw canvas snapshots that don't
       // route, so they stay base-only for now.
       const localeMode = localeModeRef.current

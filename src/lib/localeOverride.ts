@@ -5,13 +5,13 @@ import type { Caption, CaptionOverride, LocaleOverride, Slide, TextStyle } from 
 // translates that into writes against the shared base so only what the user
 // changed for this locale is stored. resolveSlideForLocale flattens it back.
 //
-// Per-locale: template, background, device transform, screenshot style, and
-// caption text/style/placement. Shared (passed straight to the base): badges,
-// ornaments, highlights, and the base screenshot image — their text stays
-// per-locale via Caption.translations.
+// Per-locale: template, background, device transform, screenshot style,
+// ornaments, and caption text/style/placement. Shared (passed straight to the
+// base): badges, highlights, and the base screenshot image — badge text stays
+// per-locale via translations.
 
 const DEVICE_OVERRIDE_KEYS = ['offsetX', 'offsetY', 'scale', 'rotation', 'color'] as const
-const SHARED_KEYS = ['badges', 'ornaments', 'highlights', 'screenshot'] as const
+const SHARED_KEYS = ['badges', 'highlights', 'screenshot'] as const
 
 // Only the style props that actually differ from the base, so changing one
 // (e.g. font size) doesn't freeze the rest (e.g. colour) against base edits.
@@ -83,6 +83,7 @@ export function routeLocalePatch(base: Slide, locale: string, patch: Partial<Sli
   if (patch.template != null && patch.template !== base.template) { next.template = patch.template; ovChanged = true }
   if (patch.background) { next.background = patch.background; ovChanged = true }
   if (patch.screenshotStyle) { next.screenshotStyle = patch.screenshotStyle; ovChanged = true }
+  if (patch.ornaments) { next.ornaments = patch.ornaments; ovChanged = true }
   if (patch.deviceFrame) {
     const df: Record<string, unknown> = { ...prev.deviceFrame }
     const pd = patch.deviceFrame as unknown as Record<string, unknown>
