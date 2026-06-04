@@ -9,7 +9,7 @@ describe('normalizeAngle', () => {
     expect(normalizeAngle(0)).toBe(0)
     expect(normalizeAngle(190)).toBe(-170)
     expect(normalizeAngle(-190)).toBe(170)
-    expect(normalizeAngle(359.96)).toBe(0)
+    expect(normalizeAngle(359.96)).toBeCloseTo(0, 6) // -0: only |Δ| comparisons consume this
   })
 
   it('is idempotent', () => {
