@@ -124,4 +124,26 @@ describe('applyCaptionRows', () => {
     expect(res.written).toBe(0)
     expect(res.issues).toEqual(['지원하지 않는 언어 "xx"'])
   })
+
+  it('a row addressed to a span follower index writes the follower, not the leader', () => {
+    // Span pair: texts are per-slide, so the follower's 1-based row must land
+    // on its own caption array (pre-change it landed on dead data).
+    const leader = { ...makeSlide(), id: 'lead', spanGroupId: 'g', spanRole: 'leader' as const }
+    const follower = {
+      ...makeSlide(),
+      id: 'foll',
+      spanGroupId: 'g',
+      spanRole: 'follower' as const,
+      texts: [{ text: 'right head', translations: {} }],
+    }
+    const res = applyCaptionRows(
+      [leader, follower] as never,
+      [{ slide: 2, field: 'text:0', values: { ja: '右ページ' } }],
+      'en',
+      known,
+    )
+    expect(res.written).toBe(1)
+    expect(res.patches.foll.texts?.[0]).toEqual({ text: 'right head', translations: { ja: '右ページ' } })
+    expect(res.patches.lead).toBeUndefined()
+  })
 })

@@ -96,6 +96,34 @@ describe('duplicateSlide', () => {
   })
 })
 
+describe('span link/unlink — per-slide texts', () => {
+  beforeEach(() => setup())
+
+  it('link moves no data; unlink keeps the follower’s own texts under the leader’s look', async () => {
+    const { project, updateSlide, linkSpanWithNext } = useProjectStore.getState()
+    const [a, b] = project!.slides
+    updateSlide(a.id, { texts: [{ ...a.texts[0], text: 'Left page' }] })
+    updateSlide(b.id, {
+      template: 'split',
+      texts: [{ ...b.texts[0], text: 'Right page', translations: { ja: '右' } }],
+    })
+
+    expect(linkSpanWithNext(a.id)).toBeNull()
+    const linked = useProjectStore.getState().project!
+    expect(linked.slides[1].texts[0].text).toBe('Right page')
+
+    await useProjectStore.getState().unlinkSpan(linked.slides[0].spanGroupId!)
+    const after = useProjectStore.getState().project!
+    expect(after.slides.every((s) => !s.spanGroupId && !s.spanRole)).toBe(true)
+    // Follower keeps its own caption — not a clone of the leader's…
+    expect(after.slides[1].texts[0].text).toBe('Right page')
+    expect(after.slides[1].texts[0].translations).toEqual({ ja: '右' })
+    expect(after.slides[0].texts[0].text).toBe('Left page')
+    // …while the shared look IS cloned from the leader.
+    expect(after.slides[1].template).toBe(after.slides[0].template)
+  })
+})
+
 describe('changeSourceLocale', () => {
   beforeEach(() => setup())
 
