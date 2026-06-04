@@ -204,8 +204,9 @@ interface Props {
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
   /** Ctrl/Cmd + wheel (and trackpad pinch) asks the parent to change zoom. */
   onZoomChange?: (next: number) => void
-  /** Double-click on an object surfaces its layer so the panel can open its tab. */
-  onElementActivate?: (layerName: string | null) => void
+  /** Double-click on an object surfaces its layer (and, for span texts, its
+   * owning half) so the panel can open the right tab on the right slide. */
+  onElementActivate?: (layerName: string | null, owner?: 'leader' | 'follower') => void
 }
 
 // Elements that belong to the shared base layout (not per-locale). Locked in
@@ -947,8 +948,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       // Double-click surfaces the object's layer so the panel can jump to the
       // matching tab. Background dblclick (no target) reports null.
       canvas.on('mouse:dblclick', (opt) => {
-        const ln = (opt.target as (FabricObject & { layerName?: string }) | undefined)?.layerName ?? null
-        onElementActivateRef.current?.(ln)
+        const target = opt.target as (FabricObject & { layerName?: string; owner?: 'leader' | 'follower' }) | undefined
+        onElementActivateRef.current?.(target?.layerName ?? null, target?.owner)
       })
 
       // Ctrl/Cmd + wheel (and trackpad pinch, which arrives as ctrlKey wheel)
