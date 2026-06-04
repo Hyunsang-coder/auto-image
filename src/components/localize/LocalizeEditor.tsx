@@ -20,20 +20,18 @@ type GridRow = {
   field: FieldKey
   label: string
   sourceText: string
-  /** True when this row's slide is a span leader — the cell label should
-   * indicate the translation covers both halves. */
-  isSpanLeader: boolean
 }
 
 function buildRows(slides: Slide[]): GridRow[] {
   const rows: GridRow[] = []
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
-    // Followers in a span group inherit text from the leader. Don't emit any
-    // rows for them — the leader's rows govern both halves.
-    if (slide.spanRole === 'follower') continue
+    // Span texts are per-slide: a follower emits its own text rows under its
+    // own slide number. The screenshot and badges stay leader-owned, so those
+    // rows are leader-only.
+    const isFollower = slide.spanRole === 'follower'
     const fields: { field: FieldKey; label: string; sourceText: string }[] = []
-    if (slide.screenshot)
+    if (slide.screenshot && !isFollower)
       fields.push({ field: 'image', label: '이미지', sourceText: '' })
     slide.texts.forEach((t, ti) => {
       if (t.text)
@@ -43,21 +41,20 @@ function buildRows(slides: Slide[]): GridRow[] {
           sourceText: t.text,
         })
     })
-    slide.badges?.forEach((b, bi) => {
-      if (b.text)
-        fields.push({
-          field: `badge:${bi}`,
-          label: slide.badges.length > 1 ? `배지${bi + 1}` : '배지',
-          sourceText: b.text,
-        })
-    })
-    const isSpanLeader = slide.spanRole === 'leader'
+    if (!isFollower)
+      slide.badges?.forEach((b, bi) => {
+        if (b.text)
+          fields.push({
+            field: `badge:${bi}`,
+            label: slide.badges.length > 1 ? `배지${bi + 1}` : '배지',
+            sourceText: b.text,
+          })
+      })
     fields.forEach((f, j) =>
       rows.push({
         slideId: slide.id,
         slideIndex: i,
         slideRowSpan: j === 0 ? fields.length : 0,
-        isSpanLeader,
         ...f,
       }),
     )
@@ -591,11 +588,8 @@ export function LocalizeEditor() {
                     <td
                       rowSpan={row.slideRowSpan}
                       className="border-r border-[var(--color-border)] px-3 py-2 text-center text-xs font-semibold text-[var(--color-text-dim)]"
-                      title={row.isSpanLeader ? '2-page span — 양쪽 슬라이드에 적용됩니다' : undefined}
                     >
-                      {row.isSpanLeader
-                        ? `${row.slideIndex + 1}·${row.slideIndex + 2}`
-                        : row.slideIndex + 1}
+                      {row.slideIndex + 1}
                     </td>
                   )}
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)]">

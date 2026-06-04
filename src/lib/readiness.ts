@@ -1,24 +1,24 @@
 import type { Project, Slide } from '../types/project'
 
 /**
- * Slides whose own text/screenshot fields are actually rendered. Span
- * followers inherit everything from their leader, so they never count toward
- * "missing" anything — skip them everywhere readiness is computed.
+ * Slides whose own screenshot field is actually rendered. Span followers
+ * inherit the shared look (screenshot included) from their leader, so they
+ * never count toward a missing screenshot. Texts are per-slide — every slide
+ * owns its own — so the translation check does NOT use this filter.
  */
-function ownerSlides(project: Project): Slide[] {
+function screenshotOwnerSlides(project: Project): Slide[] {
   return project.slides.filter((s) => s.spanRole !== 'follower')
 }
 
 /**
- * Target locales that still have at least one owner slide with an untranslated
+ * Target locales that still have at least one slide with an untranslated
  * text block. Single source of truth shared by ExportPanel's
  * pre-export banner and StepIndicator's readiness dot — do not duplicate this
  * predicate.
  */
 export function getUntranslatedLocales(project: Project): string[] {
-  const owners = ownerSlides(project)
   return project.targetLocales.filter((locale) =>
-    owners.some((slide) =>
+    project.slides.some((slide) =>
       slide.texts.some((t) => t.text && !t.translations[locale]),
     ),
   )
@@ -32,7 +32,7 @@ export function getUntranslatedLocales(project: Project): string[] {
  * (they inherit the leader's screenshot).
  */
 export function getSlidesMissingScreenshot(project: Project): number[] {
-  return ownerSlides(project)
+  return screenshotOwnerSlides(project)
     .filter((slide) => slide.screenshot == null)
     .map((slide) => slide.index + 1)
     .sort((a, b) => a - b)
