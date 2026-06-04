@@ -56,6 +56,63 @@ test('띄어쓰기 있는 한글은 단어 단위 줄바꿈 유지', async ({ pa
   }
 })
 
+test('fit-to-box: 줄어든 표시 크기가 저장 크기를 오염시키지 않고, 넓히면 글자가 되살아남', async ({ page }) => {
+  // Set everything BEFORE the text fill: the fill is then the last store
+  // mutation, so polling on the text guarantees the final re-render landed
+  // (dragging mid-re-render would grab a stale, replaced object).
+  await page.locator('label:has-text("박스 너비에 맞춤") input[type=checkbox]').check()
+  // Scope to the headline block — the bulk-style section above it has its own
+  // 크기 number input that would otherwise match first.
+  await page
+    .locator('div:has(> p:has-text("헤드라인")) input[type="number"]')
+    .first()
+    .fill('64')
+  await page.locator('textarea').first().fill('Comprehensive weather information')
+  await expect.poll(async () => (await readHeadline(page))?.text).toBe('Comprehensive weather information')
+
+  // Design 64 over-fills the default box with its widest word → render-time
+  // fit shows a smaller canvas size while the store keeps the design size.
+  await expect.poll(async () => (await readHeadline(page))?.fontSize ?? 99).toBeLessThan(64)
+  const fitted = (await readHeadline(page))!.fontSize!
+
+  // Widen the box → the canvas font re-fits upward toward the design ceiling…
+  await selectLayer(page, 'text')
+  const mr = await controlPos(page, 'text', 'mr')
+  await drag(page, mr, { x: mr.x + 50, y: mr.y })
+  await expect
+    .poll(async () => (await readHeadline(page))?.fontSize ?? 0, { timeout: 5_000 })
+    .toBeGreaterThan(fitted)
+
+  // …and the release must not bake the fitted size into the store (the old
+  // ratchet permanently replaced the design size with the shrunk one).
+  const storedSize = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('auto-image:project')!).state.project.slides[0].texts[0].style.fontSize,
+  )
+  expect(storedSize).toBe(64)
+})
+
+test('캔버스 밖까지 넓힌 박스가 릴리즈 후에도 그대로 유지됨 (점프 없음)', async ({ page }) => {
+  await page.locator('textarea').first().fill('깔끔하고 보기 쉬운 날씨 정보를 한눈에')
+  await expect.poll(async () => (await readHeadline(page))?.text).toBe('깔끔하고 보기 쉬운 날씨 정보를 한눈에')
+
+  await selectLayer(page, 'text')
+  const mr = await controlPos(page, 'text', 'mr')
+  // Drag past the right canvas edge, capturing the pre-release state between
+  // the last move and mouse-up: release must not re-clamp/re-center the box.
+  await page.mouse.move(mr.x, mr.y)
+  await page.mouse.down()
+  for (let i = 1; i <= 6; i++) await page.mouse.move(mr.x + (200 * i) / 6, mr.y)
+  const mid = (await readHeadline(page))!
+  await page.mouse.up()
+
+  await expect
+    .poll(async () => (await readHeadline(page))?.width ?? 0, { timeout: 5_000 })
+    .toBeCloseTo(mid.width!, 0)
+  const after = (await readHeadline(page))!
+  expect(after.width!).toBeGreaterThan(440) // overshoot survived, not clamped to one page
+  expect(after.textLines).toEqual(mid.textLines) // no reflow on release
+})
+
 test('모서리 핸들로 키운 텍스트 크기가 유지됨 (스냅백 없음)', async ({ page }) => {
   await page.locator('textarea').first().fill('크기 테스트')
   await expect.poll(async () => (await readHeadline(page))?.text).toBe('크기 테스트')

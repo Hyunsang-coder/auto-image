@@ -333,9 +333,8 @@ test('줄인 텍스트 박스 너비가 슬라이드 전환 후에도 유지됨'
   const before = await hlWidth()
 
   // Shrink the box by 100px and commit it like a real resize. (Shrinking, not
-  // widening: syncToZustand caps boxWidth at the slide width, and the text-top
-  // template's default box is already 85% of the canvas — too little headroom
-  // to widen meaningfully.)
+  // widening: the text-top template's default box is already 85% of the canvas
+  // — too little headroom to widen meaningfully.)
   await page.evaluate(() => {
     const ed = (window as unknown as { __editor: Ed }).__editor
     const hl = ed.findByLayer('text')!

@@ -530,7 +530,9 @@ export function addTextBlocks(
     const absolute = !!caption.pos
     const centerX = offsetX + (absolute ? caption.pos!.x * opts.cw : opts.headlineCenterX)
     const top = absolute ? caption.pos!.y * opts.ch : cursorTop
-    const width = caption.boxWidth != null ? Math.min(caption.boxWidth, 1) * opts.cw : opts.width
+    // boxWidth is the user's true drag width — may exceed one page (the sync
+    // stores it unclamped so the re-render reproduces the drag exactly).
+    const width = caption.boxWidth != null ? caption.boxWidth * opts.cw : opts.width
     const obj = renderCaption(caption, {
       left: centerX,
       top,

@@ -3,6 +3,7 @@ import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Highlight, ScreenshotCrop, Slide } from '../../types/project'
 import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, EMPTY_CROP } from '../../canvas/templateLayouts'
+import { fitCaption } from '../../canvas/objects/caption'
 import { normalizeAngle, rotateAround } from '../../canvas/geometry'
 import { canvasPointToRegionOrigin } from '../../canvas/objects/highlight'
 import { awaitSlideFonts } from '../../lib/fonts'
@@ -372,12 +373,15 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           // Seed from the current array (or a prior text patch in this same sync)
           // and replace only index i, so multiple text objects don't clobber.
           const texts = (ownerPatch.texts ?? ownerSlide.texts).slice()
+          // fontSize is NOT read back here: with fit-to-box the canvas object
+          // carries the *fitted* (shrunk) size — persisting it would ratchet
+          // the stored design size down and the text could never grow back
+          // when the box widens. Only an explicit scale gesture bakes it (below).
           let next: typeof existing = {
             ...existing,
             text: itext.text ?? existing.text,
             style: {
               ...existing.style,
-              fontSize: itext.fontSize ?? existing.style.fontSize,
               color: typeof itext.fill === 'string' ? itext.fill : existing.style.color,
               textAlign: (itext.textAlign as 'left' | 'center' | 'right') ?? existing.style.textAlign,
             },
@@ -396,16 +400,22 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             const pageX = isFollower ? c.x - halfW : c.x
             // A corner-scale leaves fontSize untouched (only scaleX/Y change) —
             // bake the scale into the stored size or the re-render snaps the
-            // text back to its pre-drag size.
-            const scaledFont = Math.round(
-              (itext.fontSize ?? existing.style.fontSize) * (itext.scaleY ?? 1),
-            )
+            // text back to its pre-drag size. A side-handle width drag (and a
+            // plain move) leaves scaleY at 1: keep the stored design size so
+            // fit-to-box re-fits against the new width instead of adopting the
+            // shrunk canvas size.
+            const scaleY = itext.scaleY ?? 1
+            const scaledFont = Math.abs(scaleY - 1) > 0.001
+              ? Math.round((itext.fontSize ?? existing.style.fontSize) * scaleY)
+              : existing.style.fontSize
             next = {
               ...next,
               style: { ...next.style, fontSize: scaledFont },
               pos: { x: pageX / halfW, y: (itext.top ?? 0) / ch },
-              // A text box can never be wider than one page.
-              boxWidth: Math.min(boxW / halfW, 1),
+              // Store the true page fraction even past 1 — clamping would
+              // re-center a box dragged past the canvas edge on release (the
+              // box visibly jumped and its text re-wrapped).
+              boxWidth: boxW / halfW,
             }
           }
           texts[i] = next
@@ -992,6 +1002,31 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       canvas.on('mouse:up', () => {
         clearDragGuides(canvas)
         canvas.requestRenderAll()
+      })
+
+      // Side-handle width drag on a caption: fit-to-box font sizing and the
+      // CJK grapheme-wrap mode are functions of the box width, normally
+      // computed at render time. Recompute them every resize tick so the drag
+      // preview matches the post-release re-render (no reflow jump on mouse-up).
+      canvas.on('object:resizing', (e) => {
+        const t = e.target as (Textbox & { layerName?: string; textIndex?: number; owner?: 'leader' | 'follower' }) | undefined
+        if (!t || t.layerName !== LAYER_NAMES.TEXT) return
+        const slide = activeSlideRef.current
+        if (!slide) return
+        const ownerSlide = t.owner === 'follower' && followerSlideRef.current ? followerSlideRef.current : slide
+        const caption = ownerSlide.texts[t.textIndex ?? 0]
+        if (!caption) return
+        const fit = fitCaption({ ...caption, text: t.text ?? caption.text }, t.width ?? 0)
+        if (fit.fontSize === t.fontSize && fit.splitByGrapheme === t.splitByGrapheme) return
+        const oldH = t.height ?? 0
+        t.set({ fontSize: fit.fontSize, splitByGrapheme: fit.splitByGrapheme })
+        // splitByGrapheme alone isn't dimension-affecting in Fabric — re-wrap
+        // explicitly so a wrap-mode flip without a size change still applies.
+        t.initDimensions()
+        // The resize anchor pinned the vertical center before our height change;
+        // shift top so the box doesn't creep downward across ticks.
+        t.set({ top: (t.top ?? 0) + (oldH - (t.height ?? 0)) / 2 })
+        t.setCoords()
       })
 
       // Same clipPath fix as object:moving but for scale operations — the popup

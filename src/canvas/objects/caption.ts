@@ -61,27 +61,40 @@ function widestTokenWidth(
   return widest
 }
 
-export function renderCaption(
+// Width-dependent caption layout: the fitted font size and the grapheme-wrap
+// mode are both functions of the box width. Exported so the editor can
+// recompute them live while a side handle drags the width — the drag preview
+// then matches what the post-release re-render produces.
+export function fitCaption(
   caption: Caption,
-  opts: CaptionOptions,
-): Textbox {
+  width: number,
+  scale = 1,
+): { fontSize: number; splitByGrapheme: boolean; fontFamily: string; charSpacing: number } {
   const { style } = caption
-  const textAlign = style.textAlign ?? 'center'
   // Lead the fallback with the font matching this caption's script so non-Latin
   // text (Japanese/Chinese/Thai) renders the right glyphs instead of tofu.
   const fontFamily = `${style.fontFamily}, ${scriptFallback(caption.text)}`
   const charSpacing = (style.letterSpacing ?? 0) * 10
-  const minFontSize = 10 * (opts.scale ?? 1)
   const cjk = containsCJK(caption.text)
   const widest = (cjk || style.fitToBox)
     ? widestTokenWidth(caption.text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing)
     : 0
   // CJK with an over-wide token breaks per-grapheme at the design size; word
   // wrapping (and the fit-to-box word shrink) stays in effect otherwise.
-  const graphemeWrap = cjk && widest > opts.width
-  const fontSize = style.fitToBox && !graphemeWrap
-    ? fitFontSize(style.fontSize, widest, opts.width, minFontSize)
+  const splitByGrapheme = cjk && widest > width
+  const fontSize = style.fitToBox && !splitByGrapheme
+    ? fitFontSize(style.fontSize, widest, width, 10 * scale)
     : style.fontSize
+  return { fontSize, splitByGrapheme, fontFamily, charSpacing }
+}
+
+export function renderCaption(
+  caption: Caption,
+  opts: CaptionOptions,
+): Textbox {
+  const { style } = caption
+  const textAlign = style.textAlign ?? 'center'
+  const { fontSize, splitByGrapheme, fontFamily, charSpacing } = fitCaption(caption, opts.width, opts.scale ?? 1)
 
   const obj = new Textbox(caption.text, {
     left: opts.left,
@@ -96,7 +109,7 @@ export function renderCaption(
     lineHeight: style.lineHeight ?? 1.2,
     originX: 'center',
     originY: 'top',
-    splitByGrapheme: graphemeWrap,
+    splitByGrapheme,
     editable: true,
     selectable: true,
     hasControls: true,
