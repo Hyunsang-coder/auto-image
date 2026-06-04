@@ -552,7 +552,7 @@ function addDeviceFrame(
   // and no frame → nothing visible to move; skip the handle entirely.
   if (!slide.deviceFrame.show && !slide.screenshot) return
   // Floating crop shrinks the handle to the visible card; the same shift is
-  // applied to _baseLeft/_baseTop below so syncToZustand's delta stays exactly
+  // applied to the raw anchors below so syncToZustand's delta stays exactly
   // the user's drag offset.
   const shotCrop = slide.deviceFrame.show ? undefined : effectiveShotStyle(slide).crop
   const handle = cropScreenBounds(
@@ -592,7 +592,7 @@ function addDeviceFrame(
       ]
   // The body's offset-free position, derived from the actual layout minus the
   // user's drag offset. Deriving it this way (rather than from a separately
-  // computed anchor) keeps syncToZustand's `body.left - _baseLeft` exactly equal
+  // computed anchor) keeps syncToZustand's `body.left - base` exactly equal
   // to offsetX/offsetY for every template and scale — including vertically
   // centered templates whose anchor would otherwise use the unscaled device
   // height and inject a vertical jump on drag-release.
@@ -626,15 +626,9 @@ function addDeviceFrame(
       // Corner handles scale, mtr rotates; standard middle handles stay hidden
       // (they'd break aspect) — floating mode replaces them with crop controls.
       obj.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: true })
-      const base = angle
-        ? rotateAround(anchors.rawLeft, anchors.rawTop, anchors.pivotX, anchors.pivotY, angle)
-        : { x: anchors.rawLeft, y: anchors.rawTop }
       Object.assign(obj, {
-        _baseLeft: base.x,
-        _baseTop: base.y,
-        // Unrotated anchors so syncToZustand can re-derive the base at whatever
-        // angle an mtr drag ends on (the pre-rotated _baseLeft/_baseTop only
-        // hold for the angle this render used).
+        // Unrotated anchors + pivot so syncToZustand can re-derive the base at
+        // whatever angle an mtr drag ends on.
         _baseRawLeft: anchors.rawLeft,
         _baseRawTop: anchors.rawTop,
         _basePivotX: anchors.pivotX,

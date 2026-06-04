@@ -112,8 +112,6 @@ function applySnapGuides(canvas: Canvas, target: FabricObject, ln: string | unde
 // rotated) anchors + pivot let sync re-derive the base at whatever angle an
 // mtr drag ends on; _crop carries the floating card's edge trim.
 interface DeviceAnchorProps {
-  _baseLeft?: number
-  _baseTop?: number
   _baseRawLeft?: number
   _baseRawTop?: number
   _basePivotX?: number
@@ -217,7 +215,7 @@ const HISTORY_LIMIT = 50
 // can't map them back to the store (positions would silently un-revert).
 const HISTORY_PROPS = [
   'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex',
-  '_baseLeft', '_baseTop', '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
+  '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
   '_crop', '_fullW', '_fullH', '_screenBounds', '_renderRot',
 ]
 
@@ -310,10 +308,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
     function findDeviceBody(canvas: Canvas): (FabricObject & DeviceAnchorProps) | null {
       // The selectable body path is the first device-frame object we tagged with
-      // _baseLeft/_baseTop in templateLayouts.
+      // raw anchors in templateLayouts.
       for (const obj of canvas.getObjects()) {
         const o = obj as FabricObject & DeviceAnchorProps & { layerName?: string }
-        if (o.layerName === LAYER_NAMES.DEVICE_FRAME && typeof o._baseLeft === 'number') {
+        if (o.layerName === LAYER_NAMES.DEVICE_FRAME && typeof o._baseRawLeft === 'number') {
           return o
         }
       }
@@ -386,9 +384,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const body = findDeviceBody(canvas)
       if (body && body._baseRawLeft !== undefined && body._baseRawTop !== undefined) {
         // An mtr drag leaves body.angle at the new tilt. Normalize to the
-        // slider's (-180, 180] range; re-derive the rotated base from the raw
-        // anchors at THIS angle (the render-time _baseLeft/_baseTop only hold
-        // for the angle the render used). Rotating about the body center vs the
+        // store's [-180, 180) range; re-derive the rotated base from the raw
+        // anchors at THIS angle. Rotating about the body center vs the
         // render's device-center pivot differ — the offset absorbs the gap, so
         // the re-render lands exactly where the user left the card.
         const nextRotation = normalizeAngle(body.angle ?? 0)
@@ -888,8 +885,6 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               text: (o as Textbox).text,
               selectable: o.selectable,
               evented: o.evented,
-              baseLeft: base._baseLeft,
-              baseTop: base._baseTop,
               crop: base._crop,
             }
           }),

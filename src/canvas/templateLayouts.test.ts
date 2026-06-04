@@ -74,10 +74,10 @@ describe('device drag round-trip is exact (no snap)', () => {
             const width = L.width
 
             // Production derivation (templateLayouts.addDeviceFrame):
-            //   body.left  = layout.centerX − width/2
-            //   _baseLeft  = (layout.centerX − offsetX) − width/2
-            //   body.top   = layout.top
-            //   _baseTop   = layout.top − offsetY
+            //   body.left     = layout.centerX − width/2
+            //   _baseRawLeft  = (layout.centerX − offsetX) − width/2
+            //   body.top      = layout.top
+            //   _baseRawTop   = layout.top − offsetY
             const bodyLeft = L.centerX - width / 2
             const baseLeft = L.centerX - dx - width / 2
             const bodyTop = L.top
@@ -167,7 +167,7 @@ describe('cropScreenBounds (floating edge trim)', () => {
       const L = layout('text-top', 440, 956, false, { show: false, offsetX: dx, offsetY: dy })!
       const base = layout('text-top', 440, 956, false, { show: false, offsetX: 0, offsetY: 0 })!
       // Production derivation (templateLayouts.addDeviceFrame, floating branch):
-      // both the handle and _baseLeft/_baseTop get the same crop shift, so the
+      // both the handle and the raw anchors get the same crop shift, so the
       // captured delta is still exactly the user's offset.
       const body = cropScreenBounds({ left: L.centerX - L.width / 2, top: L.top, width: L.width, height: L.height, rx: 0 }, crop)
       const baseLeft = (base.centerX - base.width / 2) + base.width * crop.left
