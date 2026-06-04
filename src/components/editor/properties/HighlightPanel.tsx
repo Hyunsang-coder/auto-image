@@ -1,5 +1,6 @@
 import type { Highlight } from '../../../types/project'
 import { makeHighlight } from '../../../constants/defaults'
+import { normalizeAngle } from '../../../canvas/geometry'
 
 interface Props {
   value: Highlight[]
@@ -130,7 +131,7 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
                 max={180}
                 step={1}
                 value={h.popup.rotation ?? 0}
-                onChange={(e) => updatePopup(h.id, { rotation: Number(e.target.value) })}
+                onChange={(e) => updatePopup(h.id, { rotation: normalizeAngle(Number(e.target.value)) })}
                 className="ml-2 flex-1 accent-[var(--color-accent)]"
               />
               <span className="w-10 text-right text-[var(--color-text-dim)]">

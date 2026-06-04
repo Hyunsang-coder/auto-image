@@ -3,6 +3,7 @@ import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Highlight, ScreenshotCrop, Slide } from '../../types/project'
 import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, rotateAround } from '../../canvas/templateLayouts'
+import { normalizeAngle } from '../../canvas/geometry'
 import { canvasPointToRegionOrigin } from '../../canvas/objects/highlight'
 import { awaitSlideFonts } from '../../lib/fonts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
@@ -222,11 +223,6 @@ const HISTORY_PROPS = [
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
-}
-
-/** Fabric angles can run past ±360; fold into the sliders' (-180, 180]. */
-function normalizeAngle(a: number): number {
-  return Math.round((((a + 180) % 360 + 360) % 360 - 180) * 10) / 10
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(

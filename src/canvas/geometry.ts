@@ -9,3 +9,12 @@ export function rotateAround(x: number, y: number, cx: number, cy: number, deg: 
   const dy = y - cy
   return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos }
 }
+
+/**
+ * Fold any angle into [-180, 180) at 0.1° precision — the canonical range the
+ * store keeps rotations in. Sync and the panel sliders both write through
+ * this, so +180 and -180 can't alias into a spurious rotation-changed patch.
+ */
+export function normalizeAngle(a: number): number {
+  return Math.round((((a + 180) % 360 + 360) % 360 - 180) * 10) / 10
+}

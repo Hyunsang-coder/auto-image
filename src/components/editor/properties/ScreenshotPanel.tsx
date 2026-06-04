@@ -6,6 +6,7 @@ import { useProjectStore } from '../../../store/useProjectStore'
 import { gcImages } from '../../../lib/imageRefs'
 import { importBulkImages } from '../../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../../constants/defaults'
+import { normalizeAngle } from '../../../canvas/geometry'
 
 const CROP_EDGES = [
   ['top', '위'],
@@ -287,7 +288,7 @@ export function ScreenshotPanel({
             step={1}
             value={deviceFrame.rotation ?? 0}
             onChange={(e) =>
-              onDeviceFrameChange({ ...deviceFrame, rotation: Number(e.target.value) })
+              onDeviceFrameChange({ ...deviceFrame, rotation: normalizeAngle(Number(e.target.value)) })
             }
             className="w-full accent-[var(--color-accent)]"
           />
