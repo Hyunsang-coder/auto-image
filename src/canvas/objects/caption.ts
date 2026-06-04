@@ -35,30 +35,30 @@ export function fitFontSize(
   return Math.max(minFontSize, baseFontSize * Math.min(1, boxWidth / widest))
 }
 
-// Largest font size — capped at `baseFontSize` — at which `text` fits `boxWidth`
-// once wrapped. A Textbox wraps at word boundaries, so the only thing that can't
-// fit is a single word wider than the box: we measure the widest WORD (not the
-// whole line) and shrink just enough for it. The text then wraps to multiple
-// lines near the design size instead of being crushed to cram a whole line onto
-// one row — the standard shrink-to-fit-after-wrap behavior. CJK text (no spaces,
-// which Fabric won't wrap) is one token, so it still shrinks to fit the width.
-function fitFontToBox(
+// Hangul syllables/jamo, kana, and CJK ideographs — scripts whose typography
+// permits a line break between any two characters. A token in these scripts
+// that's wider than the box wraps per-grapheme instead of overflowing (no fit)
+// or being crushed onto one line (fit-to-box).
+const CJK = /[가-힣ㄱ-ㅎㅏ-ㅣ぀-ヿ㐀-䶿一-鿿]/
+export function containsCJK(text: string): boolean {
+  return CJK.test(text)
+}
+
+// Width of the widest unbreakable token (word) at `fontSize`. A Textbox wraps
+// at word boundaries, so this is the narrowest a line can be forced to.
+function widestTokenWidth(
   text: string,
-  baseFontSize: number,
+  fontSize: number,
   fontFamily: string,
   fontWeight: string,
   charSpacing: number,
-  boxWidth: number,
-  minFontSize: number,
 ): number {
-  const words = text.split(/\s+/).filter(Boolean)
-  if (!words.length) return baseFontSize
   let widest = 0
-  for (const word of words) {
-    const probe = new Text(word, { fontFamily, fontSize: baseFontSize, fontWeight, charSpacing })
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const probe = new Text(word, { fontFamily, fontSize, fontWeight, charSpacing })
     widest = Math.max(widest, probe.width ?? 0)
   }
-  return fitFontSize(baseFontSize, widest, boxWidth, minFontSize)
+  return widest
 }
 
 export function renderCaption(
@@ -72,8 +72,15 @@ export function renderCaption(
   const fontFamily = `${style.fontFamily}, ${scriptFallback(caption.text)}`
   const charSpacing = (style.letterSpacing ?? 0) * 10
   const minFontSize = 10 * (opts.scale ?? 1)
-  const fontSize = style.fitToBox
-    ? fitFontToBox(caption.text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing, opts.width, minFontSize)
+  const cjk = containsCJK(caption.text)
+  const widest = (cjk || style.fitToBox)
+    ? widestTokenWidth(caption.text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing)
+    : 0
+  // CJK with an over-wide token breaks per-grapheme at the design size; word
+  // wrapping (and the fit-to-box word shrink) stays in effect otherwise.
+  const graphemeWrap = cjk && widest > opts.width
+  const fontSize = style.fitToBox && !graphemeWrap
+    ? fitFontSize(style.fontSize, widest, opts.width, minFontSize)
     : style.fontSize
 
   const obj = new Textbox(caption.text, {
@@ -89,7 +96,7 @@ export function renderCaption(
     lineHeight: style.lineHeight ?? 1.2,
     originX: 'center',
     originY: 'top',
-    splitByGrapheme: false,
+    splitByGrapheme: graphemeWrap,
     editable: true,
     selectable: true,
     hasControls: true,

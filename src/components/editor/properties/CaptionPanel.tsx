@@ -54,9 +54,8 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             min={10}
             max={300}
             value={value.style.fontSize}
-            disabled={value.style.fitToBox}
             onChange={(e) => updateStyle({ fontSize: Number(e.target.value) })}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none disabled:opacity-40"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
           />
         </div>
         <div className="flex-1">

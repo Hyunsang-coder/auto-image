@@ -394,8 +394,15 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             // leave [0,1] when a text is dragged across the seam — ownership
             // stays with its slide, so don't clamp.
             const pageX = isFollower ? c.x - halfW : c.x
+            // A corner-scale leaves fontSize untouched (only scaleX/Y change) —
+            // bake the scale into the stored size or the re-render snaps the
+            // text back to its pre-drag size.
+            const scaledFont = Math.round(
+              (itext.fontSize ?? existing.style.fontSize) * (itext.scaleY ?? 1),
+            )
             next = {
               ...next,
+              style: { ...next.style, fontSize: scaledFont },
               pos: { x: pageX / halfW, y: (itext.top ?? 0) / ch },
               // A text box can never be wider than one page.
               boxWidth: Math.min(boxW / halfW, 1),

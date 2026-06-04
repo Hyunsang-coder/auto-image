@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fitFontSize } from './caption'
+import { fitFontSize, containsCJK } from './caption'
 
 describe('fitFontSize (shrink-only fit policy)', () => {
   it('keeps the base size when the text already fits the box', () => {
@@ -23,5 +23,26 @@ describe('fitFontSize (shrink-only fit policy)', () => {
 
   it('returns the base size when nothing was measured', () => {
     expect(fitFontSize(72, 0, 400)).toBe(72)
+  })
+})
+
+describe('containsCJK (grapheme-wrap eligibility)', () => {
+  it('matches Hangul syllables and jamo', () => {
+    expect(containsCJK('운동기록')).toBe(true)
+    expect(containsCJK('ㅋㅋ')).toBe(true)
+  })
+
+  it('matches kana and CJK ideographs', () => {
+    expect(containsCJK('すごい')).toBe(true)
+    expect(containsCJK('カタカナ')).toBe(true)
+    expect(containsCJK('漢字')).toBe(true)
+  })
+
+  it('matches mixed Latin + CJK', () => {
+    expect(containsCJK('PDF를 한 번에')).toBe(true)
+  })
+
+  it('rejects pure Latin / digits / punctuation', () => {
+    expect(containsCJK('Track your runs — 100% free!')).toBe(false)
   })
 })
