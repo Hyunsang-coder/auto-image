@@ -2,8 +2,8 @@ import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
 import type { FabricObject } from 'fabric'
 import type { Highlight, ScreenshotCrop, Slide } from '../../types/project'
-import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, rotateAround } from '../../canvas/templateLayouts'
-import { normalizeAngle } from '../../canvas/geometry'
+import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, EMPTY_CROP } from '../../canvas/templateLayouts'
+import { normalizeAngle, rotateAround } from '../../canvas/geometry'
 import { canvasPointToRegionOrigin } from '../../canvas/objects/highlight'
 import { awaitSlideFonts } from '../../lib/fonts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
@@ -428,7 +428,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         // and history snapshots carry it — so this same read path restores the
         // old crop on undo.
         if (body._crop) {
-          const cur = slide.screenshotStyle?.crop ?? { top: 0, right: 0, bottom: 0, left: 0 }
+          const cur = slide.screenshotStyle?.crop ?? EMPTY_CROP
           const edges = ['top', 'right', 'bottom', 'left'] as const
           if (edges.some((k) => Math.abs(body._crop![k] - cur[k]) > 1e-4)) {
             slidePatch.screenshotStyle = { ...DEFAULT_SHOT_STYLE, ...slide.screenshotStyle, crop: body._crop }

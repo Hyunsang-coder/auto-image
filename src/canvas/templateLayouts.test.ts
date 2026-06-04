@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Rect, type FabricObject, type TPointerEvent, type Transform } from 'fabric'
-import { addTextBlocks, attachCropControls, cropScreenBounds, deviceBodyAnchors, getDeviceDimensions, getDeviceLayout, rotateAround, trimCrop } from './templateLayouts'
+import { addTextBlocks, attachCropControls, cropScreenBounds, deviceBodyAnchors, getDeviceDimensions, getDeviceLayout, trimCrop } from './templateLayouts'
+import { rotateAround } from './geometry'
 import { canvasPointToRegionOrigin, regionCenterOnCanvas } from './objects/highlight'
 import { LAYER_NAMES } from './layerNames'
 import type { Caption, Slide } from '../types/project'

@@ -7,6 +7,7 @@ import { gcImages } from '../../../lib/imageRefs'
 import { importBulkImages } from '../../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../../constants/defaults'
 import { normalizeAngle } from '../../../canvas/geometry'
+import { EMPTY_CROP } from '../../../canvas/templateLayouts'
 
 const CROP_EDGES = [
   ['top', '위'],
@@ -41,7 +42,7 @@ export function ScreenshotPanel({
   const [bulkMsg, setBulkMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [bulkIssues, setBulkIssues] = useState<string[]>([])
 
-  const crop = screenshotStyle.crop ?? { top: 0, right: 0, bottom: 0, left: 0 }
+  const crop = screenshotStyle.crop ?? EMPTY_CROP
 
   const sourceLocale = useProjectStore(s => s.project?.sourceLocale ?? 'en')
   const deviceModels = useProjectStore(s => s.project?.deviceModels)

@@ -3,7 +3,6 @@ import type { FabricObject } from 'fabric'
 import type { Slide, ScreenshotImage, ScreenshotStyle, ScreenshotCrop } from '../types/project'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, frameSpecOf } from '../constants/deviceSpecs'
 import { rotateAround } from './geometry'
-export { rotateAround }
 import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
 import { renderCaption } from './objects/caption'
@@ -66,6 +65,9 @@ export function cropScreenBounds(bounds: ScreenBounds, crop?: ScreenshotCrop): S
 }
 
 export type CropEdge = 'top' | 'right' | 'bottom' | 'left'
+
+/** ScreenshotCrop's neutral value. Shared read-only — spread before mutating. */
+export const EMPTY_CROP: ScreenshotCrop = { top: 0, right: 0, bottom: 0, left: 0 }
 
 // Per-edge ceiling shared with the panel sliders; 0.45 + 0.45 still leaves 10%
 // of the card, so no pairwise min-size guard is needed.
@@ -636,7 +638,7 @@ function addDeviceFrame(
       })
       if (!slide.deviceFrame.show) {
         Object.assign(obj, {
-          _crop: { top: 0, right: 0, bottom: 0, left: 0, ...shotCrop },
+          _crop: { ...EMPTY_CROP, ...shotCrop },
           _fullW: layout.width,
           _fullH: layout.height,
         })
