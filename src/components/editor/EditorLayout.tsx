@@ -28,7 +28,7 @@ import { resolveSlideForLocale } from '../../lib/resolveSlide'
 import { routeLocalePatch, clearLocaleOverride } from '../../lib/localeOverride'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import { MODELS_BY_TYPE, DEVICE_SPECS, DEFAULT_MODEL } from '../../constants/deviceSpecs'
-import type { DeviceModel } from '../../types/project'
+import type { DeviceModel, DeviceType } from '../../types/project'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 3
@@ -483,13 +483,17 @@ export function EditorLayout() {
                   key={dev}
                   value={model}
                   onChange={(e) => setDeviceSize(dev, e.target.value as DeviceModel)}
-                  title={`${dev === 'iphone' ? 'iPhone' : 'iPad'} App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다.`}
+                  title={`${dev === 'iphone' ? 'iPhone' : 'iPad'} App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다. 다른 기기를 고르면 슬라이드가 그 기기로 전환됩니다.`}
                   className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
                 >
-                  {MODELS_BY_TYPE[dev].map((m) => (
-                    <option key={m} value={m}>
-                      {DEVICE_SPECS[m].label}
-                    </option>
+                  {(Object.keys(MODELS_BY_TYPE) as DeviceType[]).map((t) => (
+                    <optgroup key={t} label={t === 'iphone' ? 'iPhone' : 'iPad'}>
+                      {MODELS_BY_TYPE[t].map((m) => (
+                        <option key={m} value={m}>
+                          {DEVICE_SPECS[m].label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               )
