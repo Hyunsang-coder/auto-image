@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { StepIndicator } from './components/common/StepIndicator'
+import { Modal } from './components/common/Modal'
 import { ProjectSetup } from './components/setup/ProjectSetup'
 import { EditorLayout } from './components/editor/EditorLayout'
 import { LocalizeEditor } from './components/localize/LocalizeEditor'
@@ -181,15 +182,7 @@ function App() {
       </div>
 
       {showSaveModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-          onClick={() => setShowSaveModal(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text)]">프로젝트 저장</h3>
+        <Modal title="프로젝트 저장" onClose={() => setShowSaveModal(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               현재 작업을 보관합니다. 이미 저장한 프로젝트라면 이 이름으로 갱신됩니다.
             </p>
@@ -220,20 +213,11 @@ function App() {
                 저장
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {showTemplateModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-          onClick={() => setShowTemplateModal(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text)]">템플릿으로 저장</h3>
+        <Modal title="템플릿으로 저장" onClose={() => setShowTemplateModal(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한
               템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, '프로젝트 설정'의 '템플릿으로 시작'에 추가됩니다.
@@ -265,20 +249,11 @@ function App() {
                 저장
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {showResetConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-          onClick={() => setShowResetConfirm(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text)]">프로젝트 초기화</h3>
+        <Modal title="프로젝트 초기화" onClose={() => setShowResetConfirm(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               현재 프로젝트 데이터가 모두 삭제됩니다. 되돌릴 수 없습니다.
             </p>
@@ -298,8 +273,7 @@ function App() {
                 초기화
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

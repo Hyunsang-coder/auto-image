@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Modal } from '../common/Modal'
 import { saveAs } from 'file-saver'
 import { save } from '@tauri-apps/plugin-dialog'
 import { isTauri, writeFileToDir } from '../../lib/tauri'
@@ -674,15 +675,7 @@ export function LocalizeEditor() {
       </div>
 
       {promptPreview !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-          onClick={() => setPromptPreview(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text)]">번역 프롬프트</h3>
+        <Modal title="번역 프롬프트" size="lg" onClose={() => setPromptPreview(null)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               AI 도구에 붙여넣고, 내보낸 CSV/JSON 양식을 함께 첨부하세요. 결과 파일은
               「가져오기」로 다시 불러옵니다.
@@ -706,8 +699,7 @@ export function LocalizeEditor() {
                 복사
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

@@ -9,6 +9,7 @@ import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
+import { Modal } from '../common/Modal'
 
 const MIN_SLIDES = 1
 const MAX_SLIDES = 10
@@ -390,15 +391,7 @@ export function ProjectSetup() {
       )}
 
       {confirmLoad && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-          onClick={() => setConfirmLoad(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text)]">프로젝트 불러오기</h3>
+        <Modal title="프로젝트 불러오기" onClose={() => setConfirmLoad(null)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               현재 편집 중인 작업을{' '}
               <span className="font-medium text-[var(--color-text)]">{confirmLoad.name}</span>
@@ -420,20 +413,11 @@ export function ProjectSetup() {
                 불러오기
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {confirmNew && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-          onClick={() => setConfirmNew(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text)]">새 프로젝트 만들기</h3>
+        <Modal title="새 프로젝트 만들기" onClose={() => setConfirmNew(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               현재 편집 중인 프로젝트를 새 프로젝트로 덮어씁니다. 저장하지 않은
               변경 사항은 사라집니다. 먼저 '저장'으로 보관해 두면 나중에 다시
@@ -455,8 +439,7 @@ export function ProjectSetup() {
                 새로 만들기
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

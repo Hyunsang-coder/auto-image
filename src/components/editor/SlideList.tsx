@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Modal } from '../common/Modal'
 import type React from 'react'
 import type { Slide } from '../../types/project'
 import { useProjectStore } from '../../store/useProjectStore'
@@ -227,15 +228,7 @@ export function SlideList({
       </button>
 
       {pendingDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
-          onClick={() => setPendingDelete(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text)]">슬라이드 삭제</h3>
+        <Modal title="슬라이드 삭제" size="sm" onClose={() => setPendingDelete(null)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               <span className="font-medium text-[var(--color-text)]">{pendingDelete.title}</span>
               {pendingDelete.ids.length > 1 ? '를 삭제합니다.' : ' 슬라이드를 삭제합니다.'} 이 작업은 되돌릴 수 없습니다.
@@ -259,8 +252,7 @@ export function SlideList({
                 삭제
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </nav>
   )
