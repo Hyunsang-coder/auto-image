@@ -6,8 +6,78 @@
 // user flips the source language.
 
 import type { Slide } from '../types/project'
+import type { ParsedRow } from './localeIO'
 
 export type FieldKey = 'image' | `text:${number}` | `badge:${number}`
+
+export interface CaptionApplyResult {
+  /** Final texts/badges per touched slide — feed to updateSlides or fold into a detached array. */
+  patches: Record<string, Partial<Slide>>
+  written: number
+  baseWritten: number
+  skippedRows: number
+  /** Non-source locales that received values (caller may add them to targetLocales). */
+  localesSeen: string[]
+  issues: string[]
+}
+
+/**
+ * Apply parsed localize-template rows onto a slide array. Matching: slideId
+ * first, then the 1-based `slide` index. A row whose text/badge slot doesn't
+ * exist is skipped (counted), empty cells are ignored, unknown locales warn.
+ * Cells compose onto a working copy so multi-row writes to one slide stack.
+ */
+export function applyCaptionRows(
+  slides: Slide[],
+  rows: ParsedRow[],
+  sourceLocale: string,
+  knownLocales: Set<string>,
+): CaptionApplyResult {
+  let work = slides
+  const touched = new Set<string>()
+  const localesSeen = new Set<string>()
+  const issues: string[] = []
+  let written = 0
+  let baseWritten = 0
+  let skippedRows = 0
+  for (const row of rows) {
+    const slide =
+      (row.slideId && work.find(s => s.id === row.slideId)) ||
+      (row.slide != null ? work[row.slide - 1] : undefined)
+    if (!slide) {
+      skippedRows++
+      continue
+    }
+    const fieldOk =
+      (row.field.startsWith('text:') && !!slide.texts[Number(row.field.slice(5))]) ||
+      (row.field.startsWith('badge:') && !!slide.badges?.[Number(row.field.slice(6))])
+    if (!fieldOk) {
+      skippedRows++
+      continue
+    }
+    for (const [locale, value] of Object.entries(row.values)) {
+      if (!value) continue
+      if (!knownLocales.has(locale)) {
+        issues.push(`지원하지 않는 언어 "${locale}"`)
+        continue
+      }
+      const patch = buildImportPatch(work, slide.id, row.field as FieldKey, locale, value, sourceLocale)
+      if (!patch) continue
+      work = work.map(s => (s.id === slide.id ? { ...s, ...patch } : s))
+      touched.add(slide.id)
+      if (locale === sourceLocale) baseWritten++
+      else localesSeen.add(locale)
+      written++
+    }
+  }
+  if (skippedRows > 0) issues.push(`${skippedRows}행 건너뜀 (슬라이드 또는 필드 없음)`)
+  const patches: Record<string, Partial<Slide>> = {}
+  for (const id of touched) {
+    const s = work.find(w => w.id === id)!
+    patches[id] = { texts: s.texts, badges: s.badges }
+  }
+  return { patches, written, baseWritten, skippedRows, localesSeen: [...localesSeen], issues }
+}
 
 /** Write a translation into `translations[locale]` (used by the grid + non-source import columns). */
 export function buildTranslationPatch(

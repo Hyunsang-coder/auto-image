@@ -7,7 +7,7 @@ import { useProjectStore } from '../../store/useProjectStore'
 import { fileToImageKey, loadImageObjectUrl } from '../../lib/imageStore'
 import { gcImages } from '../../lib/imageRefs'
 import { serializeTemplate, parseTemplate, buildTranslationPrompt, type LocaleFileFormat } from '../../lib/localeIO'
-import { buildTranslationPatch, buildImportPatch, type FieldKey } from '../../lib/localePatch'
+import { applyCaptionRows, buildTranslationPatch, type FieldKey } from '../../lib/localePatch'
 import { buildImageNamingGuide } from '../../lib/imageImport'
 import { importBulkImages } from '../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
@@ -188,14 +188,6 @@ export function LocalizeEditor() {
     if (patch) updateSlide(slideId, patch)
   }
 
-  // Route an imported cell to base text (source locale) or a translation,
-  // always off the latest committed slides so back-to-back writes compose.
-  function applyImportCell(slideId: string, field: FieldKey, locale: string, value: string) {
-    const fresh = useProjectStore.getState().project?.slides ?? slides
-    const patch = buildImportPatch(fresh, slideId, field, locale, value, sourceLocale)
-    if (patch) updateSlide(slideId, patch)
-  }
-
   async function handleOverrideUpload(slideId: string, locale: string, file: File) {
     let result
     try {
@@ -303,45 +295,12 @@ export function LocalizeEditor() {
     const { rows: parsed, warnings } = parseTemplate(text, format)
     const known = new Set<string>(SUPPORTED_LOCALES.map(l => l.code))
     const fresh = useProjectStore.getState().project?.slides ?? slides
-    const localesSeen = new Set<string>()
-    let written = 0
-    let baseWritten = 0
-    let skippedRows = 0
-    const issues = [...warnings]
-    for (const row of parsed) {
-      const slide =
-        (row.slideId && fresh.find(s => s.id === row.slideId)) ||
-        (row.slide != null ? fresh[row.slide - 1] : undefined)
-      if (!slide) {
-        skippedRows++
-        continue
-      }
-      const fieldOk =
-        (row.field.startsWith('text:') && !!slide.texts[Number(row.field.slice(5))]) ||
-        (row.field.startsWith('badge:') && !!slide.badges?.[Number(row.field.slice(6))])
-      if (!fieldOk) {
-        skippedRows++
-        continue
-      }
-      for (const [locale, value] of Object.entries(row.values)) {
-        if (!value) continue
-        if (!known.has(locale)) {
-          issues.push(`지원하지 않는 언어 "${locale}"`)
-          continue
-        }
-        // Source-locale column → slide base text; otherwise → translation.
-        applyImportCell(slide.id, row.field as FieldKey, locale, value)
-        if (locale === sourceLocale) {
-          baseWritten++
-        } else {
-          localesSeen.add(locale)
-        }
-        written++
-      }
-    }
-    if (skippedRows > 0) issues.push(`${skippedRows}행 건너뜀 (슬라이드 또는 필드 없음)`)
+    const { patches, written, baseWritten, localesSeen, issues: applyIssues } =
+      applyCaptionRows(fresh, parsed, sourceLocale, known)
+    if (Object.keys(patches).length) updateSlides(patches)
+    const issues = [...warnings, ...applyIssues]
     // Surface any locale that arrived with values but wasn't selected yet.
-    const toAdd = [...localesSeen].filter(l => !targetLocales.includes(l))
+    const toAdd = localesSeen.filter(l => !targetLocales.includes(l))
     if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
     const baseNote = baseWritten ? ` (기준 언어 ${baseWritten}개 갱신)` : ''
     setIoIssues(issues)
