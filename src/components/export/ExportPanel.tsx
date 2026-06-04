@@ -134,7 +134,10 @@ export function ExportPanel() {
             const leader = isLeader
               ? slide
               : slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'leader')
-            if (!leader) {
+            const follower = !isLeader
+              ? slide
+              : slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'follower')
+            if (!leader || !follower) {
               urls.push(null)
               continue
             }
@@ -143,7 +146,7 @@ export function ExportPanel() {
             // constants (fit-to-box floor, headline gap) otherwise diverge
             // between the 440px preview scale and the export scale. CSS scales it
             // down for display.
-            const halves = await renderSpanGroup(leader, renderLocale)
+            const halves = await renderSpanGroup(leader, follower, renderLocale)
             blob = isLeader ? halves.leader : halves.follower
           } else {
             blob = await renderSlide(slide, renderLocale)
@@ -257,6 +260,7 @@ export function ExportPanel() {
               try {
                 const { leader: leftBlob, follower: rightBlob } = await renderSpanGroup(
                   slide,
+                  follower,
                   renderLocale,
                 )
                 const lName = String(slide.index + 1).padStart(2, '0')
