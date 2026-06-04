@@ -10,7 +10,7 @@ import type { Caption, CaptionOverride, LocaleOverride, Slide, TextStyle } from 
 // base): badges, highlights, and the base screenshot image — badge text stays
 // per-locale via translations.
 
-const DEVICE_OVERRIDE_KEYS = ['offsetX', 'offsetY', 'scale', 'rotation', 'color'] as const
+const DEVICE_OVERRIDE_KEYS = ['show', 'offsetX', 'offsetY', 'scale', 'rotation', 'color'] as const
 const SHARED_KEYS = ['badges', 'highlights', 'screenshot'] as const
 
 // Only the style props that actually differ from the base, so changing one

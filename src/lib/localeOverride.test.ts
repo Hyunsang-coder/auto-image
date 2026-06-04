@@ -90,6 +90,13 @@ describe('routeLocalePatch', () => {
     expect(out.localeOverrides).toBeUndefined()
   })
 
+  it('routes the frame show toggle (false included) to the override', () => {
+    const base = baseSlide()
+    const out = routeLocalePatch(base, 'fr', { deviceFrame: { ...base.deviceFrame, show: false } })
+    expect(out.localeOverrides?.fr.deviceFrame?.show).toBe(false)
+    expect(out.deviceFrame).toBeUndefined() // base untouched
+  })
+
   it('routes ornaments to the override, not the base', () => {
     const base = baseSlide()
     const ornaments = [

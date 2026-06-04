@@ -115,6 +115,7 @@ export interface LocaleOverride {
   template?: TemplateType
   background?: Background
   deviceFrame?: {
+    show?: boolean
     offsetX?: number
     offsetY?: number
     scale?: number

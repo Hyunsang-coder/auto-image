@@ -89,6 +89,12 @@ describe('resolveSlideForLocale', () => {
     expect(r.texts[0].text).toBe('Hello')
   })
 
+  it('applies a per-locale frame show override (frameless in one locale only)', () => {
+    const s = baseSlide({ localeOverrides: { fr: { deviceFrame: { show: false } } } })
+    expect(resolveSlideForLocale(s, 'fr').deviceFrame.show).toBe(false)
+    expect(resolveSlideForLocale(s, 'de').deviceFrame.show).toBe(true)
+  })
+
   it('applies per-locale ornaments, falling back to base when absent', () => {
     const baseOrn = [{ id: 'o1', shape: 'star' as const, x: 0.1, y: 0.1, size: 0.1, rotation: 0, color: '#fff', opacity: 1 }]
     const frOrn = [{ ...baseOrn[0], x: 0.9 }]
