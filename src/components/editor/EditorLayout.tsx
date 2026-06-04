@@ -20,6 +20,7 @@ import type {
 import {
   type ThemePreset,
   presetFromSlide,
+  themePresetPatch,
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
 import { gcImages } from '../../lib/imageRefs'
@@ -355,13 +356,7 @@ export function EditorLayout() {
 
   function handleApplyThemePreset(preset: ThemePreset) {
     if (!editingSlide) return
-    applyEdit({
-      background: structuredClone(preset.background),
-      texts: editingSlide.texts.map((c, i) => ({
-        ...c,
-        style: { ...c.style, color: i === 0 ? preset.headlineColor : preset.subheadlineColor },
-      })),
-    })
+    applyEdit(themePresetPatch(editingSlide, preset))
   }
 
   function handleSavePreset(name: string) {
@@ -397,13 +392,7 @@ export function EditorLayout() {
     if (!targets.length) return
     const patches: Record<string, Partial<Slide>> = {}
     for (const s of targets) {
-      patches[s.id] = {
-        background: structuredClone(preset.background),
-        texts: s.texts.map((c, i) => ({
-          ...c,
-          style: { ...c.style, color: i === 0 ? preset.headlineColor : preset.subheadlineColor },
-        })),
-      }
+      patches[s.id] = themePresetPatch(s, preset)
     }
     updateSlides(patches)
   }

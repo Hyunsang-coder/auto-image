@@ -360,6 +360,25 @@ export function findThemePreset(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find((p) => p.id === id)
 }
 
+/**
+ * The slide patch a theme preset applies: background, text colors, and the
+ * badge accent (with an auto-contrast label). The inverse of presetFromSlide,
+ * so apply → capture round-trips the same accent.
+ */
+export function themePresetPatch(slide: Slide, preset: ThemePreset): Partial<Slide> {
+  return {
+    background: structuredClone(preset.background),
+    texts: slide.texts.map((c, i) => ({
+      ...c,
+      style: { ...c.style, color: i === 0 ? preset.headlineColor : preset.subheadlineColor },
+    })),
+    badges: (slide.badges ?? []).map((b) => ({
+      ...b,
+      style: { ...b.style, backgroundColor: preset.accentColor, textColor: readableTextOn(preset.accentColor) },
+    })),
+  }
+}
+
 /** Capture the current slide's background + text colors as a reusable preset.
  *  Background is deep-cloned so the stored preset never aliases the live slide. */
 export function presetFromSlide(slide: Slide, label: string): ThemePreset {

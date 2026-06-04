@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
   SUPPORTED_LOCALES,
+  THEME_PRESETS,
   ascExportCode,
   badgePlaceholder,
   headlinePlaceholder,
+  makeBadge,
   makeSlide,
+  presetFromSlide,
   relocalizePlaceholder,
+  themePresetPatch,
 } from './defaults'
+import type { Slide } from '../types/project'
 
 describe('ascExportCode — App Store Connect export folder codes', () => {
   it('canonicalizes bare codes that differ from ASC', () => {
@@ -45,6 +50,29 @@ describe('makeSlide', () => {
 
   it('seeds the headline in the given source locale', () => {
     expect(makeSlide(0, 'iphone', undefined, 'ja').texts[0].text).toBe('あなたの見出し')
+  })
+})
+
+describe('themePresetPatch', () => {
+  function slideWithBadge(): Slide {
+    const s = makeSlide(0)
+    s.badges = [makeBadge()]
+    return s
+  }
+
+  it('recolors badges to the preset accent with a readable label', () => {
+    const preset = THEME_PRESETS.find((p) => p.id === 'sage')!
+    const patch = themePresetPatch(slideWithBadge(), preset)
+    expect(patch.badges?.[0].style.backgroundColor).toBe(preset.accentColor)
+    expect(['#FFFFFF', '#1C1C24']).toContain(patch.badges?.[0].style.textColor)
+    expect(patch.texts?.[0].style.color).toBe(preset.headlineColor)
+    expect(patch.background).toEqual(preset.background)
+  })
+
+  it('round-trips: presetFromSlide captures the accent the patch applied', () => {
+    const preset = THEME_PRESETS.find((p) => p.id === 'blush')!
+    const slide = { ...slideWithBadge(), ...themePresetPatch(slideWithBadge(), preset) } as Slide
+    expect(presetFromSlide(slide, 'x').accentColor).toBe(preset.accentColor)
   })
 })
 
