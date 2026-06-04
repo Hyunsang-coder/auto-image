@@ -26,7 +26,7 @@ belongs in the layers below.
 
 `playwright.config.ts` reuses an already-running dev server on `localhost:5173`,
 or starts one. Specs live in `e2e/` — one per step plus `navigation`,
-`span-group`, and `persistence`.
+`span-group`, `persistence`, and one spec per feature.
 
 ### What the e2e suite covers
 
@@ -39,6 +39,10 @@ or starts one. Specs live in `e2e/` — one per step plus `navigation`,
 - **span-group** — link affordance, canvas width 440→880 on link, unlink,
   follower-click routes to leader, localize "N·N+1" label, export count
   (`slides × locales`), and **device centered on the seam** (see §3).
+- **feature specs** — one each: `project-import` (manifest happy/warning/fatal
+  paths), `locale-template-io` / `locale-image-bulk` / `locale-override(-ui)`,
+  `upload-screenshot`, `slide-delete` / `slide-duplicate`, `device-rotation` /
+  `canvas-rotate-crop`, `highlight-loupe`, `background-image`.
 
 The editor exposes a small read-only inspection surface for tests at
 `window.__editor` (set in `FabricCanvas.tsx`): `{ canvas, getState(), findByLayer() }`.

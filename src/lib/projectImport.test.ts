@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { buildProjectFromManifest, isManifestShaped, parseManifest } from './projectImport'
 import { DEFAULT_BACKGROUND, THEME_PRESETS, headlinePlaceholder } from '../constants/defaults'
+import { getDeviceDimensions, getDeviceLayout } from '../canvas/templateLayouts'
+import { DEVICE_SPECS, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 
 function minimal(extra: Record<string, unknown> = {}, slides: unknown[] = [{}]) {
   return JSON.stringify({ version: 1, name: 'Dogo', slides, ...extra })
@@ -168,6 +170,17 @@ describe('buildProjectFromManifest', () => {
     expect(p.slides[1].deviceFrame.show).toBe(false)
     expect(p.slides[1].background).toEqual({ type: 'solid', color: '#101010' })
     expect(p.slides[0].background).toEqual(DEFAULT_BACKGROUND)
+  })
+
+  it('shrinks the device on text-bottom slides so it clears the text band', () => {
+    const m = parseManifest(minimal({}, [{ layout: 'text-bottom', textBlocks: 2 }])).manifest!
+    const slide = buildProjectFromManifest(m).slides[0]
+    const cw = EDITOR_CANVAS_WIDTH
+    const spec = DEVICE_SPECS[slide.deviceFrame.model]
+    const ch = Math.round((cw / spec.exportWidth) * spec.exportHeight)
+    const layout = getDeviceLayout(slide, cw, ch, getDeviceDimensions(slide, cw), false, 1)!
+    // 0.74 = applyTextBottom's headline anchor — the device must end above it.
+    expect(layout.top + layout.height).toBeLessThanOrEqual(ch * 0.74)
   })
 })
 

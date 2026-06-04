@@ -28,6 +28,12 @@ import { DEFAULT_MODEL, MODELS_BY_TYPE } from '../constants/deviceSpecs'
 
 const MAX_SLIDES = 10
 
+// text-bottom anchors its caption at 74% of the canvas height, but a
+// default-scale device spans 5%→83% and runs under the text. Editor-authored
+// text-bottom slides tune scale/offset per slide; the import seeds a scale
+// that keeps the default device above the text band (0.05 + 0.78·s ≤ ~0.72).
+const TEXT_BOTTOM_DEVICE_SCALE = 0.85
+
 /** Normalized manifest: defaults resolved, invalid values replaced + warned. */
 export interface ParsedManifest {
   name: string
@@ -282,7 +288,11 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
         makeTextBlock(ti, spec.layout, ti === 0 ? headlinePlaceholder(sourceLocale) : ''),
       ),
       ...(spec.background ? { background: structuredClone(spec.background) } : {}),
-      ...(spec.showDeviceFrame ? {} : { deviceFrame: { ...slide.deviceFrame, show: false } }),
+      deviceFrame: {
+        ...slide.deviceFrame,
+        ...(spec.showDeviceFrame ? {} : { show: false }),
+        ...(spec.layout === 'text-bottom' ? { scale: TEXT_BOTTOM_DEVICE_SCALE } : {}),
+      },
     }
   })
   return project
