@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Background, DeviceType, DeviceModel, Project } from '../../types/project'
 import { DEFAULT_BACKGROUND } from '../../constants/defaults'
 import { DEVICE_SPECS, MODELS_BY_TYPE, DEFAULT_MODEL } from '../../constants/deviceSpecs'
@@ -7,6 +7,7 @@ import { useLibraryStore } from '../../store/useLibraryStore'
 import { useCustomStore } from '../../store/useCustomStore'
 import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
+import { runProjectImport, type ImportRunResult } from '../../lib/projectImportRun'
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
 import { Modal } from '../common/Modal'
@@ -27,6 +28,9 @@ export function ProjectSetup() {
   const [pendingTplDelete, setPendingTplDelete] = useState<string | null>(null)
   const [confirmLoad, setConfirmLoad] = useState<Project | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const [importResult, setImportResult] = useState<ImportRunResult | null>(null)
+  const [importBusy, setImportBusy] = useState(false)
 
   const [name, setName] = useState(existingProject?.name ?? '내 앱')
   // Exactly one device type per project (radio, never both/neither). The chosen
@@ -98,6 +102,30 @@ export function ProjectSetup() {
   // same load path (so it confirms before overwriting current work).
   function startFromTemplate(tpl: ProjectTemplate) {
     handleLoad(buildProjectFromTemplate(tpl, name))
+  }
+
+  // The import runs uncommitted, then one modal shows the summary/warnings and
+  // doubles as the overwrite confirmation. Cancel sweeps the blobs the dry run
+  // already persisted to IndexedDB (unreferenced → gcImages collects them).
+  async function handleImportFiles(files: File[]) {
+    setImportBusy(true)
+    try {
+      setImportResult(await runProjectImport(files))
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  function confirmImport() {
+    if (!importResult?.project) return
+    loadProject(importResult.project)
+    setImportResult(null)
+    gcImages()
+  }
+
+  function cancelImport() {
+    setImportResult(null)
+    gcImages()
   }
 
   return (
@@ -198,6 +226,32 @@ export function ProjectSetup() {
           </ul>
         </Section>
       )}
+
+      <Section
+        title="프로젝트 가져오기"
+        hint="AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 선택하면 export 전 단계까지 채워진 프로젝트로 시작합니다."
+      >
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json,.csv,image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? [])
+            e.target.value = ''
+            if (files.length) void handleImportFiles(files)
+          }}
+        />
+        <button
+          type="button"
+          disabled={importBusy}
+          onClick={() => importInputRef.current?.click()}
+          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {importBusy ? '가져오는 중…' : '파일 선택'}
+        </button>
+      </Section>
 
       <Section title="앱 이름">
         <input
@@ -413,6 +467,58 @@ export function ProjectSetup() {
                 불러오기
               </button>
             </div>
+        </Modal>
+      )}
+
+      {importResult && (
+        <Modal title="프로젝트 가져오기" onClose={cancelImport}>
+          {importResult.project ? (
+            <p className="mt-2 text-sm text-[var(--color-text)]">
+              <span className="font-medium">{importResult.project.name}</span>
+              <span className="text-[var(--color-text-dim)]">
+                {' '}— 슬라이드 {importResult.applied.slides}장 · 스크린샷{' '}
+                {importResult.applied.screenshots}개 · 캡션 {importResult.applied.captions}개 적용
+              </span>
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-red-600">가져올 수 없습니다.</p>
+          )}
+          {importResult.issues.length > 0 && (
+            <details className="mt-2" open={!importResult.project}>
+              <summary className="cursor-pointer text-xs text-red-600">
+                경고 {importResult.issues.length}건 보기
+              </summary>
+              <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] text-[var(--color-text-dim)]">
+                {importResult.issues.map((issue, i) => (
+                  <li key={i}>{issue}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {importResult.project && hasExisting && (
+            <p className="mt-3 text-xs text-[var(--color-text-dim)]">
+              가져오면 현재 편집 중인 프로젝트를 덮어씁니다. 저장하지 않은 변경
+              사항은 사라집니다.
+            </p>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={cancelImport}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {importResult.project ? '취소' : '닫기'}
+            </button>
+            {importResult.project && (
+              <button
+                type="button"
+                onClick={confirmImport}
+                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+              >
+                에디터에서 검수 →
+              </button>
+            )}
+          </div>
         </Modal>
       )}
 
