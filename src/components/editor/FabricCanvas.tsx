@@ -235,13 +235,12 @@ const HISTORY_PROPS = [
 // track its textbox live through every gesture so it doesn't lag the text.
 function findCaptionBox(canvas: Canvas, text: FabricObject): Rect | null {
   const t = text as FabricObject & { textIndex?: number; owner?: string }
-  for (const o of canvas.getObjects()) {
-    const b = o as Rect & { layerName?: string; textIndex?: number; owner?: string }
-    if (b.layerName === LAYER_NAMES.TEXT_BOX && b.textIndex === t.textIndex && b.owner === t.owner) {
-      return b
-    }
-  }
-  return null
+  return (
+    (canvas.getObjects().find((o) => {
+      const b = o as Rect & { layerName?: string; textIndex?: number; owner?: string }
+      return b.layerName === LAYER_NAMES.TEXT_BOX && b.textIndex === t.textIndex && b.owner === t.owner
+    }) as Rect | undefined) ?? null
+  )
 }
 
 function trackCaptionBox(canvas: Canvas, text: FabricObject): void {
