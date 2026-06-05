@@ -109,6 +109,11 @@ export function renderCaption(
     lineHeight: style.lineHeight ?? 1.2,
     originX: 'center',
     originY: 'top',
+    // Fabric's default strokeWidth 1 inflates getScaledWidth()/getCenterPoint()
+    // by half a pixel even with no stroke painted — for left/right-aligned
+    // captions that skews every center read-back, and the position sync would
+    // creep +0.5px per edit. Captions never stroke, so zero it out.
+    strokeWidth: 0,
     splitByGrapheme,
     editable: true,
     selectable: true,

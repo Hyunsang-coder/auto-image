@@ -359,6 +359,57 @@ test('줄인 텍스트 박스 너비가 슬라이드 전환 후에도 유지됨'
   expect(afterSwitch).toBeLessThan(before - 80)
 })
 
+test('Undo가 텍스트 드래그를 되돌리고, 되돌림이 슬라이드 전환 후에도 유지됨', async ({ page }) => {
+  type Ed = {
+    getState: () => { width: number; objects: { layerName?: string; left: number; top: number; height: number }[] }
+    findByLayer: (n: string) => unknown
+  }
+  const headline = () =>
+    page.evaluate(() => {
+      const t = (window as unknown as { __editor: Ed }).__editor
+        .getState()
+        .objects.find((o) => o.layerName === 'text')!
+      return { left: t.left, top: t.top, height: t.height }
+    })
+
+  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await page.locator('textarea').first().fill('언두 검증용 헤드라인')
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('text') != null)
+
+  const box = (await page.locator('canvas').last().boundingBox())!
+  const st = await page.evaluate(() => (window as unknown as { __editor: Ed }).__editor.getState())
+  const scale = box.width / st.width
+  const orig = await headline()
+
+  // real drag +60px right → pins the caption (pos written to the store)
+  const cx = box.x + orig.left * scale // originX center → left IS centerX
+  const cy = box.y + (orig.top + orig.height / 2) * scale
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  await page.mouse.move(cx + 60, cy, { steps: 6 })
+  await page.mouse.up()
+  await page.waitForFunction((l) => {
+    const t = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'text')!
+    return t.left > l + 30
+  }, orig.left)
+
+  const isMac = process.platform === 'darwin'
+  await page.keyboard.press(isMac ? 'Meta+z' : 'Control+z')
+  await page.waitForFunction((l) => {
+    const t = (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'text')!
+    return Math.abs(t.left - l) < 10
+  }, orig.left)
+
+  // store consistency: the undo must survive a re-render from the store —
+  // it used to keep the dragged pos and the slide switch resurrected it.
+  const slides = slideThumbs(page)
+  await slides.nth(1).click()
+  await slides.nth(0).click()
+  await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('text') != null)
+  const afterSwitch = await headline()
+  expect(Math.abs(afterSwitch.left - orig.left)).toBeLessThan(10)
+})
+
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
   // 로컬라이즈 에디터 헤더 확인

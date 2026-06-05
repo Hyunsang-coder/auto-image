@@ -542,6 +542,12 @@ export function addTextBlocks(
       owner: opts.owner,
       scale: opts.scale,
     })
+    // Render-time placement tags. Undo/redo reload canvas snapshots (which
+    // carry these via HISTORY_PROPS), and sync mirrors them back into the
+    // store — without them the store kept the undone pos/width/fontSize and a
+    // slide switch resurrected the reverted edit.
+    ;(obj as FabricObject & { _absolutePos?: boolean })._absolutePos = absolute
+    ;(obj as FabricObject & { _designFontSize?: number })._designFontSize = caption.style.fontSize
     // The caption's own textAlign is the source of truth (the panel sets it, and
     // a layout switch seeds it with TEMPLATE_TEXT_ALIGN). Fall back to the
     // layout default only if a caption somehow has none.

@@ -1,6 +1,6 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Canvas, FabricImage, Line, Rect, Textbox } from 'fabric'
-import type { FabricObject } from 'fabric'
+import { Canvas, FabricImage, Line, Rect, Textbox, controlsUtils } from 'fabric'
+import type { FabricObject, Transform } from 'fabric'
 import type { Highlight, ScreenshotCrop, Slide } from '../../types/project'
 import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, EMPTY_CROP } from '../../canvas/templateLayouts'
 import { fitCaption } from '../../canvas/objects/caption'
@@ -226,6 +226,7 @@ const HISTORY_PROPS = [
   'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex', 'owner',
   '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
   '_crop', '_fullW', '_fullH', '_screenBounds', '_renderRot',
+  '_absolutePos', '_designFontSize',
 ]
 
 function clamp01(n: number): number {
@@ -386,36 +387,61 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               textAlign: (itext.textAlign as 'left' | 'center' | 'right') ?? existing.style.textAlign,
             },
           }
-          // Persist position/width only when the user actually manipulated THIS
-          // caption. Capturing on every sync would pin text that's still meant
-          // to follow the template (e.g. after a device move or template switch).
-          if (obj === movedTarget) {
+          // Center/width in page-local fractions. The follower's page starts
+          // at halfW; values may leave [0,1] when a box crosses the seam or
+          // the canvas edge — ownership is array membership, so don't clamp
+          // (clamping re-centered the box on release: it visibly jumped and
+          // its text re-wrapped). scaleX folds a corner-scale into the width.
+          const readPlacement = () => {
             const c = itext.getCenterPoint()
-            // Side-handle resize grows width (scaleX stays 1); fold in scaleX so
-            // a corner-scale still bakes into the stored width.
             const boxW = (itext.width ?? 0) * (itext.scaleX ?? 1)
-            // Page-local fraction: the follower's page starts at halfW. May
-            // leave [0,1] when a text is dragged across the seam — ownership
-            // stays with its slide, so don't clamp.
             const pageX = isFollower ? c.x - halfW : c.x
-            // A corner-scale leaves fontSize untouched (only scaleX/Y change) —
-            // bake the scale into the stored size or the re-render snaps the
-            // text back to its pre-drag size. A side-handle width drag (and a
-            // plain move) leaves scaleY at 1: keep the stored design size so
-            // fit-to-box re-fits against the new width instead of adopting the
-            // shrunk canvas size.
-            const scaleY = itext.scaleY ?? 1
-            const scaledFont = Math.abs(scaleY - 1) > 0.001
-              ? Math.round((itext.fontSize ?? existing.style.fontSize) * scaleY)
-              : existing.style.fontSize
+            return { x: pageX / halfW, y: (itext.top ?? 0) / ch, boxWidth: boxW / halfW }
+          }
+          // A corner-scale leaves fontSize untouched (only scaleX/Y change) —
+          // bake the scale into the stored size or the re-render snaps the
+          // text back. A side-handle width drag (and a plain move) leaves
+          // scaleY at 1: keep the design size so fit-to-box can re-fit.
+          const scaleY = itext.scaleY ?? 1
+          const bakeFont = (base: number) =>
+            Math.abs(scaleY - 1) > 0.001 ? Math.round((itext.fontSize ?? base) * scaleY) : undefined
+
+          // Persist position/width when the user manipulated THIS caption.
+          // Capturing on every sync would pin text that's still meant to
+          // follow the template (e.g. after a device move or template switch).
+          if (obj === movedTarget) {
+            const p = readPlacement()
             next = {
               ...next,
-              style: { ...next.style, fontSize: scaledFont },
-              pos: { x: pageX / halfW, y: (itext.top ?? 0) / ch },
-              // Store the true page fraction even past 1 — clamping would
-              // re-center a box dragged past the canvas edge on release (the
-              // box visibly jumped and its text re-wrapped).
-              boxWidth: boxW / halfW,
+              style: { ...next.style, fontSize: bakeFont(existing.style.fontSize) ?? existing.style.fontSize },
+              pos: { x: p.x, y: p.y },
+              boxWidth: p.boxWidth,
+            }
+          } else {
+            // No moved target → this sync may be an undo/redo reload. Mirror
+            // the snapshot's render-time tags back so the store reverts too
+            // (it kept the undone pos/width/fontSize, and a slide switch
+            // resurrected the reverted edit). Ordinary syncs reach here with
+            // store-derived values, so the epsilon guards make it a no-op.
+            const tagged = itext as typeof itext & { _absolutePos?: boolean; _designFontSize?: number }
+            const restoredFont = bakeFont(next.style.fontSize) ?? tagged._designFontSize
+            if (typeof restoredFont === 'number' && restoredFont !== next.style.fontSize) {
+              next = { ...next, style: { ...next.style, fontSize: restoredFont } }
+            }
+            if (tagged._absolutePos === true) {
+              const p = readPlacement()
+              const cur = next.pos
+              if (
+                !cur ||
+                Math.abs(cur.x - p.x) > 1e-6 ||
+                Math.abs(cur.y - p.y) > 1e-6 ||
+                Math.abs((next.boxWidth ?? -1) - p.boxWidth) > 1e-6
+              ) {
+                next = { ...next, pos: { x: p.x, y: p.y }, boxWidth: p.boxWidth }
+              }
+            } else if (tagged._absolutePos === false && next.pos) {
+              // Snapshot predates the pin → undo back to template-anchored.
+              next = { ...next, pos: undefined, boxWidth: undefined }
             }
           }
           texts[i] = next
@@ -1006,26 +1032,49 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
       // Side-handle width drag on a caption: fit-to-box font sizing and the
       // CJK grapheme-wrap mode are functions of the box width, normally
-      // computed at render time. Recompute them every resize tick so the drag
-      // preview matches the post-release re-render (no reflow jump on mouse-up).
-      canvas.on('object:resizing', (e) => {
-        const t = e.target as (Textbox & { layerName?: string; textIndex?: number; owner?: 'leader' | 'follower' }) | undefined
-        if (!t || t.layerName !== LAYER_NAMES.TEXT) return
+      // computed at render time. Recompute them every drag tick so the
+      // preview matches the post-release re-render (no reflow jump on
+      // mouse-up). Hooked on mouse:move (which fires after Fabric's per-tick
+      // transform), NOT object:resizing — that event only fires when the
+      // width actually changed, and Fabric's Textbox min-width clamp (widest
+      // word at the CURRENT font) swallows the change one step in, which
+      // would deadlock the shrink.
+      canvas.on('mouse:move', (opt) => {
+        const tf = (canvas as unknown as { _currentTransform?: Transform | null })._currentTransform
+        if (!tf || tf.action !== 'resizing') return
+        const t = tf.target as Textbox & { layerName?: string; textIndex?: number; owner?: 'leader' | 'follower' }
+        if (t.layerName !== LAYER_NAMES.TEXT) return
         const slide = activeSlideRef.current
         if (!slide) return
         const ownerSlide = t.owner === 'follower' && followerSlideRef.current ? followerSlideRef.current : slide
         const caption = ownerSlide.texts[t.textIndex ?? 0]
         if (!caption) return
-        const fit = fitCaption({ ...caption, text: t.text ?? caption.text }, t.width ?? 0)
-        if (fit.fontSize === t.fontSize && fit.splitByGrapheme === t.splitByGrapheme) return
-        const oldH = t.height ?? 0
-        t.set({ fontSize: fit.fontSize, splitByGrapheme: fit.splitByGrapheme })
-        // splitByGrapheme alone isn't dimension-affecting in Fabric — re-wrap
-        // explicitly so a wrap-mode flip without a size change still applies.
+        // Fabric clamps a Textbox at the widest word for the CURRENT font,
+        // which would deadlock fit-to-box shrinking (the width can't drop
+        // until the font shrinks, and the font only shrinks for a smaller
+        // width). Recover the width the pointer actually asked for — same
+        // math and same crossed-the-anchor gate as Fabric's changeWidth.
+        const local = controlsUtils.getLocalPoint(tf, tf.originX, tf.originY, opt.scenePoint.x, opt.scenePoint.y)
+        const scaleX = t.scaleX || 1
+        const sameSide =
+          tf.originX === 'center' ||
+          (tf.originX === 'right' && local.x < 0) ||
+          (tf.originX === 'left' && local.x > 0)
+        const strokePadding = (t.strokeWidth ?? 0) / (t.strokeUniform ? scaleX : 1)
+        const multiplier = tf.originX === 'center' && tf.originY === 'center' ? 2 : 1
+        const requested = sameSide
+          ? Math.max(Math.ceil(Math.abs((local.x * multiplier) / scaleX) - strokePadding), 1)
+          : (t.width ?? 0)
+        const fit = fitCaption({ ...caption, text: t.text ?? caption.text }, requested)
+        if (fit.fontSize === t.fontSize && fit.splitByGrapheme === t.splitByGrapheme && requested === t.width) return
+        // Re-apply with the drag anchor pinned (mirrors wrapWithFixedAnchor).
+        // Font first, so the Textbox min-width clamp evaluates at the new size;
+        // initDimensions explicitly because splitByGrapheme alone isn't
+        // dimension-affecting in Fabric.
+        const constraint = t.translateToOriginPoint(t.getRelativeCenterPoint(), tf.originX, tf.originY)
+        t.set({ fontSize: fit.fontSize, splitByGrapheme: fit.splitByGrapheme, width: requested })
         t.initDimensions()
-        // The resize anchor pinned the vertical center before our height change;
-        // shift top so the box doesn't creep downward across ticks.
-        t.set({ top: (t.top ?? 0) + (oldH - (t.height ?? 0)) / 2 })
+        t.setPositionByOrigin(constraint, tf.originX, tf.originY)
         t.setCoords()
       })
 
@@ -1059,6 +1108,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         lastBodyAngle.current = null
         // Drop guides before snapshotting so they never enter history/sync.
         clearDragGuides(canvas)
+        // A manipulated caption is user-placed from here on — flip its tag
+        // BEFORE the history snapshot so a later redo re-pins it.
+        const tln = (e.target as (FabricObject & { layerName?: string }) | undefined)?.layerName
+        if (tln === LAYER_NAMES.TEXT) {
+          ;(e.target as FabricObject & { _absolutePos?: boolean })._absolutePos = true
+        }
         // Inside an ActiveSelection, child left/top are relative to the group
         // center — syncToZustand reads them as absolute and would corrupt the
         // stored positions. Disbanding first bakes the group transform back
