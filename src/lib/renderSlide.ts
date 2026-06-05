@@ -7,22 +7,25 @@ import { encodeOpaquePng } from './encodePng'
 import { resolveSlideForLocale } from './resolveSlide'
 import { awaitSlideFonts } from './fonts'
 
-function withScaledFonts(slide: Slide, scale: number): Slide {
+// Scale must stay exact (no rounding) and letterSpacing must NOT be scaled:
+// Fabric's charSpacing is em-relative so it already tracks fontSize, and
+// rounding fontSize at non-integer scales (thumbnail 0.5×, iPad ~4.7×) shifts
+// wrap/fit/grapheme decisions away from what the 1× editor canvas shows.
+export function withScaledFonts(slide: Slide, scale: number): Slide {
   return {
     ...slide,
     texts: slide.texts.map((c) => ({
       ...c,
       style: {
         ...c.style,
-        fontSize: Math.round(c.style.fontSize * scale),
-        letterSpacing: (c.style.letterSpacing ?? 0) * scale,
+        fontSize: c.style.fontSize * scale,
       },
     })),
     badges: slide.badges.map((b) => ({
       ...b,
       style: {
         ...b.style,
-        fontSize: Math.round(b.style.fontSize * scale),
+        fontSize: b.style.fontSize * scale,
         paddingX: b.style.paddingX * scale,
         paddingY: b.style.paddingY * scale,
         borderRadius: b.style.borderRadius * scale,
