@@ -30,6 +30,25 @@ export function withScaledFonts(slide: Slide, scale: number): Slide {
             blur: c.style.shadow.blur * scale,
           },
         }),
+        ...(c.style.box && {
+          box: {
+            ...c.style.box,
+            paddingX: c.style.box.paddingX * scale,
+            paddingY: c.style.box.paddingY * scale,
+            borderRadius: c.style.box.borderRadius * scale,
+            ...(c.style.box.border && {
+              border: { ...c.style.box.border, width: c.style.box.border.width * scale },
+            }),
+            ...(c.style.box.shadow && {
+              shadow: {
+                ...c.style.box.shadow,
+                offsetX: c.style.box.shadow.offsetX * scale,
+                offsetY: c.style.box.shadow.offsetY * scale,
+                blur: c.style.box.shadow.blur * scale,
+              },
+            }),
+          },
+        }),
       },
     })),
     badges: slide.badges.map((b) => ({

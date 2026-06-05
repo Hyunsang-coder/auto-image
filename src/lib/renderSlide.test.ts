@@ -66,6 +66,30 @@ describe('withScaledFonts (export/thumbnail ↔ editor proportionality)', () => 
     expect(scaled.shadow).toBeUndefined()
   })
 
+  it('scales box padding/radius/border/shadow geometry, leaving colors/opacity alone', () => {
+    const slide = slideWithBadge()
+    slide.texts[0].style.box = {
+      fill: '#112233', opacity: 0.5, paddingX: 16, paddingY: 10, borderRadius: 12,
+      border: { color: '#FF0000', width: 2 },
+      shadow: { color: '#000000', opacity: 0.4, offsetX: 3, offsetY: 4, blur: 8 },
+    }
+
+    const scaled = withScaledFonts(slide, IPAD_SCALE).texts[0].style
+    expect(scaled.box).toEqual({
+      fill: '#112233',
+      opacity: 0.5,
+      paddingX: 16 * IPAD_SCALE,
+      paddingY: 10 * IPAD_SCALE,
+      borderRadius: 12 * IPAD_SCALE,
+      border: { color: '#FF0000', width: 2 * IPAD_SCALE },
+      shadow: { color: '#000000', opacity: 0.4, offsetX: 3 * IPAD_SCALE, offsetY: 4 * IPAD_SCALE, blur: 8 * IPAD_SCALE },
+    })
+  })
+
+  it('leaves box absent when the caption has none', () => {
+    expect(withScaledFonts(slideWithBadge(), IPAD_SCALE).texts[0].style.box).toBeUndefined()
+  })
+
   it('scales badge fontSize and paddings exactly', () => {
     const scaled = withScaledFonts(slideWithBadge(), THUMB_SCALE).badges[0].style
     expect(scaled.fontSize).toBe(6.5)

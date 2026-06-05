@@ -3,7 +3,7 @@ import { Canvas, FabricImage, Line, Rect, Textbox, controlsUtils } from 'fabric'
 import type { FabricObject, Transform } from 'fabric'
 import type { Highlight, ScreenshotCrop, Slide } from '../../types/project'
 import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, EMPTY_CROP } from '../../canvas/templateLayouts'
-import { fitCaption } from '../../canvas/objects/caption'
+import { fitCaption, placeCaptionBoxUnderlay } from '../../canvas/objects/caption'
 import { normalizeAngle, rotateAround } from '../../canvas/geometry'
 import { canvasPointToRegionOrigin } from '../../canvas/objects/highlight'
 import { awaitSlideFonts } from '../../lib/fonts'
@@ -91,7 +91,9 @@ function applySnapGuides(canvas: Canvas, target: FabricObject, ln: string | unde
   for (const o of canvas.getObjects()) {
     if (o === target) continue
     const oln = (o as FabricObject & { layerName?: string }).layerName
-    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND) continue
+    // TEXT_BOX rides its caption one tick behind — letting the caption snap to
+    // its own box edges would make the drag sticky at ±padding offsets.
+    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND || oln === LAYER_NAMES.TEXT_BOX) continue
     // The screenshot moves with the device — don't let the device snap to it.
     if (isDevice && oln === LAYER_NAMES.SCREENSHOT) continue
     const b = boxOf(o)
@@ -226,8 +228,26 @@ const HISTORY_PROPS = [
   'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex', 'owner',
   '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
   '_crop', '_fullW', '_fullH', '_screenBounds', '_renderRot',
-  '_absolutePos', '_designFontSize',
+  '_absolutePos', '_designFontSize', '_padX', '_padY',
 ]
+
+// The caption's box underlay is derived (sync never reads it back) but must
+// track its textbox live through every gesture so it doesn't lag the text.
+function findCaptionBox(canvas: Canvas, text: FabricObject): Rect | null {
+  const t = text as FabricObject & { textIndex?: number; owner?: string }
+  for (const o of canvas.getObjects()) {
+    const b = o as Rect & { layerName?: string; textIndex?: number; owner?: string }
+    if (b.layerName === LAYER_NAMES.TEXT_BOX && b.textIndex === t.textIndex && b.owner === t.owner) {
+      return b
+    }
+  }
+  return null
+}
+
+function trackCaptionBox(canvas: Canvas, text: FabricObject): void {
+  const box = findCaptionBox(canvas, text)
+  if (box) placeCaptionBoxUnderlay(box, text as Textbox)
+}
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
@@ -1021,6 +1041,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         applySnapGuides(canvas, target, ln)
         if (ln === LAYER_NAMES.DEVICE_FRAME) {
           handleDeviceMove(canvas, target)
+        } else if (ln === LAYER_NAMES.TEXT) {
+          trackCaptionBox(canvas, target)
         } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
           // Popup uses an absolutely-positioned clipPath; keep it pinned to the
           // image's current position so the rounded mask doesn't lag behind
@@ -1083,6 +1105,14 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         t.initDimensions()
         t.setPositionByOrigin(constraint, tf.originX, tf.originY)
         t.setCoords()
+        trackCaptionBox(canvas, t)
+      })
+
+      // Inline typing can change the line count → keep the box underlay's
+      // height glued to the growing/shrinking textbox.
+      canvas.on('text:changed', (e) => {
+        const target = e.target as (FabricObject & { layerName?: string }) | undefined
+        if (target?.layerName === LAYER_NAMES.TEXT) trackCaptionBox(canvas, target)
       })
 
       // Same clipPath fix as object:moving but for scale operations — the popup
@@ -1091,6 +1121,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const target = e.target
         if (!target) return
         const ln = (target as FabricObject & { layerName?: string }).layerName
+        if (ln === LAYER_NAMES.TEXT) {
+          trackCaptionBox(canvas, target)
+          return
+        }
         if (ln !== LAYER_NAMES.HIGHLIGHT_POPUP) return
         const clip = (target as FabricObject & { clipPath?: Rect }).clipPath
         if (!clip) return

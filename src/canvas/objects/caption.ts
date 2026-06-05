@@ -1,6 +1,7 @@
-import { Shadow, Text, Textbox } from 'fabric'
+import { Rect, Shadow, Text, Textbox } from 'fabric'
 import type { Caption, TextShadow } from '../../types/project'
 import type { LayerName } from '../layerNames'
+import { LAYER_NAMES } from '../layerNames'
 import { scriptFallback } from '../../lib/fonts'
 import { hexToRgb } from '../../constants/defaults'
 
@@ -141,4 +142,67 @@ export function renderCaption(
   ;(obj as Textbox & { owner?: 'leader' | 'follower' }).owner = opts.owner ?? 'leader'
 
   return obj
+}
+
+// Padding stashed on the underlay so a gesture tick can re-place it from the
+// textbox geometry alone. Survives undo snapshots via HISTORY_PROPS.
+export interface CaptionBoxProps {
+  _padX?: number
+  _padY?: number
+}
+
+/**
+ * Glue the box underlay to its caption: textbox bounding box + padding. Called
+ * at render time and re-run every move/scale/typing tick so the box never lags
+ * the text (same pattern as the highlight popup's absolutely-positioned clip).
+ */
+export function placeCaptionBoxUnderlay(rect: Rect, text: Textbox): void {
+  const { _padX = 0, _padY = 0 } = rect as Rect & CaptionBoxProps
+  const w = (text.width ?? 0) * (text.scaleX ?? 1)
+  const h = (text.height ?? 0) * (text.scaleY ?? 1)
+  const left = text.left ?? 0
+  const bboxLeft = text.originX === 'right' ? left - w
+    : text.originX === 'center' ? left - w / 2
+    : left
+  rect.set({
+    left: bboxLeft - _padX,
+    top: (text.top ?? 0) - _padY,
+    width: w + _padX * 2,
+    height: h + _padY * 2,
+  })
+  rect.setCoords()
+}
+
+/**
+ * Non-evented Rect underlay carrying the caption's box background. Derived
+ * entirely from the caption (sync never reads it back); NOT grouped with the
+ * Textbox — a Group would break inline editing, side-handle width drag, and
+ * fit-to-box.
+ */
+export function renderCaptionBox(caption: Caption, text: Textbox): Rect | null {
+  const box = caption.style.box
+  if (!box) return null
+  const { r, g, b } = hexToRgb(box.fill)
+  const rect = new Rect({
+    fill: `rgba(${r}, ${g}, ${b}, ${box.opacity})`,
+    rx: box.borderRadius,
+    ry: box.borderRadius,
+    stroke: box.border?.color,
+    strokeWidth: box.border?.width ?? 0,
+    shadow: box.shadow ? captionShadow(box.shadow) : undefined,
+    originX: 'left',
+    originY: 'top',
+    selectable: false,
+    evented: false,
+    hoverCursor: 'default',
+  })
+  Object.assign(rect, {
+    layerName: LAYER_NAMES.TEXT_BOX,
+    textIndex: (text as Textbox & { textIndex?: number }).textIndex,
+    owner: (text as Textbox & { owner?: 'leader' | 'follower' }).owner,
+    _padX: box.paddingX,
+    _padY: box.paddingY,
+  })
+  placeCaptionBoxUnderlay(rect, text)
+  return rect
 }

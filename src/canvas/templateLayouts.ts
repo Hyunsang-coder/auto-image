@@ -5,7 +5,7 @@ import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS, frameSpecOf } from '../constants/dev
 import { rotateAround } from './geometry'
 import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
-import { renderCaption } from './objects/caption'
+import { renderCaption, renderCaptionBox } from './objects/caption'
 import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
 import { renderHighlight } from './objects/highlight'
 import { renderOrnament } from './objects/ornament'
@@ -528,8 +528,13 @@ export function addTextBlocks(
   let cursorTop = opts.headlineTop
   slide.texts.forEach((caption, i) => {
     const absolute = !!caption.pos
+    // A box extends padY above/below the text — shift a stacked block down by
+    // its own padY and advance the cursor past the box bottom, so the visual
+    // gap between adjacent boxes stays exactly `gap`. paddingY is pre-scaled
+    // by withScaledFonts at export, like fontSize.
+    const boxPadY = caption.style.box?.paddingY ?? 0
     const centerX = offsetX + (absolute ? caption.pos!.x * opts.cw : opts.headlineCenterX)
-    const top = absolute ? caption.pos!.y * opts.ch : cursorTop
+    const top = absolute ? caption.pos!.y * opts.ch : cursorTop + boxPadY
     // boxWidth is the user's true drag width — may exceed one page (the sync
     // stores it unclamped so the re-render reproduces the drag exactly).
     const width = caption.boxWidth != null ? caption.boxWidth * opts.cw : opts.width
@@ -555,8 +560,12 @@ export function addTextBlocks(
     obj.set('textAlign', effectiveAlign)
     if (effectiveAlign === 'left') obj.set({ originX: 'left', left: centerX - width / 2 })
     else if (effectiveAlign === 'right') obj.set({ originX: 'right', left: centerX + width / 2 })
+    // Underlay placed after the align shift (it reads the textbox's final
+    // geometry), added before the textbox so the box paints directly under it.
+    const box = renderCaptionBox(caption, obj)
+    if (box) canvas.add(box)
     canvas.add(obj)
-    if (!absolute) cursorTop = top + obj.height + gap
+    if (!absolute) cursorTop = top + obj.height + boxPadY + gap
   })
 }
 

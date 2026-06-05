@@ -256,6 +256,20 @@ export interface TextStyle {
   outline?: TextOutline
   /** Drop shadow. Absent = no shadow. */
   shadow?: TextShadow
+  /** Background box painted behind the caption box. Absent = no box. */
+  box?: CaptionBox
+}
+
+export interface CaptionBox {
+  /** Hex fill; opacity applied separately so the picker stays hex-only. */
+  fill: string
+  opacity: number
+  /** Padding/radius in editor px — scaled with fontSize at export. */
+  paddingX: number
+  paddingY: number
+  borderRadius: number
+  border?: { color: string; width: number }
+  shadow?: TextShadow
 }
 
 export interface TextOutline {

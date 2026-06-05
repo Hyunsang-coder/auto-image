@@ -229,6 +229,178 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
         </div>
       )}
 
+      <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+        <span>박스 배경</span>
+        <input
+          type="checkbox"
+          checked={!!value.style.box}
+          onChange={(e) =>
+            updateStyle({
+              box: e.target.checked
+                ? { fill: '#000000', opacity: 0.35, paddingX: 16, paddingY: 10, borderRadius: 12 }
+                : undefined,
+            })
+          }
+          className="accent-[var(--color-accent)]"
+        />
+      </label>
+      {value.style.box && (
+        <div className="flex flex-col gap-2 rounded-lg bg-[var(--color-surface-2)] p-2">
+          <ColorPickerPopover
+            color={value.style.box.fill}
+            onChange={(c) => updateStyle({ box: { ...value.style.box!, fill: c } })}
+            label="박스 색상"
+          />
+          <SliderRow
+            label="불투명도"
+            value={value.style.box.opacity}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={(v) => updateStyle({ box: { ...value.style.box!, opacity: v } })}
+          />
+          <SliderRow
+            label="가로 패딩"
+            value={value.style.box.paddingX}
+            min={0}
+            max={60}
+            step={1}
+            format={(v) => `${v}px`}
+            onChange={(v) => updateStyle({ box: { ...value.style.box!, paddingX: v } })}
+          />
+          <SliderRow
+            label="세로 패딩"
+            value={value.style.box.paddingY}
+            min={0}
+            max={60}
+            step={1}
+            format={(v) => `${v}px`}
+            onChange={(v) => updateStyle({ box: { ...value.style.box!, paddingY: v } })}
+          />
+          <SliderRow
+            label="모서리 둥글기"
+            value={value.style.box.borderRadius}
+            min={0}
+            max={60}
+            step={1}
+            format={(v) => `${v}px`}
+            onChange={(v) => updateStyle({ box: { ...value.style.box!, borderRadius: v } })}
+          />
+          <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+            <span>테두리</span>
+            <input
+              type="checkbox"
+              checked={!!value.style.box.border}
+              onChange={(e) =>
+                updateStyle({
+                  box: {
+                    ...value.style.box!,
+                    border: e.target.checked ? { color: '#FFFFFF', width: 2 } : undefined,
+                  },
+                })
+              }
+              className="accent-[var(--color-accent)]"
+            />
+          </label>
+          {value.style.box.border && (
+            <>
+              <ColorPickerPopover
+                color={value.style.box.border.color}
+                onChange={(c) =>
+                  updateStyle({ box: { ...value.style.box!, border: { ...value.style.box!.border!, color: c } } })
+                }
+                label="테두리 색상"
+              />
+              <SliderRow
+                label="테두리 굵기"
+                value={value.style.box.border.width}
+                min={0.5}
+                max={10}
+                step={0.5}
+                format={(v) => `${v}px`}
+                onChange={(v) =>
+                  updateStyle({ box: { ...value.style.box!, border: { ...value.style.box!.border!, width: v } } })
+                }
+              />
+            </>
+          )}
+          <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+            <span>박스 그림자</span>
+            <input
+              type="checkbox"
+              checked={!!value.style.box.shadow}
+              onChange={(e) =>
+                updateStyle({
+                  box: {
+                    ...value.style.box!,
+                    shadow: e.target.checked
+                      ? { color: '#000000', opacity: 0.4, offsetX: 0, offsetY: 4, blur: 12 }
+                      : undefined,
+                  },
+                })
+              }
+              className="accent-[var(--color-accent)]"
+            />
+          </label>
+          {value.style.box.shadow && (
+            <>
+              <ColorPickerPopover
+                color={value.style.box.shadow.color}
+                onChange={(c) =>
+                  updateStyle({ box: { ...value.style.box!, shadow: { ...value.style.box!.shadow!, color: c } } })
+                }
+                label="박스 그림자 색상"
+              />
+              <SliderRow
+                label="불투명도"
+                value={value.style.box.shadow.opacity}
+                min={0}
+                max={1}
+                step={0.05}
+                format={(v) => `${Math.round(v * 100)}%`}
+                onChange={(v) =>
+                  updateStyle({ box: { ...value.style.box!, shadow: { ...value.style.box!.shadow!, opacity: v } } })
+                }
+              />
+              <SliderRow
+                label="가로 위치 (X)"
+                value={value.style.box.shadow.offsetX}
+                min={-20}
+                max={20}
+                step={1}
+                format={(v) => `${v}px`}
+                onChange={(v) =>
+                  updateStyle({ box: { ...value.style.box!, shadow: { ...value.style.box!.shadow!, offsetX: v } } })
+                }
+              />
+              <SliderRow
+                label="세로 위치 (Y)"
+                value={value.style.box.shadow.offsetY}
+                min={-20}
+                max={20}
+                step={1}
+                format={(v) => `${v}px`}
+                onChange={(v) =>
+                  updateStyle({ box: { ...value.style.box!, shadow: { ...value.style.box!.shadow!, offsetY: v } } })
+                }
+              />
+              <SliderRow
+                label="흐림"
+                value={value.style.box.shadow.blur}
+                min={0}
+                max={40}
+                step={1}
+                format={(v) => `${v}px`}
+                onChange={(v) =>
+                  updateStyle({ box: { ...value.style.box!, shadow: { ...value.style.box!.shadow!, blur: v } } })
+                }
+              />
+            </>
+          )}
+        </div>
+      )}
+
       <div>
         <label className="mb-1 block text-xs text-[var(--color-text-dim)]">정렬</label>
         <div className="flex gap-1">
