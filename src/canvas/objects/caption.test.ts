@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { fitFontSize, containsCJK } from './caption'
+import { fitFontSize, containsCJK, renderCaption } from './caption'
+import { makeTextBlock } from '../../constants/defaults'
+import { LAYER_NAMES } from '../layerNames'
 
 describe('fitFontSize (shrink-only fit policy)', () => {
   it('keeps the base size when the text already fits the box', () => {
@@ -44,5 +46,36 @@ describe('containsCJK (grapheme-wrap eligibility)', () => {
 
   it('rejects pure Latin / digits / punctuation', () => {
     expect(containsCJK('Track your runs — 100% free!')).toBe(false)
+  })
+})
+
+describe('renderCaption outline/shadow', () => {
+  const OPTS = { left: 220, top: 100, width: 300, layerName: LAYER_NAMES.TEXT }
+
+  it('renders with no stroke and no shadow by default', () => {
+    const obj = renderCaption(makeTextBlock(0, 'text-top', 'Hello'), OPTS)
+    expect(obj.strokeWidth).toBe(0)
+    expect(obj.stroke).toBeUndefined()
+    expect(obj.shadow).toBeFalsy()
+  })
+
+  it('applies the outline as a behind-fill stroke', () => {
+    const cap = makeTextBlock(0, 'text-top', 'Hello')
+    cap.style.outline = { color: '#FF0000', width: 3 }
+    const obj = renderCaption(cap, OPTS)
+    expect(obj.stroke).toBe('#FF0000')
+    expect(obj.strokeWidth).toBe(3)
+    expect(obj.paintFirst).toBe('stroke')
+    expect(obj.strokeLineJoin).toBe('round')
+  })
+
+  it('composes the shadow color from hex + opacity', () => {
+    const cap = makeTextBlock(0, 'text-top', 'Hello')
+    cap.style.shadow = { color: '#112233', opacity: 0.4, offsetX: 3, offsetY: 4, blur: 8 }
+    const obj = renderCaption(cap, OPTS)
+    expect(obj.shadow?.color).toBe('rgba(17, 34, 51, 0.4)')
+    expect(obj.shadow?.offsetX).toBe(3)
+    expect(obj.shadow?.offsetY).toBe(4)
+    expect(obj.shadow?.blur).toBe(8)
   })
 })

@@ -252,6 +252,26 @@ export interface TextStyle {
   lineHeight?: number
   /** When true, the font is auto-sized so the text fills the caption box width. */
   fitToBox?: boolean
+  /** Glyph outline painted behind the fill. Absent = no outline. */
+  outline?: TextOutline
+  /** Drop shadow. Absent = no shadow. */
+  shadow?: TextShadow
+}
+
+export interface TextOutline {
+  color: string
+  /** Stroke width in editor px — scaled with fontSize at export. */
+  width: number
+}
+
+export interface TextShadow {
+  /** Hex color; opacity is applied separately so the picker stays hex-only. */
+  color: string
+  opacity: number
+  /** Offsets/blur in editor px — scaled with fontSize at export. */
+  offsetX: number
+  offsetY: number
+  blur: number
 }
 
 export interface Badge {

@@ -393,9 +393,16 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           // (clamping re-centered the box on release: it visibly jumped and
           // its text re-wrapped). scaleX folds a corner-scale into the width.
           const readPlacement = () => {
-            const c = itext.getCenterPoint()
+            // getCenterPoint() folds strokeWidth into the dimension box, so a
+            // text outline would shift left/right-aligned reads by width/2 and
+            // the stored pos would creep every sync. Recover the geometric
+            // center instead — the exact inverse of addTextBlocks' placement.
             const boxW = (itext.width ?? 0) * (itext.scaleX ?? 1)
-            const pageX = isFollower ? c.x - halfW : c.x
+            const left = itext.left ?? 0
+            const cx = itext.originX === 'left' ? left + boxW / 2
+              : itext.originX === 'right' ? left - boxW / 2
+              : left
+            const pageX = isFollower ? cx - halfW : cx
             return { x: pageX / halfW, y: (itext.top ?? 0) / ch, boxWidth: boxW / halfW }
           }
           // A corner-scale leaves fontSize untouched (only scaleX/Y change) —

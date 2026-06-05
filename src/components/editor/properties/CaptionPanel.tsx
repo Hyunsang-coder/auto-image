@@ -9,6 +9,34 @@ interface CaptionFieldProps {
   onChange: (c: Caption) => void
 }
 
+function SliderRow({ label, value, min, max, step, format, onChange }: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  format?: (v: number) => string
+  onChange: (v: number) => void
+}) {
+  return (
+    <div>
+      <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
+        <span>{label}</span>
+        <span>{format ? format(value) : value}</span>
+      </label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-[var(--color-accent)]"
+      />
+    </div>
+  )
+}
+
 function CaptionField({ label, value, onChange }: CaptionFieldProps) {
   function updateStyle(patch: Partial<TextStyle>) {
     onChange({ ...value, style: { ...value.style, ...patch } })
@@ -109,6 +137,97 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           label="텍스트 색상"
         />
       </div>
+
+      <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+        <span>외곽선</span>
+        <input
+          type="checkbox"
+          checked={!!value.style.outline}
+          onChange={(e) =>
+            updateStyle({ outline: e.target.checked ? { color: '#000000', width: 2 } : undefined })
+          }
+          className="accent-[var(--color-accent)]"
+        />
+      </label>
+      {value.style.outline && (
+        <div className="flex flex-col gap-2 rounded-lg bg-[var(--color-surface-2)] p-2">
+          <ColorPickerPopover
+            color={value.style.outline.color}
+            onChange={(c) => updateStyle({ outline: { ...value.style.outline!, color: c } })}
+            label="외곽선 색상"
+          />
+          <SliderRow
+            label="굵기"
+            value={value.style.outline.width}
+            min={0.5}
+            max={10}
+            step={0.5}
+            format={(v) => `${v}px`}
+            onChange={(v) => updateStyle({ outline: { ...value.style.outline!, width: v } })}
+          />
+        </div>
+      )}
+
+      <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+        <span>그림자</span>
+        <input
+          type="checkbox"
+          checked={!!value.style.shadow}
+          onChange={(e) =>
+            updateStyle({
+              shadow: e.target.checked
+                ? { color: '#000000', opacity: 0.4, offsetX: 0, offsetY: 4, blur: 8 }
+                : undefined,
+            })
+          }
+          className="accent-[var(--color-accent)]"
+        />
+      </label>
+      {value.style.shadow && (
+        <div className="flex flex-col gap-2 rounded-lg bg-[var(--color-surface-2)] p-2">
+          <ColorPickerPopover
+            color={value.style.shadow.color}
+            onChange={(c) => updateStyle({ shadow: { ...value.style.shadow!, color: c } })}
+            label="그림자 색상"
+          />
+          <SliderRow
+            label="불투명도"
+            value={value.style.shadow.opacity}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={(v) => updateStyle({ shadow: { ...value.style.shadow!, opacity: v } })}
+          />
+          <SliderRow
+            label="가로 위치 (X)"
+            value={value.style.shadow.offsetX}
+            min={-20}
+            max={20}
+            step={1}
+            format={(v) => `${v}px`}
+            onChange={(v) => updateStyle({ shadow: { ...value.style.shadow!, offsetX: v } })}
+          />
+          <SliderRow
+            label="세로 위치 (Y)"
+            value={value.style.shadow.offsetY}
+            min={-20}
+            max={20}
+            step={1}
+            format={(v) => `${v}px`}
+            onChange={(v) => updateStyle({ shadow: { ...value.style.shadow!, offsetY: v } })}
+          />
+          <SliderRow
+            label="흐림"
+            value={value.style.shadow.blur}
+            min={0}
+            max={40}
+            step={1}
+            format={(v) => `${v}px`}
+            onChange={(v) => updateStyle({ shadow: { ...value.style.shadow!, blur: v } })}
+          />
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-xs text-[var(--color-text-dim)]">정렬</label>

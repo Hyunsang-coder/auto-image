@@ -19,6 +19,17 @@ export function withScaledFonts(slide: Slide, scale: number): Slide {
       style: {
         ...c.style,
         fontSize: c.style.fontSize * scale,
+        ...(c.style.outline && {
+          outline: { ...c.style.outline, width: c.style.outline.width * scale },
+        }),
+        ...(c.style.shadow && {
+          shadow: {
+            ...c.style.shadow,
+            offsetX: c.style.shadow.offsetX * scale,
+            offsetY: c.style.shadow.offsetY * scale,
+            blur: c.style.shadow.blur * scale,
+          },
+        }),
       },
     })),
     badges: slide.badges.map((b) => ({

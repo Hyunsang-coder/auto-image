@@ -44,6 +44,28 @@ describe('withScaledFonts (export/thumbnail ↔ editor proportionality)', () => 
     expect(withScaledFonts(slide, THUMB_SCALE).texts[0].style.letterSpacing).toBe(-2.2)
   })
 
+  it('scales outline width and shadow geometry, leaving colors/opacity alone', () => {
+    const slide = slideWithBadge()
+    slide.texts[0].style.outline = { color: '#000000', width: 2 }
+    slide.texts[0].style.shadow = { color: '#112233', opacity: 0.4, offsetX: 3, offsetY: 4, blur: 8 }
+
+    const scaled = withScaledFonts(slide, IPAD_SCALE).texts[0].style
+    expect(scaled.outline).toEqual({ color: '#000000', width: 2 * IPAD_SCALE })
+    expect(scaled.shadow).toEqual({
+      color: '#112233',
+      opacity: 0.4,
+      offsetX: 3 * IPAD_SCALE,
+      offsetY: 4 * IPAD_SCALE,
+      blur: 8 * IPAD_SCALE,
+    })
+  })
+
+  it('leaves outline/shadow absent when the caption has none', () => {
+    const scaled = withScaledFonts(slideWithBadge(), IPAD_SCALE).texts[0].style
+    expect(scaled.outline).toBeUndefined()
+    expect(scaled.shadow).toBeUndefined()
+  })
+
   it('scales badge fontSize and paddings exactly', () => {
     const scaled = withScaledFonts(slideWithBadge(), THUMB_SCALE).badges[0].style
     expect(scaled.fontSize).toBe(6.5)

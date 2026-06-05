@@ -1,7 +1,19 @@
-import { Text, Textbox } from 'fabric'
-import type { Caption } from '../../types/project'
+import { Shadow, Text, Textbox } from 'fabric'
+import type { Caption, TextShadow } from '../../types/project'
 import type { LayerName } from '../layerNames'
 import { scriptFallback } from '../../lib/fonts'
+import { hexToRgb } from '../../constants/defaults'
+
+function captionShadow(s: TextShadow): Shadow {
+  const { r, g, b } = hexToRgb(s.color)
+  return new Shadow({
+    color: `rgba(${r}, ${g}, ${b}, ${s.opacity})`,
+    blur: s.blur,
+    offsetX: s.offsetX,
+    offsetY: s.offsetY,
+    affectStroke: true,
+  })
+}
 
 export interface CaptionOptions {
   left: number
@@ -109,11 +121,16 @@ export function renderCaption(
     lineHeight: style.lineHeight ?? 1.2,
     originX: 'center',
     originY: 'top',
-    // Fabric's default strokeWidth 1 inflates getScaledWidth()/getCenterPoint()
-    // by half a pixel even with no stroke painted — for left/right-aligned
-    // captions that skews every center read-back, and the position sync would
-    // creep +0.5px per edit. Captions never stroke, so zero it out.
-    strokeWidth: 0,
+    // strokeWidth folds into getCenterPoint()'s dimension box (Fabric defaults
+    // to 1 even with no stroke painted) — the position sync reads the geometric
+    // center directly (readPlacement in FabricCanvas) so an outline doesn't
+    // creep left/right-aligned captions. Default stays 0: no outline, no stroke.
+    stroke: style.outline?.color,
+    strokeWidth: style.outline?.width ?? 0,
+    // Outline behind the fill (PPT-style) so thick strokes don't eat the glyphs.
+    paintFirst: 'stroke',
+    strokeLineJoin: 'round',
+    shadow: style.shadow ? captionShadow(style.shadow) : undefined,
     splitByGrapheme,
     editable: true,
     selectable: true,
