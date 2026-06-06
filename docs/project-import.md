@@ -104,6 +104,20 @@ launch-screenshots/
 
 사람의 손: 스튜디오 1단계에서 "프로젝트 가져오기 → 파일 선택"으로 위 파일 전부 선택 → 요약 모달 확인 → "에디터에서 검수".
 
+## 헤들리스 렌더 (사람 손 없이 PNG까지)
+
+위 폴더를 브라우저 없이 곧장 최종 PNG로 바꾸는 하니스:
+
+```bash
+node scripts/headless-export.mjs <input-dir> <out-dir>             # {locale}/{device}/NN.png
+node scripts/headless-export.mjs <input-dir> <out-dir> --fastlane  # deliver 레이아웃 + Appfile/Deliverfile/upload.sh
+```
+
+- `<input-dir>` = 위 예시 폴더 그대로 (manifest + 캡션 CSV/JSON + 스크린샷, 플랫).
+- dev 서버가 없으면 직접 띄우고 끝나면 정리한다 (떠 있으면 재사용). 다른 포트는 `BASE_URL` env로.
+- 임포트 요약·경고, 슬라이드별 렌더 실패가 stdout/stderr로 나온다. 실패가 있으면 exit 1 (부분 성공 시 PNG는 그대로 남음).
+- 에이전트 루프: manifest/캡션 수정 → 재실행 → `<out-dir>` PNG를 눈으로 확인 → 수렴할 때까지 반복.
+
 ## 구현 참조
 
 - 매니페스트 파싱/빌드: `src/lib/projectImport.ts` (`parseManifest` → `buildProjectFromManifest`)
