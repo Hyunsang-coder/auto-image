@@ -3,7 +3,7 @@ import { clearAppState, createProject } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Span Test', slideCount: 3 })
 })
 

@@ -5,13 +5,14 @@
   "identifier": "com.hyunsang.screenshotstudio",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:5173/app/",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {
     "windows": [
       {
+        "url": "app/index.html",
         "title": "App Store Screenshot Studio",
         "width": 1440,
         "height": 900,

@@ -16,7 +16,7 @@ function hasBackgroundImage() {
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'BG Test', slideCount: 1 })
 })
 

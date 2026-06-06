@@ -24,7 +24,7 @@ function readHeadline(page: import('@playwright/test').Page): Promise<TextObj | 
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Text Test', slideCount: 1 })
   await page.getByRole('button', { name: '텍스트', exact: true }).click()
 })

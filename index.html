@@ -1,39 +1,182 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>App Store Screenshot Studio — Free Screenshot Generator for iPhone &amp; iPad</title>
-    <meta
-      name="description"
-      content="Free, open-source App Store screenshot generator. Design device frames, headlines and highlights on a canvas, localize captions, and export App Store Connect-ready PNGs — all in your browser, no upload."
-    />
-    <link rel="canonical" href="https://hyunsang-coder.github.io/auto-image/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="App Store Screenshot Studio — Free Screenshot Generator" />
-    <meta
-      property="og:description"
-      content="Design, localize and export App Store Connect-ready screenshots for iPhone and iPad. Fully client-side and open source — your images never leave the browser."
-    />
-    <meta property="og:url" content="https://hyunsang-coder.github.io/auto-image/" />
-    <meta name="twitter:card" content="summary" />
-    <link rel="preconnect" href="https://rsms.me/" />
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap"
-    />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Store Screenshot Studio — Free Screenshot Generator for iPhone &amp; iPad</title>
+  <meta
+    name="description"
+    content="Free, open-source App Store screenshot generator. Design device frames, headlines and highlights on a canvas, localize captions into every language, and export App Store Connect-ready PNGs — all in your browser, no account, no upload."
+  />
+  <link rel="canonical" href="https://hyunsang-coder.github.io/auto-image/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="App Store Screenshot Studio — Free Screenshot Generator" />
+  <meta
+    property="og:description"
+    content="Design, localize and export App Store Connect-ready screenshots for iPhone and iPad. Fully client-side and open source — your images never leave the browser."
+  />
+  <meta property="og:url" content="https://hyunsang-coder.github.io/auto-image/" />
+  <meta property="og:image" content="https://hyunsang-coder.github.io/auto-image/landing/editor.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "App Store Screenshot Studio",
+    "applicationCategory": "DesignApplication",
+    "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "url": "https://hyunsang-coder.github.io/auto-image/",
+    "description": "Free, open-source App Store screenshot generator: design, localize and export App Store Connect-ready screenshots for iPhone and iPad in the browser."
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
+    header.top {
+      max-width: 980px; margin: 0 auto; padding: 18px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { font-weight: 700; letter-spacing: -0.01em; text-decoration: none; color: var(--text); }
+    .top nav { display: flex; gap: 18px; font-size: 0.92rem; }
+    .top nav a { color: var(--dim); text-decoration: none; }
+    .top nav a:hover { color: var(--text); }
+    .hero { text-align: center; padding: 56px 0 12px; }
+    h1 { font-size: 2.5rem; line-height: 1.18; letter-spacing: -0.025em; margin: 0 auto 0.5em; max-width: 21ch; }
+    .hero p.lead { color: var(--dim); font-size: 1.12rem; max-width: 56ch; margin: 0 auto 1.6em; }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-block; padding: 13px 26px; border-radius: 10px;
+      font-size: 1rem; font-weight: 600; text-decoration: none;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: 0.92; }
+    .btn-ghost { border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover { border-color: var(--accent); }
+    .trust { display: flex; gap: 8px 22px; justify-content: center; flex-wrap: wrap; margin: 1.6em 0 0; padding: 0; list-style: none; color: var(--dim); font-size: 0.9rem; }
+    .trust li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+    .shot { margin: 44px 0 0; }
+    .shot img {
+      width: 100%; height: auto; display: block; border-radius: 14px;
+      border: 1px solid var(--border); box-shadow: 0 18px 50px -22px rgba(31, 29, 26, 0.35);
+    }
+    h2 { font-size: 1.5rem; letter-spacing: -0.015em; margin: 2.6em 0 0.9em; text-align: center; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .card { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 18px 20px; }
+    .card h3 { margin: 0 0 0.4em; font-size: 1.02rem; letter-spacing: -0.01em; }
+    .card p { margin: 0; color: var(--dim); font-size: 0.93rem; }
+    ol.steps { counter-reset: s; list-style: none; padding: 0; max-width: 640px; margin: 0 auto; }
+    ol.steps li { counter-increment: s; padding: 10px 0 10px 46px; position: relative; color: var(--dim); }
+    ol.steps li strong { color: var(--text); }
+    ol.steps li::before {
+      content: counter(s); position: absolute; left: 0; top: 10px;
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; color: var(--accent);
+    }
+    .guides a { display: block; padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; text-decoration: none; color: var(--text); background: var(--surface); }
+    .guides a:hover { border-color: var(--accent); }
+    .guides span { display: block; color: var(--dim); font-size: 0.88rem; }
+    .guides { display: grid; gap: 12px; }
+    footer { margin-top: 4.5em; padding-top: 1.6em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; text-align: center; }
+    footer a { color: var(--accent); }
+    @media (max-width: 640px) { h1 { font-size: 1.9rem; } }
+  </style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./">App Store Screenshot Studio</a>
+  <nav>
+    <a href="guides/how-to-use.html">How to use</a>
+    <a href="guides/app-store-screenshot-sizes.html">Guides</a>
+    <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+  </nav>
+</header>
+<main>
+  <section class="hero">
+    <h1>App Store screenshots — designed, localized, exported. Free.</h1>
+    <p class="lead">
+      An open-source studio that turns raw app screenshots into polished, multi-language
+      App Store sets: device frames, headlines, highlights, per-locale captions, and
+      pixel-exact PNGs for App Store Connect — entirely in your browser.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="app/">Open the studio →</a>
+      <a class="btn btn-ghost" href="guides/how-to-use.html">See how it works</a>
+    </div>
+    <ul class="trust">
+      <li>100% free &amp; open source</li>
+      <li>No account, no upload — images never leave your machine</li>
+      <li>Exact App Store Connect sizes</li>
+    </ul>
+    <div class="shot">
+      <img src="landing/editor.png" alt="The App Store Screenshot Studio editor: a canvas with an iPhone frame and caption, slide thumbnails, and a properties panel" width="1600" height="1000" />
+    </div>
+  </section>
+
+  <h2>Everything between raw screenshot and store listing</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Canvas editor</h3>
+      <p>Device frames for iPhone &amp; iPad, headlines and captions with full typography, magnified highlight loupes, badges, ornaments, multi-slide templates, and App-Store-style 2-page panoramas.</p>
+    </div>
+    <div class="card">
+      <h3>Localization built in</h3>
+      <p>Captions live in a slide × language table. Export it as CSV/JSON, translate it in any AI chat or spreadsheet, re-import. Swap per-language screenshots by filename and preview any locale on the canvas.</p>
+    </div>
+    <div class="card">
+      <h3>Store-ready export</h3>
+      <p>Every slide renders at the exact App Store Connect resolution, alpha-stripped so uploads never bounce, zipped as <em>locale/device/NN.png</em> — or as a ready-to-run fastlane deliver folder.</p>
+    </div>
+    <div class="card">
+      <h3>AI-agent friendly</h3>
+      <p>A documented import manifest lets an AI assistant draft your whole screenshot project as files, and a headless pipeline renders it to final PNGs without a single click.</p>
+    </div>
+  </div>
+
+  <h2>Four steps, one sitting</h2>
+  <ol class="steps">
+    <li><strong>Set up</strong> — pick device and slide count, or import an AI-drafted project in one file selection.</li>
+    <li><strong>Design</strong> — drop in screenshots, write headlines, frame, highlight, decorate.</li>
+    <li><strong>Localize</strong> — export the caption table, translate anywhere, re-import; add per-language screenshots.</li>
+    <li><strong>Export</strong> — one click renders every slide × language at exact store sizes into a ZIP.</li>
+  </ol>
+
+  <h2>Guides</h2>
+  <div class="guides">
+    <a href="guides/how-to-use.html">How to use the studio
+      <span>The full workflow — from first screenshot to uploaded set, including the AI-agent pipeline.</span></a>
+    <a href="guides/app-store-screenshot-sizes.html">App Store screenshot sizes (2026)
+      <span>Every required iPhone &amp; iPad resolution, format rules, and what Apple actually requires.</span></a>
+    <a href="guides/app-store-screenshot-localization.html">Localizing App Store screenshots
+      <span>A workflow that scales past 3 languages without multiplying design work.</span></a>
+    <a href="guides/upload-app-store-screenshots-fastlane.html">Uploading with fastlane deliver
+      <span>Folder layout, API keys, and a screenshots-only Deliverfile.</span></a>
+  </div>
+
+  <footer>
+    <p>
+      Open source under MIT — <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>.
+      Built by <a href="https://github.com/Hyunsang-coder">Hyunsang Joo</a>.
+      Runs entirely client-side: no analytics on your images, no upload, no account.
+    </p>
+  </footer>
+</main>
+</body>
 </html>

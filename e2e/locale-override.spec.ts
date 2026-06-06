@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test'
 test('per-locale screenshot override swaps the rendered image; absent locale falls back', async ({
   page,
 }) => {
-  await page.goto('/')
+  await page.goto('/app/')
 
   const measure = () =>
     page.evaluate(async () => {

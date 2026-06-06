@@ -24,7 +24,7 @@ function editor(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
 })
 
 test('mtr 드래그로 기기가 회전하고 회전값이 저장됨', async ({ page }) => {

@@ -11,7 +11,7 @@ test.use({ viewport: { width: 1280, height: 1000 } })
 // override (a second thumbnail appears) and clear it (back to one thumbnail).
 test('localize page: upload + clear a per-locale screenshot override', async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Override UI', slideCount: 1 })
 
   // Base screenshot so the slide has a screenshot → the image row appears.

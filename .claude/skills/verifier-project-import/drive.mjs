@@ -2,7 +2,7 @@ import { chromium } from '@playwright/test'
 
 // Usage: node drive.mjs [out-dir]  (run make-sample.sh <out-dir> first)
 const OUT = process.argv[2] ?? '/tmp/verify-import'
-const BASE_URL = process.env.BASE_URL ?? 'http://localhost:5173/'
+const BASE_URL = process.env.BASE_URL ?? 'http://localhost:5173/app/'
 const SHOTS = `${OUT}/shots`
 const FOLDER = `${OUT}/folder`
 const FILES = [

@@ -23,7 +23,7 @@ if (!inDir || !outDir) {
   process.exit(2)
 }
 
-const BASE_URL = process.env.BASE_URL ?? 'http://localhost:5173/'
+const BASE_URL = process.env.BASE_URL ?? 'http://localhost:5173/app/'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const log = (...a) => console.log('::', ...a)
 

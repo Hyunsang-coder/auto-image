@@ -9,6 +9,15 @@ export default defineConfig({
   // at '/'. Tauri in particular breaks if assets are prefixed with a subpath.
   base: process.env.GITHUB_PAGES === 'true' ? '/auto-image/' : '/',
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      // MPA: static landing at /, the React app at /app/.
+      input: {
+        landing: 'index.html',
+        app: 'app/index.html',
+      },
+    },
+  },
   test: {
     // Logic layer only. Unit tests are `*.test.ts` under src/; Playwright owns
     // `*.spec.ts` under e2e/. The two globs never overlap.

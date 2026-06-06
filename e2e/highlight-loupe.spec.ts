@@ -18,7 +18,7 @@ test.use({ viewport: { width: 1440, height: 1200 } })
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Loupe Test' })
   await uploadScreenshot(page, 'iphone_home.png')
   await page.getByRole('button', { name: '하이라이트' }).click()

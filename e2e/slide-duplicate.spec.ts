@@ -5,7 +5,7 @@ import { clearAppState, createProject, slideTray } from './helpers'
 // the same headline. The copy button is revealed on thumb hover.
 test('슬라이드 복제: 헤드라인까지 그대로 복사된 슬라이드가 추가됨', async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Duplicate', slideCount: 1 })
 
   // Give slide 1 a headline so the copy is identifiable as a thumb label.

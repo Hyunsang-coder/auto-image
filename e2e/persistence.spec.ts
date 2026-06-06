@@ -17,7 +17,7 @@ function hasScreenshotOnCanvas(page: import('@playwright/test').Page) {
 // the page.reload() these tests rely on. Instead we clear storage once up
 // front so state written during the test survives the reload.
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app/')
   await page.evaluate(() => localStorage.clear())
   await page.reload()
 })

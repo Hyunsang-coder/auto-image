@@ -8,7 +8,7 @@ import { clearAppState, createProject } from './helpers'
 // slide 1 ja override (base sorted first so the override attaches in-batch).
 test('이미지 일괄 가져오기: 베이스 + 언어별 override를 파일명으로 배치', async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Bulk Image', slideCount: 1 })
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
 
@@ -32,7 +32,7 @@ test('이미지 일괄 가져오기: 베이스 + 언어별 override를 파일명
 
 test('이미지 일괄 가져오기: 기기 불일치 이미지는 시각 프레임 오버라이드로 수용됨', async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Device Guard', slideCount: 1 })
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
 
@@ -57,7 +57,7 @@ test('이미지 일괄 가져오기: 기기 불일치 이미지는 시각 프레
 
 test('이미지 일괄 가져오기: 알 수 없는 파일명은 경고로 건너뜀', async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Bulk Image Warn', slideCount: 1 })
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
 

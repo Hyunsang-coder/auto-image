@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to Use App Store Screenshot Studio — From Raw Screenshot to Uploaded Set</title>
+  <meta
+    name="description"
+    content="The complete App Store Screenshot Studio workflow: set up a project, design slides with device frames and headlines, localize captions and screenshots, export exact-size PNGs — plus the file-based pipeline that lets an AI assistant draft the whole set."
+  />
+  <link rel="canonical" href="https://hyunsang-coder.github.io/auto-image/guides/how-to-use.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="How to Use App Store Screenshot Studio — From Raw Screenshot to Uploaded Set" />
+  <meta
+    property="og:description"
+    content="Set up, design, localize, export — and the AI-agent pipeline that drafts a whole screenshot project as files."
+  />
+  <meta property="og:url" content="https://hyunsang-coder.github.io/auto-image/guides/how-to-use.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How to Use App Store Screenshot Studio — From Raw Screenshot to Uploaded Set",
+    "dateModified": "2026-06-06",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    h3 { font-size: 1.05rem; margin-top: 1.8em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>How to use App Store Screenshot Studio</h1>
+  <p class="lead">
+    The studio takes you from raw simulator screenshots to a complete, multi-language,
+    App-Store-Connect-ready PNG set in four steps — entirely in your browser, no account,
+    no upload. This is the full walkthrough, including the file-based pipeline that lets
+    an AI assistant do most of it for you.
+  </p>
+
+  <h2>Step 1 — Set up the project</h2>
+  <p>
+    <a href="../app/">Open the studio</a> and pick a device type (iPhone or iPad — each
+    slide's type is later auto-detected from its screenshot anyway), a slide count, and a
+    theme. Or skip the blank start:
+  </p>
+  <ul>
+    <li><strong>Start from a template</strong> — a designed multi-slide starter set that drops you straight into the editor.</li>
+    <li><strong>Import a project</strong> — select an AI-drafted file set (manifest + captions + screenshots, see below) and get a ready-to-review project in one pick.</li>
+  </ul>
+  <p>Everything is stored in your browser (localStorage + IndexedDB). Nothing is sent anywhere.</p>
+
+  <h2>Step 2 — Design in the editor</h2>
+  <ul>
+    <li><strong>Screenshots</strong> — upload one per slide; it's framed in the device automatically. Rotate, crop by edge-drag, or let the device bleed off the canvas for hero layouts.</li>
+    <li><strong>Text</strong> — headline and subheadline per slide with full typography control; drag to place, double-click to edit.</li>
+    <li><strong>Highlights</strong> — draw a dashed source region on the screenshot and a magnified loupe card floats above the bezel.</li>
+    <li><strong>Extras</strong> — badges, emoji ornaments, gradient/image backgrounds, and App-Store-style 2-page panoramas that span two slides.</li>
+    <li>Your slide set can be saved as a reusable template from the header.</li>
+  </ul>
+
+  <h2>Step 3 — Localize</h2>
+  <p>
+    Captions live in a slide × language table. Three ways to fill it:
+  </p>
+  <ol>
+    <li><strong>Type</strong> translations directly into the grid.</li>
+    <li><strong>Export the template</strong> (CSV or JSON, one labeled column per language), fill it in a spreadsheet or hand it to a translator, re-import. Empty cells are skipped, so partial files are fine.</li>
+    <li><strong>Copy the built-in translation prompt</strong>, paste it into ChatGPT / Claude / Gemini together with the exported template, and re-import the filled file. No API keys involved.</li>
+  </ol>
+  <p>
+    If your app's UI is localized, bulk-add per-language screenshots named
+    <code>01-home.en.png</code>, <code>01-home.ko.png</code>, … — leading digits pick the
+    slide, the suffix picks the locale. Languages without an override fall back to the base
+    screenshot. A preview dropdown in the editor shows any locale on the canvas before you
+    export. Full strategy in
+    <a href="./app-store-screenshot-localization.html">the localization guide</a>.
+  </p>
+
+  <h2>Step 4 — Export</h2>
+  <p>
+    One click renders every slide × language at the
+    <a href="./app-store-screenshot-sizes.html">exact App Store Connect resolution</a>,
+    alpha-stripped so uploads never bounce, zipped as <code>locale/device/NN.png</code>.
+    The <strong>“ZIP for fastlane”</strong> button instead produces a ready-to-run
+    <a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver</a> folder —
+    unzip, set your bundle id and API key, run <code>./upload.sh</code>.
+  </p>
+
+  <h2>The AI-agent pipeline (zero clicks)</h2>
+  <p>
+    Everything above also works without a human at the keyboard, because the studio's
+    input and output are both files. An AI assistant (Claude Code, Cursor, etc.) drafts an
+    import folder:
+  </p>
+  <pre><code>launch-screenshots/
+├── manifest.json        # device, locales, per-slide layout & text-block count
+├── captions.csv         # slide × language caption table
+├── 01-home.en.png       # screenshots: {slide}[-desc].{locale}.{ext}
+├── 01-home.ko.png
+└── 02-add.en.png</code></pre>
+  <p>
+    A human can drop that folder into step 1's “Import project”. Or skip the browser
+    entirely with the headless pipeline from the
+    <a href="https://github.com/Hyunsang-coder/auto-image">repository</a>:
+  </p>
+  <pre><code>node scripts/headless-export.mjs launch-screenshots/ out/
+# → out/en-US/iphone/01.png … every locale, exact sizes
+# --fastlane → deliver-ready folder with Appfile/Deliverfile/upload.sh</code></pre>
+  <p>
+    The agent loop is: edit the manifest or captions → re-run → inspect the PNGs → repeat
+    until it converges. The manifest schema and naming rules are documented in
+    <a href="https://github.com/Hyunsang-coder/auto-image/blob/main/docs/project-import.md">docs/project-import.md</a>.
+    Requirements on the machine running it: Node, <code>@playwright/test</code> + Chromium, and
+    either a local checkout or <code>BASE_URL</code> pointed at the hosted studio.
+  </p>
+
+  <a class="cta" href="../app/">
+    <strong>Open App Store Screenshot Studio</strong> — free, open source, fully
+    client-side. Your screenshots never leave your machine. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>Where is my project stored?</strong><br />
+  In your browser: project data in localStorage, images in IndexedDB. Clearing site data
+  deletes it — export your set (or save a template) when you're done.</p>
+  <p><strong>Does it cost anything or need an account?</strong><br />
+  No. It's MIT-licensed open source hosted on GitHub Pages; there is no backend at all.</p>
+  <p><strong>Which sizes does it export?</strong><br />
+  The App Store Connect upload slots: iPhone 6.9″ (1320×2868), iPhone 6.5″ (1242×2688),
+  iPad 13″ (2064×2752), iPad 11″ (1668×2388) — see
+  <a href="./app-store-screenshot-sizes.html">the size guide</a> for which you actually need.</p>
+
+  <h2>Related guides</h2>
+  <ul>
+    <li><a href="./app-store-screenshot-sizes.html">App Store screenshot sizes 2026 — every required resolution</a></li>
+    <li><a href="./app-store-screenshot-localization.html">Localizing App Store screenshots — a workflow that scales past 3 languages</a></li>
+    <li><a href="./upload-app-store-screenshots-fastlane.html">Upload App Store screenshots with fastlane deliver</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      Written for <a href="../">App Store Screenshot Studio</a> (open source,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>), June 2026.
+    </p>
+  </footer>
+</main>
+</body>
+</html>

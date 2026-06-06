@@ -5,7 +5,7 @@ import { clearAppState, createProject, slideTray, slideThumbs } from './helpers'
 // hover; the store refuses to remove the last slide, so the button disables.
 test('슬라이드 삭제: 트레이에서 삭제하면 목록에서 빠진다', async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Delete', slideCount: 2 })
 
   // Give slide 1 a headline so it's identifiable as a thumb label.

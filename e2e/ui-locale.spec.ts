@@ -7,7 +7,7 @@ test.use({ locale: 'en-US' })
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
 })
 
 test('영어 브라우저는 영어 UI로 시작함', async ({ page }) => {

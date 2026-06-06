@@ -3,7 +3,7 @@ import { clearAppState } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
 })
 
 test('Step 1 페이지가 올바르게 렌더됨', async ({ page }) => {

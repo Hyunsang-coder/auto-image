@@ -8,7 +8,7 @@ import { clearAppState, createProject } from './helpers'
 // — so which column is "base" follows the app's 원본 언어 setting, no regen needed.
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   // Default project source locale is ko, target locales en + ja.
   await createProject(page, { name: 'Template IO', slideCount: 1 })
 

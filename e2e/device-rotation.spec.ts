@@ -23,7 +23,7 @@ function deviceAngle(page: import('@playwright/test').Page) {
 
 test.describe('Device rotation', () => {
   test('tilting the device rotates the frame on canvas', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/app/')
     await page.evaluate(() => localStorage.clear())
     await createProject(page, { name: 'Rotate Test' })
     await page.getByRole('button', { name: '디바이스' }).click()
@@ -35,7 +35,7 @@ test.describe('Device rotation', () => {
   })
 
   test('rotation survives a full reload', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/app/')
     // Clear once up front — NOT clearAppState's addInitScript, which re-wipes
     // on every reload and would defeat this test.
     await page.evaluate(() => localStorage.clear())

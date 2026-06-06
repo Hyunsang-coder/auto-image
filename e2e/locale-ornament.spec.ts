@@ -18,7 +18,7 @@ function readSlide(page: import('@playwright/test').Page): Promise<StoredSlide> 
 
 test('locale 모드에서 장식 이동은 그 언어의 override로만 기록됨', async ({ page }) => {
   await clearAppState(page)
-  await page.goto('/')
+  await page.goto('/app/')
   await createProject(page, { name: 'Orn Locale', slideCount: 1 })
 
   // Base ornament via the 장식 tab.
