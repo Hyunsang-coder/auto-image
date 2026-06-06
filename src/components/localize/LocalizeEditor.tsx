@@ -11,7 +11,7 @@ import { applyCaptionRows, buildTranslationPatch, type FieldKey } from '../../li
 import { buildImageNamingGuide } from '../../lib/imageImport'
 import { importBulkImages } from '../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
-import { useT } from '../../i18n'
+import { useT, t as i18nT } from '../../i18n'
 import type { Slide } from '../../types/project'
 
 type GridRow = {
@@ -33,12 +33,12 @@ function buildRows(slides: Slide[]): GridRow[] {
     const isFollower = slide.spanRole === 'follower'
     const fields: { field: FieldKey; label: string; sourceText: string }[] = []
     if (slide.screenshot && !isFollower)
-      fields.push({ field: 'image', label: '이미지', sourceText: '' })
+      fields.push({ field: 'image', label: i18nT('이미지'), sourceText: '' })
     slide.texts.forEach((t, ti) => {
       if (t.text)
         fields.push({
           field: `text:${ti}`,
-          label: slide.texts.length > 1 ? `텍스트${ti + 1}` : '텍스트',
+          label: slide.texts.length > 1 ? i18nT('텍스트 {n}', { n: ti + 1 }) : i18nT('텍스트'),
           sourceText: t.text,
         })
     })
@@ -47,7 +47,7 @@ function buildRows(slides: Slide[]): GridRow[] {
         if (b.text)
           fields.push({
             field: `badge:${bi}`,
-            label: slide.badges.length > 1 ? `배지${bi + 1}` : '배지',
+            label: slide.badges.length > 1 ? i18nT('배지 {n}', { n: bi + 1 }) : i18nT('배지'),
             sourceText: b.text,
           })
       })
@@ -596,7 +596,7 @@ export function LocalizeEditor() {
                     </td>
                   )}
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)]">
-                    {t(row.label)}
+                    {row.label}
                   </td>
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text)]/60">
                     {row.field === 'image'

@@ -51,6 +51,8 @@ export const en: Record<string, string> = {
   '전체 {n}개에 적용': 'Apply to all {n}',
   '제목 (헤드라인)': 'Title (Headline)',
   '텍스트 {n}': 'Text {n}',
+  // LocalizeEditor grid field label (non-literal i18nT call — kept manually)
+  '배지 {n}': 'Badge {n}',
   '이 텍스트 블록 삭제': 'Delete this text block',
   삭제: 'Delete',
   '텍스트 블록 추가 ({n}/{max})': 'Add text block ({n}/{max})',
