@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Store Screenshot Sizes 2026 — Every Required iPhone &amp; iPad Resolution</title>
+  <meta
+    name="description"
+    content="The exact App Store Connect screenshot sizes for 2026: iPhone 6.9″ (1320×2868), iPhone 6.5″ (1242×2688), iPad 13″ (2064×2752), iPad 11″ (1668×2388) — plus format rules, per-locale limits, and fastlane upload tips."
+  />
+  <link rel="canonical" href="https://hyunsang-coder.github.io/auto-image/guides/app-store-screenshot-sizes.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="App Store Screenshot Sizes 2026 — Every Required iPhone &amp; iPad Resolution" />
+  <meta
+    property="og:description"
+    content="Exact App Store Connect screenshot dimensions for 2026, which sizes are actually required, format rules, and how to export a compliant set in minutes."
+  />
+  <meta property="og:url" content="https://hyunsang-coder.github.io/auto-image/guides/app-store-screenshot-sizes.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "App Store Screenshot Sizes 2026 — Every Required iPhone & iPad Resolution",
+    "dateModified": "2026-06-06",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    .req { color: var(--accent); font-weight: 600; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>App Store Screenshot Sizes 2026 — every required iPhone &amp; iPad resolution</h1>
+  <p class="lead">
+    The exact pixel dimensions App Store Connect accepts in 2026, which of them you
+    actually need to upload, and the format rules that get submissions rejected.
+    Last verified: June 2026.
+  </p>
+
+  <h2>TL;DR — the two sizes you must have</h2>
+  <p>
+    Apple only <em>requires</em> the largest screenshot size per device type. Upload these
+    two and App Store Connect auto-scales them for every smaller display:
+  </p>
+  <table>
+    <tr><th>Device slot</th><th>Portrait</th><th>Landscape</th><th>Status</th></tr>
+    <tr><td>iPhone 6.9″ Display</td><td><code>1320 × 2868</code></td><td><code>2868 × 1320</code></td><td class="req">Required</td></tr>
+    <tr><td>iPad 13″ Display (if your app runs on iPad)</td><td><code>2064 × 2752</code></td><td><code>2752 × 2064</code></td><td class="req">Required</td></tr>
+  </table>
+
+  <h2>All accepted sizes per slot</h2>
+  <p>
+    Each App Store Connect upload slot accepts a couple of exact resolutions
+    (dimensions are checked to the pixel — even 1&nbsp;px off is rejected):
+  </p>
+  <table>
+    <tr><th>Slot</th><th>Accepted portrait sizes</th><th>Notes</th></tr>
+    <tr>
+      <td>iPhone 6.9″</td>
+      <td><code>1320 × 2868</code>, <code>1290 × 2796</code></td>
+      <td>Covers iPhone Pro Max / Plus models; required.</td>
+    </tr>
+    <tr>
+      <td>iPhone 6.5″</td>
+      <td><code>1242 × 2688</code></td>
+      <td>Optional legacy slot — only if you want a tailored set for older devices.</td>
+    </tr>
+    <tr>
+      <td>iPad 13″</td>
+      <td><code>2064 × 2752</code>, <code>2048 × 2732</code></td>
+      <td>The old iPad Pro 12.9″ size (2048 × 2732) folds into this same slot.</td>
+    </tr>
+    <tr>
+      <td>iPad 11″</td>
+      <td><code>1668 × 2388</code></td>
+      <td>Optional — tailored set for 11″ iPads.</td>
+    </tr>
+  </table>
+
+  <h2>Format rules (the usual rejection reasons)</h2>
+  <ul>
+    <li><strong>PNG or JPEG</strong>, RGB color space — <strong>no alpha channel</strong>. A transparent pixel anywhere fails the upload.</li>
+    <li><strong>Exact dimensions.</strong> No scaling tolerance; export at the precise resolution of the slot.</li>
+    <li><strong>1–10 screenshots</strong> per device slot, per locale.</li>
+    <li>Localized screenshots are per-locale: every language you support can carry its own set.</li>
+  </ul>
+
+  <h2>How many files is that, really?</h2>
+  <p>
+    The set multiplies fast: <code>slides × locales</code> per device. A typical app with
+    6 screenshots, iPhone + iPad, in 9 languages is <strong>108 exact-size PNGs</strong> —
+    which is why doing this by hand in a design tool gets old quickly.
+  </p>
+
+  <a class="cta" href="../">
+    <strong>App Store Screenshot Studio</strong> — a free, open-source editor that designs,
+    localizes and exports this entire set in the browser. Device frames, headlines,
+    per-language captions and screenshots, alpha-stripped PNGs at exact App Store sizes,
+    zipped as <code>locale/device/index.png</code>. No account, no upload — images never
+    leave your machine. →
+  </a>
+
+  <h2>Uploading with fastlane</h2>
+  <p>
+    If you ship often, don't drag PNGs into the browser. <a href="https://docs.fastlane.tools/actions/deliver/">fastlane deliver</a>
+    uploads a folder laid out as <code>screenshots/&lt;locale&gt;/&lt;name&gt;.png</code> straight to
+    App Store Connect with an API key (.p8). The studio above has a one-click
+    "ZIP for fastlane" export that produces exactly that layout, plus a ready
+    <code>Deliverfile</code>.
+  </p>
+
+  <h2>FAQ</h2>
+  <p><strong>Do I need 6.5″ iPhone screenshots?</strong><br />
+  No. Upload 6.9″ and Apple scales down. Add 6.5″ only if you want pixel-perfect art for older devices.</p>
+  <p><strong>Do I need iPad screenshots?</strong><br />
+  Only if your app runs on iPad (i.e. it isn't iPhone-only). Then the 13″ size is required.</p>
+  <p><strong>Can screenshots contain marketing text and device frames?</strong><br />
+  Yes — most top apps do. The image must still represent the actual app experience; pure marketing imagery with no app UI risks rejection under guideline 2.3.</p>
+
+  <footer>
+    <p>
+      Written for <a href="../">App Store Screenshot Studio</a> (open source,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>).
+      Sizes verified against Apple's
+      <a href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/">screenshot specifications</a>, June 2026.
+    </p>
+  </footer>
+</main>
+</body>
+</html>

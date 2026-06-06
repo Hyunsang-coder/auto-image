@@ -23,6 +23,12 @@ export const useI18nStore = create<I18nState>()(
   ),
 )
 
+// Keep <html lang> in sync for accessibility/SEO (index.html ships lang="en").
+document.documentElement.lang = useI18nStore.getState().locale
+useI18nStore.subscribe((s) => {
+  document.documentElement.lang = s.locale
+})
+
 /**
  * Translate a UI string. The Korean source text is the dictionary key, so a
  * missing entry falls back to Korean instead of a bare key. `{name}` tokens
