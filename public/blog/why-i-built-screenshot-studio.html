@@ -50,7 +50,7 @@
     h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
     h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
     p.lead { color: var(--dim); font-size: 1.05rem; }
-    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
     p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
     pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
     pre code { background: none; border: none; padding: 0; }
@@ -68,7 +68,7 @@
 </head>
 <body>
 <main>
-  <p class="lang"><a href="./ko/why-i-built-screenshot-studio.html">한국어로 읽기 →</a></p>
+  <p class="lang"><a href="../">← App Store Screenshot Studio</a><a href="./ko/why-i-built-screenshot-studio.html">한국어로 읽기 →</a></p>
   <h1>Why I built a fully client-side App Store screenshot studio</h1>
   <p class="lead">
     I ship indie iOS apps localized into nine languages. Every release ends the same way:
