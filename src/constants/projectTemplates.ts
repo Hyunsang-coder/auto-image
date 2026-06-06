@@ -1,6 +1,7 @@
 import type { Background, Badge, Caption, DeviceType, Ornament, Project, ScreenshotStyle, Slide } from '../types/project'
 import { makeProject, newId, relocalizePlaceholder } from './defaults'
 import { splitLeaderTexts } from '../lib/spanTextMigration'
+import { t } from '../i18n'
 
 // Templates are authored in Korean; every text literal below must be a
 // registered placeholder (HEADLINE_PLACEHOLDERS.ko) so build-time and
@@ -232,7 +233,7 @@ export function projectTemplateFromProject(project: Project, label: string): Pro
   return {
     id: newId('utpl'),
     label,
-    description: `${project.slides.length}장`,
+    description: t('{n}장', { n: project.slides.length }),
     devices: project.devices,
     themeBackground: structuredClone(project.themeBackground),
     slides,

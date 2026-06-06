@@ -15,6 +15,7 @@ import type {
   TextStyle,
   TranslationAPI,
 } from '../types/project'
+import { t } from '../i18n'
 
 export const DEFAULT_THEME_COLOR = '#6366F1'
 export const DEFAULT_SOURCE_LOCALE = 'ko'
@@ -189,7 +190,7 @@ export function makeHighlight(): Highlight {
   }
 }
 
-export function makeBadge(text = '새 기능', accentColor?: string): Badge {
+export function makeBadge(text = t('새 기능'), accentColor?: string): Badge {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -461,9 +462,9 @@ export function makeTextBlock(index: number, template: TemplateType, text = ''):
 
 /** The slide's display title — the first text block's text (locale-aware). */
 export function titleText(slide: Slide, locale?: string): string {
-  const t = slide.texts[0]
-  const text = t ? (locale ? t.translations[locale] ?? t.text : t.text) : ''
-  return text || `슬라이드 ${slide.index + 1}`
+  const first = slide.texts[0]
+  const text = first ? (locale ? first.translations[locale] ?? first.text : first.text) : ''
+  return text || t('슬라이드 {n}', { n: slide.index + 1 })
 }
 
 export function makeSlide(

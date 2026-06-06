@@ -9,6 +9,7 @@ import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
 import { typeOfModel } from '../../constants/deviceSpecs'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from '../../lib/readiness'
 import type { DeviceType, Slide } from '../../types/project'
+import { useT } from '../../i18n'
 
 function deviceOf(slide: Slide): DeviceType {
   return typeOfModel(slide.deviceFrame.model)
@@ -91,6 +92,7 @@ fastlane deliver \\
 `
 
 export function ExportPanel() {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const setStep = useProjectStore((s) => s.setStep)
 
@@ -221,7 +223,7 @@ export function ExportPanel() {
       let outDir = ''
       const zip = useTauri ? null : new JSZip()
       if (useTauri) {
-        const picked = await open({ directory: true, title: '스크린샷을 저장할 폴더 선택' })
+        const picked = await open({ directory: true, title: t('스크린샷을 저장할 폴더 선택') })
         if (typeof picked !== 'string') {
           setStatus('idle')
           return
@@ -310,7 +312,7 @@ export function ExportPanel() {
       // failure list stays visible alongside it).
       const rendered = count - failed.length
       if (rendered === 0 && failed.length > 0) {
-        setError('모든 슬라이드 렌더링에 실패해 내보낼 파일이 없습니다.')
+        setError(t('모든 슬라이드 렌더링에 실패해 내보낼 파일이 없습니다.'))
         setStatus('error')
         return
       }
@@ -346,27 +348,25 @@ export function ExportPanel() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-border)] px-6 py-3">
-        <h2 className="text-lg font-semibold text-[var(--color-text)]">내보내기</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-text)]">{t('내보내기')}</h2>
         <button
           onClick={() => setStep(3)}
           className="rounded px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
         >
-          ← 로컬라이즈
+          ← {t('로컬라이즈')}
         </button>
       </div>
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-6">
         {untranslated.length > 0 && (
           <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700">
-            번역 미완료 로케일 {untranslated.length}개: {untranslated.join(', ')} —
-            소스 텍스트로 내보내집니다.
+            {t('번역 미완료 로케일 {n}개: {locales} — 소스 텍스트로 내보내집니다.', { n: untranslated.length, locales: untranslated.join(', ') })}
           </div>
         )}
 
         {missingScreenshots.length > 0 && (
           <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700">
-            스크린샷 없는 슬라이드: {missingScreenshots.join(', ')} — 기기 프레임만
-            내보내집니다.
+            {t('스크린샷 없는 슬라이드: {slides} — 기기 프레임만 내보내집니다.', { slides: missingScreenshots.join(', ') })}
           </div>
         )}
 
@@ -374,14 +374,14 @@ export function ExportPanel() {
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
-              미리보기
+              {t('미리보기')}
               {previewLoading && (
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" />
               )}
             </h3>
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 text-xs text-[var(--color-text-dim)]" title="미리보기 크기">
-                크기
+              <label className="flex items-center gap-1.5 text-xs text-[var(--color-text-dim)]" title={t('미리보기 크기')}>
+                {t('크기')}
                 <input
                   type="range"
                   min={1}
@@ -397,7 +397,7 @@ export function ExportPanel() {
                 className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-text)]"
               >
                 {allLocales.map((l) => (
-                  <option key={l} value={l}>{localeLabel(l)}</option>
+                  <option key={l} value={l}>{t(localeLabel(l))}</option>
                 ))}
               </select>
             </div>
@@ -409,7 +409,7 @@ export function ExportPanel() {
                 className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]"
               >
                 {previewSrcs[i] ? (
-                  <img src={previewSrcs[i]!} alt={`슬라이드 ${i + 1}`} className="w-full object-contain" />
+                  <img src={previewSrcs[i]!} alt={t('슬라이드 {n}', { n: i + 1 })} className="w-full object-contain" />
                 ) : (
                   <div className="flex aspect-[9/19] items-center justify-center text-xs text-[var(--color-text-dim)]">
                     {i + 1}…
@@ -422,14 +422,14 @@ export function ExportPanel() {
 
         {/* Export summary */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-          <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">렌더링 범위</h3>
+          <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">{t('렌더링 범위')}</h3>
           <div className="space-y-1.5 text-sm text-[var(--color-text-dim)]">
             <div className="flex justify-between">
-              <span>슬라이드</span>
-              <span className="text-[var(--color-text)]">{project.slides.length}장</span>
+              <span>{t('슬라이드')}</span>
+              <span className="text-[var(--color-text)]">{t('{n}장', { n: project.slides.length })}</span>
             </div>
             <div className="flex justify-between">
-              <span>디바이스</span>
+              <span>{t('디바이스')}</span>
               <span className="text-[var(--color-text)]">
                 {devicesInUse.length > 0
                   ? devicesInUse.map((d) => (d === 'iphone' ? 'iPhone' : 'iPad')).join(', ')
@@ -437,7 +437,7 @@ export function ExportPanel() {
               </span>
             </div>
             <div>
-              <div className="mb-1.5">로케일</div>
+              <div className="mb-1.5">{t('로케일')}</div>
               <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() =>
@@ -445,7 +445,7 @@ export function ExportPanel() {
                   }
                   className="rounded border border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-text-dim)] transition-colors hover:border-[var(--color-text-dim)]"
                 >
-                  {excludedLocales.size === 0 ? '전체 해제' : '전체 선택'}
+                  {excludedLocales.size === 0 ? t('전체 해제') : t('전체 선택')}
                 </button>
                 {allLocales.map((l) => {
                   const on = !excludedLocales.has(l)
@@ -464,15 +464,15 @@ export function ExportPanel() {
                           : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)]'
                       }`}
                     >
-                      {localeLabel(l)}
+                      {t(localeLabel(l))}
                     </button>
                   )
                 })}
               </div>
             </div>
             <div className="flex justify-between border-t border-[var(--color-border)] pt-1.5">
-              <span>총 PNG</span>
-              <span className="font-semibold text-[var(--color-text)]">{total}개</span>
+              <span>{t('총 PNG')}</span>
+              <span className="font-semibold text-[var(--color-text)]">{t('{n}개', { n: total })}</span>
             </div>
           </div>
         </div>
@@ -482,10 +482,10 @@ export function ExportPanel() {
             <div className="flex justify-between text-xs text-[var(--color-text-dim)]">
               <span>
                 {status === 'done'
-                  ? '렌더링 완료'
+                  ? t('렌더링 완료')
                   : current
-                  ? `슬라이드 ${current.slideNo} · ${localeLabel(current.locale)} (${done}/${total})`
-                  : `${done} / ${total} 렌더링 중…`}
+                  ? t('슬라이드 {n} · {locale} ({done}/{total})', { n: current.slideNo, locale: t(localeLabel(current.locale)), done, total })
+                  : t('{done} / {total} 렌더링 중…', { done, total })}
               </span>
               <span>{pct}%</span>
             </div>
@@ -502,13 +502,13 @@ export function ExportPanel() {
           <div className="space-y-1.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600">
             <p className="font-semibold">
               {status === 'error'
-                ? `렌더링 실패: ${failures.length}개 슬라이드 — 내보낸 파일이 없습니다.`
-                : `일부 슬라이드 렌더링 실패 (${failures.length}개). 나머지는 정상적으로 내보냈습니다.`}
+                ? t('렌더링 실패: {n}개 슬라이드 — 내보낸 파일이 없습니다.', { n: failures.length })
+                : t('일부 슬라이드 렌더링 실패 ({n}개). 나머지는 정상적으로 내보냈습니다.', { n: failures.length })}
             </p>
             <ul className="list-disc space-y-0.5 pl-4">
               {failures.map((f, idx) => (
                 <li key={`${f.slideNo}-${f.locale}-${idx}`}>
-                  슬라이드 {f.slideNo} ({localeLabel(f.locale)}) 렌더 실패: {f.message}
+                  {t('슬라이드 {n} ({locale}) 렌더 실패: {message}', { n: f.slideNo, locale: t(localeLabel(f.locale)), message: f.message })}
                 </li>
               ))}
             </ul>
@@ -528,10 +528,10 @@ export function ExportPanel() {
           <button
             onClick={() => handleExport('fastlane')}
             disabled={status === 'running' || exportLocales.length === 0}
-            title="screenshots/<locale>/<device>_NN.png — fastlane deliver로 바로 업로드"
+            title={t('screenshots/<locale>/<device>_NN.png — fastlane deliver로 바로 업로드')}
             className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm font-semibold text-[var(--color-text)] hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isDesktop ? 'fastlane 폴더' : 'fastlane용 ZIP'}
+            {isDesktop ? t('fastlane 폴더') : t('fastlane용 ZIP')}
           </button>
           <button
             onClick={() => handleExport('default')}
@@ -539,44 +539,41 @@ export function ExportPanel() {
             className="flex-1 rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {status === 'running'
-              ? `렌더링 중… (${done}/${total})`
+              ? t('렌더링 중… ({done}/{total})', { done, total })
               : status === 'done'
-              ? isDesktop ? '다시 내보내기' : 'ZIP 다시 다운로드'
+              ? isDesktop ? t('다시 내보내기') : t('ZIP 다시 다운로드')
               : exportLocales.length === 0
-              ? '내보낼 언어를 선택하세요'
+              ? t('내보낼 언어를 선택하세요')
               : isDesktop
-              ? `내보내기 · ${total}개 PNG`
-              : `ZIP 내보내기 · ${total}개 PNG`}
+              ? t('내보내기 · {n}개 PNG', { n: total })
+              : t('ZIP 내보내기 · {n}개 PNG', { n: total })}
           </button>
           {status === 'running' && (
             <button
               onClick={handleCancel}
               className="rounded-lg border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
-              취소
+              {t('취소')}
             </button>
           )}
         </div>
 
         <details className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-[var(--color-text-dim)]">
           <summary className="cursor-pointer font-medium text-[var(--color-text)]">
-            fastlane으로 App Store Connect에 업로드하는 법
+            {t('fastlane으로 App Store Connect에 업로드하는 법')}
           </summary>
           <ol className="mt-2 list-decimal space-y-1 pl-4">
-            <li>「fastlane용 ZIP」을 받아 압축을 풉니다.</li>
-            <li><code>fastlane/Appfile</code>에 앱 번들 ID를 입력합니다.</li>
+            <li>{t('「fastlane용 ZIP」을 받아 압축을 풉니다.')}</li>
+            <li>{t('{file}에 앱 번들 ID를 입력합니다.', { file: 'fastlane/Appfile' })}</li>
             <li>
-              App Store Connect → 사용자 및 액세스 → 통합 → App Store Connect API에서
-              키(.p8)를 만들어 <code>asc_api_key.json</code>에 채웁니다.
+              {t('App Store Connect → 사용자 및 액세스 → 통합 → App Store Connect API에서 키(.p8)를 만들어 {file}에 채웁니다.', { file: 'asc_api_key.json' })}
             </li>
             <li>
-              폴더에서 <code>./upload.sh</code> 실행
-              (또는 <code>fastlane deliver --api_key_path ./asc_api_key.json</code>).
+              {t('폴더에서 {cmd1} 실행 (또는 {cmd2}).', { cmd1: './upload.sh', cmd2: 'fastlane deliver --api_key_path ./asc_api_key.json' })}
             </li>
           </ol>
           <p className="mt-2">
-            스크린샷만 업로드되고(바이너리·메타데이터 제외), .p8 키는 내 컴퓨터에만 머뭅니다.
-            fastlane 설치가 필요합니다.
+            {t('스크린샷만 업로드되고(바이너리·메타데이터 제외), .p8 키는 내 컴퓨터에만 머뭅니다. fastlane 설치가 필요합니다.')}
           </p>
         </details>
       </div>

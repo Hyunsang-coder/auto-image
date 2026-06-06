@@ -11,11 +11,13 @@ import { runProjectImport, type ImportRunResult } from '../../lib/projectImportR
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
 import { Modal } from '../common/Modal'
+import { useT } from '../../i18n'
 
 const MIN_SLIDES = 1
 const MAX_SLIDES = 10
 
 export function ProjectSetup() {
+  const t = useT()
   const createProject = useProjectStore((s) => s.createProject)
   const existingProject = useProjectStore((s) => s.project)
   const setStep = useProjectStore((s) => s.setStep)
@@ -32,7 +34,7 @@ export function ProjectSetup() {
   const [importResult, setImportResult] = useState<ImportRunResult | null>(null)
   const [importBusy, setImportBusy] = useState(false)
 
-  const [name, setName] = useState(existingProject?.name ?? '내 앱')
+  const [name, setName] = useState(existingProject?.name ?? t('내 앱'))
   // Exactly one device type per project (radio, never both/neither). The chosen
   // App Store size per type is picked here too and seeds project.deviceModels.
   const [device, setDevice] = useState<DeviceType>(
@@ -132,11 +134,10 @@ export function ProjectSetup() {
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto px-6 py-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-          새 스크린샷 프로젝트
+          {t('새 스크린샷 프로젝트')}
         </h1>
         <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-          App Store 제출용 스크린샷 세트를 만듭니다. 데이터는 이 브라우저에만
-          저장됩니다.
+          {t('App Store 제출용 스크린샷 세트를 만듭니다. 데이터는 이 브라우저에만 저장됩니다.')}
         </p>
       </header>
 
@@ -144,8 +145,8 @@ export function ProjectSetup() {
 
       {(BUILTIN_PROJECT_TEMPLATES.length > 0 || userTemplates.length > 0) && (
         <Section
-          title="템플릿으로 시작"
-          hint="여러 슬라이드로 구성된 시작 세트입니다. 고르면 바로 편집 단계로 들어갑니다."
+          title={t('템플릿으로 시작')}
+          hint={t('여러 슬라이드로 구성된 시작 세트입니다. 고르면 바로 편집 단계로 들어갑니다.')}
         >
           <ul className="flex flex-col gap-2">
             {BUILTIN_PROJECT_TEMPLATES.map((tpl) => (
@@ -155,10 +156,10 @@ export function ProjectSetup() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                    {tpl.label}
+                    {t(tpl.label)}
                   </p>
                   <p className="text-xs text-[var(--color-text-dim)]">
-                    {tpl.description} · {tpl.slides.length}장
+                    {t(tpl.description)} · {t('{n}장', { n: tpl.slides.length })}
                   </p>
                 </div>
                 <button
@@ -166,7 +167,7 @@ export function ProjectSetup() {
                   onClick={() => startFromTemplate(tpl)}
                   className="shrink-0 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                 >
-                  이 템플릿으로 시작 →
+                  {t('이 템플릿으로 시작 →')}
                 </button>
               </li>
             ))}
@@ -180,7 +181,7 @@ export function ProjectSetup() {
                     {tpl.label}
                   </p>
                   <p className="text-xs text-[var(--color-text-dim)]">
-                    {tpl.description} · 내 템플릿
+                    {tpl.description} · {t('내 템플릿')}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -189,7 +190,7 @@ export function ProjectSetup() {
                     onClick={() => startFromTemplate(tpl)}
                     className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                   >
-                    시작 →
+                    {t('시작 →')}
                   </button>
                   {pendingTplDelete === tpl.id ? (
                     <>
@@ -201,14 +202,14 @@ export function ProjectSetup() {
                         }}
                         className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
                       >
-                        삭제 확인
+                        {t('삭제 확인')}
                       </button>
                       <button
                         type="button"
                         onClick={() => setPendingTplDelete(null)}
                         className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
                       >
-                        취소
+                        {t('취소')}
                       </button>
                     </>
                   ) : (
@@ -217,7 +218,7 @@ export function ProjectSetup() {
                       onClick={() => setPendingTplDelete(tpl.id)}
                       className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-red-400 hover:text-red-400"
                     >
-                      삭제
+                      {t('삭제')}
                     </button>
                   )}
                 </div>
@@ -228,8 +229,8 @@ export function ProjectSetup() {
       )}
 
       <Section
-        title="프로젝트 가져오기"
-        hint="AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 선택하면 export 전 단계까지 채워진 프로젝트로 시작합니다."
+        title={t('프로젝트 가져오기')}
+        hint={t('AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 선택하면 export 전 단계까지 채워진 프로젝트로 시작합니다.')}
       >
         <input
           ref={importInputRef}
@@ -249,23 +250,23 @@ export function ProjectSetup() {
           onClick={() => importInputRef.current?.click()}
           className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {importBusy ? '가져오는 중…' : '파일 선택'}
+          {importBusy ? t('가져오는 중…') : t('파일 선택')}
         </button>
       </Section>
 
-      <Section title="앱 이름">
+      <Section title={t('앱 이름')}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={60}
           className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-          placeholder="예: Dogo, Claude, ADHD"
+          placeholder={t('예: Dogo, Claude, ADHD')}
         />
       </Section>
 
       <Section
-        title="기기"
-        hint="한 종류만 선택합니다. 사이즈는 App Store에 등록 가능한 해상도입니다."
+        title={t('기기')}
+        hint={t('한 종류만 선택합니다. 사이즈는 App Store에 등록 가능한 해상도입니다.')}
       >
         <div className="flex flex-wrap gap-3">
           {(['iphone', 'ipad'] as DeviceType[]).map((d) => {
@@ -313,7 +314,7 @@ export function ProjectSetup() {
         </div>
       </Section>
 
-      <Section title="슬라이드 수" hint="1~10장. 나중에 추가할 수도 있습니다.">
+      <Section title={t('슬라이드 수')} hint={t('1~10장. 나중에 추가할 수도 있습니다.')}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -341,19 +342,19 @@ export function ProjectSetup() {
           >
             +
           </button>
-          <span className="text-sm text-[var(--color-text-dim)]">장</span>
+          <span className="text-sm text-[var(--color-text-dim)]">{t('장')}</span>
         </div>
       </Section>
 
-      <Section title="기본 배경" hint="모든 슬라이드의 기본 배경으로 사용됩니다.">
+      <Section title={t('기본 배경')} hint={t('모든 슬라이드의 기본 배경으로 사용됩니다.')}>
         <BackgroundPanel value={themeBackground} onChange={setThemeBackground} />
       </Section>
 
       <footer className="mt-2 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
         <p className="text-xs text-[var(--color-text-dim)]">
           {hasExisting
-            ? '계속하면 기존 프로젝트를 덮어씁니다.'
-            : '저장은 자동으로 이루어집니다.'}
+            ? t('계속하면 기존 프로젝트를 덮어씁니다.')
+            : t('저장은 자동으로 이루어집니다.')}
         </p>
         <button
           type="button"
@@ -361,20 +362,19 @@ export function ProjectSetup() {
           onClick={submit}
           className="rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[var(--color-accent)]/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {hasExisting ? '새로 만들기 →' : '다음 →'}
+          {hasExisting ? t('새로 만들기 →') : t('다음 →')}
         </button>
       </footer>
 
       {hasExisting && (
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm">
           <p className="mb-2 text-[var(--color-text-dim)]">
-            이전에 만들던 프로젝트가 있습니다:
+            {t('이전에 만들던 프로젝트가 있습니다:')}
           </p>
           <p className="text-[var(--color-text)]">
             <span className="font-medium">{existingProject.name}</span>
             <span className="ml-2 text-[var(--color-text-dim)]">
-              · {existingProject.slides.length}장 · 마지막 수정{' '}
-              {formatTime(existingProject.updatedAt)}
+              · {t('{n}장', { n: existingProject.slides.length })} · {t('마지막 수정')} {formatTime(existingProject.updatedAt)}
             </span>
           </p>
           <button
@@ -382,13 +382,13 @@ export function ProjectSetup() {
             onClick={() => setStep(2)}
             className="mt-3 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
           >
-            계속 편집하기 →
+            {t('계속 편집하기 →')}
           </button>
         </div>
       )}
 
       {savedProjects.length > 0 && (
-        <Section title="저장된 프로젝트" hint="헤더의 '저장'으로 보관한 프로젝트입니다.">
+        <Section title={t('저장된 프로젝트')} hint={t("헤더의 '저장'으로 보관한 프로젝트입니다.")}>
           <ul className="flex flex-col gap-2">
             {savedProjects.map((p) => (
               <li
@@ -400,7 +400,7 @@ export function ProjectSetup() {
                     {p.name}
                   </p>
                   <p className="text-xs text-[var(--color-text-dim)]">
-                    {p.slides.length}장 · {formatTime(p.updatedAt)}
+                    {t('{n}장', { n: p.slides.length })} · {formatTime(p.updatedAt)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -409,7 +409,7 @@ export function ProjectSetup() {
                     onClick={() => handleLoad(p)}
                     className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
                   >
-                    불러오기
+                    {t('불러오기')}
                   </button>
                   {pendingDelete === p.id ? (
                     <>
@@ -418,14 +418,14 @@ export function ProjectSetup() {
                         onClick={() => handleDelete(p.id)}
                         className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
                       >
-                        삭제 확인
+                        {t('삭제 확인')}
                       </button>
                       <button
                         type="button"
                         onClick={() => setPendingDelete(null)}
                         className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
                       >
-                        취소
+                        {t('취소')}
                       </button>
                     </>
                   ) : (
@@ -434,7 +434,7 @@ export function ProjectSetup() {
                       onClick={() => setPendingDelete(p.id)}
                       className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-red-400 hover:text-red-400"
                     >
-                      삭제
+                      {t('삭제')}
                     </button>
                   )}
                 </div>
@@ -445,11 +445,11 @@ export function ProjectSetup() {
       )}
 
       {confirmLoad && (
-        <Modal title="프로젝트 불러오기" onClose={() => setConfirmLoad(null)}>
+        <Modal title={t('프로젝트 불러오기')} onClose={() => setConfirmLoad(null)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              현재 편집 중인 작업을{' '}
+              {t('현재 편집 중인 작업을')}{' '}
               <span className="font-medium text-[var(--color-text)]">{confirmLoad.name}</span>
-              (으)로 교체합니다. 저장하지 않은 변경 사항은 사라집니다.
+              {t('(으)로 교체합니다. 저장하지 않은 변경 사항은 사라집니다.')}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -457,36 +457,35 @@ export function ProjectSetup() {
                 onClick={() => setConfirmLoad(null)}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
-                취소
+                {t('취소')}
               </button>
               <button
                 type="button"
                 onClick={() => doLoad(confirmLoad)}
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
-                불러오기
+                {t('불러오기')}
               </button>
             </div>
         </Modal>
       )}
 
       {importResult && (
-        <Modal title="프로젝트 가져오기" onClose={cancelImport}>
+        <Modal title={t('프로젝트 가져오기')} onClose={cancelImport}>
           {importResult.project ? (
             <p className="mt-2 text-sm text-[var(--color-text)]">
               <span className="font-medium">{importResult.project.name}</span>
               <span className="text-[var(--color-text-dim)]">
-                {' '}— 슬라이드 {importResult.applied.slides}장 · 스크린샷{' '}
-                {importResult.applied.screenshots}개 · 캡션 {importResult.applied.captions}개 적용
+                {' '}{t('— 슬라이드 {slides}장 · 스크린샷 {screenshots}개 · 캡션 {captions}개 적용', { slides: importResult.applied.slides, screenshots: importResult.applied.screenshots, captions: importResult.applied.captions })}
               </span>
             </p>
           ) : (
-            <p className="mt-2 text-sm text-red-600">가져올 수 없습니다.</p>
+            <p className="mt-2 text-sm text-red-600">{t('가져올 수 없습니다.')}</p>
           )}
           {importResult.issues.length > 0 && (
             <details className="mt-2" open={!importResult.project}>
               <summary className="cursor-pointer text-xs text-red-600">
-                경고 {importResult.issues.length}건 보기
+                {t('경고 {n}건 보기', { n: importResult.issues.length })}
               </summary>
               <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] text-[var(--color-text-dim)]">
                 {importResult.issues.map((issue, i) => (
@@ -497,8 +496,7 @@ export function ProjectSetup() {
           )}
           {importResult.project && hasExisting && (
             <p className="mt-3 text-xs text-[var(--color-text-dim)]">
-              가져오면 현재 편집 중인 프로젝트를 덮어씁니다. 저장하지 않은 변경
-              사항은 사라집니다.
+              {t('가져오면 현재 편집 중인 프로젝트를 덮어씁니다. 저장하지 않은 변경 사항은 사라집니다.')}
             </p>
           )}
           <div className="mt-5 flex justify-end gap-2">
@@ -507,7 +505,7 @@ export function ProjectSetup() {
               onClick={cancelImport}
               className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
             >
-              {importResult.project ? '취소' : '닫기'}
+              {importResult.project ? t('취소') : t('닫기')}
             </button>
             {importResult.project && (
               <button
@@ -515,7 +513,7 @@ export function ProjectSetup() {
                 onClick={confirmImport}
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
-                에디터에서 검수 →
+                {t('에디터에서 검수 →')}
               </button>
             )}
           </div>
@@ -523,11 +521,9 @@ export function ProjectSetup() {
       )}
 
       {confirmNew && (
-        <Modal title="새 프로젝트 만들기" onClose={() => setConfirmNew(false)}>
+        <Modal title={t('새 프로젝트 만들기')} onClose={() => setConfirmNew(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              현재 편집 중인 프로젝트를 새 프로젝트로 덮어씁니다. 저장하지 않은
-              변경 사항은 사라집니다. 먼저 '저장'으로 보관해 두면 나중에 다시
-              불러올 수 있습니다.
+              {t("현재 편집 중인 프로젝트를 새 프로젝트로 덮어씁니다. 저장하지 않은 변경 사항은 사라집니다. 먼저 '저장'으로 보관해 두면 나중에 다시 불러올 수 있습니다.")}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -535,14 +531,14 @@ export function ProjectSetup() {
                 onClick={() => setConfirmNew(false)}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
-                취소
+                {t('취소')}
               </button>
               <button
                 type="button"
                 onClick={doCreate}
                 className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
               >
-                새로 만들기
+                {t('새로 만들기')}
               </button>
             </div>
         </Modal>
@@ -552,6 +548,7 @@ export function ProjectSetup() {
 }
 
 function FirstRunIntro() {
+  const t = useT()
   const steps = [
     { n: 1, label: '설정', desc: '기기 · 슬라이드 수 · 테마' },
     { n: 2, label: '편집', desc: '스크린샷 올리고 문구 · 디자인' },
@@ -560,15 +557,15 @@ function FirstRunIntro() {
   ]
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <p className="mb-3 text-sm text-[var(--color-text)]">처음이신가요? 4단계로 만듭니다:</p>
+      <p className="mb-3 text-sm text-[var(--color-text)]">{t('처음이신가요? 4단계로 만듭니다:')}</p>
       <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {steps.map((s) => (
           <li key={s.n} className="flex flex-col gap-1">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-xs font-semibold text-[var(--color-accent)]">
               {s.n}
             </span>
-            <span className="text-sm font-medium text-[var(--color-text)]">{s.label}</span>
-            <span className="text-xs text-[var(--color-text-dim)]">{s.desc}</span>
+            <span className="text-sm font-medium text-[var(--color-text)]">{t(s.label)}</span>
+            <span className="text-xs text-[var(--color-text-dim)]">{t(s.desc)}</span>
           </li>
         ))}
       </ol>

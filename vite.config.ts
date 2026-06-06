@@ -14,5 +14,6 @@ export default defineConfig({
     // `*.spec.ts` under e2e/. The two globs never overlap.
     include: ['src/**/*.test.ts'],
     environment: 'jsdom',
+    setupFiles: ['./src/test.setup.ts'],
   },
 })

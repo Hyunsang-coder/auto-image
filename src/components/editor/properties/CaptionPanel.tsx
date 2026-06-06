@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Caption, CaptionBox, TemplateType, TextShadow, TextStyle } from '../../../types/project'
 import { FONT_OPTIONS, MAX_TEXTS, makeTextBlock } from '../../../constants/defaults'
+import { useT } from '../../../i18n'
 
 interface CaptionFieldProps {
   label: string
@@ -44,15 +45,16 @@ function ShadowControls({ label, value, onChange }: {
   value: TextShadow
   onChange: (s: TextShadow) => void
 }) {
+  const t = useT()
   return (
     <>
       <ColorPickerPopover
         color={value.color}
         onChange={(c) => onChange({ ...value, color: c })}
-        label={`${label} 색상`}
+        label={`${label} ${t('색상')}`}
       />
       <SliderRow
-        label="불투명도"
+        label={t('불투명도')}
         value={value.opacity}
         min={0}
         max={1}
@@ -61,7 +63,7 @@ function ShadowControls({ label, value, onChange }: {
         onChange={(v) => onChange({ ...value, opacity: v })}
       />
       <SliderRow
-        label="가로 위치 (X)"
+        label={t('가로 위치 (X)')}
         value={value.offsetX}
         min={-20}
         max={20}
@@ -70,7 +72,7 @@ function ShadowControls({ label, value, onChange }: {
         onChange={(v) => onChange({ ...value, offsetX: v })}
       />
       <SliderRow
-        label="세로 위치 (Y)"
+        label={t('세로 위치 (Y)')}
         value={value.offsetY}
         min={-20}
         max={20}
@@ -79,7 +81,7 @@ function ShadowControls({ label, value, onChange }: {
         onChange={(v) => onChange({ ...value, offsetY: v })}
       />
       <SliderRow
-        label="흐림"
+        label={t('흐림')}
         value={value.blur}
         min={0}
         max={40}
@@ -92,6 +94,7 @@ function ShadowControls({ label, value, onChange }: {
 }
 
 function CaptionField({ label, value, onChange }: CaptionFieldProps) {
+  const t = useT()
   function updateStyle(patch: Partial<TextStyle>) {
     onChange({ ...value, style: { ...value.style, ...patch } })
   }
@@ -106,7 +109,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       </p>
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--color-text-dim)]">텍스트</label>
+        <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('텍스트')}</label>
         <textarea
           rows={2}
           value={value.text}
@@ -116,7 +119,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--color-text-dim)]">폰트</label>
+        <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('폰트')}</label>
         <select
           value={value.style.fontFamily}
           onChange={(e) => updateStyle({ fontFamily: e.target.value })}
@@ -133,7 +136,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-[var(--color-text-dim)]">크기</label>
+          <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('크기')}</label>
           <input
             type="number"
             min={10}
@@ -144,7 +147,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-[var(--color-text-dim)]">굵기</label>
+          <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('굵기')}</label>
           <select
             value={value.style.fontWeight}
             onChange={(e) => updateStyle({ fontWeight: Number(e.target.value) })}
@@ -161,7 +164,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       </div>
 
       <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-        <span>박스 너비에 맞춤 <span className="text-[var(--color-text-dim)]">(자동 크기)</span></span>
+        <span>{t('박스 너비에 맞춤')} <span className="text-[var(--color-text-dim)]">{t('(자동 크기)')}</span></span>
         <input
           type="checkbox"
           checked={!!value.style.fitToBox}
@@ -172,7 +175,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
 
       <div>
         <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
-          <span>줄 간격</span>
+          <span>{t('줄 간격')}</span>
           <span>{(value.style.lineHeight ?? 1.2).toFixed(2)}</span>
         </label>
         <input
@@ -187,16 +190,16 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       </div>
 
       <div>
-        <label className="mb-2 block text-xs text-[var(--color-text-dim)]">텍스트 색상</label>
+        <label className="mb-2 block text-xs text-[var(--color-text-dim)]">{t('텍스트 색상')}</label>
         <ColorPickerPopover
           color={value.style.color}
           onChange={(c) => updateStyle({ color: c })}
-          label="텍스트 색상"
+          label={t('텍스트 색상')}
         />
       </div>
 
       <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-        <span>외곽선</span>
+        <span>{t('외곽선')}</span>
         <input
           type="checkbox"
           checked={!!value.style.outline}
@@ -211,10 +214,10 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           <ColorPickerPopover
             color={value.style.outline.color}
             onChange={(c) => updateStyle({ outline: { ...value.style.outline!, color: c } })}
-            label="외곽선 색상"
+            label={t('외곽선 색상')}
           />
           <SliderRow
-            label="굵기"
+            label={t('굵기')}
             value={value.style.outline.width}
             min={0.5}
             max={10}
@@ -226,7 +229,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       )}
 
       <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-        <span>그림자</span>
+        <span>{t('그림자')}</span>
         <input
           type="checkbox"
           checked={!!value.style.shadow}
@@ -243,7 +246,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       {value.style.shadow && (
         <div className="flex flex-col gap-2 rounded-lg bg-[var(--color-surface-2)] p-2">
           <ShadowControls
-            label="그림자"
+            label={t('그림자')}
             value={value.style.shadow}
             onChange={(s) => updateStyle({ shadow: s })}
           />
@@ -251,7 +254,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       )}
 
       <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-        <span>박스 배경</span>
+        <span>{t('박스 배경')}</span>
         <input
           type="checkbox"
           checked={!!value.style.box}
@@ -270,10 +273,10 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           <ColorPickerPopover
             color={value.style.box.fill}
             onChange={(c) => updateBox({ fill: c })}
-            label="박스 색상"
+            label={t('박스 색상')}
           />
           <SliderRow
-            label="불투명도"
+            label={t('불투명도')}
             value={value.style.box.opacity}
             min={0}
             max={1}
@@ -282,7 +285,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             onChange={(v) => updateBox({ opacity: v })}
           />
           <SliderRow
-            label="가로 패딩"
+            label={t('가로 패딩')}
             value={value.style.box.paddingX}
             min={0}
             max={60}
@@ -291,7 +294,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             onChange={(v) => updateBox({ paddingX: v })}
           />
           <SliderRow
-            label="세로 패딩"
+            label={t('세로 패딩')}
             value={value.style.box.paddingY}
             min={0}
             max={60}
@@ -300,7 +303,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             onChange={(v) => updateBox({ paddingY: v })}
           />
           <SliderRow
-            label="모서리 둥글기"
+            label={t('모서리 둥글기')}
             value={value.style.box.borderRadius}
             min={0}
             max={60}
@@ -309,7 +312,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             onChange={(v) => updateBox({ borderRadius: v })}
           />
           <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-            <span>테두리</span>
+            <span>{t('테두리')}</span>
             <input
               type="checkbox"
               checked={!!value.style.box.border}
@@ -324,10 +327,10 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
               <ColorPickerPopover
                 color={value.style.box.border.color}
                 onChange={(c) => updateBox({ border: { ...value.style.box!.border!, color: c } })}
-                label="테두리 색상"
+                label={t('테두리 색상')}
               />
               <SliderRow
-                label="테두리 굵기"
+                label={t('테두리 굵기')}
                 value={value.style.box.border.width}
                 min={0.5}
                 max={10}
@@ -338,7 +341,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
             </>
           )}
           <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-            <span>박스 그림자</span>
+            <span>{t('박스 그림자')}</span>
             <input
               type="checkbox"
               checked={!!value.style.box.shadow}
@@ -354,7 +357,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
           </label>
           {value.style.box.shadow && (
             <ShadowControls
-              label="박스 그림자"
+              label={t('박스 그림자')}
               value={value.style.box.shadow}
               onChange={(s) => updateBox({ shadow: s })}
             />
@@ -363,7 +366,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       )}
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--color-text-dim)]">정렬</label>
+        <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('정렬')}</label>
         <div className="flex gap-1">
           {(['left', 'center', 'right'] as const).map((align) => (
             <button
@@ -377,7 +380,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
                   : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)] border border-[var(--color-border)]',
               ].join(' ')}
             >
-              {align === 'left' ? '왼쪽' : align === 'center' ? '가운데' : '오른쪽'}
+              {align === 'left' ? t('왼쪽') : align === 'center' ? t('가운데') : t('오른쪽')}
             </button>
           ))}
         </div>
@@ -397,6 +400,7 @@ interface Props {
 }
 
 export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedCount = 1, slideCount = 1, onApplyTextStyleToSlides }: Props) {
+  const t = useT()
   const [bulkStyle, setBulkStyle] = useState<Partial<TextStyle>>({})
   const showBulk = bulkEnabled && onApplyTextStyleToSlides
   function addBlock() {
@@ -406,23 +410,23 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
     onChange(texts.filter((_, i) => i !== index))
   }
   function editBlock(index: number, c: Caption) {
-    onChange(texts.map((t, i) => (i === index ? c : t)))
+    onChange(texts.map((tb, i) => (i === index ? c : tb)))
   }
 
   return (
     <div className="flex flex-col gap-3">
       {showBulk && (
         <div className="rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-3 flex flex-col gap-3">
-          <p className="text-xs font-semibold text-[var(--color-accent)]">여러 슬라이드 일괄 스타일</p>
+          <p className="text-xs font-semibold text-[var(--color-accent)]">{t('여러 슬라이드 일괄 스타일')}</p>
           <div>
-            <label className="mb-1 block text-xs text-[var(--color-text-dim)]">폰트</label>
+            <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('폰트')}</label>
             <select
               value={bulkStyle.fontFamily ?? ''}
               onChange={(e) => setBulkStyle((s) => ({ ...s, fontFamily: e.target.value || undefined }))}
               className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
               style={bulkStyle.fontFamily ? { fontFamily: bulkStyle.fontFamily } : undefined}
             >
-              <option value="">변경 안 함</option>
+              <option value="">{t('변경 안 함')}</option>
               {FONT_OPTIONS.map((f) => (
                 <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>{f.label}</option>
               ))}
@@ -430,25 +434,25 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">크기</label>
+              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('크기')}</label>
               <input
                 type="number"
                 min={10}
                 max={300}
-                placeholder="변경 안 함"
+                placeholder={t('변경 안 함')}
                 value={bulkStyle.fontSize ?? ''}
                 onChange={(e) => setBulkStyle((s) => ({ ...s, fontSize: e.target.value ? Number(e.target.value) : undefined }))}
                 className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">굵기</label>
+              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('굵기')}</label>
               <select
                 value={bulkStyle.fontWeight ?? ''}
                 onChange={(e) => setBulkStyle((s) => ({ ...s, fontWeight: e.target.value ? Number(e.target.value) : undefined }))}
                 className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
               >
-                <option value="">변경 안 함</option>
+                <option value="">{t('변경 안 함')}</option>
                 <option value={400}>Regular</option>
                 <option value={500}>Medium</option>
                 <option value={600}>SemiBold</option>
@@ -466,7 +470,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
                 onClick={() => { onApplyTextStyleToSlides(bulkStyle, 'selected'); setBulkStyle({}) }}
                 className="flex-1 rounded-lg bg-[var(--color-accent)] px-2 py-1.5 text-xs text-white disabled:opacity-40 hover:opacity-90"
               >
-                선택 {selectedCount}개에 적용
+                {t('선택 {n}개에 적용', { n: selectedCount })}
               </button>
             )}
             <button
@@ -475,7 +479,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
               onClick={() => { onApplyTextStyleToSlides(bulkStyle, 'all'); setBulkStyle({}) }}
               className="flex-1 rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-xs text-[var(--color-text-dim)] disabled:opacity-40 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
             >
-              전체 {slideCount}개에 적용
+              {t('전체 {n}개에 적용', { n: slideCount })}
             </button>
           </div>
         </div>
@@ -483,7 +487,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
       {texts.map((caption, i) => (
         <div key={i} className="relative">
           <CaptionField
-            label={i === 0 ? '제목 (헤드라인)' : `텍스트 ${i + 1}`}
+            label={i === 0 ? t('제목 (헤드라인)') : t('텍스트 {n}', { n: i + 1 })}
             value={caption}
             onChange={(c) => editBlock(i, c)}
           />
@@ -491,10 +495,10 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
             <button
               type="button"
               onClick={() => removeBlock(i)}
-              title="이 텍스트 블록 삭제"
+              title={t('이 텍스트 블록 삭제')}
               className="absolute right-2 top-2 rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] transition hover:border-red-500 hover:text-red-500"
             >
-              삭제
+              {t('삭제')}
             </button>
           )}
         </div>
@@ -505,7 +509,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
         disabled={texts.length >= MAX_TEXTS}
         className="rounded-lg border border-dashed border-[var(--color-border)] py-2 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
       >
-        텍스트 블록 추가 ({texts.length}/{MAX_TEXTS})
+        {t('텍스트 블록 추가 ({n}/{max})', { n: texts.length, max: MAX_TEXTS })}
       </button>
     </div>
   )

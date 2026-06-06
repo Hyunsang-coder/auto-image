@@ -1,6 +1,7 @@
 import type { Highlight } from '../../../types/project'
 import { makeHighlight } from '../../../constants/defaults'
 import { normalizeAngle } from '../../../canvas/geometry'
+import { useT } from '../../../i18n'
 
 interface Props {
   value: Highlight[]
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
+  const t = useT()
   function add() {
     onChange([...value, makeHighlight()])
   }
@@ -28,30 +30,28 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-dim)]">
-          하이라이트
+          {t('하이라이트')}
         </p>
         <button
           type="button"
           onClick={add}
           disabled={!hasScreenshot}
-          title={hasScreenshot ? '하이라이트 추가' : '먼저 스크린샷을 업로드하세요'}
+          title={hasScreenshot ? t('하이라이트 추가') : t('먼저 스크린샷을 업로드하세요')}
           className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-text)] transition hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          + 추가
+          {t('+ 추가')}
         </button>
       </div>
 
       {!hasScreenshot && (
         <p className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-text-dim)]">
-          하이라이트는 스크린샷 영역을 확대해 보여주는 기능이에요. 먼저 스크린샷을 업로드해야 추가할 수 있어요.
+          {t('하이라이트는 스크린샷 영역을 확대해 보여주는 기능이에요. 먼저 스크린샷을 업로드해야 추가할 수 있어요.')}
         </p>
       )}
 
       {value.length === 0 && hasScreenshot && (
         <p className="rounded-md border border-dashed border-[var(--color-border)] px-3 py-4 text-center text-xs text-[var(--color-text-dim)]">
-          "+ 추가"로 하이라이트를 만드세요.
-          <br />
-          캔버스에서 드래그해 위치/크기 조정.
+          {t('"+ 추가"로 하이라이트를 만드세요. 캔버스에서 드래그해 위치/크기 조정.')}
         </p>
       )}
 
@@ -61,17 +61,17 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
           className="space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-[var(--color-text)]">하이라이트 {i + 1}</p>
+            <p className="text-xs font-semibold text-[var(--color-text)]">{t('하이라이트 {n}', { n: i + 1 })}</p>
             <button
               type="button"
               onClick={() => remove(h.id)}
               className="text-xs text-red-600 hover:text-red-700"
             >
-              삭제
+              {t('삭제')}
             </button>
           </div>
 
-          <Group label="원본 영역 (스크린샷 안)">
+          <Group label={t('원본 영역 (스크린샷 안)')}>
             <Slider
               label="X"
               value={h.sourceRegion.x}
@@ -114,9 +114,9 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
             />
           </Group>
 
-          <Group label="확대 카드">
+          <Group label={t('확대 카드')}>
             <Slider
-              label="크기"
+              label={t('크기')}
               value={h.popup.width}
               min={0.2}
               max={1}
@@ -124,7 +124,7 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
               onChange={(v) => updatePopup(h.id, { width: v })}
             />
             <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
-              <span className="w-16 text-[var(--color-text-dim)]">회전</span>
+              <span className="w-16 text-[var(--color-text-dim)]">{t('회전')}</span>
               <input
                 type="range"
                 min={-180}

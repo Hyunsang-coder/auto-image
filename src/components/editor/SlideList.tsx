@@ -6,6 +6,7 @@ import { useProjectStore } from '../../store/useProjectStore'
 import { titleText } from '../../constants/defaults'
 import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { useSlideThumbnails } from './useSlideThumbnails'
+import { useT } from '../../i18n'
 
 /** Modifier keys read off the click event to drive selection semantics. */
 interface ClickMods {
@@ -82,6 +83,7 @@ export function SlideList({
   previewLocale,
   thumbHeight = DEFAULT_THUMB_HEIGHT,
 }: Props) {
+  const t = useT()
   const addSlide = useProjectStore((s) => s.addSlide)
   const duplicateSlide = useProjectStore((s) => s.duplicateSlide)
   const reorderSlides = useProjectStore((s) => s.reorderSlides)
@@ -126,7 +128,7 @@ export function SlideList({
       selectedIds.size > 1 && selectedIds.has(slideId)
         ? slides.filter((s) => selectedIds.has(s.id)).map((s) => s.id)
         : [slideId]
-    const label = ids.length > 1 ? `${ids.length}개 슬라이드` : title
+    const label = ids.length > 1 ? t('{n}개 슬라이드', { n: ids.length }) : title
     setPendingDelete({ ids, title: label })
   }
 
@@ -209,7 +211,7 @@ export function SlideList({
               onClick={() => tryLink(row.slides[0].id)}
               style={{ height: thumbHeight }}
               className="group/link -mx-1 flex w-5 shrink-0 items-center justify-center text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)]"
-              title="옆 슬라이드와 한 장으로 묶기"
+              title={t('옆 슬라이드와 한 장으로 묶기')}
             >
               <span className="opacity-0 transition group-hover/link:opacity-100">🔗</span>
             </button>
@@ -220,7 +222,7 @@ export function SlideList({
         type="button"
         onClick={addSlide}
         disabled={!canAdd}
-        title={canAdd ? '슬라이드 추가' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
+        title={canAdd ? t('슬라이드 추가') : t('최대 {n}장까지 추가할 수 있습니다', { n: MAX_SLIDES })}
         style={{ height: thumbHeight }}
         className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
       >
@@ -228,10 +230,10 @@ export function SlideList({
       </button>
 
       {pendingDelete && (
-        <Modal title="슬라이드 삭제" size="sm" onClose={() => setPendingDelete(null)}>
+        <Modal title={t('슬라이드 삭제')} size="sm" onClose={() => setPendingDelete(null)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               <span className="font-medium text-[var(--color-text)]">{pendingDelete.title}</span>
-              {pendingDelete.ids.length > 1 ? '를 삭제합니다.' : ' 슬라이드를 삭제합니다.'} 이 작업은 되돌릴 수 없습니다.
+              {pendingDelete.ids.length > 1 ? t('를 삭제합니다.') : t(' 슬라이드를 삭제합니다.')} {t('이 작업은 되돌릴 수 없습니다.')}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -239,7 +241,7 @@ export function SlideList({
                 onClick={() => setPendingDelete(null)}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
-                취소
+                {t('취소')}
               </button>
               <button
                 type="button"
@@ -249,7 +251,7 @@ export function SlideList({
                 }}
                 className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
               >
-                삭제
+                {t('삭제')}
               </button>
             </div>
         </Modal>
@@ -344,6 +346,7 @@ function SingleRow({
   onDelete: () => void
   canDelete: boolean
 } & DragWiring) {
+  const t = useT()
   const dropSide = dropTarget?.id === slide.id ? dropTarget.side : null
   return (
     <div
@@ -388,7 +391,7 @@ function SingleRow({
           type="button"
           onClick={onDuplicate}
           disabled={!canDuplicate}
-          title={canDuplicate ? '슬라이드 복제' : `최대 ${MAX_SLIDES}장까지 추가할 수 있습니다`}
+          title={canDuplicate ? t('슬라이드 복제') : t('최대 {n}장까지 추가할 수 있습니다', { n: MAX_SLIDES })}
           className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-40"
         >
           ⧉
@@ -397,7 +400,7 @@ function SingleRow({
           type="button"
           onClick={onDelete}
           disabled={!canDelete}
-          title={canDelete ? '슬라이드 삭제' : '마지막 슬라이드는 삭제할 수 없습니다'}
+          title={canDelete ? t('슬라이드 삭제') : t('마지막 슬라이드는 삭제할 수 없습니다')}
           className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           🗑
@@ -443,6 +446,7 @@ function SpanRow({
   onSelect: (id: string, mods: ClickMods) => void
   onUnlink: () => void
 } & DragWiring) {
+  const t = useT()
   const [leader, follower] = row.slides
   const groupActive =
     activeSlideId === leader.id || activeSlideId === follower.id
@@ -485,7 +489,7 @@ function SpanRow({
               onClick={(e) =>
                 onSelect(s.id, { metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey })
               }
-              title={i === 0 ? '왼쪽 (Leader)' : '오른쪽 (Follower)'}
+              title={i === 0 ? t('왼쪽 (Leader)') : t('오른쪽 (Follower)')}
               className={[
                 'block cursor-grab overflow-hidden rounded border transition active:cursor-grabbing',
                 dragId === s.id ? 'opacity-40' : '',
@@ -505,9 +509,9 @@ function SpanRow({
         type="button"
         onClick={onUnlink}
         className="absolute right-1 top-1 hidden rounded bg-black/55 px-1.5 py-0.5 text-[10px] leading-none text-white transition hover:bg-black/75 group-hover:block"
-        title="그룹 해제 — 두 장으로 분리"
+        title={t('그룹 해제 — 두 장으로 분리')}
       >
-        해제
+        {t('해제')}
       </button>
     </div>
   )

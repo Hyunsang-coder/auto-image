@@ -13,6 +13,7 @@ import type {
   Project,
   TemplateType,
 } from '../types/project'
+import { t } from '../i18n'
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_SOURCE_LOCALE,
@@ -81,13 +82,13 @@ function coerceBackground(
   if (typeof value === 'string') {
     const preset = findThemePreset(value)
     if (!preset) {
-      issues.push(`${where}: 알 수 없는 테마 프리셋 "${value}" — 기본 배경 사용`)
+      issues.push(t('{where}: 알 수 없는 테마 프리셋 "{value}" — 기본 배경 사용', { where, value }))
       return undefined
     }
     return structuredClone(preset.background)
   }
   if (typeof value !== 'object' || value === null) {
-    issues.push(`${where}: 배경 형식이 올바르지 않음 — 기본 배경 사용`)
+    issues.push(t('{where}: 배경 형식이 올바르지 않음 — 기본 배경 사용', { where }))
     return undefined
   }
   const bg = value as Record<string, unknown>
@@ -108,7 +109,7 @@ function coerceBackground(
         )
       : []
     if (stops.length < 2) {
-      issues.push(`${where}: 그라디언트 stops가 2개 이상 필요 — 기본 배경 사용`)
+      issues.push(t('{where}: 그라디언트 stops가 2개 이상 필요 — 기본 배경 사용', { where }))
       return undefined
     }
     return {
@@ -122,8 +123,8 @@ function coerceBackground(
   }
   issues.push(
     bg.type === 'image'
-      ? `${where}: image 배경은 manifest에서 지원하지 않음 — 기본 배경 사용`
-      : `${where}: 배경 형식이 올바르지 않음 — 기본 배경 사용`,
+      ? t('{where}: image 배경은 manifest에서 지원하지 않음 — 기본 배경 사용', { where })
+      : t('{where}: 배경 형식이 올바르지 않음 — 기본 배경 사용', { where }),
   )
   return undefined
 }
@@ -140,36 +141,36 @@ export function parseManifest(text: string): ManifestParseResult {
   try {
     raw = JSON.parse(text)
   } catch {
-    return { manifest: null, issues: ['매니페스트 JSON을 파싱할 수 없습니다'] }
+    return { manifest: null, issues: [t('매니페스트 JSON을 파싱할 수 없습니다')] }
   }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { manifest: null, issues: ['매니페스트는 JSON 객체여야 합니다'] }
+    return { manifest: null, issues: [t('매니페스트는 JSON 객체여야 합니다')] }
   }
   const m = raw as Record<string, unknown>
 
   if (m.version !== 1) {
     return {
       manifest: null,
-      issues: [`지원하지 않는 매니페스트 버전: ${JSON.stringify(m.version)} (version: 1 만 지원)`],
+      issues: [t('지원하지 않는 매니페스트 버전: {ver} (version: 1 만 지원)', { ver: JSON.stringify(m.version) })],
     }
   }
   const name = typeof m.name === 'string' ? m.name.trim() : ''
   if (!name) {
-    return { manifest: null, issues: ['프로젝트 이름(name)이 필요합니다'] }
+    return { manifest: null, issues: [t('프로젝트 이름(name)이 필요합니다')] }
   }
   if (!Array.isArray(m.slides) || m.slides.length === 0) {
-    return { manifest: null, issues: ['슬라이드(slides)가 최소 1장 필요합니다'] }
+    return { manifest: null, issues: [t('슬라이드(slides)가 최소 1장 필요합니다')] }
   }
   let rawSlides = m.slides as unknown[]
   if (rawSlides.length > MAX_SLIDES) {
-    issues.push(`슬라이드는 최대 ${MAX_SLIDES}장 — ${rawSlides.length}장 중 처음 ${MAX_SLIDES}장만 사용`)
+    issues.push(t('슬라이드는 최대 {max}장 — {n}장 중 처음 {max}장만 사용', { max: MAX_SLIDES, n: rawSlides.length }))
     rawSlides = rawSlides.slice(0, MAX_SLIDES)
   }
 
   let device: DeviceType = 'iphone'
   if (m.device !== undefined) {
     if (m.device === 'iphone' || m.device === 'ipad') device = m.device
-    else issues.push(`알 수 없는 device "${String(m.device)}" — iphone 사용`)
+    else issues.push(t('알 수 없는 device "{device}" — iphone 사용', { device: String(m.device) }))
   }
 
   let deviceModel: DeviceModel = DEFAULT_MODEL[device]
@@ -177,7 +178,7 @@ export function parseManifest(text: string): ManifestParseResult {
     if (MODELS_BY_TYPE[device].includes(m.deviceModel as DeviceModel)) {
       deviceModel = m.deviceModel as DeviceModel
     } else {
-      issues.push(`"${String(m.deviceModel)}"는 ${device}의 모델이 아님 — ${deviceModel} 사용`)
+      issues.push(t('"{model}"는 {device}의 모델이 아님 — {fallback} 사용', { model: String(m.deviceModel), device, fallback: deviceModel }))
     }
   }
 
@@ -186,18 +187,18 @@ export function parseManifest(text: string): ManifestParseResult {
     if (typeof m.sourceLocale === 'string' && KNOWN_LOCALES.has(m.sourceLocale)) {
       sourceLocale = m.sourceLocale
     } else {
-      issues.push(`지원하지 않는 sourceLocale "${String(m.sourceLocale)}" — ${DEFAULT_SOURCE_LOCALE} 사용`)
+      issues.push(t('지원하지 않는 sourceLocale "{locale}" — {fallback} 사용', { locale: String(m.sourceLocale), fallback: DEFAULT_SOURCE_LOCALE }))
     }
   }
 
   const targetLocales: string[] = []
   if (m.targetLocales !== undefined) {
     if (!Array.isArray(m.targetLocales)) {
-      issues.push('targetLocales는 배열이어야 함 — 무시')
+      issues.push(t('targetLocales는 배열이어야 함 — 무시'))
     } else {
       for (const code of m.targetLocales) {
         if (typeof code !== 'string' || !KNOWN_LOCALES.has(code)) {
-          issues.push(`지원하지 않는 targetLocale "${String(code)}" — 제외`)
+          issues.push(t('지원하지 않는 targetLocale "{code}" — 제외', { code: String(code) }))
         } else if (code !== sourceLocale && !targetLocales.includes(code)) {
           targetLocales.push(code)
         }
@@ -212,12 +213,12 @@ export function parseManifest(text: string): ManifestParseResult {
       : structuredClone(DEFAULT_BACKGROUND)
 
   const slides: ParsedSlide[] = rawSlides.map((rawSlide, i) => {
-    const where = `슬라이드 ${i + 1}`
+    const where = t('슬라이드 {n}', { n: i + 1 })
     const s = (
       typeof rawSlide === 'object' && rawSlide !== null ? rawSlide : {}
     ) as Record<string, unknown>
     if (typeof rawSlide !== 'object' || rawSlide === null) {
-      issues.push(`${where}: 슬라이드 항목이 객체가 아님 — 기본값 사용`)
+      issues.push(t('{where}: 슬라이드 항목이 객체가 아님 — 기본값 사용', { where }))
     }
 
     let layout: TemplateType = 'text-top'
@@ -225,7 +226,7 @@ export function parseManifest(text: string): ManifestParseResult {
       if (typeof s.layout === 'string' && s.layout in TEMPLATE_FONT_SIZES) {
         layout = s.layout as TemplateType
       } else {
-        issues.push(`${where}: 알 수 없는 layout "${String(s.layout)}" — text-top 사용`)
+        issues.push(t('{where}: 알 수 없는 layout "{layout}" — text-top 사용', { where, layout: String(s.layout) }))
       }
     }
 
@@ -235,7 +236,7 @@ export function parseManifest(text: string): ManifestParseResult {
       if (Number.isInteger(n) && n >= 1 && n <= MAX_TEXTS) {
         textBlocks = n
       } else {
-        issues.push(`${where}: textBlocks는 1~${MAX_TEXTS} — 1 사용`)
+        issues.push(t('{where}: textBlocks는 1~{max} — 1 사용', { where, max: MAX_TEXTS }))
       }
     }
 

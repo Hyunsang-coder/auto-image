@@ -2,6 +2,7 @@ import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Badge } from '../../../types/project'
 import { makeBadge, accentFromBackground, badgePlaceholder, DEFAULT_SOURCE_LOCALE } from '../../../constants/defaults'
 import { useProjectStore } from '../../../store/useProjectStore'
+import { useT } from '../../../i18n'
 
 interface Props {
   value: Badge[]
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function BadgePanel({ value, onChange }: Props) {
+  const t = useT()
   const badges = value ?? []
   const themeBackground = useProjectStore((s) => s.project?.themeBackground)
   const sourceLocale = useProjectStore((s) => s.project?.sourceLocale ?? DEFAULT_SOURCE_LOCALE)
@@ -38,14 +40,14 @@ export function BadgePanel({ value, onChange }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-[var(--color-text)]">
-          배지{badges.length > 0 ? ` (${badges.length})` : ''}
+          {t('배지')}{badges.length > 0 ? ` (${badges.length})` : ''}
         </span>
         <button
           type="button"
           onClick={add}
           className="rounded border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-text-dim)] transition hover:text-[var(--color-text)]"
         >
-          추가
+          {t('추가')}
         </button>
       </div>
 
@@ -66,31 +68,31 @@ export function BadgePanel({ value, onChange }: Props) {
               onClick={() => remove(badge.id)}
               className="shrink-0 text-xs text-red-600 hover:text-red-700"
             >
-              삭제
+              {t('삭제')}
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-2 block text-xs text-[var(--color-text-dim)]">배경색</label>
+              <label className="mb-2 block text-xs text-[var(--color-text-dim)]">{t('배경색')}</label>
               <ColorPickerPopover
                 color={badge.style.backgroundColor}
                 onChange={(c) => updateStyle(badge.id, { backgroundColor: c })}
-                label="배경색"
+                label={t('배경색')}
               />
             </div>
             <div>
-              <label className="mb-2 block text-xs text-[var(--color-text-dim)]">텍스트색</label>
+              <label className="mb-2 block text-xs text-[var(--color-text-dim)]">{t('텍스트색')}</label>
               <ColorPickerPopover
                 color={badge.style.textColor}
                 onChange={(c) => updateStyle(badge.id, { textColor: c })}
-                label="텍스트색"
+                label={t('텍스트색')}
               />
             </div>
           </div>
 
           <Slider
-            label="세로 위치"
+            label={t('세로 위치')}
             value={Math.round(badge.top * 100)}
             min={0}
             max={95}
@@ -99,7 +101,7 @@ export function BadgePanel({ value, onChange }: Props) {
           />
 
           <Slider
-            label="모서리"
+            label={t('모서리')}
             value={badge.style.borderRadius}
             min={0}
             max={100}

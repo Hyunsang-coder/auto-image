@@ -14,8 +14,12 @@ import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
+import { useI18nStore, useT } from './i18n'
 
 function App() {
+  const t = useT()
+  const uiLocale = useI18nStore((s) => s.locale)
+  const setUiLocale = useI18nStore((s) => s.setLocale)
   const step = useProjectStore((s) => s.step)
   const setStep = useProjectStore((s) => s.setStep)
   const project = useProjectStore((s) => s.project)
@@ -69,7 +73,7 @@ function App() {
   const existsInLibrary = !!project && savedProjects.some((p) => p.id === project.id)
 
   function handleSaveProject(asNew = false) {
-    const name = saveName.trim() || project?.name || '제목 없음'
+    const name = saveName.trim() || project?.name || t('제목 없음')
     // A fresh id makes the library upsert create a separate entry; the active
     // project becomes that copy, so the original snapshot stays untouched and
     // later saves update the copy.
@@ -82,14 +86,14 @@ function App() {
   }
 
   function openTemplateModal() {
-    setTemplateName(project ? `${project.name} 템플릿` : '')
+    setTemplateName(project ? t('{name} 템플릿', { name: project.name }) : '')
     setShowTemplateModal(true)
   }
 
   function handleSaveTemplate() {
     const current = useProjectStore.getState().project
     if (!current) return
-    const label = templateName.trim() || `${current.name} 템플릿`
+    const label = templateName.trim() || t('{name} 템플릿', { name: current.name })
     addProjectTemplate(projectTemplateFromProject(current, label))
     setShowTemplateModal(false)
     setJustSavedTemplate(true)
@@ -122,19 +126,19 @@ function App() {
           localizeIncomplete={localizeIncomplete}
           editorHint={
             editorIncomplete
-              ? `스크린샷 없는 슬라이드 ${slidesMissingScreenshot.length}개`
+              ? t('스크린샷 없는 슬라이드 {n}개', { n: slidesMissingScreenshot.length })
               : undefined
           }
           localizeHint={
             localizeIncomplete
-              ? `번역 미완료 로케일 ${untranslatedLocales.length}개`
+              ? t('번역 미완료 로케일 {n}개', { n: untranslatedLocales.length })
               : undefined
           }
         />
         <div className="flex items-center gap-3">
           {project && step !== 1 && (
             <span className="text-xs text-[var(--color-text-dim)]">
-              {project.name} · {project.slides.length}장
+              {t('{name} · {n}장', { name: project.name, n: project.slides.length })}
             </span>
           )}
           {project && step !== 1 && (
@@ -143,7 +147,7 @@ function App() {
               onClick={openSaveModal}
               className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
-              {justSaved ? '저장됨 ✓' : '저장'}
+              {justSaved ? t('저장됨 ✓') : t('저장')}
             </button>
           )}
           {project && step !== 1 && (
@@ -152,7 +156,7 @@ function App() {
               onClick={openTemplateModal}
               className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
-              {justSavedTemplate ? '템플릿 저장됨 ✓' : '템플릿으로 저장'}
+              {justSavedTemplate ? t('템플릿 저장됨 ✓') : t('템플릿으로 저장')}
             </button>
           )}
           {project && (
@@ -161,24 +165,33 @@ function App() {
               onClick={() => setShowResetConfirm(true)}
               className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
-              초기화
+              {t('초기화')}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setUiLocale(uiLocale === 'ko' ? 'en' : 'ko')}
+            title={uiLocale === 'ko' ? 'Switch to English' : '한국어로 전환'}
+            className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+          >
+            {uiLocale === 'ko' ? 'EN' : '한국어'}
+          </button>
         </div>
       </header>
 
       {storageError && (
         <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-6 py-2 text-xs text-amber-700">
           <span>
-            저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다.
-            슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.
+            {t(
+              '저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다. 슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.',
+            )}
           </span>
           <button
             type="button"
             onClick={() => setStorageError(false)}
             className="shrink-0 rounded border border-amber-500/40 px-2 py-0.5 hover:bg-amber-500/20"
           >
-            닫기
+            {t('닫기')}
           </button>
         </div>
       )}
@@ -191,11 +204,11 @@ function App() {
       </div>
 
       {showSaveModal && (
-        <Modal title="프로젝트 저장" onClose={() => setShowSaveModal(false)}>
+        <Modal title={t('프로젝트 저장')} onClose={() => setShowSaveModal(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               {existsInLibrary
-                ? '이미 저장된 프로젝트입니다. 기존 항목을 이 이름으로 덮어쓰거나, 원본은 그대로 두고 새 프로젝트로 저장할 수 있습니다.'
-                : '현재 작업을 보관합니다.'}
+                ? t('이미 저장된 프로젝트입니다. 기존 항목을 이 이름으로 덮어쓰거나, 원본은 그대로 두고 새 프로젝트로 저장할 수 있습니다.')
+                : t('현재 작업을 보관합니다.')}
             </p>
             <input
               value={saveName}
@@ -206,7 +219,7 @@ function App() {
               }}
               maxLength={60}
               className="mt-4 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-              placeholder="프로젝트 이름"
+              placeholder={t('프로젝트 이름')}
             />
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -214,7 +227,7 @@ function App() {
                 onClick={() => setShowSaveModal(false)}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
-                취소
+                {t('취소')}
               </button>
               {existsInLibrary && (
                 <button
@@ -222,7 +235,7 @@ function App() {
                   onClick={() => handleSaveProject(true)}
                   className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
                 >
-                  새 프로젝트로 저장
+                  {t('새 프로젝트로 저장')}
                 </button>
               )}
               <button
@@ -230,17 +243,18 @@ function App() {
                 onClick={() => handleSaveProject()}
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
-                {existsInLibrary ? '덮어쓰기' : '저장'}
+                {existsInLibrary ? t('덮어쓰기') : t('저장')}
               </button>
             </div>
         </Modal>
       )}
 
       {showTemplateModal && (
-        <Modal title="템플릿으로 저장" onClose={() => setShowTemplateModal(false)}>
+        <Modal title={t('템플릿으로 저장')} onClose={() => setShowTemplateModal(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한
-              템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, '프로젝트 설정'의 '템플릿으로 시작'에 추가됩니다.
+              {t(
+                "현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한 템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, '프로젝트 설정'의 '템플릿으로 시작'에 추가됩니다.",
+              )}
             </p>
             <input
               value={templateName}
@@ -251,7 +265,7 @@ function App() {
               }}
               maxLength={60}
               className="mt-4 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-              placeholder="템플릿 이름"
+              placeholder={t('템플릿 이름')}
             />
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -259,23 +273,23 @@ function App() {
                 onClick={() => setShowTemplateModal(false)}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
-                취소
+                {t('취소')}
               </button>
               <button
                 type="button"
                 onClick={handleSaveTemplate}
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
-                저장
+                {t('저장')}
               </button>
             </div>
         </Modal>
       )}
 
       {showResetConfirm && (
-        <Modal title="프로젝트 초기화" onClose={() => setShowResetConfirm(false)}>
+        <Modal title={t('프로젝트 초기화')} onClose={() => setShowResetConfirm(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              현재 프로젝트 데이터가 모두 삭제됩니다. 되돌릴 수 없습니다.
+              {t('현재 프로젝트 데이터가 모두 삭제됩니다. 되돌릴 수 없습니다.')}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -283,14 +297,14 @@ function App() {
                 onClick={() => setShowResetConfirm(false)}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
-                취소
+                {t('취소')}
               </button>
               <button
                 type="button"
                 onClick={handleReset}
                 className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
               >
-                초기화
+                {t('초기화')}
               </button>
             </div>
         </Modal>

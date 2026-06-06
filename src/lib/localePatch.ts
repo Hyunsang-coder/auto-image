@@ -6,6 +6,7 @@
 // user flips the source language.
 
 import type { Slide } from '../types/project'
+import { t } from '../i18n'
 import type { ParsedRow } from './localeIO'
 
 export type FieldKey = 'image' | `text:${number}` | `badge:${number}`
@@ -58,7 +59,7 @@ export function applyCaptionRows(
     for (const [locale, value] of Object.entries(row.values)) {
       if (!value) continue
       if (!knownLocales.has(locale)) {
-        issues.push(`지원하지 않는 언어 "${locale}"`)
+        issues.push(t('지원하지 않는 언어 "{locale}"', { locale }))
         continue
       }
       const patch = buildImportPatch(work, slide.id, row.field as FieldKey, locale, value, sourceLocale)
@@ -70,7 +71,7 @@ export function applyCaptionRows(
       written++
     }
   }
-  if (skippedRows > 0) issues.push(`${skippedRows}행 건너뜀 (슬라이드 또는 필드 없음)`)
+  if (skippedRows > 0) issues.push(t('{n}행 건너뜀 (슬라이드 또는 필드 없음)', { n: skippedRows }))
   const patches: Record<string, Partial<Slide>> = {}
   for (const id of touched) {
     const s = work.find(w => w.id === id)!

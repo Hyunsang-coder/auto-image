@@ -4,6 +4,7 @@ import type { Background } from '../../../types/project'
 import { THEME_PRESETS, DEFAULT_BACKGROUND, type ThemePreset } from '../../../constants/defaults'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 import { useCustomStore } from '../../../store/useCustomStore'
+import { useT } from '../../../i18n'
 
 interface Props {
   value: Background
@@ -39,6 +40,7 @@ export function BackgroundPanel({
   slideCount = 0,
   onApplyPresetToSlides,
 }: Props) {
+  const t = useT()
   const [activeTab, setActiveTab] = useState<Tab>(
     value.type === 'gradient' ? 'gradient' : value.type === 'image' ? 'image' : 'solid',
   )
@@ -190,7 +192,7 @@ export function BackgroundPanel({
     try {
       result = await fileToImageKey(file)
     } catch {
-      setUploadError('이미지를 읽을 수 없습니다. 다른 파일(PNG/JPG)을 올려주세요.')
+      setUploadError(t('이미지를 읽을 수 없습니다. 다른 파일(PNG/JPG)을 올려주세요.'))
       return
     }
     onChange({
@@ -206,15 +208,15 @@ export function BackgroundPanel({
       {onApplyPreset && (
         <div>
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-            테마 프리셋
+            {t('테마 프리셋')}
           </label>
 
           {showBulk && (
             <div className="mb-2 flex rounded-lg border border-[var(--color-border)] overflow-hidden">
               {([
-                ['this', '이 슬라이드'],
-                ['all', '전체'],
-                ...(selectedCount >= 2 ? [['selected', `선택 ${selectedCount}개`] as const] : []),
+                ['this', t('이 슬라이드')],
+                ['all', t('전체')],
+                ...(selectedCount >= 2 ? [['selected', t('선택 {n}개', { n: selectedCount })] as const] : []),
               ] as const).map(([id, label]) => (
                 <button
                   key={id}
@@ -235,8 +237,8 @@ export function BackgroundPanel({
           {showBulk && pendingPreset && bulkScope && (
             <div className="mb-2 rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface-2)] p-2 text-xs">
               <p className="mb-2 text-[var(--color-text)]">
-                {bulkCount}개 슬라이드에 적용할까요?{' '}
-                <span className="text-[var(--color-text-dim)]">되돌리기 불가</span>
+                {t('{n}개 슬라이드에 적용할까요?', { n: bulkCount })}{' '}
+                <span className="text-[var(--color-text-dim)]">{t('되돌리기 불가')}</span>
               </p>
               <div className="flex gap-2">
                 <button
@@ -244,14 +246,14 @@ export function BackgroundPanel({
                   onClick={confirmBulk}
                   className="flex-1 rounded-md bg-[var(--color-accent)] py-1 font-semibold text-white hover:brightness-110"
                 >
-                  적용
+                  {t('적용')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setPendingPreset(null)}
                   className="flex-1 rounded-md border border-[var(--color-border)] py-1 text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
                 >
-                  취소
+                  {t('취소')}
                 </button>
               </div>
             </div>
@@ -290,7 +292,7 @@ export function BackgroundPanel({
                 <button
                   type="button"
                   onClick={() => removePreset(p.id)}
-                  title="프리셋 삭제"
+                  title={t('프리셋 삭제')}
                   className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-black/50 text-xs text-white group-hover:flex hover:bg-red-500"
                 >
                   ×
@@ -311,7 +313,7 @@ export function BackgroundPanel({
                     if (e.key === 'Escape') setSavingPreset(false)
                   }}
                   maxLength={40}
-                  placeholder="프리셋 이름"
+                  placeholder={t('프리셋 이름')}
                   className="min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
                 />
                 <button
@@ -319,7 +321,7 @@ export function BackgroundPanel({
                   onClick={commitPreset}
                   className="shrink-0 rounded-md bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-semibold text-white hover:brightness-110"
                 >
-                  저장
+                  {t('저장')}
                 </button>
               </div>
             ) : (
@@ -328,7 +330,7 @@ export function BackgroundPanel({
                 onClick={() => setSavingPreset(true)}
                 className="mt-2 w-full rounded-md border border-dashed border-[var(--color-border)] py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
               >
-                + 현재 배경을 프리셋으로 저장
+                {t('+ 현재 배경을 프리셋으로 저장')}
               </button>
             ))}
         </div>
@@ -348,18 +350,18 @@ export function BackgroundPanel({
                 : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
             ].join(' ')}
           >
-            {tab === 'solid' ? '단색' : tab === 'gradient' ? '그라데이션' : '이미지'}
+            {tab === 'solid' ? t('단색') : tab === 'gradient' ? t('그라데이션') : t('이미지')}
           </button>
         ))}
       </div>
 
       {activeTab === 'solid' && (
         <div>
-          <label className="mb-2 block text-xs text-[var(--color-text-dim)]">배경색</label>
+          <label className="mb-2 block text-xs text-[var(--color-text-dim)]">{t('배경색')}</label>
           <ColorPickerPopover
             color={value.color ?? '#6366F1'}
             onChange={(c) => onChange({ type: 'solid', color: c })}
-            label="배경색 선택"
+            label={t('배경색 선택')}
           />
         </div>
       )}
@@ -387,7 +389,7 @@ export function BackgroundPanel({
                       : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
                   ].join(' ')}
                 >
-                  {k === 'linear' ? '선형' : '방사형'}
+                  {k === 'linear' ? t('선형') : t('방사형')}
                 </button>
               )
             })}
@@ -395,13 +397,13 @@ export function BackgroundPanel({
 
           {/* Color stops */}
           <div className="flex flex-col gap-2">
-            <label className="block text-xs text-[var(--color-text-dim)]">색상 스톱</label>
+            <label className="block text-xs text-[var(--color-text-dim)]">{t('색상 스톱')}</label>
             {g.stops.map((s, i) => (
               <div key={i} className="flex items-center gap-2">
                 <ColorPickerPopover
                   color={s.color}
                   onChange={(c) => updateStop(i, { color: c })}
-                  label={`스톱 ${i + 1} 색상`}
+                  label={t('스톱 {n} 색상', { n: i + 1 })}
                 />
                 <input
                   type="range"
@@ -419,7 +421,7 @@ export function BackgroundPanel({
                   onClick={() => removeStop(i)}
                   disabled={g.stops.length <= 2}
                   className="shrink-0 px-1 text-sm text-[var(--color-text-dim)] transition enabled:hover:text-[var(--color-text)] disabled:opacity-30"
-                  aria-label={`스톱 ${i + 1} 삭제`}
+                  aria-label={t('스톱 {n} 삭제', { n: i + 1 })}
                 >
                   ×
                 </button>
@@ -430,14 +432,14 @@ export function BackgroundPanel({
               onClick={addStop}
               className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-1.5 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
-              + 색상 추가
+              {t('+ 색상 추가')}
             </button>
           </div>
 
           {(g.kind ?? 'linear') === 'linear' && (
             <div>
               <label className="mb-1 block text-xs text-[var(--color-text-dim)]">
-                방향: {g.direction}°
+                {t('방향')}: {g.direction}°
               </label>
               <input
                 type="range"
@@ -466,13 +468,13 @@ export function BackgroundPanel({
             onClick={() => inputRef.current?.click()}
             className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-6 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
           >
-            {value.imageKey ? '이미지 교체' : '클릭하여 배경 이미지 업로드'}
+            {value.imageKey ? t('이미지 교체') : t('클릭하여 배경 이미지 업로드')}
           </button>
           {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
 
           {value.imageKey && (
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">맞춤 방식</label>
+              <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('맞춤 방식')}</label>
               <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden">
                 {FIT_OPTIONS.map((opt) => {
                   const active = (value.imageObjectFit ?? 'cover') === opt.id
@@ -488,7 +490,7 @@ export function BackgroundPanel({
                           : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
                       ].join(' ')}
                     >
-                      {opt.label}
+                      {t(opt.label)}
                     </button>
                   )
                 })}

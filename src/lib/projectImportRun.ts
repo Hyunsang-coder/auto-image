@@ -7,6 +7,7 @@
 
 import type { Project, Slide } from '../types/project'
 import { SUPPORTED_LOCALES } from '../constants/defaults'
+import { t } from '../i18n'
 import { importBulkImages } from './bulkImageImport'
 import { parseTemplate, type LocaleFileFormat } from './localeIO'
 import { applyCaptionRows } from './localePatch'
@@ -29,7 +30,7 @@ export function routeImportFiles(files: File[]): RoutedImportFiles {
     if (IMAGE_EXT.test(name)) routed.imageFiles.push(file)
     else if (name.endsWith('.json')) routed.jsonFiles.push(file)
     else if (name.endsWith('.csv')) routed.csvFiles.push(file)
-    else routed.issues.push(`무시된 파일: ${file.name}`)
+    else routed.issues.push(t('무시된 파일: {name}', { name: file.name }))
   }
   return routed
 }
@@ -62,22 +63,22 @@ export async function runProjectImport(files: File[]): Promise<ImportRunResult> 
     try {
       parsed = JSON.parse(text)
     } catch {
-      issues.push(`JSON을 파싱할 수 없음: ${file.name}`)
+      issues.push(t('JSON을 파싱할 수 없음: {name}', { name: file.name }))
       continue
     }
     if (isManifestShaped(parsed)) {
       if (manifestText === null) manifestText = text
-      else issues.push(`매니페스트가 여러 개 — 첫 파일만 사용 (무시: ${file.name})`)
+      else issues.push(t('매니페스트가 여러 개 — 첫 파일만 사용 (무시: {name})', { name: file.name }))
     } else if (typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as { rows?: unknown }).rows)) {
       if (captionJsonText === null) captionJsonText = text
-      else issues.push(`캡션 JSON이 여러 개 — 첫 파일만 사용 (무시: ${file.name})`)
+      else issues.push(t('캡션 JSON이 여러 개 — 첫 파일만 사용 (무시: {name})', { name: file.name }))
     } else {
-      issues.push(`매니페스트도 캡션 양식도 아닌 JSON: ${file.name}`)
+      issues.push(t('매니페스트도 캡션 양식도 아닌 JSON: {name}', { name: file.name }))
     }
   }
 
   if (manifestText === null) {
-    issues.push('매니페스트(version + slides 배열을 가진 JSON)를 찾을 수 없습니다')
+    issues.push(t('매니페스트(version + slides 배열을 가진 JSON)를 찾을 수 없습니다'))
     return { project: null, applied: none, addedLocales: [], issues }
   }
 
@@ -111,10 +112,10 @@ export async function runProjectImport(files: File[]): Promise<ImportRunResult> 
   let captionText: string | null = null
   let captionFormat: LocaleFileFormat = 'csv'
   if (routed.csvFiles.length > 1) {
-    issues.push(`캡션 CSV가 여러 개 — 첫 파일만 사용 (무시: ${routed.csvFiles[1].name})`)
+    issues.push(t('캡션 CSV가 여러 개 — 첫 파일만 사용 (무시: {name})', { name: routed.csvFiles[1].name }))
   }
   if (routed.csvFiles.length > 0) {
-    if (captionJsonText !== null) issues.push('캡션 CSV와 JSON이 함께 있음 — CSV 사용')
+    if (captionJsonText !== null) issues.push(t('캡션 CSV와 JSON이 함께 있음 — CSV 사용'))
     captionText = await routed.csvFiles[0].text()
   } else if (captionJsonText !== null) {
     captionText = captionJsonText

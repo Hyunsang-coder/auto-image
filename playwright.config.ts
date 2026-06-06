@@ -10,6 +10,9 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     storageState: undefined,
+    // Specs select by Korean UI text; the UI language defaults from
+    // navigator.language, so pin the browser to Korean.
+    locale: 'ko-KR',
   },
   projects: [
     {

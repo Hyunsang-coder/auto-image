@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DeviceFrame, ScreenshotImage, ScreenshotStyle, TemplateType } from '../../../types/project'
+import { useT } from '../../../i18n'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 import { detectTypeFromAspect, DEFAULT_MODEL, typeOfModel } from '../../../constants/deviceSpecs'
 import { useProjectStore } from '../../../store/useProjectStore'
@@ -35,6 +36,7 @@ export function ScreenshotPanel({
   onScreenshotStyleChange,
   template,
 }: Props) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const bulkInputRef = useRef<HTMLInputElement>(null)
   const [thumbUrl, setThumbUrl] = useState<string | null>(null)
@@ -70,11 +72,11 @@ export function ScreenshotPanel({
     gcImages()
     setBulkIssues(issues)
     if (applied === 0 && issues.length === 0) {
-      setBulkMsg({ kind: 'err', text: '가져올 이미지가 없습니다' })
+      setBulkMsg({ kind: 'err', text: t('가져올 이미지가 없습니다') })
     } else if (issues.length) {
-      setBulkMsg({ kind: 'err', text: `${applied}개 적용 · 경고 ${issues.length}건 (아래 목록 확인)` })
+      setBulkMsg({ kind: 'err', text: t('{n}개 적용 · 경고 {w}건 (아래 목록 확인)', { n: applied, w: issues.length }) })
     } else {
-      setBulkMsg({ kind: 'ok', text: `${applied}개 이미지를 가져왔습니다` })
+      setBulkMsg({ kind: 'ok', text: t('{n}개 이미지를 가져왔습니다', { n: applied }) })
     }
   }
 
@@ -100,7 +102,7 @@ export function ScreenshotPanel({
     try {
       result = await fileToImageKey(file)
     } catch {
-      setUploadError('이미지를 읽을 수 없습니다. 다른 파일(PNG/JPG)을 올려주세요.')
+      setUploadError(t('이미지를 읽을 수 없습니다. 다른 파일(PNG/JPG)을 올려주세요.'))
       return
     }
     const { key, width, height } = result
@@ -137,11 +139,10 @@ export function ScreenshotPanel({
     return (
       <div className="space-y-3">
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-dim)]">
-          스크린샷
+          {t('스크린샷')}
         </p>
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-700">
-          Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 「레이아웃」 탭에서
-          Hero Bleed · Text Top · Text Bottom · Split 중 하나를 먼저 선택하세요.
+          {t('Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 「레이아웃」 탭에서 Hero Bleed · Text Top · Text Bottom · Split 중 하나를 먼저 선택하세요.')}
         </div>
         {value && (
           <button
@@ -149,7 +150,7 @@ export function ScreenshotPanel({
             onClick={() => onChange(null)}
             className="text-xs text-red-600 hover:text-red-700"
           >
-            남아있는 스크린샷 삭제
+            {t('남아있는 스크린샷 삭제')}
           </button>
         )}
       </div>
@@ -159,7 +160,7 @@ export function ScreenshotPanel({
   return (
     <div className="space-y-3">
       <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-dim)]">
-        스크린샷
+        {t('스크린샷')}
       </p>
 
       {value ? (
@@ -176,7 +177,7 @@ export function ScreenshotPanel({
             {detectTypeFromAspect(value.originalWidth, value.originalHeight) === 'iphone'
               ? 'iPhone'
               : 'iPad'}{' '}
-            스크린샷
+            {t('스크린샷')}
           </p>
           <div className="flex gap-3">
             <button
@@ -184,14 +185,14 @@ export function ScreenshotPanel({
               onClick={() => inputRef.current?.click()}
               className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
-              교체
+              {t('교체')}
             </button>
             <button
               type="button"
               onClick={() => onChange(null)}
               className="text-xs text-red-600 hover:text-red-700"
             >
-              삭제
+              {t('삭제')}
             </button>
           </div>
         </div>
@@ -201,7 +202,7 @@ export function ScreenshotPanel({
           onClick={() => inputRef.current?.click()}
           className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-8 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
         >
-          클릭하여 이미지 업로드
+          {t('클릭하여 이미지 업로드')}
         </button>
       )}
 
@@ -229,10 +230,10 @@ export function ScreenshotPanel({
           onClick={() => bulkInputRef.current?.click()}
           className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-2 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
         >
-          여러 장 일괄 업로드
+          {t('여러 장 일괄 업로드')}
         </button>
         <p className="text-[11px] leading-snug text-[var(--color-text-dim)]">
-          파일명 {'{번호}[-설명].{언어}.png'} · 기준 언어({sourceLocale})가 베이스 · 예: 01-home.{sourceLocale}.png, 01-home.{targetLocales[0] ?? 'en'}.png
+          {t('파일명 {fmt} · 기준 언어({src})가 베이스 · 예: 01-home.{src}.png, 01-home.{ex}.png', { fmt: '{번호}[-설명].{언어}.png', src: sourceLocale, ex: targetLocales[0] ?? 'en' })}
         </p>
         <input
           ref={bulkInputRef}
@@ -253,7 +254,7 @@ export function ScreenshotPanel({
         )}
         {bulkIssues.length > 0 && (
           <details>
-            <summary className="cursor-pointer text-xs text-red-600">경고 {bulkIssues.length}건 보기</summary>
+            <summary className="cursor-pointer text-xs text-red-600">{t('경고 {n}건 보기', { n: bulkIssues.length })}</summary>
             <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] leading-snug text-[var(--color-text-dim)]">
               {bulkIssues.map((issue, i) => (
                 <li key={i}>{issue}</li>
@@ -265,10 +266,10 @@ export function ScreenshotPanel({
 
       <div className="space-y-3 rounded-lg border border-[var(--color-border)] p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-          렌더링 모드
+          {t('렌더링 모드')}
         </p>
         <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-          <span>기기 프레임 표시</span>
+          <span>{t('기기 프레임 표시')}</span>
           <input
             type="checkbox"
             checked={deviceFrame.show}
@@ -279,7 +280,7 @@ export function ScreenshotPanel({
 
         <div>
           <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
-            <span>기기 회전</span>
+            <span>{t('기기 회전')}</span>
             <span>{Math.round(deviceFrame.rotation ?? 0)}°</span>
           </label>
           <input
@@ -299,7 +300,7 @@ export function ScreenshotPanel({
           <>
             <div>
               <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
-                <span>모서리 둥글기</span>
+                <span>{t('모서리 둥글기')}</span>
                 <span>{Math.round(screenshotStyle.cornerRadiusRatio * 100)}%</span>
               </label>
               <input
@@ -318,7 +319,7 @@ export function ScreenshotPanel({
               />
             </div>
             <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
-              <span>그림자</span>
+              <span>{t('그림자')}</span>
               <input
                 type="checkbox"
                 checked={screenshotStyle.shadow}
@@ -329,11 +330,11 @@ export function ScreenshotPanel({
               />
             </label>
             <div className="space-y-2">
-              <p className="text-xs text-[var(--color-text-dim)]">가장자리 잘라내기</p>
+              <p className="text-xs text-[var(--color-text-dim)]">{t('가장자리 잘라내기')}</p>
               {CROP_EDGES.map(([edge, label]) => (
                 <div key={edge}>
                   <label className="mb-1 flex items-center justify-between text-xs text-[var(--color-text-dim)]">
-                    <span>{label}</span>
+                    <span>{t(label)}</span>
                     <span>{Math.round(crop[edge] * 100)}%</span>
                   </label>
                   <input

@@ -11,6 +11,7 @@ import { applyCaptionRows, buildTranslationPatch, type FieldKey } from '../../li
 import { buildImageNamingGuide } from '../../lib/imageImport'
 import { importBulkImages } from '../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
+import { useT } from '../../i18n'
 import type { Slide } from '../../types/project'
 
 type GridRow = {
@@ -109,27 +110,28 @@ function OverrideCell({
   onUpload: (file: File) => void
   onClear: () => void
 }) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   return (
     <div className="flex items-center gap-2">
       {imageKey ? (
         <ImageThumb imageKey={imageKey} />
       ) : (
-        <span className="text-xs text-[var(--color-text-dim)]">기본 이미지</span>
+        <span className="text-xs text-[var(--color-text-dim)]">{t('기본 이미지')}</span>
       )}
       <div className="flex flex-col gap-1">
         <button
           onClick={() => inputRef.current?.click()}
           className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
         >
-          {imageKey ? '변경' : '업로드'}
+          {imageKey ? t('변경') : t('업로드')}
         </button>
         {imageKey && (
           <button
             onClick={onClear}
             className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-red-500 hover:text-red-500"
           >
-            지우기
+            {t('지우기')}
           </button>
         )}
       </div>
@@ -149,6 +151,7 @@ function OverrideCell({
 }
 
 export function LocalizeEditor() {
+  const t = useT()
   const project = useProjectStore(s => s.project)
   const updateProject = useProjectStore(s => s.updateProject)
   const updateSlide = useProjectStore(s => s.updateSlide)
@@ -190,7 +193,7 @@ export function LocalizeEditor() {
     try {
       result = await fileToImageKey(file)
     } catch {
-      setErrors(prev => ({ ...prev, [locale]: '이미지를 읽을 수 없습니다 (PNG/JPG 권장)' }))
+      setErrors(prev => ({ ...prev, [locale]: t('이미지를 읽을 수 없습니다 (PNG/JPG 권장)') }))
       return
     }
     const { key, width, height } = result
@@ -245,7 +248,7 @@ export function LocalizeEditor() {
       const dir = slash >= 0 ? picked.slice(0, slash) : '.'
       const name = slash >= 0 ? picked.slice(slash + 1) : picked
       await writeFileToDir(dir, name, text)
-      setIoMsg({ kind: 'ok', text: `저장됨: ${name}` })
+      setIoMsg({ kind: 'ok', text: t('저장됨: {name}', { name }) })
       return
     }
     const mime = format === 'json' ? 'application/json' : 'text/csv'
@@ -266,9 +269,9 @@ export function LocalizeEditor() {
     if (!promptPreview) return
     try {
       await navigator.clipboard.writeText(promptPreview)
-      setIoMsg({ kind: 'ok', text: '번역 프롬프트를 복사했습니다 — AI 도구에 붙여넣고 양식을 첨부하세요' })
+      setIoMsg({ kind: 'ok', text: t('번역 프롬프트를 복사했습니다 — AI 도구에 붙여넣고 양식을 첨부하세요') })
     } catch {
-      setIoMsg({ kind: 'err', text: '복사 실패 — 클립보드 권한을 확인하세요' })
+      setIoMsg({ kind: 'err', text: t('복사 실패 — 클립보드 권한을 확인하세요') })
     }
     setPromptPreview(null)
   }
@@ -280,9 +283,9 @@ export function LocalizeEditor() {
     )
     try {
       await navigator.clipboard.writeText(guide)
-      setImgMsg({ kind: 'ok', text: '파일명 규칙을 복사했습니다' })
+      setImgMsg({ kind: 'ok', text: t('파일명 규칙을 복사했습니다') })
     } catch {
-      setImgMsg({ kind: 'err', text: '복사 실패 — 클립보드 권한을 확인하세요' })
+      setImgMsg({ kind: 'err', text: t('복사 실패 — 클립보드 권한을 확인하세요') })
     }
   }
 
@@ -299,14 +302,14 @@ export function LocalizeEditor() {
     // Surface any locale that arrived with values but wasn't selected yet.
     const toAdd = localesSeen.filter(l => !targetLocales.includes(l))
     if (toAdd.length) updateProject({ targetLocales: [...targetLocales, ...toAdd] })
-    const baseNote = baseWritten ? ` (기준 언어 ${baseWritten}개 갱신)` : ''
+    const baseNote = baseWritten ? ` (${t('기준 언어 {n}개 갱신', { n: baseWritten })})` : ''
     setIoIssues(issues)
     if (written === 0 && issues.length === 0) {
-      setIoMsg({ kind: 'err', text: '가져올 번역이 없습니다' })
+      setIoMsg({ kind: 'err', text: t('가져올 번역이 없습니다') })
     } else if (issues.length) {
-      setIoMsg({ kind: 'err', text: `${written}개 적용${baseNote} · 경고 ${issues.length}건 (아래 목록 확인)` })
+      setIoMsg({ kind: 'err', text: `${t('{n}개 적용', { n: written })}${baseNote} · ${t('경고 {n}건 (아래 목록 확인)', { n: issues.length })}` })
     } else {
-      setIoMsg({ kind: 'ok', text: `${written}개 번역을 가져왔습니다${baseNote}` })
+      setIoMsg({ kind: 'ok', text: `${t('{n}개 번역을 가져왔습니다', { n: written })}${baseNote}` })
     }
   }
 
@@ -329,11 +332,11 @@ export function LocalizeEditor() {
     gcImages()
     setImgIssues(issues)
     if (applied === 0 && issues.length === 0) {
-      setImgMsg({ kind: 'err', text: '가져올 이미지가 없습니다' })
+      setImgMsg({ kind: 'err', text: t('가져올 이미지가 없습니다') })
     } else if (issues.length) {
-      setImgMsg({ kind: 'err', text: `${applied}개 적용 · 경고 ${issues.length}건 (아래 목록 확인)` })
+      setImgMsg({ kind: 'err', text: `${t('{n}개 적용', { n: applied })} · ${t('경고 {n}건 (아래 목록 확인)', { n: issues.length })}` })
     } else {
-      setImgMsg({ kind: 'ok', text: `${applied}개 이미지를 가져왔습니다` })
+      setImgMsg({ kind: 'ok', text: t('{n}개 이미지를 가져왔습니다', { n: applied }) })
     }
   }
 
@@ -353,19 +356,19 @@ export function LocalizeEditor() {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-border)] px-6 py-3">
-        <h2 className="text-lg font-semibold text-[var(--color-text)]">로컬라이즈</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-text)]">{t('로컬라이즈')}</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setStep(2)}
             className="rounded px-3 py-1.5 text-sm text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
           >
-            ← 에디터
+            {t('← 에디터')}
           </button>
           <button
             onClick={() => setStep(4)}
             className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text)] hover:brightness-125"
           >
-            내보내기 →
+            {t('내보내기 →')}
           </button>
         </div>
       </div>
@@ -376,9 +379,9 @@ export function LocalizeEditor() {
         <div>
           <div
             className="mb-1.5 text-xs text-[var(--color-text-dim)]"
-            title="에디터에서 기준 언어로 입력한 텍스트가 번역 원본이 됩니다. 스크린샷이 없는 언어는 기준 언어 스크린샷을 사용합니다."
+            title={t('에디터에서 기준 언어로 입력한 텍스트가 번역 원본이 됩니다. 스크린샷이 없는 언어는 기준 언어 스크린샷을 사용합니다.')}
           >
-            기준 언어
+            {t('기준 언어')}
           </div>
           <select
             value={sourceLocale}
@@ -386,20 +389,20 @@ export function LocalizeEditor() {
             className="rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-sm text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
           >
             {SUPPORTED_LOCALES.map(l => (
-              <option key={l.code} value={l.code}>{l.label}</option>
+              <option key={l.code} value={l.code}>{t(l.label)}</option>
             ))}
           </select>
         </div>
 
         {/* Target locales */}
         <div className="max-w-[26rem]">
-          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 언어</div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">{t('번역 언어')}</div>
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => updateProject({ targetLocales: allSelected ? [] : selectableLocales })}
               className="rounded border border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-text-dim)] transition-colors hover:border-[var(--color-text-dim)]"
             >
-              {allSelected ? '전체 해제' : '전체 선택'}
+              {allSelected ? t('전체 해제') : t('전체 선택')}
             </button>
             {SUPPORTED_LOCALES.filter(l => l.code !== sourceLocale).map(locale => {
               const checked = targetLocales.includes(locale.code)
@@ -418,7 +421,7 @@ export function LocalizeEditor() {
                     checked={checked}
                     onChange={() => toggleLocale(locale.code)}
                   />
-                  {locale.label}
+                  {t(locale.label)}
                 </label>
               )
             })}
@@ -427,34 +430,34 @@ export function LocalizeEditor() {
 
         {/* Template import/export — translation happens externally */}
         <div>
-          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">번역 양식 (외부 번역용)</div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">{t('번역 양식 (외부 번역용)')}</div>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => exportTemplate('csv')}
               disabled={textRows.length === 0 || targetLocales.length === 0}
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
             >
-              CSV 내보내기
+              {t('CSV 내보내기')}
             </button>
             <button
               onClick={() => exportTemplate('json')}
               disabled={textRows.length === 0 || targetLocales.length === 0}
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
             >
-              JSON 내보내기
+              {t('JSON 내보내기')}
             </button>
             <button
               onClick={openTranslationPrompt}
               disabled={textRows.length === 0 || targetLocales.length === 0}
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
             >
-              번역 프롬프트
+              {t('번역 프롬프트')}
             </button>
             <button
               onClick={() => importInputRef.current?.click()}
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
             >
-              가져오기
+              {t('가져오기')}
             </button>
             <input
               ref={importInputRef}
@@ -475,7 +478,7 @@ export function LocalizeEditor() {
           )}
           {ioIssues.length > 0 && (
             <details className="mt-1 max-w-72">
-              <summary className="cursor-pointer text-xs text-red-600">경고 {ioIssues.length}건 보기</summary>
+              <summary className="cursor-pointer text-xs text-red-600">{t('경고 {n}건 보기', { n: ioIssues.length })}</summary>
               <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] leading-snug text-[var(--color-text-dim)]">
                 {ioIssues.map((issue, i) => (
                   <li key={i}>{issue}</li>
@@ -487,23 +490,23 @@ export function LocalizeEditor() {
 
         {/* Bulk image import */}
         <div>
-          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">이미지 일괄</div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">{t('이미지 일괄')}</div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => imageInputRef.current?.click()}
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
             >
-              이미지 가져오기
+              {t('이미지 가져오기')}
             </button>
             <button
               onClick={copyImageNamingGuide}
               className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
             >
-              규칙 복사
+              {t('규칙 복사')}
             </button>
           </div>
           <p className="mt-1 max-w-72 text-[11px] leading-snug text-[var(--color-text-dim)]">
-            파일명 {'{번호}.{언어}.png'} · 기준 언어({sourceLocale})가 베이스 · 예: 1.{sourceLocale}.png, 1.{targetLocales[0] ?? 'en'}.png
+            {t('파일명 {pattern} · 기준 언어({locale})가 베이스 · 예: 1.{locale}.png, 1.{alt}.png', { pattern: '{번호}.{언어}.png', locale: sourceLocale, alt: targetLocales[0] ?? 'en' })}
           </p>
           <input
             ref={imageInputRef}
@@ -524,7 +527,7 @@ export function LocalizeEditor() {
           )}
           {imgIssues.length > 0 && (
             <details className="mt-1 max-w-72">
-              <summary className="cursor-pointer text-xs text-red-600">경고 {imgIssues.length}건 보기</summary>
+              <summary className="cursor-pointer text-xs text-red-600">{t('경고 {n}건 보기', { n: imgIssues.length })}</summary>
               <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] leading-snug text-[var(--color-text-dim)]">
                 {imgIssues.map((issue, i) => (
                   <li key={i}>{issue}</li>
@@ -539,32 +542,32 @@ export function LocalizeEditor() {
       <div className="flex-1 overflow-auto">
         {targetLocales.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-dim)]">
-            번역할 언어를 선택하세요
+            {t('번역할 언어를 선택하세요')}
           </div>
         ) : rows.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-dim)]">
-            에디터에서 이미지나 텍스트를 먼저 추가하세요
+            {t('에디터에서 이미지나 텍스트를 먼저 추가하세요')}
           </div>
         ) : (
           <table className="w-full min-w-max border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
               <tr className="border-b border-[var(--color-border)]">
                 <th className="w-14 border-r border-[var(--color-border)] px-3 py-2 text-left text-xs font-medium text-[var(--color-text-dim)]">
-                  슬라이드
+                  {t('슬라이드')}
                 </th>
                 <th className="w-16 border-r border-[var(--color-border)] px-3 py-2 text-left text-xs font-medium text-[var(--color-text-dim)]">
-                  필드
+                  {t('필드')}
                 </th>
                 <th className="min-w-44 border-r border-[var(--color-border)] px-3 py-2 text-left text-xs font-medium text-[var(--color-text-dim)]">
                   {/* Base text is stored language-agnostically; the 기준 언어 dropdown
                       declares its language. Don't relabel this column to the chosen
                       source language — the stored text doesn't change when it flips. */}
-                  기준 언어
+                  {t('기준 언어')}
                 </th>
                 {targetLocales.map(locale => (
                   <th key={locale} className="min-w-44 border-r border-[var(--color-border)] px-3 py-2 text-left">
                     <span className="text-xs font-medium text-[var(--color-text-dim)]">
-                      {localeLabel(locale)}
+                      {t(localeLabel(locale))}
                     </span>
                     {errors[locale] && (
                       <p className="mt-1 truncate text-xs text-red-600" title={errors[locale]}>
@@ -593,7 +596,7 @@ export function LocalizeEditor() {
                     </td>
                   )}
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)]">
-                    {row.label}
+                    {t(row.label)}
                   </td>
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text)]/60">
                     {row.field === 'image'
@@ -614,7 +617,7 @@ export function LocalizeEditor() {
                           onChange={e => handleCellChange(row.slideId, row.field, locale, e.target.value)}
                           rows={2}
                           className="w-full resize-none rounded border border-transparent bg-transparent px-1.5 py-1 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-dim)] hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none"
-                          placeholder="번역 없음"
+                          placeholder={t('번역 없음')}
                         />
                       )}
                     </td>
@@ -628,10 +631,9 @@ export function LocalizeEditor() {
       </div>
 
       {promptPreview !== null && (
-        <Modal title="번역 프롬프트" size="lg" onClose={() => setPromptPreview(null)}>
+        <Modal title={t('번역 프롬프트')} size="lg" onClose={() => setPromptPreview(null)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              AI 도구에 붙여넣고, 내보낸 CSV/JSON 양식을 함께 첨부하세요. 결과 파일은
-              「가져오기」로 다시 불러옵니다.
+              {t('AI 도구에 붙여넣고, 내보낸 CSV/JSON 양식을 함께 첨부하세요. 결과 파일은 「가져오기」로 다시 불러옵니다.')}
             </p>
             <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-xs leading-relaxed text-[var(--color-text)]">
               {promptPreview}
@@ -642,14 +644,14 @@ export function LocalizeEditor() {
                 onClick={() => setPromptPreview(null)}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
-                닫기
+                {t('닫기')}
               </button>
               <button
                 type="button"
                 onClick={copyTranslationPrompt}
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
-                복사
+                {t('복사')}
               </button>
             </div>
         </Modal>

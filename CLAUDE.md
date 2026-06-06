@@ -26,6 +26,10 @@ E2E specs live in `e2e/` (one per step + a top-level navigation spec). `playwrig
 
 **App Store Screenshot Studio** — fully client-side React/TypeScript SPA. No backend. API keys stored only in `localStorage`.
 
+### UI i18n
+
+The UI is bilingual (ko/en) via `src/i18n/` — **the Korean source string is the dictionary key** (`t('저장')`), with `src/i18n/en.ts` as the only dictionary; a missing entry falls back to Korean. Interpolation uses `{token}` slots: `t('슬라이드 {n}', { n })`. Components use the reactive `useT()` hook; non-React modules (lib warnings, store messages) import plain `t()`. Default locale comes from `navigator.language`, persisted in `localStorage` (`ui-locale`), toggled in the app header. Tests are pinned to Korean — Playwright via `locale: 'ko-KR'` (specs select by Korean text) and Vitest via `src/test.setup.ts` (lib tests assert Korean messages) — so **never rename a Korean source string without updating its `en.ts` key**; `src/i18n/en.test.ts` statically scans all literal `t('…')` calls and fails on any key missing from the dictionary (it cannot see non-literal `t(item.label)` calls — add those entries manually).
+
 ### 4-step flow
 
 `App.tsx` routes between steps via `useProjectStore.step`:

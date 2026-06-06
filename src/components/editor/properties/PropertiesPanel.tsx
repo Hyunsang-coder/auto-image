@@ -17,6 +17,7 @@ import { CaptionPanel } from './CaptionPanel'
 import { ScreenshotPanel } from './ScreenshotPanel'
 import { OrnamentPanel } from './OrnamentPanel'
 import { HighlightPanel } from './HighlightPanel'
+import { useT } from '../../../i18n'
 
 export type PanelTab =
   | 'background'
@@ -86,25 +87,26 @@ export function PropertiesPanel({
   onApplyThemePresetToSlides,
   onApplyTextStyleToSlides,
 }: Props) {
+  const t = useT()
   const screenshotStyle: ScreenshotStyle =
     slide.screenshotStyle ?? { cornerRadiusRatio: 0.06, shadow: true }
 
   return (
     <aside className="flex min-h-0 flex-1 flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex flex-wrap border-b border-[var(--color-border)]">
-        {TABS.map((t) => (
+        {TABS.map((tab_) => (
           <button
-            key={t.id}
+            key={tab_.id}
             type="button"
-            onClick={() => onTabChange(t.id)}
+            onClick={() => onTabChange(tab_.id)}
             className={[
               'flex-1 py-2.5 text-xs font-medium transition',
-              tab === t.id
+              tab === tab_.id
                 ? 'border-b-2 border-[var(--color-accent)] text-[var(--color-accent)]'
                 : 'text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
             ].join(' ')}
           >
-            {t.label}
+            {t(tab_.label)}
           </button>
         ))}
       </div>

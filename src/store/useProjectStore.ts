@@ -7,6 +7,7 @@ import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
 import { migrateSpanSlides } from '../lib/spanTextMigration'
+import { t } from '../i18n'
 
 function newId(prefix: string): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -492,13 +493,13 @@ export const useProjectStore = create<ProjectState>()(
         if (!cur) return 'no project'
         const idx = cur.slides.findIndex((s) => s.id === slideId)
         if (idx < 0) return 'slide not found'
-        if (idx >= cur.slides.length - 1) return '다음 슬라이드가 없습니다'
+        if (idx >= cur.slides.length - 1) return t('다음 슬라이드가 없습니다')
         const leader = cur.slides[idx]
         const follower = cur.slides[idx + 1]
         if (leader.spanGroupId || follower.spanGroupId)
-          return '이미 그룹에 속한 슬라이드입니다'
+          return t('이미 그룹에 속한 슬라이드입니다')
         if (leader.deviceFrame.model !== follower.deviceFrame.model)
-          return '디바이스 모델이 달라 묶을 수 없습니다'
+          return t('디바이스 모델이 달라 묶을 수 없습니다')
         const groupId = newId('span')
         set({
           project: touch({

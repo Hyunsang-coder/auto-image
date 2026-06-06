@@ -1,6 +1,7 @@
 import type { Ornament, OrnamentShape } from '../../../types/project'
 import { makeOrnament } from '../../../constants/defaults'
 import { ORNAMENT_EMOJI } from '../../../canvas/objects/ornament'
+import { useT } from '../../../i18n'
 
 interface Props {
   value: Ornament[]
@@ -29,6 +30,7 @@ const SHAPES: { id: OrnamentShape; label: string }[] = [
 ]
 
 export function OrnamentPanel({ value, onChange }: Props) {
+  const t = useT()
   function addShape(shape: OrnamentShape) {
     onChange([...(value ?? []), makeOrnament(shape)])
   }
@@ -45,7 +47,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
     <div className="flex flex-col gap-4">
       <div>
         <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-          추가
+          {t('추가')}
         </label>
         <div className="grid grid-cols-3 gap-1.5">
           {SHAPES.map((s) => (
@@ -54,10 +56,10 @@ export function OrnamentPanel({ value, onChange }: Props) {
               type="button"
               onClick={() => addShape(s.id)}
               className="flex flex-col items-center gap-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2 text-[10px] text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
-              title={s.label}
+              title={t(s.label)}
             >
               <span className="text-base">{ORNAMENT_EMOJI[s.id]}</span>
-              {s.label}
+              {t(s.label)}
             </button>
           ))}
         </div>
@@ -66,7 +68,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
       {value?.length > 0 && (
         <div className="flex flex-col gap-3">
           <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-            추가된 장식 ({value.length})
+            {t('추가된 장식 ({n})', { n: value.length })}
           </label>
           {value.map((orn) => (
             <div
@@ -74,13 +76,13 @@ export function OrnamentPanel({ value, onChange }: Props) {
               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 space-y-2"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-[var(--color-text)]">{shapeLabel(orn.shape)}</span>
+                <span className="text-xs font-medium text-[var(--color-text)]">{t(shapeLabel(orn.shape))}</span>
                 <button
                   type="button"
                   onClick={() => remove(orn.id)}
                   className="text-xs text-red-600 hover:text-red-700"
                 >
-                  삭제
+                  {t('삭제')}
                 </button>
               </div>
 
@@ -104,7 +106,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
                   onChange={(v) => update(orn.id, { y: v })}
                 />
                 <NumberSlider
-                  label="크기"
+                  label={t('크기')}
                   value={orn.size}
                   min={0.02}
                   max={1}
@@ -113,7 +115,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
                   onChange={(v) => update(orn.id, { size: v })}
                 />
                 <NumberSlider
-                  label="회전"
+                  label={t('회전')}
                   value={orn.rotation}
                   min={-180}
                   max={180}
@@ -124,7 +126,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
               </div>
 
               <NumberSlider
-                label="투명도"
+                label={t('투명도')}
                 value={orn.opacity}
                 min={0}
                 max={1}

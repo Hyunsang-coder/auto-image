@@ -1,4 +1,5 @@
 import type { Step } from '../../types/project'
+import { useT } from '../../i18n'
 
 interface Props {
   current: Step
@@ -29,6 +30,7 @@ export function StepIndicator({
   editorHint,
   localizeHint,
 }: Props) {
+  const t = useT()
   return (
     <nav className="flex items-center gap-2">
       {STEPS.map((s, idx) => {
@@ -63,7 +65,7 @@ export function StepIndicator({
               >
                 {s.id}
               </span>
-              {s.label}
+              {t(s.label)}
               {incomplete && (
                 <span
                   aria-hidden

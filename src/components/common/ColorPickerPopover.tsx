@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { HexColorInput, HexColorPicker } from 'react-colorful'
+import { useT } from '../../i18n'
 
 interface Props {
   color: string
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function ColorPickerPopover({ color, onChange, label }: Props) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -26,7 +28,7 @@ export function ColorPickerPopover({ color, onChange, label }: Props) {
     <div ref={ref} className="relative inline-flex items-center gap-3">
       <button
         type="button"
-        aria-label={label ?? '색상 선택'}
+        aria-label={label ?? t('색상 선택')}
         onClick={() => setOpen((v) => !v)}
         className="h-10 w-10 shrink-0 rounded-lg border border-[var(--color-border)] shadow-inner"
         style={{ background: color }}

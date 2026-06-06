@@ -9,6 +9,7 @@
 // auto-add.
 
 import type { Slide, DeviceModel, DeviceType } from '../types/project'
+import { t } from '../i18n'
 import { fileToImageKey } from './imageStore'
 import { parseImageName } from './imageImport'
 import { detectTypeFromAspect, typeOfModel, DEFAULT_MODEL } from '../constants/deviceSpecs'
@@ -62,15 +63,20 @@ export async function importBulkImages(
       })
   }
   const bySlot = new Map<string, (typeof parsedTargets)[number]>()
-  for (const t of parsedTargets) {
-    const key = `${t.slide}:${t.locale ?? 'base'}`
+  for (const entry of parsedTargets) {
+    const key = `${entry.slide}:${entry.locale ?? 'base'}`
     const prev = bySlot.get(key)
     if (!prev) {
-      bySlot.set(key, t)
+      bySlot.set(key, entry)
       continue
     }
     issues.push(
-      `슬라이드 ${t.slide} ${t.locale ?? '기준 언어'} 중복 — "${t.file.name}" 무시, "${prev.file.name}" 사용`,
+      t('슬라이드 {n} {locale} 중복 — "{ignored}" 무시, "{kept}" 사용', {
+        n: entry.slide,
+        locale: entry.locale ?? t('기준 언어'),
+        ignored: entry.file.name,
+        kept: prev.file.name,
+      }),
     )
   }
   // Base screenshots before overrides so an override can attach to a base
@@ -90,16 +96,20 @@ export async function importBulkImages(
     const base = byIndex[slideNum - 1]
     const slide = base ? working.get(base.id) : undefined
     if (!slide) {
-      issues.push(`슬라이드 ${slideNum} 없음: "${file.name}"`)
+      issues.push(t('슬라이드 {n} 없음: "{name}"', { n: slideNum, name: file.name }))
       continue
     }
     if (!locale && slide.template === 'hero') {
-      issues.push(`슬라이드 ${slideNum}는 텍스트 전용(hero)이라 스크린샷 불가`)
+      issues.push(t('슬라이드 {n}는 텍스트 전용(hero)이라 스크린샷 불가', { n: slideNum }))
       continue
     }
     if (locale && !slide.screenshot) {
       issues.push(
-        `슬라이드 ${slideNum}: 기준 언어(${labelOf(sourceLocale)}) 스크린샷이 없어 ${labelOf(locale)} 추가본을 붙일 수 없음`,
+        t('슬라이드 {n}: 기준 언어({src}) 스크린샷이 없어 {tgt} 추가본을 붙일 수 없음', {
+          n: slideNum,
+          src: labelOf(sourceLocale),
+          tgt: labelOf(locale),
+        }),
       )
       continue
     }
@@ -107,7 +117,7 @@ export async function importBulkImages(
     try {
       result = await fileToImageKey(file)
     } catch {
-      issues.push(`이미지를 읽을 수 없음: "${file.name}"`)
+      issues.push(t('이미지를 읽을 수 없음: "{name}"', { name: file.name }))
       continue
     }
     const { key, width, height } = result

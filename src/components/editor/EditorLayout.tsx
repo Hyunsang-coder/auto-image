@@ -29,6 +29,7 @@ import { routeLocalePatch, clearLocaleOverride } from '../../lib/localeOverride'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import { MODELS_BY_TYPE, DEVICE_SPECS, DEFAULT_MODEL } from '../../constants/deviceSpecs'
 import type { DeviceModel, DeviceType } from '../../types/project'
+import { useT } from '../../i18n'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 3
@@ -45,6 +46,7 @@ const LAYER_TAB: Record<string, PanelTab> = {
 }
 
 export function EditorLayout() {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const activeSlideId = useProjectStore((s) => s.activeSlideId)
   const setActiveSlide = useProjectStore((s) => s.setActiveSlide)
@@ -483,12 +485,12 @@ export function EditorLayout() {
                   key={dev}
                   value={model}
                   onChange={(e) => setDeviceSize(dev, e.target.value as DeviceModel)}
-                  title={`${dev === 'iphone' ? 'iPhone' : 'iPad'} App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다. 다른 기기를 고르면 슬라이드가 그 기기로 전환됩니다.`}
+                  title={t('App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다. 다른 기기를 고르면 슬라이드가 그 기기로 전환됩니다.')}
                   className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
                 >
-                  {(Object.keys(MODELS_BY_TYPE) as DeviceType[]).map((t) => (
-                    <optgroup key={t} label={t === 'iphone' ? 'iPhone' : 'iPad'}>
-                      {MODELS_BY_TYPE[t].map((m) => (
+                  {(Object.keys(MODELS_BY_TYPE) as DeviceType[]).map((dtype) => (
+                    <optgroup key={dtype} label={dtype === 'iphone' ? 'iPhone' : 'iPad'}>
+                      {MODELS_BY_TYPE[dtype].map((m) => (
                         <option key={m} value={m}>
                           {DEVICE_SPECS[m].label}
                         </option>
@@ -509,7 +511,7 @@ export function EditorLayout() {
             <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]">
               <button
                 type="button"
-                title="축소 (Cmd −)"
+                title={t('축소 (Cmd −)')}
                 onClick={() => setZoom((z) => clampZoom(z - 0.1))}
                 className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
@@ -517,7 +519,7 @@ export function EditorLayout() {
               </button>
               <button
                 type="button"
-                title="100%로 맞춤 (Cmd 0)"
+                title={t('100%로 맞춤 (Cmd 0)')}
                 onClick={() => setZoom(1)}
                 className="w-12 text-center tabular-nums transition hover:text-[var(--color-text)]"
               >
@@ -525,7 +527,7 @@ export function EditorLayout() {
               </button>
               <button
                 type="button"
-                title="확대 (Cmd +)"
+                title={t('확대 (Cmd +)')}
                 onClick={() => setZoom((z) => clampZoom(z + 0.1))}
                 className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
@@ -536,17 +538,17 @@ export function EditorLayout() {
               <select
                 value={editLocale}
                 onChange={(e) => switchLocale(e.target.value)}
-                title={`편집 언어 — 원본(${localeLabel(project.sourceLocale)})은 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다. 원본 언어 변경은 3. 로컬라이즈에서.`}
+                title={t('편집 언어 — 원본({locale})은 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다. 원본 언어 변경은 3. 로컬라이즈에서.', { locale: localeLabel(project.sourceLocale) })}
                 className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
                   isLocaleMode
                     ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
                 }`}
               >
-                <option value="">편집: 원본 ({localeLabel(project.sourceLocale)})</option>
+                <option value="">{t('편집: 원본 ({locale})', { locale: localeLabel(project.sourceLocale) })}</option>
                 {localeOptions.map((l) => (
                   <option key={l} value={l}>
-                    {`편집: ${localeLabel(l)}`}
+                    {t('편집: {locale}', { locale: localeLabel(l) })}
                   </option>
                 ))}
               </select>
@@ -556,22 +558,22 @@ export function EditorLayout() {
                 type="button"
                 onClick={() => slide && editTargetId && updateSlide(editTargetId, clearLocaleOverride(slide, editLocale))}
                 disabled={!slide?.localeOverrides?.[editLocale]}
-                title="이 언어의 레이아웃 override(위치·크기·템플릿·배경·디바이스)를 지웁니다. 번역 텍스트와 스크린샷은 유지됩니다."
+                title={t('이 언어의 레이아웃 override(위치·크기·템플릿·배경·디바이스)를 지웁니다. 번역 텍스트와 스크린샷은 유지됩니다.')}
                 className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                레이아웃 리셋
+                {t('레이아웃 리셋')}
               </button>
             )}
             {showShotSource && (
               <select
                 value={slide!.screenshot!.localeSource?.[editLocale] ?? ''}
                 onChange={(e) => setScreenshotSource(e.target.value)}
-                title="이 언어는 자체 스크린샷이 없습니다. 어떤 언어의 스크린샷을 빌려올지 선택하세요 (기본: 기준 언어)."
+                title={t('이 언어는 자체 스크린샷이 없습니다. 어떤 언어의 스크린샷을 빌려올지 선택하세요 (기본: 기준 언어).')}
                 className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-dim)]"
               >
-                <option value="">스크린샷: 기준 언어</option>
+                <option value="">{t('스크린샷: 기준 언어')}</option>
                 {donorLocales.map((l) => (
-                  <option key={l} value={l}>스크린샷: {localeLabel(l)}</option>
+                  <option key={l} value={l}>{t('스크린샷: {locale}', { locale: localeLabel(l) })}</option>
                 ))}
               </select>
             )}
@@ -580,10 +582,10 @@ export function EditorLayout() {
             <button
               type="button"
               onClick={() => setStep(3)}
-              title="다음 단계: 로컬라이즈"
+              title={t('다음 단계: 로컬라이즈')}
               className="whitespace-nowrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
             >
-              다음 →
+              {t('다음 →')}
             </button>
           </div>
         </div>
@@ -611,7 +613,7 @@ export function EditorLayout() {
           onPointerDown={tray.onPointerDown}
           role="separator"
           aria-orientation="horizontal"
-          title="드래그하여 슬라이드 트레이 높이 조절"
+          title={t('드래그하여 슬라이드 트레이 높이 조절')}
           className={`group h-1.5 shrink-0 cursor-row-resize border-t border-[var(--color-border)] transition-colors ${
             tray.dragging ? 'bg-[var(--color-accent)]' : 'hover:bg-[var(--color-accent)]/40'
           }`}
@@ -634,7 +636,7 @@ export function EditorLayout() {
           onPointerDown={panel.onPointerDown}
           role="separator"
           aria-orientation="vertical"
-          title="드래그하여 속성 패널 너비 조절"
+          title={t('드래그하여 속성 패널 너비 조절')}
           className={`absolute left-0 top-0 z-10 h-full w-1.5 cursor-col-resize transition-colors ${
             panel.dragging ? 'bg-[var(--color-accent)]' : 'hover:bg-[var(--color-accent)]/40'
           }`}
@@ -663,7 +665,7 @@ export function EditorLayout() {
           />
         ) : (
           <aside className="flex-1 overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <p className="text-sm text-[var(--color-text-dim)]">슬라이드를 선택하세요</p>
+            <p className="text-sm text-[var(--color-text-dim)]">{t('슬라이드를 선택하세요')}</p>
           </aside>
         )}
       </div>

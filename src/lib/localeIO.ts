@@ -2,6 +2,8 @@
 // munging only — no store or React access — so it stays unit-testable. The
 // LocalizeEditor builds the rows and applies parsed values back into the store.
 
+import { t } from '../i18n'
+
 export type LocaleFileFormat = 'csv' | 'json'
 
 /** Identity columns written on export (everything else is a labeled language). */
@@ -121,26 +123,26 @@ function parseJsonTemplate(text: string): ParseResult {
   try {
     obj = JSON.parse(text)
   } catch {
-    return { rows: [], localeColumns: [], warnings: ['JSON 형식이 올바르지 않습니다'] }
+    return { rows: [], localeColumns: [], warnings: [t('JSON 형식이 올바르지 않습니다')] }
   }
   const rawRows = (obj as { rows?: unknown })?.rows
   if (!Array.isArray(rawRows)) {
-    return { rows: [], localeColumns: [], warnings: ['`rows` 배열을 찾을 수 없습니다'] }
+    return { rows: [], localeColumns: [], warnings: [t('`rows` 배열을 찾을 수 없습니다')] }
   }
   const localeSet = new Set<string>()
   const rows: ParsedRow[] = []
   for (const raw of rawRows as Record<string, unknown>[]) {
     const field = normalizeField(typeof raw.field === 'string' ? raw.field : '')
     if (!field) {
-      warnings.push('`field`가 없는 행을 건너뜀')
+      warnings.push(t('`field`가 없는 행을 건너뜀'))
       continue
     }
     const values: Record<string, string> = {}
     // New format: `texts` maps every language (incl. source) → text. Fall back
     // to the legacy `translations` key (target locales only) for old files.
-    const t = raw.texts && typeof raw.texts === 'object' ? raw.texts : raw.translations
-    if (t && typeof t === 'object') {
-      for (const [loc, v] of Object.entries(t as Record<string, unknown>)) {
+    const texts = raw.texts && typeof raw.texts === 'object' ? raw.texts : raw.translations
+    if (texts && typeof texts === 'object') {
+      for (const [loc, v] of Object.entries(texts as Record<string, unknown>)) {
         values[loc] = v == null ? '' : String(v)
         localeSet.add(loc)
       }
@@ -157,11 +159,11 @@ function parseJsonTemplate(text: string): ParseResult {
 
 function parseCsvTemplate(text: string): ParseResult {
   const grid = parseCsvGrid(text)
-  if (grid.length === 0) return { rows: [], localeColumns: [], warnings: ['빈 파일입니다'] }
+  if (grid.length === 0) return { rows: [], localeColumns: [], warnings: [t('빈 파일입니다')] }
   const header = grid[0].map(h => h.trim())
   const fieldIdx = header.indexOf('field')
   if (fieldIdx < 0) {
-    return { rows: [], localeColumns: [], warnings: ['`field` 열을 찾을 수 없습니다'] }
+    return { rows: [], localeColumns: [], warnings: [t('`field` 열을 찾을 수 없습니다')] }
   }
   const slideIdx = header.indexOf('slide')
   const slideIdIdx = header.indexOf('slideId')
