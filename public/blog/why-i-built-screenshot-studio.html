@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Why I Built a Fully Client-Side App Store Screenshot Studio</title>
+  <meta
+    name="description"
+    content="The build story behind App Store Screenshot Studio: 108 PNGs per release, why I refused to upload my screenshots to a SaaS, the all-browser architecture that resulted, and how designing for AI agents shaped the whole tool."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/blog/why-i-built-screenshot-studio.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/blog/why-i-built-screenshot-studio.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/blog/ko/why-i-built-screenshot-studio.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/blog/why-i-built-screenshot-studio.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Why I Built a Fully Client-Side App Store Screenshot Studio" />
+  <meta
+    property="og:description"
+    content="108 PNGs per release, no desire to upload them anywhere, and a hunch that the next users of dev tools are AI agents."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/blog/why-i-built-screenshot-studio.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "Why I Built a Fully Client-Side App Store Screenshot Studio",
+    "datePublished": "2026-06-06",
+    "dateModified": "2026-06-06",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="./ko/why-i-built-screenshot-studio.html">한국어로 읽기 →</a></p>
+  <h1>Why I built a fully client-side App Store screenshot studio</h1>
+  <p class="lead">
+    I ship indie iOS apps localized into nine languages. Every release ends the same way:
+    a wall of screenshots that all need frames, headlines, translations, and pixel-exact
+    export sizes. This is the story of the tool I built instead of doing that by hand again
+    — and the two stubborn decisions that shaped it.
+  </p>
+
+  <h2>The arithmetic that breaks you</h2>
+  <p>
+    One app. Six screenshots. iPhone and iPad. Nine languages. That's
+    <strong>108 PNGs</strong>, each at an exact App Store Connect resolution, each with a
+    translated headline that mustn't overflow its box. Change one layout detail and all
+    108 need regenerating. A design tool treats every one of those as a separate artboard;
+    my releases were stalling on marketing images, not code.
+  </p>
+  <p>
+    The existing answers didn't fit. Screenshot SaaS tools solve the arithmetic, but they
+    want my raw screenshots uploaded to their servers and a subscription for something I
+    need four times a year. Figma templates solve the design, but not the multiplication.
+  </p>
+
+  <h2>Decision one: nothing leaves the browser</h2>
+  <p>
+    So the first constraint was almost emotional: <strong>my screenshots stay on my
+    machine.</strong> No accounts, no upload, no backend — which turned out to be a
+    forcing function for the whole architecture:
+  </p>
+  <ul>
+    <li>Projects persist in <code>localStorage</code>, images in IndexedDB. Closing the tab loses nothing; clearing site data deletes everything. Honest storage.</li>
+    <li>The canvas is <a href="http://fabricjs.com/">Fabric.js</a>; export renders each slide on an offscreen canvas at full Apple resolution and zips the result — all in-process.</li>
+    <li>No backend also means free static hosting forever, and nothing to monetize, secure, or apologize for. The project is MIT-licensed open source.</li>
+  </ul>
+  <p>
+    Client-side-only sounds limiting until you notice that nothing in this problem needs a
+    server. Rendering? The browser has a GPU. Translation? Caption tables export as
+    CSV/JSON — translate them in a spreadsheet or paste them into any AI chat, then
+    re-import. The one feature a backend would have enabled (server-side API translation)
+    I eventually removed entirely; a copy-paste prompt does the same job with zero keys.
+  </p>
+
+  <h2>Decision two: files are the interface</h2>
+  <p>
+    The second decision came from watching how I actually work now: half my development
+    happens through an AI coding agent. If the agent can't drive a tool, the tool is a
+    bottleneck. But I didn't want to build an MCP server or a plugin API — those rot.
+    What doesn't rot is files:
+  </p>
+  <ul>
+    <li>A documented <strong>import manifest</strong> (JSON) describes a whole project — slides, layouts, text-block counts.</li>
+    <li>Captions travel as a <strong>CSV/JSON table</strong> of slide × language.</li>
+    <li>Screenshots route by <strong>filename convention</strong>: <code>01-home.ko.png</code> → slide 1, Korean.</li>
+    <li>A <strong>headless pipeline</strong> renders the folder to final PNGs with no browser open at all.</li>
+  </ul>
+  <p>
+    So an AI agent can draft the entire screenshot project — copy, layout choices, file
+    organization — as plain files, render it, look at the PNGs, and iterate. A human picks
+    the folder once in the import dialog, or never. The agent loop closed the day I
+    watched a release's screenshot set go from brief to rendered without me opening the
+    editor.
+  </p>
+
+  <h2>What building it taught me</h2>
+  <ul>
+    <li><strong>The 80% feature set is small.</strong> Frames, headlines, captions-as-data, exact-size export. Everything else — magnifier loupes, 2-page panoramas, span groups, per-locale screenshot overrides — earned its way in by an actual release needing it.</li>
+    <li><strong>Localization is a data problem wearing a design costume.</strong> Once captions became a table instead of text baked into artboards, nine languages stopped being nine times the work.</li>
+    <li><strong>Constraints compound pleasantly.</strong> No backend forced file-based workflows; file-based workflows made the tool agent-drivable for free; agent-drivability is now the feature I'd least want to give up.</li>
+  </ul>
+
+  <a class="cta" href="../app/">
+    <strong>Try App Store Screenshot Studio</strong> — free, open source, fully
+    client-side. From raw screenshots to a store-ready multi-language set in one sitting. →
+  </a>
+
+  <p>
+    The source, the import manifest spec, and the headless pipeline are all in
+    <a href="https://github.com/Hyunsang-coder/auto-image">the GitHub repository</a>.
+    If you ship localized iOS apps and this scratches your itch too, an issue or a star
+    is the best way to say so.
+  </p>
+
+  <footer>
+    <p>
+      <a href="../">Home</a> · <a href="../guides/how-to-use.html">How to use</a> ·
+      <a href="../about.html">About</a> ·
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a> — June 2026.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

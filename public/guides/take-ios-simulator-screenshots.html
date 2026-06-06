@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to Take iOS Simulator Screenshots for the App Store — simctl, Status Bar, Locale Loops</title>
+  <meta
+    name="description"
+    content="Capture App-Store-ready screenshots from the iOS Simulator: the simctl one-liner, which simulators match App Store Connect sizes, the 9:41 status bar override, and a shell loop that captures every language your app supports."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/take-ios-simulator-screenshots.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="How to Take iOS Simulator Screenshots for the App Store" />
+  <meta
+    property="og:description"
+    content="The simctl one-liner, which simulators match App Store Connect sizes, the 9:41 status bar override, and a locale capture loop."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How to Take iOS Simulator Screenshots for the App Store — simctl, Status Bar, Locale Loops",
+    "dateModified": "2026-06-06",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="./ko/take-ios-simulator-screenshots.html">한국어로 읽기 →</a></p>
+  <h1>How to take iOS Simulator screenshots for the App Store</h1>
+  <p class="lead">
+    The iOS Simulator captures pixel-perfect, device-resolution PNGs — no physical device,
+    no cable, scriptable from the shell. Here's the one-liner, the simulators whose output
+    matches App Store Connect's required sizes, the classic <code>9:41</code> status bar
+    override, and a loop that captures every locale your app supports.
+    Last verified: June 2026.
+  </p>
+
+  <h2>The two ways to capture</h2>
+  <p>
+    In the Simulator app, <strong>⌘S</strong> saves a screenshot of the frontmost simulator
+    to the Desktop at full device resolution. That's fine for one or two shots. For anything
+    repeatable, use <code>simctl</code>:
+  </p>
+  <pre><code>xcrun simctl io booted screenshot home.png</code></pre>
+  <p>
+    <code>booted</code> targets the running simulator; pass a device name or UDID instead
+    when several are running. The output is a PNG at the exact pixel resolution of the
+    simulated device — which is the whole trick.
+  </p>
+
+  <h2>Pick a simulator that matches an App Store slot</h2>
+  <p>
+    App Store Connect accepts screenshots only at
+    <a href="./app-store-screenshot-sizes.html">exact resolutions</a>. Capture from a
+    simulator whose screen is natively one of them and your raw PNGs are upload-ready:
+  </p>
+  <table>
+    <tr><th>Simulator</th><th>Capture resolution</th><th>ASC slot</th></tr>
+    <tr><td>iPhone 16 Pro Max</td><td><code>1320 × 2868</code></td><td>iPhone 6.9″ (required)</td></tr>
+    <tr><td>iPad Pro 13″ (M4)</td><td><code>2064 × 2752</code></td><td>iPad 13″ (required if on iPad)</td></tr>
+    <tr><td>iPhone 11 Pro Max</td><td><code>1242 × 2688</code></td><td>iPhone 6.5″ (optional)</td></tr>
+  </table>
+  <p>
+    If you frame your screenshots in an editor afterwards (device bezel + headline above),
+    the capture size doesn't have to match a slot — the editor re-renders at the exact
+    export resolution, and any current-generation simulator with the right aspect ratio
+    works. Matching slots only matters when you upload <em>raw</em> captures.
+  </p>
+
+  <h2>Clean up the status bar first</h2>
+  <p>
+    Apple's own marketing shots always read 9:41, full battery, full signal. One command,
+    sticks until the simulator reboots:
+  </p>
+  <pre><code>xcrun simctl status_bar booted override \
+  --time "9:41" --batteryState charged --batteryLevel 100 \
+  --cellularBars 4 --wifiBars 3</code></pre>
+  <p>Undo with <code>xcrun simctl status_bar booted clear</code>.</p>
+
+  <h2>Capture every language in one loop</h2>
+  <p>
+    You don't need to change the simulator's system language. Launching the app with
+    <code>-AppleLanguages</code> overrides its locale for that run only:
+  </p>
+  <pre><code>BUNDLE_ID="com.yourcompany.app"
+
+for LOC in en ko ja de; do
+  xcrun simctl terminate booted "$BUNDLE_ID" 2>/dev/null
+  xcrun simctl launch booted "$BUNDLE_ID" \
+    -AppleLanguages "($LOC)" -AppleLocale "${LOC}_US"
+  sleep 3   # let the first screen settle; navigate or deep-link here
+  xcrun simctl io booted screenshot "01-home.$LOC.png"
+done</code></pre>
+  <p>
+    Two practical notes: give the app a moment (or a launch argument / deep link) to land on
+    the screen you want, and if your app caches its UI language internally, terminate it
+    between runs as above so the override takes effect.
+  </p>
+
+  <h2>Name the files so tools can route them</h2>
+  <p>
+    The loop above already emits <code>01-home.en.png</code>, <code>01-home.ko.png</code>, … —
+    leading digits = slide number, suffix before the extension = locale, the middle is a free
+    description. That convention lets a screenshot editor bulk-import the whole folder and
+    route every file to the right slide and language automatically — see
+    <a href="./app-store-screenshot-localization.html">the localization guide</a> for the
+    full workflow.
+  </p>
+
+  <a class="cta" href="../">
+    <strong>App Store Screenshot Studio</strong> — drop those captures into a free,
+    open-source editor: device frames, headlines, per-language captions, and one-click
+    export at exact App Store Connect sizes. Fully client-side — images never leave your
+    machine. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>Are simulator screenshots acceptable for the App Store?</strong><br />
+  Yes. ASC checks pixels and format, not provenance. The screenshot must honestly show your
+  app's UI — where it was captured doesn't matter.</p>
+  <p><strong>Why is my capture the wrong size for ASC?</strong><br />
+  You captured from a simulator whose screen isn't an accepted slot resolution (or a scaled
+  window — window scale doesn't affect <code>simctl</code> output, which is always native).
+  Either switch simulators per the table above, or frame the shots in an editor that
+  exports exact sizes.</p>
+  <p><strong>Can I script the in-app navigation too?</strong><br />
+  Yes — that's what <a href="https://docs.fastlane.tools/actions/snapshot/">fastlane snapshot</a>
+  does with XCUITest: it drives the app to each screen and captures per locale. It's the
+  heavier, fully-automated cousin of the loop above.</p>
+
+  <h2>Related guides</h2>
+  <ul>
+    <li><a href="./how-to-use.html">How to use App Store Screenshot Studio — the full workflow</a></li>
+    <li><a href="./app-store-screenshot-sizes.html">App Store screenshot sizes 2026 — every required resolution</a></li>
+    <li><a href="./app-store-screenshot-localization.html">Localizing App Store screenshots — a workflow that scales past 3 languages</a></li>
+    <li><a href="./app-store-screenshot-captions.html">App Store screenshot captions that convert</a></li>
+    <li><a href="./upload-app-store-screenshots-fastlane.html">Upload App Store screenshots with fastlane deliver</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      Written for <a href="../">App Store Screenshot Studio</a> (open source,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>).
+      Commands verified against Xcode 16 <code>simctl</code>, June 2026.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

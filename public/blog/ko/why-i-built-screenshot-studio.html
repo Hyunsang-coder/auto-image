@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>완전 클라이언트사이드 앱스토어 스크린샷 스튜디오를 만든 이유</title>
+  <meta
+    name="description"
+    content="App Store Screenshot Studio를 만들게 된 이야기: 릴리스마다 PNG 108장, 내 스크린샷을 SaaS에 업로드하기 싫었던 고집, 그래서 나온 올-브라우저 아키텍처, 그리고 AI 에이전트를 위한 설계가 도구 전체를 바꾼 과정."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/blog/ko/why-i-built-screenshot-studio.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/blog/why-i-built-screenshot-studio.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/blog/ko/why-i-built-screenshot-studio.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/blog/why-i-built-screenshot-studio.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="완전 클라이언트사이드 앱스토어 스크린샷 스튜디오를 만든 이유" />
+  <meta
+    property="og:description"
+    content="릴리스마다 PNG 108장, 어디에도 업로드하고 싶지 않은 고집, 그리고 개발 도구의 다음 사용자는 AI 에이전트라는 직감."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/blog/ko/why-i-built-screenshot-studio.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "완전 클라이언트사이드 앱스토어 스크린샷 스튜디오를 만든 이유",
+    "datePublished": "2026-06-06",
+    "dateModified": "2026-06-06",
+    "inLanguage": "ko",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../why-i-built-screenshot-studio.html">Read in English →</a></p>
+  <h1>완전 클라이언트사이드 앱스토어 스크린샷 스튜디오를 만든 이유</h1>
+  <p class="lead">
+    저는 9개 언어로 현지화한 인디 iOS 앱들을 출시합니다. 릴리스의 끝은 늘 똑같았습니다:
+    프레임, 헤드라인, 번역, 픽셀 단위 규격이 전부 필요한 스크린샷의 벽. 이건 그 일을
+    다시는 손으로 하지 않으려고 만든 도구의 이야기이고, 도구의 모양을 결정한 두 가지
+    고집에 대한 이야기입니다.
+  </p>
+
+  <h2>사람을 무너뜨리는 산수</h2>
+  <p>
+    앱 하나. 스크린샷 여섯 장. iPhone과 iPad. 9개 언어. 그러면 <strong>PNG 108장</strong>
+    입니다. 전부 App Store Connect의 정확한 해상도여야 하고, 전부 박스를 넘치면 안 되는
+    번역된 헤드라인을 달고 있어야 합니다. 레이아웃 디테일 하나를 바꾸면 108장을 다시
+    만들어야 합니다. 디자인 툴은 그 하나하나를 별개의 아트보드로 취급합니다 — 제 릴리스는
+    코드가 아니라 마케팅 이미지에서 멈춰 서고 있었습니다.
+  </p>
+  <p>
+    기존 답들은 안 맞았습니다. 스크린샷 SaaS는 산수를 풀어주지만, 제 스크린샷 원본을
+    자기 서버에 올리라고 하고, 1년에 네 번 쓰는 물건에 구독료를 요구합니다. Figma
+    템플릿은 디자인을 풀어주지만 곱셈은 풀어주지 못합니다.
+  </p>
+
+  <h2>첫 번째 고집: 아무것도 브라우저를 떠나지 않는다</h2>
+  <p>
+    그래서 첫 번째 제약은 거의 감정적인 것이었습니다: <strong>내 스크린샷은 내 컴퓨터에
+    남는다.</strong> 계정 없음, 업로드 없음, 백엔드 없음 — 그런데 이게 아키텍처 전체를
+    밀어붙이는 강제 함수가 됐습니다:
+  </p>
+  <ul>
+    <li>프로젝트는 <code>localStorage</code>에, 이미지는 IndexedDB에 저장됩니다. 탭을 닫아도 아무것도 잃지 않고, 사이트 데이터를 지우면 전부 사라집니다. 정직한 저장소입니다.</li>
+    <li>캔버스는 <a href="http://fabricjs.com/">Fabric.js</a>입니다; 내보내기는 슬라이드마다 오프스크린 캔버스를 Apple 풀 해상도로 렌더링해 ZIP으로 묶습니다 — 전부 프로세스 안에서.</li>
+    <li>백엔드가 없으니 정적 호스팅이 영원히 무료이고, 수익화할 것도, 지킬 것도, 사과할 것도 없습니다. 프로젝트는 MIT 라이선스 오픈소스입니다.</li>
+  </ul>
+  <p>
+    "클라이언트사이드 전용"은 제약처럼 들리지만, 이 문제에 서버가 필요한 부분이 없다는
+    걸 깨닫는 순간 달라집니다. 렌더링? 브라우저에 GPU가 있습니다. 번역? 캡션 표를
+    CSV/JSON으로 내보내 스프레드시트에서 번역하거나 아무 AI 챗에나 붙여넣고 다시
+    가져오면 됩니다. 백엔드가 있어야 가능했을 단 하나의 기능(서버사이드 API 번역)은
+    결국 통째로 들어냈습니다 — 복사-붙여넣기 프롬프트가 키 없이 같은 일을 합니다.
+  </p>
+
+  <h2>두 번째 고집: 파일이 인터페이스다</h2>
+  <p>
+    두 번째 결정은 제가 요즘 실제로 일하는 방식을 보다가 나왔습니다: 개발의 절반이 AI
+    코딩 에이전트를 통해 일어납니다. 에이전트가 도구를 못 움직이면 그 도구가 병목입니다.
+    그렇다고 MCP 서버나 플러그인 API를 만들고 싶지는 않았습니다 — 그런 건 썩습니다.
+    썩지 않는 건 파일입니다:
+  </p>
+  <ul>
+    <li>문서화된 <strong>가져오기 매니페스트</strong>(JSON)가 프로젝트 전체를 기술합니다 — 슬라이드, 레이아웃, 텍스트 블록 수.</li>
+    <li>캡션은 슬라이드 × 언어의 <strong>CSV/JSON 표</strong>로 오갑니다.</li>
+    <li>스크린샷은 <strong>파일명 규칙</strong>으로 라우팅됩니다: <code>01-home.ko.png</code> → 슬라이드 1, 한국어.</li>
+    <li><strong>헤들리스 파이프라인</strong>이 브라우저를 한 번도 열지 않고 폴더를 최종 PNG로 렌더링합니다.</li>
+  </ul>
+  <p>
+    그래서 AI 에이전트가 스크린샷 프로젝트 전체 — 카피, 레이아웃 선택, 파일 구성 — 를
+    평범한 파일로 작성하고, 렌더링하고, PNG를 들여다보고, 고치기를 반복할 수 있습니다.
+    사람은 가져오기 다이얼로그에서 폴더를 한 번 고르거나, 아예 고르지 않아도 됩니다.
+    어느 릴리스의 스크린샷 세트가 브리프에서 렌더링까지, 제가 에디터를 열지 않은 채로
+    완성되는 걸 본 날, 에이전트 루프가 닫혔습니다.
+  </p>
+
+  <h2>만들면서 배운 것</h2>
+  <ul>
+    <li><strong>80%를 해결하는 기능 셋은 작습니다.</strong> 프레임, 헤드라인, 데이터로서의 캡션, 정확한 규격의 내보내기. 나머지 전부 — 돋보기 루페, 2페이지 파노라마, 스팬 그룹, 로케일별 스크린샷 오버라이드 — 는 실제 릴리스가 필요로 해서 자기 자리를 얻어냈습니다.</li>
+    <li><strong>현지화는 디자인 옷을 입은 데이터 문제입니다.</strong> 캡션이 아트보드에 박힌 텍스트가 아니라 표가 되는 순간, 9개 언어는 더 이상 9배의 일이 아니게 됐습니다.</li>
+    <li><strong>제약은 기분 좋게 복리로 쌓입니다.</strong> 백엔드 없음이 파일 기반 워크플로를 강제했고, 파일 기반 워크플로가 공짜로 에이전트 구동성을 줬고, 에이전트 구동성은 이제 가장 포기하고 싶지 않은 기능입니다.</li>
+  </ul>
+
+  <a class="cta" href="../../app/">
+    <strong>App Store Screenshot Studio 써 보기</strong> — 무료, 오픈소스, 완전
+    클라이언트사이드. 스크린샷 원본에서 스토어 제출용 다국어 세트까지 한자리에서. →
+  </a>
+
+  <p>
+    소스 코드, 가져오기 매니페스트 명세, 헤들리스 파이프라인은 모두
+    <a href="https://github.com/Hyunsang-coder/auto-image">GitHub 저장소</a>에 있습니다.
+    현지화된 iOS 앱을 출시하고 있고 이 가려움이 당신의 것이기도 하다면, 이슈나 스타가
+    가장 좋은 인사입니다.
+  </p>
+
+  <footer>
+    <p>
+      <a href="../../">홈</a> · <a href="../../guides/ko/how-to-use.html">사용법</a> ·
+      <a href="../../about.html">About</a> ·
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a> — 2026년 6월.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

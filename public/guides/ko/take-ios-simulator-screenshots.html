@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>앱스토어용 iOS 시뮬레이터 스크린샷 찍는 법 — simctl, 상태 바, 로케일 루프</title>
+  <meta
+    name="description"
+    content="iOS 시뮬레이터에서 앱스토어 제출용 스크린샷 캡처하기: simctl 한 줄 명령, App Store Connect 규격과 일치하는 시뮬레이터, 9:41 상태 바 오버라이드, 지원하는 모든 언어를 한 번에 캡처하는 셸 루프까지."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/ko/take-ios-simulator-screenshots.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/take-ios-simulator-screenshots.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="앱스토어용 iOS 시뮬레이터 스크린샷 찍는 법" />
+  <meta
+    property="og:description"
+    content="simctl 한 줄 명령, App Store Connect 규격과 일치하는 시뮬레이터, 9:41 상태 바 오버라이드, 로케일 캡처 루프."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/ko/take-ios-simulator-screenshots.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "앱스토어용 iOS 시뮬레이터 스크린샷 찍는 법 — simctl, 상태 바, 로케일 루프",
+    "dateModified": "2026-06-06",
+    "inLanguage": "ko",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../take-ios-simulator-screenshots.html">Read in English →</a></p>
+  <h1>앱스토어용 iOS 시뮬레이터 스크린샷 찍는 법</h1>
+  <p class="lead">
+    iOS 시뮬레이터는 디바이스 해상도 그대로의 픽셀 퍼펙트 PNG를 캡처합니다 — 실기기도
+    케이블도 필요 없고, 셸에서 스크립트로 돌릴 수 있습니다. 한 줄 명령, App Store
+    Connect 필수 규격과 출력이 일치하는 시뮬레이터, 그 유명한 <code>9:41</code> 상태 바
+    오버라이드, 지원하는 모든 로케일을 한 번에 캡처하는 루프를 정리했습니다.
+    최종 확인: 2026년 6월.
+  </p>
+
+  <h2>캡처하는 두 가지 방법</h2>
+  <p>
+    Simulator 앱에서 <strong>⌘S</strong>를 누르면 맨 앞 시뮬레이터의 스크린샷이 디바이스
+    풀 해상도로 데스크톱에 저장됩니다. 한두 장이면 그걸로 충분합니다. 반복 가능해야
+    한다면 <code>simctl</code>을 쓰세요:
+  </p>
+  <pre><code>xcrun simctl io booted screenshot home.png</code></pre>
+  <p>
+    <code>booted</code>는 실행 중인 시뮬레이터를 가리킵니다; 여러 대가 떠 있으면 대신
+    디바이스 이름이나 UDID를 넘기세요. 출력은 시뮬레이션 중인 디바이스의 정확한 픽셀
+    해상도 PNG입니다 — 이게 핵심입니다.
+  </p>
+
+  <h2>App Store 슬롯과 일치하는 시뮬레이터 고르기</h2>
+  <p>
+    App Store Connect는 <a href="./app-store-screenshot-sizes.html">정확한 해상도</a>의
+    스크린샷만 받습니다. 화면이 그 해상도와 원래부터 일치하는 시뮬레이터에서 캡처하면
+    원본 PNG를 그대로 업로드할 수 있습니다:
+  </p>
+  <table>
+    <tr><th>시뮬레이터</th><th>캡처 해상도</th><th>ASC 슬롯</th></tr>
+    <tr><td>iPhone 16 Pro Max</td><td><code>1320 × 2868</code></td><td>iPhone 6.9″ (필수)</td></tr>
+    <tr><td>iPad Pro 13″ (M4)</td><td><code>2064 × 2752</code></td><td>iPad 13″ (iPad 지원 시 필수)</td></tr>
+    <tr><td>iPhone 11 Pro Max</td><td><code>1242 × 2688</code></td><td>iPhone 6.5″ (선택)</td></tr>
+  </table>
+  <p>
+    캡처 후 에디터에서 프레임을 씌운다면(디바이스 베젤 + 위에 헤드라인) 캡처 크기가
+    슬롯과 일치할 필요는 없습니다 — 에디터가 정확한 내보내기 해상도로 다시 렌더링하므로,
+    종횡비만 맞으면 최신 세대 시뮬레이터 아무거나 됩니다. 슬롯 일치는 <em>원본</em>을
+    그대로 업로드할 때만 중요합니다.
+  </p>
+
+  <h2>먼저 상태 바부터 정리</h2>
+  <p>
+    Apple의 마케팅 이미지는 항상 9:41, 배터리 가득, 신호 가득입니다. 명령 한 번이면
+    되고, 시뮬레이터를 재부팅할 때까지 유지됩니다:
+  </p>
+  <pre><code>xcrun simctl status_bar booted override \
+  --time "9:41" --batteryState charged --batteryLevel 100 \
+  --cellularBars 4 --wifiBars 3</code></pre>
+  <p>되돌리기: <code>xcrun simctl status_bar booted clear</code>.</p>
+
+  <h2>모든 언어를 루프 하나로 캡처</h2>
+  <p>
+    시뮬레이터의 시스템 언어를 바꿀 필요가 없습니다. <code>-AppleLanguages</code>로
+    실행하면 그 실행에 한해 앱의 로케일이 오버라이드됩니다:
+  </p>
+  <pre><code>BUNDLE_ID="com.yourcompany.app"
+
+for LOC in en ko ja de; do
+  xcrun simctl terminate booted "$BUNDLE_ID" 2>/dev/null
+  xcrun simctl launch booted "$BUNDLE_ID" \
+    -AppleLanguages "($LOC)" -AppleLocale "${LOC}_US"
+  sleep 3   # 첫 화면이 안정될 시간; 필요하면 여기서 내비게이션이나 딥링크
+  xcrun simctl io booted screenshot "01-home.$LOC.png"
+done</code></pre>
+  <p>
+    실전 팁 두 가지: 원하는 화면에 도달할 시간(또는 런치 인자·딥링크)을 주고, 앱이 UI
+    언어를 내부에 캐시한다면 위처럼 실행 사이에 종료해야 오버라이드가 적용됩니다.
+  </p>
+
+  <h2>도구가 라우팅할 수 있게 파일명 짓기</h2>
+  <p>
+    위 루프는 이미 <code>01-home.en.png</code>, <code>01-home.ko.png</code>, … 형식으로
+    저장합니다 — 앞자리 숫자 = 슬라이드 번호, 확장자 앞 접미사 = 로케일, 가운데는 자유
+    설명. 이 규칙을 따르면 스크린샷 에디터가 폴더 전체를 일괄 가져와 파일마다 올바른
+    슬라이드·언어로 자동 배치합니다 — 전체 워크플로는
+    <a href="./app-store-screenshot-localization.html">현지화 가이드</a>를 참고하세요.
+  </p>
+
+  <a class="cta" href="../../">
+    <strong>App Store Screenshot Studio</strong> — 캡처한 파일을 무료 오픈소스 에디터에
+    떨어뜨리세요: 디바이스 프레임, 헤드라인, 언어별 캡션, 그리고 정확한 App Store
+    Connect 규격의 원클릭 내보내기. 완전 클라이언트사이드 — 이미지는 내 컴퓨터를
+    떠나지 않습니다. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>시뮬레이터 스크린샷을 앱스토어에 써도 되나요?</strong><br />
+  네. ASC는 픽셀과 포맷을 검사하지 출처를 검사하지 않습니다. 스크린샷이 앱의 UI를
+  정직하게 보여주기만 하면 어디서 캡처했는지는 상관없습니다.</p>
+  <p><strong>캡처가 ASC 규격과 다르게 나오는데요?</strong><br />
+  화면이 허용 슬롯 해상도가 아닌 시뮬레이터에서 캡처한 경우입니다(창 배율은 무관 —
+  <code>simctl</code> 출력은 항상 네이티브 해상도입니다). 위 표대로 시뮬레이터를
+  바꾸거나, 정확한 규격으로 내보내는 에디터에서 프레임을 씌우세요.</p>
+  <p><strong>앱 안의 화면 이동도 스크립트로 할 수 있나요?</strong><br />
+  네 — <a href="https://docs.fastlane.tools/actions/snapshot/">fastlane snapshot</a>이
+  XCUITest로 정확히 그 일을 합니다: 화면마다 앱을 몰고 가서 로케일별로 캡처합니다.
+  위 루프의 무겁고 완전 자동화된 사촌입니다.</p>
+
+  <h2>관련 가이드</h2>
+  <ul>
+    <li><a href="./how-to-use.html">App Store Screenshot Studio 사용법 — 전체 워크플로</a></li>
+    <li><a href="./app-store-screenshot-sizes.html">앱스토어 스크린샷 사이즈 2026 — 필수 해상도 총정리</a></li>
+    <li><a href="./app-store-screenshot-localization.html">앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로</a></li>
+    <li><a href="./app-store-screenshot-captions.html">전환율을 높이는 앱스토어 스크린샷 카피</a></li>
+    <li><a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver로 앱스토어 스크린샷 업로드</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      <a href="../../">App Store Screenshot Studio</a>(오픈소스,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>)를 위해 작성.
+      명령어는 Xcode 16 <code>simctl</code> 기준으로 확인, 2026년 6월.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>
