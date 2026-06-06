@@ -328,7 +328,9 @@ export function ExportPanel() {
       if (useTauri) {
         setStatus('done')
       } else {
-        const zipBlob = await zip!.generateAsync({ type: 'blob' })
+        // platform UNIX so the unixPermissions on upload.sh actually lands in
+        // the archive (jszip silently drops it on the default DOS platform).
+        const zipBlob = await zip!.generateAsync({ type: 'blob', platform: 'UNIX' })
         saveAs(zipBlob, `${project.name}${suffix}.zip`)
         setStatus('done')
       }
