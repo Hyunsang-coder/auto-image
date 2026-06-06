@@ -71,11 +71,38 @@
     .btn-ghost:hover { border-color: var(--accent); }
     .trust { display: flex; gap: 8px 22px; justify-content: center; flex-wrap: wrap; margin: 1.6em 0 0; padding: 0; list-style: none; color: var(--dim); font-size: 0.9rem; }
     .trust li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
-    .shot { margin: 44px 0 0; }
-    .shot img {
-      width: 100%; height: auto; display: block; border-radius: 14px;
-      border: 1px solid var(--border); box-shadow: 0 18px 50px -22px rgba(31, 29, 26, 0.35);
+    .shot { margin: 44px 0 0; position: relative; }
+    .shot .track {
+      display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+      border-radius: 14px; border: 1px solid var(--border);
+      box-shadow: 0 18px 50px -22px rgba(31, 29, 26, 0.35);
+      scrollbar-width: none;
     }
+    .shot .track::-webkit-scrollbar { display: none; }
+    .shot .track img {
+      width: 100%; height: auto; display: block;
+      flex: 0 0 100%; scroll-snap-align: start;
+    }
+    .shot-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 1px solid var(--border); background: rgba(255, 255, 255, 0.92);
+      color: var(--text); font-size: 1.15rem; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px -6px rgba(31, 29, 26, 0.4);
+    }
+    .shot-arrow:hover { border-color: var(--accent); color: var(--accent); }
+    .shot-arrow:disabled { opacity: 0; pointer-events: none; }
+    .shot-arrow.prev { left: 14px; }
+    .shot-arrow.next { right: 14px; }
+    .shot-tabs { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+    .shot-tabs button {
+      border: 1px solid var(--border); background: #fff; border-radius: 999px;
+      padding: 6px 16px; font-size: 0.85rem; font-weight: 600;
+      color: var(--dim); cursor: pointer;
+    }
+    .shot-tabs button:hover { border-color: var(--accent); color: var(--accent); }
+    .shot-tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
     h2 { font-size: 1.5rem; letter-spacing: -0.015em; margin: 2.6em 0 0.9em; text-align: center; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
     .card { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 18px 20px; }
@@ -128,7 +155,18 @@
       <li>Exact App Store Connect sizes</li>
     </ul>
     <div class="shot">
-      <img src="landing/editor.png" alt="The App Store Screenshot Studio editor: a canvas with an iPhone frame and caption, slide thumbnails, and a properties panel" width="1600" height="1000" />
+      <div class="track" id="shot-track">
+        <img src="landing/editor.png" alt="The editor: a canvas with an iPhone frame and caption, a six-slide thumbnail strip, and a properties panel" width="1600" height="1000" />
+        <img src="landing/localize.png" alt="The Localize step: a slide-by-language caption table with per-locale screenshots across nine languages" width="1600" height="1000" loading="lazy" />
+        <img src="landing/export.png" alt="The Export step: live previews of all six slides and a one-click ZIP export of 54 App Store-ready PNGs" width="1600" height="1000" loading="lazy" />
+      </div>
+      <button class="shot-arrow prev" id="shot-prev" aria-label="Previous screenshot" disabled>‹</button>
+      <button class="shot-arrow next" id="shot-next" aria-label="Next screenshot">›</button>
+    </div>
+    <div class="shot-tabs" id="shot-tabs">
+      <button class="active">Editor</button>
+      <button>Localize</button>
+      <button>Export</button>
     </div>
   </section>
 
@@ -187,6 +225,29 @@
     </p>
   </footer>
 </main>
+<script>
+  (function () {
+    var track = document.getElementById('shot-track');
+    var tabs = Array.prototype.slice.call(document.getElementById('shot-tabs').children);
+    var prev = document.getElementById('shot-prev');
+    var next = document.getElementById('shot-next');
+    var count = tabs.length;
+    function index() { return Math.round(track.scrollLeft / track.clientWidth); }
+    function go(i) {
+      i = Math.max(0, Math.min(count - 1, i));
+      track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+    }
+    tabs.forEach(function (tab, i) { tab.addEventListener('click', function () { go(i); }); });
+    prev.addEventListener('click', function () { go(index() - 1); });
+    next.addEventListener('click', function () { go(index() + 1); });
+    track.addEventListener('scroll', function () {
+      var i = index();
+      tabs.forEach(function (tab, j) { tab.classList.toggle('active', j === i); });
+      prev.disabled = i === 0;
+      next.disabled = i === count - 1;
+    }, { passive: true });
+  })();
+</script>
 <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
 </body>
 </html>
