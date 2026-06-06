@@ -4,7 +4,9 @@ A fully client-side editor for building localized App Store / iPad screenshots �
 
 **Try it now:** [screenshotstudio.dev](https://screenshotstudio.dev/)
 
-**Local-first & private.** There is no backend. Your screenshots never leave the browser — images live in IndexedDB, and API keys (if you use any) stay in `localStorage`. You can self-host it, run the desktop build, or just use the hosted site.
+**Local-first & private.** There is no backend and there are no API keys. Your screenshots never leave the browser — images live in IndexedDB, project data in `localStorage`. You can self-host it, run the desktop build, or just use the hosted site.
+
+**Guides** (English & Korean): [how to use](https://screenshotstudio.dev/guides/how-to-use.html) · [screenshot sizes](https://screenshotstudio.dev/guides/app-store-screenshot-sizes.html) · [localization workflow](https://screenshotstudio.dev/guides/app-store-screenshot-localization.html) · [fastlane upload](https://screenshotstudio.dev/guides/upload-app-store-screenshots-fastlane.html) · [simulator capture](https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html) · [caption copywriting](https://screenshotstudio.dev/guides/app-store-screenshot-captions.html)
 
 ## Features
 

@@ -24,7 +24,7 @@ E2E specs live in `e2e/` (one per step + a top-level navigation spec). `playwrig
 
 ## Architecture
 
-**App Store Screenshot Studio** — fully client-side React/TypeScript SPA. No backend. API keys stored only in `localStorage`.
+**App Store Screenshot Studio** — fully client-side React/TypeScript app. No backend, no API keys (translation is import-only — see Translation). Vite MPA: static landing at `/` (root `index.html`), the React app at `/app/`, plus static guide/blog pages under `public/` (see Static pages).
 
 ### UI i18n
 
@@ -35,7 +35,7 @@ The UI is bilingual (ko/en) via `src/i18n/` — **the Korean source string is th
 `App.tsx` routes between steps via `useProjectStore.step`:
 1. **ProjectSetup** — device, slide count, theme color
 2. **EditorLayout** — Fabric.js canvas editor + properties panel
-3. **LocalizeEditor** — translation table (Claude / OpenAI / Gemini)
+3. **LocalizeEditor** — translation table (template export/import + copyable translation prompt)
 4. **ExportPanel** — renders slides to PNG and packages as ZIP
 
 ### Project import (step 1)
@@ -44,9 +44,10 @@ ProjectSetup also accepts a flat multi-file selection (an AI-authored manifest J
 
 ### State management
 
-Two Zustand stores (both with `localStorage` persist):
-- `useProjectStore` — project + slides data. Images are **not** stored here.
-- `useApiKeyStore` — API keys only, intentionally separated so project JSON can be shared without leaking keys.
+Three Zustand stores (all with `localStorage` persist):
+- `useProjectStore` — the active project + slides data. Images are **not** stored here.
+- `useLibraryStore` — multi-project library (deep-cloned snapshots, upsert by id).
+- `useCustomStore` — user-saved theme presets + project templates.
 
 Images (screenshots) are stored in **IndexedDB** via `src/lib/imageStore.ts` using `idb-keyval`. `ScreenshotImage.imageKey` is the pointer (prefixed `img:`); never a dataUrl in the store.
 
@@ -80,12 +81,14 @@ All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts
 
 ### Translation
 
-Direct browser calls to LLM APIs. Claude requires the `anthropic-dangerous-direct-browser-access: true` header. Model choices: `claude-sonnet-4-6`, `gpt-4o-mini`, `gemini-3.1-flash-lite`.
+Translation is **import-only by design** — there are no in-app LLM API calls and no API keys anywhere. The Localize page exports a CSV or JSON template and provides a copyable translation prompt; the user pastes both into any AI chat (or hands the file to a translator/spreadsheet) and re-imports the filled file. The template carries **every language as a labeled column** — `[sourceLocale, ...targetLocales]` — with no special "source" column. CSV header is `slide, slideId, field, <locale1>, <locale2>, …`; JSON rows carry a `texts` map of `locale → text`. The source-locale column holds the slide's base `.text`; the rest hold `translations`. Pure serialization/parse lives in `src/lib/localeIO.ts` (no store/React deps).
 
-The translation table can also be filled by hand off-app: the Localize page exports a CSV or JSON template and re-imports the filled file. The template carries **every language as a labeled column** — `[sourceLocale, ...targetLocales]` — with no special "source" column. CSV header is `slide, slideId, field, <locale1>, <locale2>, …`; JSON rows carry a `texts` map of `locale → text`. The source-locale column holds the slide's base `.text`; the rest hold `translations`. Pure serialization/parse lives in `src/lib/localeIO.ts` (no store/React deps).
-
-Import routing is keyed off the app's `project.sourceLocale` setting, **not** baked into the file — so flipping the source language and re-importing the *same* file moves the base column without regenerating. For each non-empty cell: `locale === sourceLocale` → slide base text (`headline.text` / `subheadline.text` / `badges[i].text`), otherwise → `translations[locale]` (and that locale is auto-added to `targetLocales` if not yet selected). The pure routing builders live in `src/lib/localePatch.ts` (`buildBasePatch` / `buildTranslationPatch`, dispatched by `buildImportPatch`); the grid's AI-translation path uses `buildTranslationPatch` directly. Rows match on `slideId` first, falling back to the 1-based `slide` index. Writing the source column overwrites base text the user typed in the editor (empty cells are skipped; the import summary notes how many base texts were updated). Back-compat: a legacy `source` column is ignored, and a JSON file with only the old `translations` key is read as the language map (`texts` wins when both are present).
+Import routing is keyed off the app's `project.sourceLocale` setting, **not** baked into the file — so flipping the source language and re-importing the *same* file moves the base column without regenerating. For each non-empty cell: `locale === sourceLocale` → slide base text (`headline.text` / `subheadline.text` / `badges[i].text`), otherwise → `translations[locale]` (and that locale is auto-added to `targetLocales` if not yet selected). The pure routing builders live in `src/lib/localePatch.ts` (`buildBasePatch` / `buildTranslationPatch`, dispatched by `buildImportPatch`); the grid's cell-edit path uses `buildTranslationPatch` directly. Rows match on `slideId` first, falling back to the 1-based `slide` index. Writing the source column overwrites base text the user typed in the editor (empty cells are skipped; the import summary notes how many base texts were updated). Back-compat: a legacy `source` column is ignored, and a JSON file with only the old `translations` key is read as the language map (`texts` wins when both are present).
 
 ### CSS
 
 Tailwind v4 (via `@tailwindcss/vite`). Design tokens are CSS variables (`--color-border`, `--color-surface`, `--color-text-dim`, etc.) defined in `src/index.css`.
+
+### Static pages (SEO)
+
+Marketing/SEO pages are plain hand-written HTML (each with its own inline `<style>`, no Tailwind): the landing (root `index.html`), `public/guides/*.html` with Korean versions at `public/guides/ko/<same-name>.html`, `public/blog/` (same en/ko layout), and `public/about.html` / `public/privacy.html`. Conventions when adding or renaming a page: every en/ko pair carries the hreflang triple (`en`, `ko`, `x-default` → en) plus a visible `p.lang` switch link; ko pages link to ko siblings; every page gets a `<loc>` entry in `public/sitemap.xml` and the Cloudflare Web Analytics beacon at the end of `<body>`. Guides also cross-link via their "Related guides" list, and the landing's Guides grid lists all of them. Live site: https://screenshotstudio.dev (GH Pages deploys on push to `main`).
