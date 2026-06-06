@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>앱스토어 스크린샷 사이즈 2026 — 필수 iPhone·iPad 해상도 총정리</title>
+  <meta
+    name="description"
+    content="2026년 App Store Connect가 받는 정확한 스크린샷 사이즈: iPhone 6.9″ (1320×2868), iPhone 6.5″ (1242×2688), iPad 13″ (2064×2752), iPad 11″ (1668×2388) — 포맷 규칙, 로케일별 제한, fastlane 업로드 팁까지."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/ko/app-store-screenshot-sizes.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/app-store-screenshot-sizes.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/app-store-screenshot-sizes.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/app-store-screenshot-sizes.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="앱스토어 스크린샷 사이즈 2026 — 필수 iPhone·iPad 해상도 총정리" />
+  <meta
+    property="og:description"
+    content="2026년 App Store Connect 스크린샷 규격, 실제로 필요한 사이즈, 포맷 규칙, 그리고 몇 분 만에 규격에 맞는 세트를 내보내는 방법."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/ko/app-store-screenshot-sizes.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "앱스토어 스크린샷 사이즈 2026 — 필수 iPhone·iPad 해상도 총정리",
+    "dateModified": "2026-06-06",
+    "inLanguage": "ko",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    .req { color: var(--accent); font-weight: 600; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../app-store-screenshot-sizes.html">Read in English →</a></p>
+  <h1>앱스토어 스크린샷 사이즈 2026 — 필수 iPhone·iPad 해상도 총정리</h1>
+  <p class="lead">
+    2026년 App Store Connect가 받아주는 정확한 픽셀 규격, 그중 실제로 업로드해야 하는
+    사이즈, 그리고 제출이 반려되는 포맷 규칙을 정리했습니다. 최종 확인: 2026년 6월.
+  </p>
+
+  <h2>요약 — 꼭 필요한 두 가지 사이즈</h2>
+  <p>
+    Apple이 <em>필수</em>로 요구하는 건 디바이스 종류별 최대 스크린샷 사이즈뿐입니다.
+    아래 두 가지만 업로드하면 App Store Connect가 더 작은 모든 디스플레이용으로 자동
+    축소합니다:
+  </p>
+  <table>
+    <tr><th>디바이스 슬롯</th><th>세로</th><th>가로</th><th>상태</th></tr>
+    <tr><td>iPhone 6.9″ 디스플레이</td><td><code>1320 × 2868</code></td><td><code>2868 × 1320</code></td><td class="req">필수</td></tr>
+    <tr><td>iPad 13″ 디스플레이 (iPad에서 실행되는 앱이라면)</td><td><code>2064 × 2752</code></td><td><code>2752 × 2064</code></td><td class="req">필수</td></tr>
+  </table>
+
+  <h2>슬롯별 허용 사이즈 전체</h2>
+  <p>
+    App Store Connect 업로드 슬롯마다 받아주는 해상도가 몇 가지로 정해져 있습니다
+    (픽셀 단위까지 검사하므로 1&nbsp;px만 어긋나도 반려됩니다):
+  </p>
+  <table>
+    <tr><th>슬롯</th><th>허용 세로 사이즈</th><th>비고</th></tr>
+    <tr>
+      <td>iPhone 6.9″</td>
+      <td><code>1320 × 2868</code>, <code>1290 × 2796</code></td>
+      <td>iPhone Pro Max / Plus 모델용; 필수.</td>
+    </tr>
+    <tr>
+      <td>iPhone 6.5″</td>
+      <td><code>1242 × 2688</code></td>
+      <td>선택적 레거시 슬롯 — 구형 기기 전용 세트를 따로 만들 때만.</td>
+    </tr>
+    <tr>
+      <td>iPad 13″</td>
+      <td><code>2064 × 2752</code>, <code>2048 × 2732</code></td>
+      <td>구 iPad Pro 12.9″ 사이즈(2048 × 2732)도 같은 슬롯으로 들어갑니다.</td>
+    </tr>
+    <tr>
+      <td>iPad 11″</td>
+      <td><code>1668 × 2388</code></td>
+      <td>선택 — 11″ iPad 전용 세트.</td>
+    </tr>
+  </table>
+
+  <h2>포맷 규칙 (흔한 반려 사유)</h2>
+  <ul>
+    <li><strong>PNG 또는 JPEG</strong>, RGB 색 공간 — <strong>알파 채널 금지</strong>. 투명 픽셀이 하나라도 있으면 업로드가 실패합니다.</li>
+    <li><strong>정확한 크기.</strong> 스케일 허용치가 없습니다; 슬롯의 정확한 해상도로 내보내세요.</li>
+    <li>디바이스 슬롯·로케일당 <strong>스크린샷 1–10장</strong>.</li>
+    <li>스크린샷은 로케일별입니다: 지원하는 모든 언어가 자기만의 세트를 가질 수 있습니다.</li>
+  </ul>
+
+  <h2>그래서 파일이 몇 개나 되나?</h2>
+  <p>
+    세트는 금방 불어납니다: 디바이스당 <code>슬라이드 × 로케일</code>. 스크린샷 6장,
+    iPhone + iPad, 9개 언어인 평범한 앱이면 <strong>정확한 규격의 PNG 108장</strong> —
+    디자인 툴에서 손으로 만들다 보면 금세 지치는 이유입니다.
+  </p>
+
+  <a class="cta" href="../../">
+    <strong>App Store Screenshot Studio</strong> — 이 세트 전체를 브라우저에서 디자인·현지화·
+    내보내기하는 무료 오픈소스 에디터. 디바이스 프레임, 헤드라인, 언어별 캡션과 스크린샷,
+    알파 채널이 제거된 정확한 규격의 PNG를 <code>locale/device/index.png</code> 구조의
+    ZIP으로. 계정도 업로드도 없습니다 — 이미지는 내 컴퓨터를 떠나지 않습니다. →
+  </a>
+
+  <h2>fastlane으로 업로드</h2>
+  <p>
+    배포가 잦다면 PNG를 브라우저에 일일이 끌어다 놓지 마세요. <a href="https://docs.fastlane.tools/actions/deliver/">fastlane deliver</a>는
+    <code>screenshots/&lt;locale&gt;/&lt;name&gt;.png</code> 구조의 폴더를 API 키(.p8)로
+    App Store Connect에 바로 업로드합니다. 위 스튜디오의 “fastlane용 ZIP” 내보내기가
+    바로 그 구조에 <code>Deliverfile</code>까지 갖춰서 만들어 줍니다 — 전체 과정은
+    <a href="./upload-app-store-screenshots-fastlane.html">fastlane 업로드 가이드</a>에서.
+  </p>
+
+  <h2>FAQ</h2>
+  <p><strong>6.5″ iPhone 스크린샷이 필요한가요?</strong><br />
+  아니요. 6.9″만 올리면 Apple이 축소해 줍니다. 구형 기기용 픽셀 단위 맞춤 이미지를 원할 때만 6.5″를 추가하세요.</p>
+  <p><strong>iPad 스크린샷이 필요한가요?</strong><br />
+  앱이 iPad에서 실행될 때만(즉 iPhone 전용이 아닐 때) 필요합니다. 그 경우 13″ 사이즈가 필수입니다.</p>
+  <p><strong>스크린샷에 마케팅 문구와 디바이스 프레임을 넣어도 되나요?</strong><br />
+  네 — 상위권 앱 대부분이 그렇게 합니다. 단, 이미지가 실제 앱 경험을 보여줘야 합니다;
+  앱 UI가 전혀 없는 순수 마케팅 이미지는 가이드라인 2.3에 따라 반려될 수 있습니다.</p>
+
+  <h2>관련 가이드</h2>
+  <ul>
+    <li><a href="./how-to-use.html">App Store Screenshot Studio 사용법 — 전체 워크플로</a></li>
+    <li><a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver로 앱스토어 스크린샷 업로드</a></li>
+    <li><a href="./app-store-screenshot-localization.html">앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      <a href="../../">App Store Screenshot Studio</a>(오픈소스,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>)를 위해 작성.
+      규격은 Apple의
+      <a href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/">스크린샷 사양</a>
+      기준으로 확인, 2026년 6월.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

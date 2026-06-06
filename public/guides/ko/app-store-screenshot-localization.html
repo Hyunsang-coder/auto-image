@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로</title>
+  <meta
+    name="description"
+    content="현지화된 앱스토어 스크린샷을 위한 실전 워크플로: 한 번만 디자인하고, 캡션은 스프레드시트나 AI 챗으로 번역하고, 언어별 스크린샷은 파일명 규칙으로 교체하고, 모든 로케일의 정확한 규격 PNG 세트를 한 번에 내보냅니다."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/ko/app-store-screenshot-localization.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/app-store-screenshot-localization.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/app-store-screenshot-localization.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/app-store-screenshot-localization.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로" />
+  <meta
+    property="og:description"
+    content="한 번만 디자인하고, 캡션은 데이터로 번역하고, 스크린샷은 파일명으로 교체하고, 모든 로케일을 한 번에 내보내기."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/ko/app-store-screenshot-localization.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로",
+    "dateModified": "2026-06-06",
+    "inLanguage": "ko",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../app-store-screenshot-localization.html">Read in English →</a></p>
+  <h1>앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로</h1>
+  <p class="lead">
+    앱스토어 스크린샷은 로케일별입니다: 스토어 페이지가 지원하는 모든 언어가 자기만의
+    세트를 가질 수 있고, 현지화된 스크린샷은 비영어권 시장에서 꾸준히 전환율을 끌어올립니다.
+    문제는 산수입니다 — 슬라이드 6장 × 디바이스 2종 × 9개 언어면 정확한 규격의 PNG
+    108장. 이 글은 그걸 감당 가능하게 유지하는 워크플로입니다. 최종 확인: 2026년 6월.
+  </p>
+
+  <h2>원칙: 레이아웃은 하나, 데이터만 번역</h2>
+  <p>
+    현지화를 비싸게 만드는 실수는 언어마다 디자인 파일을 따로 두는 것입니다. 그러면
+    레이아웃을 한 번 손볼 때마다 로케일 수만큼 작업이 불어나고, 세트끼리 점점 어긋납니다.
+    스케일이 나오는 워크플로는 정반대입니다:
+  </p>
+  <ol>
+    <li><strong>소스 언어로 한 번만 디자인</strong> — 레이아웃, 디바이스 프레임, 색상은 공유합니다.</li>
+    <li><strong>캡션을 데이터로 취급</strong> — 이미지에 박힌 텍스트가 아니라 <code>슬라이드 × 언어</code> 표.</li>
+    <li><strong>언어별 스크린샷은 규칙으로 교체</strong> — 수동 배치가 아니라 파일명 패턴.</li>
+    <li><strong>전부 한 번에 내보내기</strong> — 로케일·디바이스별로 이미 정리된 채로.</li>
+  </ol>
+
+  <h2>1단계 — 캡션을 번역 표로</h2>
+  <p>
+    캡션을 <em>언어마다 라벨이 붙은 열 하나</em>씩(소스 언어 포함)인 CSV 또는 JSON
+    템플릿으로 내보냅니다:
+  </p>
+  <pre><code>slide, slideId, field,       en,                     ko,              de
+1,     …,       headline,    "Scan anything",        "무엇이든 스캔",   "Alles scannen"
+1,     …,       subheadline, "PDF in one tap",       "한 번에 PDF로",   "PDF mit einem Tipp"
+2,     …,       headline,    "Organize instantly",   "",               ""</code></pre>
+  <p>
+    이런 파일은 번역가도, 스프레드시트도, AI 챗도 모두 다룰 수 있습니다. API 키도 필요
+    없습니다: 번역 프롬프트와 템플릿을 ChatGPT, Claude, Gemini에 붙여넣고 채워진 파일을
+    돌려받아 다시 가져오면 됩니다. 빈 칸은 그냥 건너뛰므로 조금씩 번역해도 됩니다.
+  </p>
+
+  <h2>2단계 — 언어별 스크린샷은 파일명으로</h2>
+  <p>
+    앱 UI가 현지화돼 있다면 디바이스 프레임 <em>안의</em> 스크린샷도 현지화돼야 합니다 —
+    한국어 홈 화면 위에 영어 캡션이 떠 있으면 어색하니까요. 각 언어의 UI를 캡처한 뒤
+    (시뮬레이터 + 원하는 캡처 스크립트), 일괄 가져오기가 라우팅할 수 있게 파일명을 맞춥니다:
+  </p>
+  <pre><code>01-home.en.png      → 슬라이드 1, 영어
+01-home.ko.png      → 슬라이드 1, 한국어
+02-add-pdf.en.png   → 슬라이드 2, 영어
+02-add-pdf.de.png   → 슬라이드 2, 독일어</code></pre>
+  <p>
+    앞자리 숫자가 슬라이드를, 확장자 앞 접미사가 로케일을 결정하고, 가운데는 사람을 위한
+    자유 설명입니다. 오버라이드가 없는 언어는 소스 스크린샷으로 대체됩니다 — 중요한 두
+    슬라이드만 현지화하고 나머지는 그대로 둬도 됩니다.
+  </p>
+
+  <h2>3단계 — 100개 파일을 내보내기 전에 미리보기</h2>
+  <p>
+    텍스트는 늘어납니다: 독일어·프랑스어 헤드라인은 영어보다 ~30% 길어지고, 한국어·일본어는
+    대개 짧지만 줄바꿈이 다르게 일어납니다. 내보내기 전에 캔버스를 로케일별로 넘겨 보며
+    잘리거나 겹치는 곳이 없는지 확인하세요. 넘치는 독일어 헤드라인 하나를 내보내기 전에
+    잡는 게, 내보낸 뒤 세트 전체를 다시 만드는 것보다 낫습니다.
+  </p>
+
+  <h2>4단계 — 로케일·디바이스별로 묶어서 내보내기</h2>
+  <p>
+    App Store Connect는 디바이스 슬롯·로케일당 스크린샷 1–10장을
+    <a href="./app-store-screenshot-sizes.html">정확한 픽셀 규격</a>으로 요구합니다.
+    전체 매트릭스를 한 번에, 사람용(<code>ko/iphone/1.png</code>)이나
+    <a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver</a>용
+    (<code>screenshots/ko/iphone_01.png</code>) 구조로 내보내면 업로드가 한나절의
+    드래그 노동 대신 명령어 한 줄이 됩니다.
+  </p>
+
+  <a class="cta" href="../../">
+    <strong>App Store Screenshot Studio</strong> — 정확히 이 워크플로를 중심으로 만든
+    무료 오픈소스 에디터: 한 번만 디자인하고, 캡션 템플릿(CSV/JSON)을 내보내 아무 데서나
+    번역해 다시 가져오고, <code>01-name.locale.png</code> 규칙으로 로케일별 스크린샷을
+    일괄 추가하고, 어떤 언어든 캔버스에서 미리 보고, 모든 로케일의 정확한 규격 세트를
+    ZIP으로 내보냅니다. 완전히 브라우저 안에서 — 계정 없이, 이미지는 내 컴퓨터를 떠나지
+    않습니다. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>어떤 언어부터 스크린샷을 현지화할 가치가 있나요?</strong><br />
+  스토어 페이지의 기존 로케일과 설치 데이터에서 출발하세요. 일본, 한국, 독일, 프랑스는
+  영어 전용 스크린샷이 눈에 띄게 손해를 보는 대표적 고효과 시장입니다.</p>
+  <p><strong>스크린샷 이미지 자체도 꼭 현지화해야 하나요?</strong><br />
+  아니요 — 소스 언어 UI 화면 위에 캡션만 현지화하는 것이 흔한 첫걸음입니다. 프레임 안
+  UI까지 현지화하는 건 캡처 작업이 아깝지 않은 주력 시장부터 하세요.</p>
+  <p><strong>언어마다 레이아웃을 다르게 할 수 있나요?</strong><br />
+  이 워크플로에서는 안 됩니다 — 레이아웃은 공유하고 텍스트와 스크린샷만 달라집니다.
+  그 제약이 9개 언어를 유지 가능하게 만드는 비결입니다; 로케일별 아트 디렉션은 모든
+  수정이 아홉 배가 되는 세계로 되돌아가는 길입니다.</p>
+
+  <h2>관련 가이드</h2>
+  <ul>
+    <li><a href="./how-to-use.html">App Store Screenshot Studio 사용법 — 전체 워크플로</a></li>
+    <li><a href="./app-store-screenshot-sizes.html">앱스토어 스크린샷 사이즈 2026 — 필수 해상도 총정리</a></li>
+    <li><a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver로 앱스토어 스크린샷 업로드</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      <a href="../../">App Store Screenshot Studio</a>(오픈소스,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>)를 위해 작성.
+      제한 사항은 Apple의
+      <a href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/">스크린샷 사양</a>
+      기준으로 확인, 2026년 6월.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

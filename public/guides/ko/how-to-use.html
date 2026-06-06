@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Store Screenshot Studio 사용법 — 스크린샷 원본에서 업로드 세트까지</title>
+  <meta
+    name="description"
+    content="App Store Screenshot Studio 전체 워크플로: 프로젝트 설정, 디바이스 프레임·헤드라인 슬라이드 디자인, 캡션·스크린샷 현지화, 정확한 규격의 PNG 내보내기 — AI 어시스턴트가 세트 전체 초안을 만드는 파일 기반 파이프라인까지."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/ko/how-to-use.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/how-to-use.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/how-to-use.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/how-to-use.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="App Store Screenshot Studio 사용법 — 스크린샷 원본에서 업로드 세트까지" />
+  <meta
+    property="og:description"
+    content="설정, 디자인, 현지화, 내보내기 — 그리고 스크린샷 프로젝트 전체를 파일로 작성하는 AI 에이전트 파이프라인."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/ko/how-to-use.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "App Store Screenshot Studio 사용법 — 스크린샷 원본에서 업로드 세트까지",
+    "dateModified": "2026-06-06",
+    "inLanguage": "ko",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    h3 { font-size: 1.05rem; margin-top: 1.8em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../how-to-use.html">Read in English →</a></p>
+  <h1>App Store Screenshot Studio 사용법</h1>
+  <p class="lead">
+    시뮬레이터 스크린샷 원본에서 다국어 App Store Connect 제출용 PNG 세트까지,
+    네 단계면 끝납니다 — 전부 브라우저 안에서, 계정도 업로드도 없이.
+    AI 어시스턴트가 대부분을 대신해 주는 파일 기반 파이프라인까지 포함한 전체 안내입니다.
+  </p>
+
+  <h2>1단계 — 프로젝트 설정</h2>
+  <p>
+    <a href="../../app/">스튜디오를 열고</a> 디바이스 종류(iPhone 또는 iPad — 어차피 각
+    슬라이드의 종류는 나중에 스크린샷에서 자동 감지됩니다), 슬라이드 수, 테마를 고릅니다.
+    빈 화면에서 시작하지 않아도 됩니다:
+  </p>
+  <ul>
+    <li><strong>템플릿에서 시작</strong> — 디자인된 멀티 슬라이드 스타터 세트로 바로 에디터에 진입합니다.</li>
+    <li><strong>프로젝트 가져오기</strong> — AI가 작성한 파일 세트(매니페스트 + 캡션 + 스크린샷, 아래 참고)를 선택하면 한 번에 검토만 하면 되는 프로젝트가 만들어집니다.</li>
+  </ul>
+  <p>모든 데이터는 브라우저에 저장됩니다(localStorage + IndexedDB). 어디로도 전송되지 않습니다.</p>
+
+  <h2>2단계 — 에디터에서 디자인</h2>
+  <ul>
+    <li><strong>스크린샷</strong> — 슬라이드당 한 장씩 업로드하면 디바이스 프레임에 자동으로 들어갑니다. 회전, 가장자리 드래그 크롭, 히어로 레이아웃용 캔버스 밖 블리드도 가능합니다.</li>
+    <li><strong>텍스트</strong> — 슬라이드별 헤드라인·서브헤드라인에 타이포그래피 전체 제어; 드래그로 배치하고 더블클릭으로 편집합니다.</li>
+    <li><strong>하이라이트</strong> — 스크린샷 위에 점선 영역을 그리면 확대된 루페 카드가 베젤 위에 떠오릅니다.</li>
+    <li><strong>부가 요소</strong> — 배지, 이모지 장식, 그라디언트/이미지 배경, 슬라이드 두 장에 걸치는 App Store 스타일 2페이지 파노라마.</li>
+    <li>완성한 슬라이드 세트는 헤더에서 재사용 가능한 템플릿으로 저장할 수 있습니다.</li>
+  </ul>
+
+  <h2>3단계 — 현지화</h2>
+  <p>
+    캡션은 슬라이드 × 언어 표에 들어 있습니다. 채우는 방법은 세 가지:
+  </p>
+  <ol>
+    <li>그리드에 번역을 <strong>직접 입력</strong>합니다.</li>
+    <li><strong>템플릿을 내보내</strong>(CSV 또는 JSON, 언어마다 라벨이 붙은 열 하나) 스프레드시트에서 채우거나 번역가에게 넘긴 뒤 다시 가져옵니다. 빈 칸은 건너뛰므로 일부만 채워도 됩니다.</li>
+    <li><strong>내장 번역 프롬프트를 복사</strong>해 내보낸 템플릿과 함께 ChatGPT / Claude / Gemini에 붙여넣고, 채워진 파일을 다시 가져옵니다. API 키가 필요 없습니다.</li>
+  </ol>
+  <p>
+    앱 UI가 현지화돼 있다면 <code>01-home.en.png</code>, <code>01-home.ko.png</code>, …
+    형식의 이름으로 언어별 스크린샷을 한꺼번에 추가하세요 — 앞자리 숫자가 슬라이드를,
+    확장자 앞 접미사가 로케일을 결정합니다. 오버라이드가 없는 언어는 기본 스크린샷으로
+    대체됩니다. 내보내기 전에 에디터의 미리보기 드롭다운으로 어떤 로케일이든 캔버스에서
+    확인할 수 있습니다. 전체 전략은
+    <a href="./app-store-screenshot-localization.html">현지화 가이드</a>를 참고하세요.
+  </p>
+
+  <h2>4단계 — 내보내기</h2>
+  <p>
+    클릭 한 번으로 모든 슬라이드 × 언어를
+    <a href="./app-store-screenshot-sizes.html">App Store Connect의 정확한 해상도</a>로
+    렌더링합니다. 알파 채널이 제거돼 업로드가 반려되지 않고, <code>locale/device/NN.png</code>
+    구조의 ZIP으로 묶입니다. <strong>“fastlane용 ZIP”</strong> 버튼은 바로 실행 가능한
+    <a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver</a> 폴더를
+    만들어 줍니다 — 압축을 풀고 번들 ID와 API 키만 넣은 뒤 <code>./upload.sh</code>를 실행하세요.
+  </p>
+
+  <h2>AI 에이전트 파이프라인 (클릭 0번)</h2>
+  <p>
+    스튜디오의 입력과 출력이 모두 파일이라서, 위의 모든 과정은 사람이 키보드 앞에 없어도
+    돌아갑니다. AI 어시스턴트(Claude Code, Cursor 등)가 가져오기 폴더의 초안을 만들면:
+  </p>
+  <pre><code>launch-screenshots/
+├── manifest.json        # 디바이스, 로케일, 슬라이드별 레이아웃·텍스트 블록 수
+├── captions.csv         # 슬라이드 × 언어 캡션 표
+├── 01-home.en.png       # 스크린샷: {slide}[-desc].{locale}.{ext}
+├── 01-home.ko.png
+└── 02-add.en.png</code></pre>
+  <p>
+    사람이 그 폴더를 1단계의 “프로젝트 가져오기”에 떨어뜨리면 됩니다. 또는
+    <a href="https://github.com/Hyunsang-coder/auto-image">저장소</a>의 헤들리스
+    파이프라인으로 브라우저를 아예 건너뛸 수도 있습니다:
+  </p>
+  <pre><code>node scripts/headless-export.mjs launch-screenshots/ out/
+# → out/en-US/iphone/01.png … 모든 로케일, 정확한 규격
+# --fastlane → Appfile/Deliverfile/upload.sh가 포함된 deliver 폴더</code></pre>
+  <p>
+    에이전트 루프는 이렇습니다: 매니페스트나 캡션을 수정 → 다시 실행 → PNG 확인 → 만족할
+    때까지 반복. 매니페스트 스키마와 파일명 규칙은
+    <a href="https://github.com/Hyunsang-coder/auto-image/blob/main/docs/project-import.md">docs/project-import.md</a>에
+    문서화돼 있습니다. 실행 환경 요구사항: Node, <code>@playwright/test</code> + Chromium,
+    그리고 로컬 체크아웃 또는 호스팅된 스튜디오를 가리키는 <code>BASE_URL</code>.
+  </p>
+
+  <a class="cta" href="../../app/">
+    <strong>App Store Screenshot Studio 열기</strong> — 무료, 오픈소스, 완전 클라이언트사이드.
+    스크린샷은 절대 내 컴퓨터를 떠나지 않습니다. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>프로젝트는 어디에 저장되나요?</strong><br />
+  브라우저 안입니다: 프로젝트 데이터는 localStorage, 이미지는 IndexedDB.
+  사이트 데이터를 지우면 함께 삭제되니, 작업이 끝나면 세트를 내보내거나 템플릿으로 저장해 두세요.</p>
+  <p><strong>비용이 들거나 계정이 필요한가요?</strong><br />
+  아니요. GitHub Pages에 호스팅된 MIT 라이선스 오픈소스이고, 백엔드가 아예 없습니다.</p>
+  <p><strong>어떤 규격으로 내보내나요?</strong><br />
+  App Store Connect 업로드 슬롯 규격입니다: iPhone 6.9″ (1320×2868), iPhone 6.5″ (1242×2688),
+  iPad 13″ (2064×2752), iPad 11″ (1668×2388) — 실제로 필요한 규격은
+  <a href="./app-store-screenshot-sizes.html">사이즈 가이드</a>에서 확인하세요.</p>
+
+  <h2>관련 가이드</h2>
+  <ul>
+    <li><a href="./app-store-screenshot-sizes.html">앱스토어 스크린샷 사이즈 2026 — 필수 해상도 총정리</a></li>
+    <li><a href="./app-store-screenshot-localization.html">앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로</a></li>
+    <li><a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver로 앱스토어 스크린샷 업로드</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      <a href="../../">App Store Screenshot Studio</a>(오픈소스,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>)를 위해 작성, 2026년 6월.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

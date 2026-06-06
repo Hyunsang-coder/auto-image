@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fastlane deliver로 앱스토어 스크린샷 업로드 — 폴더 구조, API 키, Deliverfile</title>
+  <meta
+    name="description"
+    content="커맨드라인에서 fastlane deliver로 앱스토어 스크린샷을 업로드하는 법: screenshots/&lt;locale&gt; 폴더 구조, App Store Connect API 키 설정, 최소 Deliverfile, 그리고 바이너리·메타데이터를 건드리지 않게 하는 플래그."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/ko/upload-app-store-screenshots-fastlane.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/upload-app-store-screenshots-fastlane.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/upload-app-store-screenshots-fastlane.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/upload-app-store-screenshots-fastlane.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="fastlane deliver로 앱스토어 스크린샷 업로드 — 폴더 구조, API 키, Deliverfile" />
+  <meta
+    property="og:description"
+    content="fastlane deliver가 기대하는 정확한 폴더 구조, App Store Connect API 키 설정, 스크린샷 전용 최소 Deliverfile."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/ko/upload-app-store-screenshots-fastlane.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "fastlane deliver로 앱스토어 스크린샷 업로드 — 폴더 구조, API 키, Deliverfile",
+    "dateModified": "2026-06-06",
+    "inLanguage": "ko",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../upload-app-store-screenshots-fastlane.html">Read in English →</a></p>
+  <h1>fastlane deliver로 앱스토어 스크린샷 업로드</h1>
+  <p class="lead">
+    PNG 100여 장을 App Store Connect에 손으로 끌어다 놓는 방식은 두 번째 로케일부터
+    무너집니다. <code>fastlane deliver</code>는 모든 언어·모든 디바이스의 스크린샷 세트를
+    명령어 하나로 업로드합니다. deliver가 기대하는 정확한 폴더 구조, API 키 설정, 그리고
+    다른 건 아무것도 건드리지 않게 하는 플래그를 정리했습니다. 최종 확인: 2026년 6월.
+  </p>
+
+  <h2>deliver가 기대하는 폴더 구조</h2>
+  <p>
+    <code>deliver</code>는 <code>fastlane/screenshots/</code>를 읽습니다 — App Store
+    Connect 로케일당 하위 폴더 하나, 이미지 파일은 그 안에 <em>평평하게</em>(하위 폴더를
+    재귀 탐색하지 않습니다). 디바이스 슬롯은 각 이미지의 픽셀 해상도에서 자동 감지되므로,
+    <code>iphone_01.png</code> 같은 이름 접두사는 정렬용이지 라우팅용이 아닙니다:
+  </p>
+  <pre><code>fastlane/
+  Appfile
+  Deliverfile
+  screenshots/
+    en-US/
+      iphone_01.png   ← 1320×2868 → iPhone 6.9″ 슬롯
+      iphone_02.png
+      ipad_01.png     ← 2064×2752 → iPad 13″ 슬롯
+    ko/
+      iphone_01.png
+      ...
+    de-DE/
+      ...</code></pre>
+  <p>
+    이 목록에 함정이 두 개 숨어 있습니다:
+  </p>
+  <ul>
+    <li><strong>폴더 이름은 ASC 로케일 코드</strong>이지 단순 ISO 코드가 아닙니다: <code>en-US</code>, <code>es-ES</code>, <code>fr-FR</code>, <code>de-DE</code> — 단 <code>ko</code>, <code>ja</code>는 짧은 형태 그대로입니다. <code>en</code>이라는 폴더는 아무것도 업로드하지 않습니다.</li>
+    <li><strong>해상도는 슬롯별로 정확해야</strong> 합니다(<a href="./app-store-screenshot-sizes.html">사이즈 표</a> 참고) — 크기가 틀린 이미지는 건너뛰거나 반려될 뿐, 절대 스케일되지 않습니다.</li>
+  </ul>
+
+  <h2>인증: App Store Connect API 키를 쓰세요</h2>
+  <p>
+    Apple ID로 인증하지 마세요 — 2FA 프롬프트가 자동화를 끊습니다. 대신 API 키를
+    만드세요: App Store Connect → <em>사용자 및 액세스</em> → <em>통합</em> →
+    <em>App Store Connect API</em> → 키 생성, <code>.p8</code>을 한 번만 다운로드하고
+    Key ID와 Issuer ID를 적어 둡니다. 그 세 가지를 <code>deliver</code>가 읽을 수 있는
+    JSON 파일에 넣습니다:
+  </p>
+  <pre><code>{
+  "key_id": "YOUR_KEY_ID",
+  "issuer_id": "YOUR_ISSUER_ID",
+  "key": "-----BEGIN PRIVATE KEY-----\n…p8 내용…\n-----END PRIVATE KEY-----",
+  "duration": 1200,
+  "in_house": false
+}</code></pre>
+  <p>
+    키는 내 컴퓨터를 떠나지 않습니다 — fastlane이 로컬에서 이 키로 단기 토큰을 서명합니다.
+  </p>
+
+  <h2>스크린샷 전용 최소 Deliverfile</h2>
+  <p>
+    기본 설정의 <code>deliver</code>는 스토어 메타데이터까지 관리하려고 합니다.
+    스크린샷 전용 파이프라인이라면 이렇게 못 박으세요:
+  </p>
+  <pre><code># fastlane/Deliverfile
+overwrite_screenshots(true)
+skip_binary_upload(true)
+skip_metadata(true)</code></pre>
+  <pre><code># fastlane/Appfile
+app_identifier("com.yourcompany.app")</code></pre>
+  <p>그다음 <code>fastlane/</code>이 들어 있는 폴더에서:</p>
+  <pre><code>fastlane deliver --api_key_path ./asc_api_key.json</code></pre>
+  <p>
+    <code>deliver</code>는 업로드할 내용의 HTML 미리보기를 보여주고 확인을 요청합니다;
+    CI에서는 <code>--force</code>로 건너뛰세요.
+    <code>overwrite_screenshots(true)</code>는 로케일별 기존 세트를 교체합니다 —
+    이 옵션이 없으면 deliver는 이미 올라가 있는 스크린샷을 덮어쓰기를 거부합니다.
+  </p>
+
+  <a class="cta" href="../../">
+    <strong>App Store Screenshot Studio</strong> — <strong>“fastlane용 ZIP”</strong>
+    내보내기가 원클릭인 무료 오픈소스 에디터: 정확한 규격에 알파 채널이 제거된 PNG가
+    <code>screenshots/&lt;asc-locale&gt;/&lt;device&gt;_NN.png</code> 구조로 정리되고,
+    Appfile, Deliverfile, API 키 템플릿, <code>upload.sh</code>까지 함께 들어 있습니다.
+    압축 풀고, 값 두 개 채우고, 실행. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>deliver가 앱 바이너리나 메타데이터를 건드리나요?</strong><br />
+  위 Deliverfile이라면 아닙니다 — <code>skip_binary_upload</code>와 <code>skip_metadata</code>가
+  실행 범위를 스크린샷으로 한정합니다. 라이브 앱에 돌려도 안전합니다.</p>
+  <p><strong>스크린샷을 바꾸려면 새 앱 버전이 필요한가요?</strong><br />
+  네 — 스크린샷은 버전에 붙고, 아직 라이브가 아닌 버전(예: “제출 준비 중”)의 세트만
+  수정할 수 있습니다. 업로드 자체는 아무것도 제출하지 않습니다.</p>
+  <p><strong>deliver는 이미지가 어느 디바이스 슬롯인지 어떻게 아나요?</strong><br />
+  순전히 픽셀 크기로 압니다. 1320×2868은 iPhone 6.9″ 슬롯, 2064×2752는 iPad 13″ —
+  내보내기 규격이 정확해야 하는 또 하나의 이유입니다.</p>
+
+  <h2>관련 가이드</h2>
+  <ul>
+    <li><a href="./how-to-use.html">App Store Screenshot Studio 사용법 — 전체 워크플로</a></li>
+    <li><a href="./app-store-screenshot-sizes.html">앱스토어 스크린샷 사이즈 2026 — 필수 해상도 총정리</a></li>
+    <li><a href="./app-store-screenshot-localization.html">앱스토어 스크린샷 현지화 — 3개 언어를 넘어서도 통하는 워크플로</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      <a href="../../">App Store Screenshot Studio</a>(오픈소스,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>)를 위해 작성.
+      명령어는 <a href="https://docs.fastlane.tools/actions/deliver/">fastlane deliver 문서</a>
+      기준으로 확인, 2026년 6월.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>
