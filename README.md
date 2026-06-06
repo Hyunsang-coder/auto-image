@@ -2,7 +2,7 @@
 
 A fully client-side editor for building localized App Store / iPad screenshots — device frames, headlines, highlight popouts, badges, gradients — and exporting them at exact Apple resolutions, ready to drop into App Store Connect.
 
-**Try it now:** [hyunsang-coder.github.io/auto-image](https://hyunsang-coder.github.io/auto-image/)
+**Try it now:** [screenshotstudio.dev](https://screenshotstudio.dev/)
 
 **Local-first & private.** There is no backend. Your screenshots never leave the browser — images live in IndexedDB, and API keys (if you use any) stay in `localStorage`. You can self-host it, run the desktop build, or just use the hosted site.
 

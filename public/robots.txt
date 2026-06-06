@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://hyunsang-coder.github.io/auto-image/sitemap.xml
+Sitemap: https://screenshotstudio.dev/sitemap.xml
