@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Localizing App Store Screenshots — a Workflow That Scales Past 3 Languages</title>
+  <meta
+    name="description"
+    content="A practical workflow for localized App Store screenshots: design once, translate captions in a spreadsheet or with any AI chat, swap per-language screenshots by filename, and export every locale's exact-size PNG set in one pass."
+  />
+  <link rel="canonical" href="https://hyunsang-coder.github.io/auto-image/guides/app-store-screenshot-localization.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Localizing App Store Screenshots — a Workflow That Scales Past 3 Languages" />
+  <meta
+    property="og:description"
+    content="Design once, translate captions as data, swap screenshots per language by filename, export every locale in one pass."
+  />
+  <meta property="og:url" content="https://hyunsang-coder.github.io/auto-image/guides/app-store-screenshot-localization.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Localizing App Store Screenshots — a Workflow That Scales Past 3 Languages",
+    "dateModified": "2026-06-06",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Localizing App Store screenshots — a workflow that scales past 3 languages</h1>
+  <p class="lead">
+    App Store screenshots are per-locale: every language your store listing supports can
+    carry its own set, and localized screenshots consistently lift conversion in non-English
+    markets. The problem is arithmetic — 6 slides × 2 devices × 9 languages is 108
+    exact-size PNGs. This is a workflow that keeps that manageable. Last verified: June 2026.
+  </p>
+
+  <h2>The principle: one layout, translated data</h2>
+  <p>
+    The mistake that makes localization expensive is treating each language as its own
+    design file. Then every layout tweak multiplies by your locale count, and the sets
+    drift apart. The workflow that scales is the opposite:
+  </p>
+  <ol>
+    <li><strong>Design once</strong> in your source language — layout, device frames, colors are shared.</li>
+    <li><strong>Treat captions as data</strong> — a table of <code>slide × language</code>, not text baked into images.</li>
+    <li><strong>Swap screenshots per language by convention</strong> — a filename pattern, not manual placement.</li>
+    <li><strong>Export everything in one pass</strong>, already grouped by locale and device.</li>
+  </ol>
+
+  <h2>Step 1 — captions as a translation table</h2>
+  <p>
+    Export your captions as a CSV or JSON template with <em>one labeled column per
+    language</em>, source included:
+  </p>
+  <pre><code>slide, slideId, field,       en,                     ko,              de
+1,     …,       headline,    "Scan anything",        "무엇이든 스캔",   "Alles scannen"
+1,     …,       subheadline, "PDF in one tap",       "한 번에 PDF로",   "PDF mit einem Tipp"
+2,     …,       headline,    "Organize instantly",   "",               ""</code></pre>
+  <p>
+    A file like this is something a translator, a spreadsheet, or an AI chat can all work
+    on. No API keys needed: paste a translation prompt plus the template into ChatGPT,
+    Claude, or Gemini, get the filled file back, re-import it. Empty cells are simply
+    skipped, so you can translate incrementally.
+  </p>
+
+  <h2>Step 2 — per-language screenshots by filename</h2>
+  <p>
+    If your app's UI is localized, the screenshot <em>inside</em> the device frame should
+    be too — an English caption above a Korean home screen looks broken. Capture each
+    language's UI (simulator + your capture script of choice), then name the files so a
+    bulk import can route them:
+  </p>
+  <pre><code>01-home.en.png      → slide 1, English
+01-home.ko.png      → slide 1, Korean
+02-add-pdf.en.png   → slide 2, English
+02-add-pdf.de.png   → slide 2, German</code></pre>
+  <p>
+    Leading digits pick the slide, the suffix before the extension picks the locale, and
+    the middle is a free description for humans. Languages without an override fall back
+    to the source screenshot — you can localize the two slides that matter and leave the rest.
+  </p>
+
+  <h2>Step 3 — preview before you export 100 files</h2>
+  <p>
+    Text expands: German and French headlines run ~30% longer than English; Korean and
+    Japanese are often shorter but break differently. Before exporting, flip the canvas
+    through each locale and check that nothing clips or collides. Catching one overflowing
+    German headline before export beats regenerating the whole set after.
+  </p>
+
+  <h2>Step 4 — export grouped by locale and device</h2>
+  <p>
+    App Store Connect wants 1–10 screenshots per device slot, per locale, at
+    <a href="./app-store-screenshot-sizes.html">exact pixel sizes</a>. Export the full
+    matrix in one pass, laid out either for humans (<code>ko/iphone/1.png</code>) or for
+    <a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver</a>
+    (<code>screenshots/ko/iphone_01.png</code>) so the upload is one command instead of an
+    afternoon of dragging.
+  </p>
+
+  <a class="cta" href="../">
+    <strong>App Store Screenshot Studio</strong> — a free, open-source editor built around
+    exactly this workflow: design once, export the caption template (CSV/JSON), translate
+    it anywhere, re-import, bulk-add per-locale screenshots by the
+    <code>01-name.locale.png</code> convention, preview any language on the canvas, and
+    export every locale's exact-size set as a ZIP. Runs fully in your browser — no account,
+    images never leave your machine. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>Which languages are worth localizing screenshots for?</strong><br />
+  Start from your store listing's existing locales and your install data. Japan, Korea,
+  Germany and France are the classic high-impact markets where English-only screenshots
+  measurably underperform.</p>
+  <p><strong>Do I have to localize the screenshot images themselves?</strong><br />
+  No — caption-only localization over source-language UI shots is a common first step.
+  Localize the in-frame UI for your top markets when the lift justifies the capture work.</p>
+  <p><strong>Can different languages have different layouts?</strong><br />
+  In this workflow, no — layout is shared and only text and screenshots vary. That
+  constraint is what keeps 9 languages maintainable; per-locale art direction puts you
+  back in the every-tweak-times-nine world.</p>
+
+  <h2>Related guides</h2>
+  <ul>
+    <li><a href="./app-store-screenshot-sizes.html">App Store screenshot sizes 2026 — every required resolution</a></li>
+    <li><a href="./upload-app-store-screenshots-fastlane.html">Upload App Store screenshots with fastlane deliver</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      Written for <a href="../">App Store Screenshot Studio</a> (open source,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>).
+      Limits verified against Apple's
+      <a href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/">screenshot specifications</a>, June 2026.
+    </p>
+  </footer>
+</main>
+</body>
+</html>

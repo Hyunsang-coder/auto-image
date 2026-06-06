@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload App Store Screenshots with fastlane deliver — Folder Layout, API Key, Deliverfile</title>
+  <meta
+    name="description"
+    content="How to upload App Store screenshots from the command line with fastlane deliver: the exact screenshots/&lt;locale&gt; folder layout, App Store Connect API key setup, a minimal Deliverfile, and the flags that keep it from touching your binary or metadata."
+  />
+  <link rel="canonical" href="https://hyunsang-coder.github.io/auto-image/guides/upload-app-store-screenshots-fastlane.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Upload App Store Screenshots with fastlane deliver — Folder Layout, API Key, Deliverfile" />
+  <meta
+    property="og:description"
+    content="The exact folder layout fastlane deliver expects, App Store Connect API key setup, and a minimal screenshots-only Deliverfile."
+  />
+  <meta property="og:url" content="https://hyunsang-coder.github.io/auto-image/guides/upload-app-store-screenshots-fastlane.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Upload App Store Screenshots with fastlane deliver — Folder Layout, API Key, Deliverfile",
+    "dateModified": "2026-06-06",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Upload App Store screenshots with fastlane deliver</h1>
+  <p class="lead">
+    Dragging 100+ PNGs into App Store Connect by hand doesn't scale past your second
+    locale. <code>fastlane deliver</code> uploads a whole screenshot set — every language,
+    every device — in one command. Here's the exact folder layout it expects, the API key
+    setup, and the flags that keep it from touching anything else. Last verified: June 2026.
+  </p>
+
+  <h2>The folder layout deliver expects</h2>
+  <p>
+    <code>deliver</code> reads <code>fastlane/screenshots/</code>, one subfolder per
+    App Store Connect locale, with the image files <em>flat</em> inside (it does not
+    recurse). The device slot is auto-detected from each image's pixel resolution, so
+    a name prefix like <code>iphone_01.png</code> is for your own ordering, not for routing:
+  </p>
+  <pre><code>fastlane/
+  Appfile
+  Deliverfile
+  screenshots/
+    en-US/
+      iphone_01.png   ← 1320×2868 → iPhone 6.9″ slot
+      iphone_02.png
+      ipad_01.png     ← 2064×2752 → iPad 13″ slot
+    ko/
+      iphone_01.png
+      ...
+    de-DE/
+      ...</code></pre>
+  <p>
+    Two gotchas hide in that listing:
+  </p>
+  <ul>
+    <li><strong>Folder names are ASC locale codes</strong>, not bare ISO codes: <code>en-US</code>, <code>es-ES</code>, <code>fr-FR</code>, <code>de-DE</code> — but <code>ko</code>, <code>ja</code> stay short. A folder named <code>en</code> uploads nothing.</li>
+    <li><strong>Resolutions must be exact</strong> per slot (see <a href="./app-store-screenshot-sizes.html">the size table</a>) — a wrong-size image is skipped or rejected, it is never scaled.</li>
+  </ul>
+
+  <h2>Authentication: use an App Store Connect API key</h2>
+  <p>
+    Don't authenticate with your Apple ID — 2FA prompts break automation. Create an API
+    key instead: App Store Connect → <em>Users and Access</em> → <em>Integrations</em> →
+    <em>App Store Connect API</em> → generate a key, download the <code>.p8</code> once,
+    and note the Key ID and Issuer ID. Then put all three in a JSON file
+    <code>deliver</code> can read:
+  </p>
+  <pre><code>{
+  "key_id": "YOUR_KEY_ID",
+  "issuer_id": "YOUR_ISSUER_ID",
+  "key": "-----BEGIN PRIVATE KEY-----\n…p8 contents…\n-----END PRIVATE KEY-----",
+  "duration": 1200,
+  "in_house": false
+}</code></pre>
+  <p>
+    The key never leaves your machine — fastlane signs a short-lived token with it locally.
+  </p>
+
+  <h2>A minimal screenshots-only Deliverfile</h2>
+  <p>
+    By default <code>deliver</code> also wants to manage your store metadata. For a
+    screenshots-only pipeline, pin it down:
+  </p>
+  <pre><code># fastlane/Deliverfile
+overwrite_screenshots(true)
+skip_binary_upload(true)
+skip_metadata(true)</code></pre>
+  <pre><code># fastlane/Appfile
+app_identifier("com.yourcompany.app")</code></pre>
+  <p>Then, from the folder containing <code>fastlane/</code>:</p>
+  <pre><code>fastlane deliver --api_key_path ./asc_api_key.json</code></pre>
+  <p>
+    <code>deliver</code> shows an HTML preview of what it's about to upload and asks for
+    confirmation; pass <code>--force</code> to skip that in CI.
+    <code>overwrite_screenshots(true)</code> replaces the existing set per locale —
+    without it, deliver refuses to clobber screenshots that are already there.
+  </p>
+
+  <a class="cta" href="../">
+    <strong>App Store Screenshot Studio</strong> — a free, open-source editor with a
+    one-click <strong>“ZIP for fastlane”</strong> export: exact-size, alpha-stripped PNGs
+    already laid out as <code>screenshots/&lt;asc-locale&gt;/&lt;device&gt;_NN.png</code>,
+    plus a ready Appfile, Deliverfile, API-key template and <code>upload.sh</code>.
+    Unzip, fill in two values, run. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>Will deliver touch my app binary or metadata?</strong><br />
+  Not with the Deliverfile above — <code>skip_binary_upload</code> and <code>skip_metadata</code>
+  limit the run to screenshots. It's safe to run against a live app.</p>
+  <p><strong>Do I need a new app version to update screenshots?</strong><br />
+  Yes — screenshots attach to a version, and you can only edit the set of a version that
+  isn't live yet (e.g. one in “Prepare for Submission”). The upload itself doesn't submit anything.</p>
+  <p><strong>How does deliver know which device slot an image belongs to?</strong><br />
+  Purely from pixel dimensions. 1320×2868 lands in the iPhone 6.9″ slot, 2064×2752 in
+  iPad 13″ — which is also why exact export sizes matter.</p>
+
+  <h2>Related guides</h2>
+  <ul>
+    <li><a href="./app-store-screenshot-sizes.html">App Store screenshot sizes 2026 — every required resolution</a></li>
+    <li><a href="./app-store-screenshot-localization.html">Localizing App Store screenshots — a workflow that scales past 3 languages</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      Written for <a href="../">App Store Screenshot Studio</a> (open source,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>).
+      Commands verified against <a href="https://docs.fastlane.tools/actions/deliver/">fastlane deliver docs</a>, June 2026.
+    </p>
+  </footer>
+</main>
+</body>
+</html>
