@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — App Store Screenshot Studio</title>
+  <meta
+    name="description"
+    content="Why App Store Screenshot Studio exists, who builds it, and the principles behind it: fully client-side, open source under MIT, and built for shipping multi-language App Store screenshot sets fast."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/about.html" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="About — App Store Screenshot Studio" />
+  <meta
+    property="og:description"
+    content="Why the studio exists, who builds it, and the principles behind it: client-side, open source, built for multi-language screenshot sets."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/about.html" />
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>About App Store Screenshot Studio</h1>
+  <p class="lead">
+    A free, open-source studio that turns raw app screenshots into polished, multi-language
+    App Store sets — built by an indie developer who got tired of doing it by hand.
+  </p>
+
+  <h2>Why it exists</h2>
+  <p>
+    App Store screenshots multiply brutally: 6 slides × iPhone + iPad × 9 languages is
+    <strong>108 pixel-exact PNGs</strong>, and every layout tweak regenerates all of them.
+    Design tools treat each image as a one-off; screenshot SaaS tools want your images on
+    their servers and a subscription. This studio takes a third path: one layout, captions
+    as translatable data, per-language screenshots routed by filename, and a one-click
+    export at exact App Store Connect sizes — running entirely in your browser.
+  </p>
+
+  <h2>Principles</h2>
+  <ul>
+    <li><strong>Client-side, always.</strong> No accounts, no upload — screenshots and projects stay in your browser. There is no backend at all (see the <a href="./privacy.html">privacy policy</a>).</li>
+    <li><strong>Open source under MIT.</strong> The full source is on <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>; run it locally, fork it, file issues.</li>
+    <li><strong>Files as the interface.</strong> Captions import/export as CSV/JSON, projects import from a documented manifest, and a headless pipeline renders sets with no browser — so AI assistants and scripts are first-class users too.</li>
+  </ul>
+
+  <h2>Who builds it</h2>
+  <p>
+    <a href="https://github.com/Hyunsang-coder">Hyunsang Joo</a>, an indie iOS developer
+    shipping localized apps. The studio is the tool he uses for his own releases, which is
+    why the workflow tracks what App Store Connect actually accepts — sizes, formats, and
+    fastlane upload included. The best way to reach the project is a
+    <a href="https://github.com/Hyunsang-coder/auto-image/issues">GitHub issue</a>.
+  </p>
+
+  <a class="cta" href="./app/">
+    <strong>Open App Store Screenshot Studio</strong> — free, no account, your images never
+    leave your machine. →
+  </a>
+
+  <footer>
+    <p>
+      <a href="./">Home</a> · <a href="./guides/how-to-use.html">How to use</a> ·
+      <a href="./privacy.html">Privacy</a> ·
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>
