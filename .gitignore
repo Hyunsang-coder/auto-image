@@ -30,3 +30,8 @@ playwright-report
 *.njsproj
 *.sln
 *.sw?
+
+# promo-video skill output (record to /tmp or keep local)
+/promo.mp4
+/promo.webm
+/.promo-rec/
