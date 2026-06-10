@@ -307,7 +307,7 @@ export function getDeviceLayout(
   let topMode: 'fixed' | 'vcenter'
   let topFixed = 0
   if (slide.template === 'text-top') {
-    baseW = device.w; centerX = cw / 2; topMode = 'fixed'; topFixed = ch * 0.30
+    baseW = device.w; centerX = cw / 2; topMode = 'fixed'; topFixed = ch * 0.22
   } else if (slide.template === 'text-bottom') {
     baseW = device.w; centerX = cw / 2; topMode = 'fixed'; topFixed = ch * 0.05
   } else if (slide.template === 'split') {
