@@ -210,10 +210,10 @@ describe('trimCrop (edge-control drag)', () => {
     expect(trimCrop('right', { x: 120, y: 0 }, crop, FULL, size).right).toBeCloseTo(0.3, 6)
   })
 
-  it('clamps to the 0.45 ceiling and the 0 floor (no negative crop)', () => {
+  it('clamps to the 0.5 ceiling and the 0 floor (no negative crop)', () => {
     const size = { w: 400, h: 800 }
     // Massive inward drag → ceiling.
-    expect(trimCrop('right', { x: -300, y: 0 }, ZERO, FULL, size).right).toBe(0.45)
+    expect(trimCrop('right', { x: -300, y: 0 }, ZERO, FULL, size).right).toBe(0.5)
     // Outward drag past the full footprint → floor.
     const cropped = { ...ZERO, right: 0.2 }
     const croppedSize = { w: 320, h: 800 }
