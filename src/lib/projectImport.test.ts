@@ -48,7 +48,7 @@ describe('parseManifest normalization', () => {
       sourceLocale: 'ko',
       targetLocales: [],
       themeBackground: DEFAULT_BACKGROUND,
-      slides: [{ layout: 'text-top', textBlocks: 1, showDeviceFrame: true }],
+      slides: [{ layout: 'text-top', textBlocks: 1, deviceFrame: { show: true } }],
     })
   })
 
@@ -119,14 +119,77 @@ describe('parseManifest normalization', () => {
     expect(manifest?.slides[0]).toEqual({
       layout: 'text-top',
       textBlocks: 1,
-      showDeviceFrame: true,
+      deviceFrame: { show: true },
     })
     expect(issues).toHaveLength(2)
     expect(manifest?.slides[1]).toEqual({
       layout: 'split',
       textBlocks: 2,
-      showDeviceFrame: false,
+      deviceFrame: { show: false },
     })
+  })
+
+  it('parses the object-form deviceFrame with transform fields', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        { deviceFrame: { show: false, offsetX: 30, offsetY: -20, scale: 1.2, rotation: -8, color: 'silver' } },
+      ]),
+    )
+    expect(issues).toEqual([])
+    expect(manifest?.slides[0].deviceFrame).toEqual({
+      show: false,
+      offsetX: 30,
+      offsetY: -20,
+      scale: 1.2,
+      rotation: -8,
+      color: 'silver',
+    })
+  })
+
+  it('clamps deviceFrame transform values to the editor ranges with warnings', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [{ deviceFrame: { scale: 5, offsetX: 9999, rotation: 350, color: 'gold' } }]),
+    )
+    const f = manifest?.slides[0].deviceFrame
+    expect(f?.scale).toBe(2.0)
+    expect(f?.offsetX).toBe(400)
+    expect(f?.rotation).toBe(-10) // 350° normalizes, not clamps
+    expect(f?.color).toBeUndefined()
+    expect(issues.length).toBe(3) // scale + offsetX clamped, color rejected
+  })
+
+  it('parses and clamps screenshotStyle', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        {
+          deviceFrame: false,
+          screenshotStyle: { cornerRadiusRatio: 0.3, shadow: false, crop: { bottom: 0.5 } },
+        },
+      ]),
+    )
+    expect(manifest?.slides[0].screenshotStyle).toEqual({
+      cornerRadiusRatio: 0.2,
+      shadow: false,
+      crop: { top: 0, right: 0, bottom: 0.45, left: 0 },
+    })
+    expect(issues.length).toBe(2) // ratio + crop.bottom clamped
+  })
+
+  it('parses ornaments, skips unknown shapes, and caps the count', () => {
+    const six = Array.from({ length: 6 }, () => ({ shape: 'star' }))
+    const capped = parseManifest(minimal({}, [{ ornaments: six }]))
+    expect(capped.manifest?.slides[0].ornaments).toHaveLength(5)
+    expect(capped.issues.some((i) => i.includes('최대 5개'))).toBe(true)
+
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        { ornaments: [{ shape: 'sparkles', x: 0.9, y: 0.1, size: 0.12, opacity: 0.8 }, { shape: 'unicorn' }] },
+      ]),
+    )
+    expect(manifest?.slides[0].ornaments).toEqual([
+      { shape: 'sparkles', x: 0.9, y: 0.1, size: 0.12, opacity: 0.8 },
+    ])
+    expect(issues.some((i) => i.includes('"unicorn"'))).toBe(true)
   })
 })
 
@@ -170,6 +233,53 @@ describe('buildProjectFromManifest', () => {
     expect(p.slides[1].deviceFrame.show).toBe(false)
     expect(p.slides[1].background).toEqual({ type: 'solid', color: '#101010' })
     expect(p.slides[0].background).toEqual(DEFAULT_BACKGROUND)
+  })
+
+  it('applies manifest device transform onto the factory deviceFrame', () => {
+    const m = parseManifest(
+      minimal({}, [{ deviceFrame: { offsetX: 24, offsetY: -16, scale: 1.1, rotation: 8, color: 'silver' } }]),
+    ).manifest!
+    const f = buildProjectFromManifest(m).slides[0].deviceFrame
+    expect(f.show).toBe(true)
+    expect(f.offsetX).toBe(24)
+    expect(f.offsetY).toBe(-16)
+    expect(f.scale).toBe(1.1)
+    expect(f.rotation).toBe(8)
+    expect(f.color).toBe('silver')
+    expect(f.model).toBe('iphone-16-pro') // factory field untouched
+  })
+
+  it('lets an explicit manifest scale override the text-bottom auto-seed', () => {
+    const m = parseManifest(
+      minimal({}, [{ layout: 'text-bottom', deviceFrame: { scale: 0.7 } }, { layout: 'text-bottom' }]),
+    ).manifest!
+    const p = buildProjectFromManifest(m)
+    expect(p.slides[0].deviceFrame.scale).toBe(0.7)
+    expect(p.slides[1].deviceFrame.scale).toBe(0.85)
+  })
+
+  it('materializes screenshotStyle over defaults and ornaments via the factory', () => {
+    const m = parseManifest(
+      minimal({}, [
+        {
+          deviceFrame: false,
+          screenshotStyle: { cornerRadiusRatio: 0.1 },
+          ornaments: [{ shape: 'sparkles', x: 0.9, opacity: 0.8 }],
+        },
+        {},
+      ]),
+    ).manifest!
+    const p = buildProjectFromManifest(m)
+    expect(p.slides[0].screenshotStyle).toEqual({ cornerRadiusRatio: 0.1, shadow: true })
+    const orn = p.slides[0].ornaments![0]
+    expect(orn.shape).toBe('sparkles')
+    expect(orn.x).toBe(0.9) // manifest override
+    expect(orn.y).toBe(0.16) // shape default
+    expect(orn.opacity).toBe(0.8)
+    expect(orn.id).toBeTruthy()
+    // untouched slide keeps the factory defaults
+    expect(p.slides[1].screenshotStyle).toEqual({ cornerRadiusRatio: 0.06, shadow: true })
+    expect(p.slides[1].ornaments).toEqual([])
   })
 
   it('shrinks the device on text-bottom slides so it clears the text band', () => {

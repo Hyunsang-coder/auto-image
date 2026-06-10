@@ -397,34 +397,36 @@ export function presetFromSlide(slide: Slide, label: string): ThemePreset {
  *  Everything captured is deep-cloned so the stored template never shares a
  *  mutable object (background, caption translations, badge styles) with the
  *  live slide. */
+// 모양별로 기본 위치/크기를 다르게 잡아서 추가하자마자 바로 보이게 한다.
+// color는 이모지엔 적용되지 않지만 데이터 모델 호환을 위해 유지한다.
+// Module-scope so manifest import can validate shape names against the keys.
+export const ORNAMENT_DEFAULTS: Record<OrnamentShape, Partial<Ornament>> = {
+  'star':      { x: 0.50, y: 0.30, size: 0.12, rotation: 0,  opacity: 1 },
+  'sparkles':  { x: 0.85, y: 0.16, size: 0.14, rotation: 0,  opacity: 1 },
+  'heart':     { x: 0.85, y: 0.16, size: 0.12, rotation: 0,  opacity: 1 },
+  'flower':    { x: 0.12, y: 0.90, size: 0.14, rotation: 0,  opacity: 1 },
+  'leaf':      { x: 0.14, y: 0.50, size: 0.18, rotation: 0,  opacity: 1 },
+  'paw':       { x: 0.85, y: 0.18, size: 0.14, rotation: 15, opacity: 1 },
+  'fire':      { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
+  'party':     { x: 0.82, y: 0.18, size: 0.14, rotation: 0,  opacity: 1 },
+  'rocket':    { x: 0.82, y: 0.22, size: 0.14, rotation: 0,  opacity: 1 },
+  'bulb':      { x: 0.82, y: 0.18, size: 0.13, rotation: 0,  opacity: 1 },
+  'bolt':      { x: 0.84, y: 0.16, size: 0.12, rotation: 0,  opacity: 1 },
+  'check':     { x: 0.82, y: 0.18, size: 0.12, rotation: 0,  opacity: 1 },
+  'thumbsup':  { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
+  'trophy':    { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
+  'gem':       { x: 0.84, y: 0.18, size: 0.12, rotation: 0,  opacity: 1 },
+  'target':    { x: 0.82, y: 0.18, size: 0.13, rotation: 0,  opacity: 1 },
+  'bell':      { x: 0.84, y: 0.16, size: 0.12, rotation: 0,  opacity: 1 },
+  'hundred':   { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
+}
+
 export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>): Ornament {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `orn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-  // 모양별로 기본 위치/크기를 다르게 잡아서 추가하자마자 바로 보이게 한다.
-  // color는 이모지엔 적용되지 않지만 데이터 모델 호환을 위해 유지한다.
-  const defaultsByShape: Record<OrnamentShape, Partial<Ornament>> = {
-    'star':      { x: 0.50, y: 0.30, size: 0.12, rotation: 0,  opacity: 1 },
-    'sparkles':  { x: 0.85, y: 0.16, size: 0.14, rotation: 0,  opacity: 1 },
-    'heart':     { x: 0.85, y: 0.16, size: 0.12, rotation: 0,  opacity: 1 },
-    'flower':    { x: 0.12, y: 0.90, size: 0.14, rotation: 0,  opacity: 1 },
-    'leaf':      { x: 0.14, y: 0.50, size: 0.18, rotation: 0,  opacity: 1 },
-    'paw':       { x: 0.85, y: 0.18, size: 0.14, rotation: 15, opacity: 1 },
-    'fire':      { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
-    'party':     { x: 0.82, y: 0.18, size: 0.14, rotation: 0,  opacity: 1 },
-    'rocket':    { x: 0.82, y: 0.22, size: 0.14, rotation: 0,  opacity: 1 },
-    'bulb':      { x: 0.82, y: 0.18, size: 0.13, rotation: 0,  opacity: 1 },
-    'bolt':      { x: 0.84, y: 0.16, size: 0.12, rotation: 0,  opacity: 1 },
-    'check':     { x: 0.82, y: 0.18, size: 0.12, rotation: 0,  opacity: 1 },
-    'thumbsup':  { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
-    'trophy':    { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
-    'gem':       { x: 0.84, y: 0.18, size: 0.12, rotation: 0,  opacity: 1 },
-    'target':    { x: 0.82, y: 0.18, size: 0.13, rotation: 0,  opacity: 1 },
-    'bell':      { x: 0.84, y: 0.16, size: 0.12, rotation: 0,  opacity: 1 },
-    'hundred':   { x: 0.82, y: 0.20, size: 0.13, rotation: 0,  opacity: 1 },
-  }
-  const base = defaultsByShape[shape]
+  const base = ORNAMENT_DEFAULTS[shape]
   return {
     id,
     shape,

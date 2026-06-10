@@ -8,26 +8,43 @@
 
 import type {
   Background,
+  DeviceColor,
   DeviceModel,
   DeviceType,
+  OrnamentShape,
   Project,
+  ScreenshotCrop,
   TemplateType,
 } from '../types/project'
 import { t } from '../i18n'
 import {
   DEFAULT_BACKGROUND,
+  DEFAULT_SCREENSHOT_STYLE,
   DEFAULT_SOURCE_LOCALE,
   MAX_TEXTS,
+  ORNAMENT_DEFAULTS,
   SUPPORTED_LOCALES,
   TEMPLATE_FONT_SIZES,
   findThemePreset,
   headlinePlaceholder,
+  makeOrnament,
   makeProject,
   makeTextBlock,
 } from '../constants/defaults'
 import { DEFAULT_MODEL, MODELS_BY_TYPE } from '../constants/deviceSpecs'
 
 const MAX_SLIDES = 10
+const MAX_ORNAMENTS = 5
+
+// Device-transform clamps mirror the editor: scale matches FabricCanvas's
+// drag clamp (0.3–2.0); offsets are editor-canvas px (EDITOR_CANVAS_WIDTH 440)
+// bounded generously so a device can bleed off-canvas but never vanish.
+const DEVICE_SCALE_MIN = 0.3
+const DEVICE_SCALE_MAX = 2.0
+const DEVICE_OFFSET_X_MAX = 400
+const DEVICE_OFFSET_Y_MAX = 600
+const CORNER_RADIUS_RATIO_MAX = 0.2 // matches the floating-card slider range
+const CROP_EDGE_MAX = 0.45 // matches templateLayouts' clampEdge
 
 // text-bottom anchors its caption at 74% of the canvas height, but a
 // default-scale device spans 5%→83% and runs under the text. Editor-authored
@@ -52,7 +69,40 @@ export interface ParsedSlide {
   layout: TemplateType
   textBlocks: number
   background?: Background
-  showDeviceFrame: boolean
+  deviceFrame: ParsedDeviceFrame
+  screenshotStyle?: ParsedScreenshotStyle
+  ornaments?: ParsedOrnament[]
+}
+
+/** Manifest `deviceFrame`: bare boolean (show/hide, the v1 original) or an
+ *  object adding the editor's device transform. Absent fields inherit the
+ *  template's default placement. */
+export interface ParsedDeviceFrame {
+  show: boolean
+  offsetX?: number
+  offsetY?: number
+  scale?: number
+  rotation?: number
+  color?: DeviceColor
+}
+
+/** Floating-card look — the renderer only acts on it when the frame is hidden,
+ *  but it's parsed unconditionally so authors can set it before deciding. */
+export interface ParsedScreenshotStyle {
+  cornerRadiusRatio?: number
+  shadow?: boolean
+  crop?: ScreenshotCrop
+}
+
+/** Emoji decoration. `color` is kept for model compat but emoji ignore it. */
+export interface ParsedOrnament {
+  shape: OrnamentShape
+  x?: number
+  y?: number
+  size?: number
+  rotation?: number
+  color?: string
+  opacity?: number
 }
 
 export interface ManifestParseResult {
@@ -127,6 +177,157 @@ function coerceBackground(
       : t('{where}: 배경 형식이 올바르지 않음 — 기본 배경 사용', { where }),
   )
   return undefined
+}
+
+/** Clamp an optional numeric field into [min, max]; non-numbers warn + drop. */
+function coerceNumber(
+  value: unknown,
+  min: number,
+  max: number,
+  where: string,
+  field: string,
+  issues: string[],
+): number | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    issues.push(t('{where}: {field} 값이 숫자가 아님 — 무시', { where, field }))
+    return undefined
+  }
+  if (value < min || value > max) {
+    issues.push(
+      t('{where}: {field} {value}는 {min}~{max} 범위 밖 — 경계값으로 보정', {
+        where, field, value, min, max,
+      }),
+    )
+    return Math.max(min, Math.min(max, value))
+  }
+  return value
+}
+
+/** Normalize an optional rotation into (-180, 180]; non-numbers warn + drop. */
+function coerceRotation(
+  value: unknown,
+  where: string,
+  field: string,
+  issues: string[],
+): number | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    issues.push(t('{where}: {field} 값이 숫자가 아님 — 무시', { where, field }))
+    return undefined
+  }
+  const r = ((value % 360) + 540) % 360 - 180
+  return r === -180 ? 180 : r
+}
+
+/** Bare boolean (the v1 original) or the object form with device transform. */
+function coerceDeviceFrame(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedDeviceFrame {
+  if (value === undefined || value === true) return { show: true }
+  if (value === false) return { show: false }
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: deviceFrame 형식이 올바르지 않음 — 기본값 사용', { where }))
+    return { show: true }
+  }
+  const f = value as Record<string, unknown>
+  const out: ParsedDeviceFrame = { show: f.show !== false }
+  const offsetX = coerceNumber(f.offsetX, -DEVICE_OFFSET_X_MAX, DEVICE_OFFSET_X_MAX, where, 'deviceFrame.offsetX', issues)
+  if (offsetX !== undefined) out.offsetX = offsetX
+  const offsetY = coerceNumber(f.offsetY, -DEVICE_OFFSET_Y_MAX, DEVICE_OFFSET_Y_MAX, where, 'deviceFrame.offsetY', issues)
+  if (offsetY !== undefined) out.offsetY = offsetY
+  const scale = coerceNumber(f.scale, DEVICE_SCALE_MIN, DEVICE_SCALE_MAX, where, 'deviceFrame.scale', issues)
+  if (scale !== undefined) out.scale = scale
+  const rotation = coerceRotation(f.rotation, where, 'deviceFrame.rotation', issues)
+  if (rotation !== undefined) out.rotation = rotation
+  if (f.color !== undefined) {
+    if (f.color === 'black' || f.color === 'silver') out.color = f.color
+    else issues.push(t('{where}: deviceFrame.color는 black|silver — 무시', { where }))
+  }
+  return out
+}
+
+function coerceScreenshotStyle(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedScreenshotStyle | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: screenshotStyle 형식이 올바르지 않음 — 무시', { where }))
+    return undefined
+  }
+  const s = value as Record<string, unknown>
+  const out: ParsedScreenshotStyle = {}
+  const ratio = coerceNumber(s.cornerRadiusRatio, 0, CORNER_RADIUS_RATIO_MAX, where, 'screenshotStyle.cornerRadiusRatio', issues)
+  if (ratio !== undefined) out.cornerRadiusRatio = ratio
+  if (s.shadow !== undefined) {
+    if (typeof s.shadow === 'boolean') out.shadow = s.shadow
+    else issues.push(t('{where}: screenshotStyle.shadow는 boolean — 무시', { where }))
+  }
+  if (s.crop !== undefined) {
+    if (typeof s.crop === 'object' && s.crop !== null) {
+      const c = s.crop as Record<string, unknown>
+      out.crop = {
+        top: coerceNumber(c.top, 0, CROP_EDGE_MAX, where, 'crop.top', issues) ?? 0,
+        right: coerceNumber(c.right, 0, CROP_EDGE_MAX, where, 'crop.right', issues) ?? 0,
+        bottom: coerceNumber(c.bottom, 0, CROP_EDGE_MAX, where, 'crop.bottom', issues) ?? 0,
+        left: coerceNumber(c.left, 0, CROP_EDGE_MAX, where, 'crop.left', issues) ?? 0,
+      }
+    } else {
+      issues.push(t('{where}: screenshotStyle.crop 형식이 올바르지 않음 — 무시', { where }))
+    }
+  }
+  return out
+}
+
+function coerceOrnaments(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedOrnament[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(t('{where}: ornaments는 배열이어야 함 — 무시', { where }))
+    return undefined
+  }
+  let items = value
+  if (items.length > MAX_ORNAMENTS) {
+    issues.push(t('{where}: ornaments는 최대 {max}개 — 처음 {max}개만 사용', { where, max: MAX_ORNAMENTS }))
+    items = items.slice(0, MAX_ORNAMENTS)
+  }
+  const out: ParsedOrnament[] = []
+  items.forEach((rawOrn, j) => {
+    const ow = t('{where} ornament {n}', { where, n: j + 1 })
+    if (typeof rawOrn !== 'object' || rawOrn === null) {
+      issues.push(t('{where}: 항목이 객체가 아님 — 제외', { where: ow }))
+      return
+    }
+    const o = rawOrn as Record<string, unknown>
+    if (typeof o.shape !== 'string' || !(o.shape in ORNAMENT_DEFAULTS)) {
+      issues.push(t('{where}: 알 수 없는 shape "{shape}" — 제외', { where: ow, shape: String(o.shape) }))
+      return
+    }
+    const orn: ParsedOrnament = { shape: o.shape as OrnamentShape }
+    const x = coerceNumber(o.x, 0, 1, ow, 'x', issues)
+    if (x !== undefined) orn.x = x
+    const y = coerceNumber(o.y, 0, 1, ow, 'y', issues)
+    if (y !== undefined) orn.y = y
+    const size = coerceNumber(o.size, 0.02, 1, ow, 'size', issues)
+    if (size !== undefined) orn.size = size
+    const rotation = coerceRotation(o.rotation, ow, 'rotation', issues)
+    if (rotation !== undefined) orn.rotation = rotation
+    if (o.color !== undefined) {
+      if (typeof o.color === 'string') orn.color = o.color
+      else issues.push(t('{where}: color는 문자열 — 무시', { where: ow }))
+    }
+    const opacity = coerceNumber(o.opacity, 0, 1, ow, 'opacity', issues)
+    if (opacity !== undefined) orn.opacity = opacity
+    out.push(orn)
+  })
+  return out
 }
 
 /**
@@ -245,11 +446,16 @@ export function parseManifest(text: string): ManifestParseResult {
         ? coerceBackground(s.background, where, issues)
         : undefined
 
+    const screenshotStyle = coerceScreenshotStyle(s.screenshotStyle, where, issues)
+    const ornaments = coerceOrnaments(s.ornaments, where, issues)
+
     return {
       layout,
       textBlocks,
       ...(background ? { background } : {}),
-      showDeviceFrame: s.deviceFrame !== false,
+      deviceFrame: coerceDeviceFrame(s.deviceFrame, where, issues),
+      ...(screenshotStyle ? { screenshotStyle } : {}),
+      ...(ornaments ? { ornaments } : {}),
     }
   })
 
@@ -291,9 +497,34 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
       ...(spec.background ? { background: structuredClone(spec.background) } : {}),
       deviceFrame: {
         ...slide.deviceFrame,
-        ...(spec.showDeviceFrame ? {} : { show: false }),
-        ...(spec.layout === 'text-bottom' ? { scale: TEXT_BOTTOM_DEVICE_SCALE } : {}),
+        show: spec.deviceFrame.show,
+        ...(spec.deviceFrame.offsetX !== undefined ? { offsetX: spec.deviceFrame.offsetX } : {}),
+        ...(spec.deviceFrame.offsetY !== undefined ? { offsetY: spec.deviceFrame.offsetY } : {}),
+        ...(spec.deviceFrame.rotation !== undefined ? { rotation: spec.deviceFrame.rotation } : {}),
+        ...(spec.deviceFrame.color !== undefined ? { color: spec.deviceFrame.color } : {}),
+        // text-bottom auto-seed only fires when the manifest didn't say —
+        // an explicit scale is a deliberate override of the layout default.
+        ...(spec.deviceFrame.scale !== undefined
+          ? { scale: spec.deviceFrame.scale }
+          : spec.layout === 'text-bottom'
+            ? { scale: TEXT_BOTTOM_DEVICE_SCALE }
+            : {}),
       },
+      ...(spec.screenshotStyle
+        ? {
+            screenshotStyle: {
+              ...DEFAULT_SCREENSHOT_STYLE,
+              ...(spec.screenshotStyle.cornerRadiusRatio !== undefined
+                ? { cornerRadiusRatio: spec.screenshotStyle.cornerRadiusRatio }
+                : {}),
+              ...(spec.screenshotStyle.shadow !== undefined ? { shadow: spec.screenshotStyle.shadow } : {}),
+              ...(spec.screenshotStyle.crop ? { crop: { ...spec.screenshotStyle.crop } } : {}),
+            },
+          }
+        : {}),
+      ...(spec.ornaments !== undefined
+        ? { ornaments: spec.ornaments.map((o) => makeOrnament(o.shape, o)) }
+        : {}),
     }
   })
   return project

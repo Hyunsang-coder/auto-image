@@ -46,7 +46,9 @@
 | `slides[].layout` | string | `text-top` | `hero` \| `hero-bleed` \| `text-top` \| `text-bottom` \| `split` |
 | `slides[].textBlocks` | 1–4 | `1` | **캡션 슬롯 수.** 텍스트 블록 0 = 헤드라인 |
 | `slides[].background` | string \| object | 테마 배경 | 슬라이드별 오버라이드 |
-| `slides[].deviceFrame` | boolean | `true` | `false` = 기기 베젤 숨김(스크린샷만 플로팅) |
+| `slides[].deviceFrame` | boolean \| object | `true` | `false` = 기기 베젤 숨김(스크린샷만 플로팅). 객체형은 아래 [기기 transform](#기기-transform--플로팅-카드--장식-디자인-노브) |
+| `slides[].screenshotStyle` | object | — | 플로팅 카드 룩(베젤 숨김일 때 적용) — 아래 참조 |
+| `slides[].ornaments` | array | — | 이모지 장식, 슬라이드당 최대 5개 — 아래 참조 |
 
 ### 레이아웃별 배치
 
@@ -57,6 +59,40 @@
 | `hero` | 텍스트 전용 — 스크린샷 슬롯 없음 |
 | `hero-bleed` | 텍스트 좌상단, 큰 기기가 우하단 모서리 밖으로 블리드 |
 | `split` | 텍스트 좌측 컬럼(왼쪽 정렬), 기기 우측 절반에 세로 중앙 |
+
+### 기기 transform · 플로팅 카드 · 장식 (디자인 노브)
+
+레이아웃 기본 배치를 벗어나는 디자인은 세 필드로 표현한다. 전부 옵션 —
+생략하면 기존 v1과 동일하게 동작한다. 범위 밖 값은 경계값으로 보정 + 경고.
+
+```jsonc
+{
+  "layout": "text-top",
+  "deviceFrame": {           // boolean 대신 객체를 주면 기기 transform까지 제어
+    "show": true,            // 기본 true
+    "offsetX": 30,           // 에디터 캔버스(440px 기준) px, ±400
+    "offsetY": -20,          // ±600
+    "scale": 0.9,            // 0.3–2.0. text-bottom은 생략 시 0.85 자동 시드 — 명시하면 명시값이 이김
+    "rotation": 8,           // 도(deg), ±180으로 정규화
+    "color": "silver"        // "black"(기본) | "silver"
+  },
+  "screenshotStyle": {       // 베젤 숨김(show:false) 슬라이드의 플로팅 카드 룩
+    "cornerRadiusRatio": 0.08, // 0–0.2 (기본 0.06)
+    "shadow": true,
+    "crop": { "top": 0, "right": 0, "bottom": 0.05, "left": 0 } // 각 변 0–0.45 잘라내기
+  },
+  "ornaments": [             // 이모지 장식, 최대 5개. 미지원 shape는 경고 후 제외
+    { "shape": "sparkles", "x": 0.88, "y": 0.12, "size": 0.10, "rotation": 0, "opacity": 0.85 }
+  ]
+}
+```
+
+- `screenshotStyle`은 항상 파싱·저장되지만 **렌더는 베젤 숨김일 때만 반영**된다
+  (베젤이 보이면 기기 형태가 모양을 정의). 미리 넣어둬도 무해.
+- ornament `shape` 18종: `star sparkles heart flower leaf paw fire party rocket
+  bulb bolt check thumbsup trophy gem target bell hundred`. 이모지로 렌더되므로
+  `color`는 받아두지만 적용되지 않는다. `x`/`y`/`size`는 캔버스 비율(0–1).
+- `deviceFrame.scale`/`offsetX`/`offsetY` 범위는 에디터의 드래그 클램프와 동일.
 
 > **핵심 규칙 — 슬롯이 먼저다.** 캡션 파일의 `text:N` 행은 매니페스트가 그 슬롯을 선언한 경우에만 채워진다. `textBlocks: 1`인 슬라이드에 `text:1`(서브헤드) 행을 보내면 조용히 건너뛴다(경고 카운트에만 잡힘). 서브헤드가 있는 슬라이드는 반드시 `textBlocks: 2`를 선언할 것.
 >

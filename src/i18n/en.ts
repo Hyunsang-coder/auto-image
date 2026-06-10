@@ -171,6 +171,30 @@ export const en: Record<string, string> = {
     '{where}: unknown layout "{layout}" — using text-top',
   '{where}: textBlocks는 1~{max} — 1 사용':
     '{where}: textBlocks must be 1–{max} — using 1',
+  '{where}: {field} 값이 숫자가 아님 — 무시':
+    '{where}: {field} is not a number — ignored',
+  '{where}: {field} {value}는 {min}~{max} 범위 밖 — 경계값으로 보정':
+    '{where}: {field} {value} is outside {min}–{max} — clamped to the bound',
+  '{where}: deviceFrame 형식이 올바르지 않음 — 기본값 사용':
+    '{where}: invalid deviceFrame format — using defaults',
+  '{where}: deviceFrame.color는 black|silver — 무시':
+    '{where}: deviceFrame.color must be black|silver — ignored',
+  '{where}: screenshotStyle 형식이 올바르지 않음 — 무시':
+    '{where}: invalid screenshotStyle format — ignored',
+  '{where}: screenshotStyle.shadow는 boolean — 무시':
+    '{where}: screenshotStyle.shadow must be a boolean — ignored',
+  '{where}: screenshotStyle.crop 형식이 올바르지 않음 — 무시':
+    '{where}: invalid screenshotStyle.crop format — ignored',
+  '{where}: ornaments는 배열이어야 함 — 무시':
+    '{where}: ornaments must be an array — ignored',
+  '{where}: ornaments는 최대 {max}개 — 처음 {max}개만 사용':
+    '{where}: maximum {max} ornaments — using first {max}',
+  '{where}: 항목이 객체가 아님 — 제외':
+    '{where}: entry is not an object — excluded',
+  '{where}: 알 수 없는 shape "{shape}" — 제외':
+    '{where}: unknown shape "{shape}" — excluded',
+  '{where}: color는 문자열 — 무시':
+    '{where}: color must be a string — ignored',
 
   // projectImportRun.ts
   '무시된 파일: {name}': 'Ignored file: {name}',
