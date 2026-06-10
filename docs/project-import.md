@@ -79,7 +79,7 @@
   "screenshotStyle": {       // 베젤 숨김(show:false) 슬라이드의 플로팅 카드 룩
     "cornerRadiusRatio": 0.08, // 0–0.2 (기본 0.06)
     "shadow": true,
-    "crop": { "top": 0, "right": 0, "bottom": 0.05, "left": 0 } // 각 변 0–0.45 잘라내기
+    "crop": { "top": 0, "right": 0, "bottom": 0.05, "left": 0 } // 각 변 0–0.5 잘라내기
   },
   "ornaments": [             // 이모지 장식, 최대 5개. 미지원 shape는 경고 후 제외
     { "shape": "sparkles", "x": 0.88, "y": 0.12, "size": 0.10, "rotation": 0, "opacity": 0.85 }

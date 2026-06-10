@@ -69,9 +69,11 @@ export type CropEdge = 'top' | 'right' | 'bottom' | 'left'
 /** ScreenshotCrop's neutral value. Shared read-only — spread before mutating. */
 export const EMPTY_CROP: ScreenshotCrop = { top: 0, right: 0, bottom: 0, left: 0 }
 
-// Per-edge ceiling shared with the panel sliders; 0.45 + 0.45 still leaves 10%
-// of the card, so no pairwise min-size guard is needed.
-const CROP_EDGE_MAX = 0.45
+// Per-edge ceiling shared with the panel sliders. 0.5 lets a single edge trim
+// half the card — deep enough to cut a device's whole video band. A both-edges
+// 0.5+0.5 pair would leave nothing, but floatingScreenBounds clamps height at
+// 0 so that misuse degrades gracefully rather than inverting.
+const CROP_EDGE_MAX = 0.5
 
 /**
  * New crop fractions after dragging one edge of the floating-card handle to a

@@ -163,14 +163,14 @@ describe('parseManifest normalization', () => {
       minimal({}, [
         {
           deviceFrame: false,
-          screenshotStyle: { cornerRadiusRatio: 0.3, shadow: false, crop: { bottom: 0.5 } },
+          screenshotStyle: { cornerRadiusRatio: 0.3, shadow: false, crop: { bottom: 0.7 } },
         },
       ]),
     )
     expect(manifest?.slides[0].screenshotStyle).toEqual({
       cornerRadiusRatio: 0.2,
       shadow: false,
-      crop: { top: 0, right: 0, bottom: 0.45, left: 0 },
+      crop: { top: 0, right: 0, bottom: 0.5, left: 0 },
     })
     expect(issues.length).toBe(2) // ratio + crop.bottom clamped
   })

@@ -44,7 +44,7 @@ const DEVICE_SCALE_MAX = 2.0
 const DEVICE_OFFSET_X_MAX = 400
 const DEVICE_OFFSET_Y_MAX = 600
 const CORNER_RADIUS_RATIO_MAX = 0.2 // matches the floating-card slider range
-const CROP_EDGE_MAX = 0.45 // matches templateLayouts' clampEdge
+const CROP_EDGE_MAX = 0.5 // matches templateLayouts' clampEdge
 
 // text-bottom anchors its caption at 74% of the canvas height, but a
 // default-scale device spans 5%→83% and runs under the text. Editor-authored
