@@ -28,6 +28,7 @@ import {
   TEMPLATE_FONT_SIZES,
   findThemePreset,
   headlinePlaceholder,
+  makeHighlight,
   makeOrnament,
   makeProject,
   makeTextBlock,
@@ -36,6 +37,10 @@ import { DEFAULT_MODEL, MODELS_BY_TYPE } from '../constants/deviceSpecs'
 
 const MAX_SLIDES = 10
 const MAX_ORNAMENTS = 5
+const MAX_HIGHLIGHTS = 3 // a loupe per slide reads clean; more clutters the cut
+const HIGHLIGHT_DIM_MIN = 0.02 // a sampling window narrower than this is degenerate
+const POPUP_WIDTH_MIN = 0.1
+const POPUP_WIDTH_MAX = 1.5
 
 // Device-transform clamps mirror the editor: scale matches FabricCanvas's
 // drag clamp (0.3–2.0); offsets are editor-canvas px (EDITOR_CANVAS_WIDTH 440)
@@ -98,6 +103,18 @@ export interface ParsedSlide {
    *  slots (0 = headline). Sparse: a slot may be an empty object (no override)
    *  to keep later indices aligned. */
   texts?: ParsedTextOverride[]
+  /** Loupe magnifiers — each pops a magnified card of `sourceRegion` of the
+   *  screenshot, centered on that region. Ignored when the slide has no
+   *  screenshot (e.g. a `hero` text-only slide). */
+  highlights?: ParsedHighlight[]
+}
+
+/** A loupe spec: which screenshot region to magnify and how big/tilted the
+ *  popped card is. Defaults fill any absent field (a degenerate-but-valid
+ *  loupe), matching makeHighlight. */
+export interface ParsedHighlight {
+  sourceRegion: { x: number; y: number; w: number; h: number }
+  popup: { width: number; rotation?: number }
 }
 
 /** Per-caption style + placement override. All fields optional — absent ones
@@ -507,6 +524,58 @@ function coerceTextOverrides(
   })
 }
 
+/** Parse the per-slide `highlights` array. Each entry's missing fields fall
+ *  back to makeHighlight's defaults so a partial region still renders. */
+function coerceHighlights(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedHighlight[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(t('{where}: highlights는 배열이어야 함 — 무시', { where }))
+    return undefined
+  }
+  let items = value
+  if (items.length > MAX_HIGHLIGHTS) {
+    issues.push(t('{where}: highlights는 최대 {max}개 — 처음 {max}개만 사용', { where, max: MAX_HIGHLIGHTS }))
+    items = items.slice(0, MAX_HIGHLIGHTS)
+  }
+  const out: ParsedHighlight[] = []
+  items.forEach((raw, j) => {
+    const hw = t('{where} highlight {n}', { where, n: j + 1 })
+    if (typeof raw !== 'object' || raw === null) {
+      issues.push(t('{where}: 항목이 객체가 아님 — 제외', { where: hw }))
+      return
+    }
+    const h = raw as Record<string, unknown>
+    const sr = (typeof h.sourceRegion === 'object' && h.sourceRegion !== null
+      ? h.sourceRegion
+      : {}) as Record<string, unknown>
+    if (h.sourceRegion !== undefined && (typeof h.sourceRegion !== 'object' || h.sourceRegion === null)) {
+      issues.push(t('{where}: sourceRegion 형식이 올바르지 않음 — 기본값 사용', { where: hw }))
+    }
+    const p = (typeof h.popup === 'object' && h.popup !== null ? h.popup : {}) as Record<string, unknown>
+    if (h.popup !== undefined && (typeof h.popup !== 'object' || h.popup === null)) {
+      issues.push(t('{where}: popup 형식이 올바르지 않음 — 기본값 사용', { where: hw }))
+    }
+    const rotation = coerceRotation(p.rotation, hw, 'popup.rotation', issues)
+    out.push({
+      sourceRegion: {
+        x: coerceNumber(sr.x, 0, 1, hw, 'sourceRegion.x', issues) ?? 0.08,
+        y: coerceNumber(sr.y, 0, 1, hw, 'sourceRegion.y', issues) ?? 0.42,
+        w: coerceNumber(sr.w, HIGHLIGHT_DIM_MIN, 1, hw, 'sourceRegion.w', issues) ?? 0.84,
+        h: coerceNumber(sr.h, HIGHLIGHT_DIM_MIN, 1, hw, 'sourceRegion.h', issues) ?? 0.18,
+      },
+      popup: {
+        width: coerceNumber(p.width, POPUP_WIDTH_MIN, POPUP_WIDTH_MAX, hw, 'popup.width', issues) ?? 0.78,
+        ...(rotation !== undefined ? { rotation } : {}),
+      },
+    })
+  })
+  return out
+}
+
 /**
  * Parse + normalize a manifest JSON text. Never throws; recoverable problems
  * (unknown device/locale/layout, count out of range) fall back to defaults and
@@ -628,6 +697,7 @@ export function parseManifest(text: string): ManifestParseResult {
     const textX = coerceNumber(s.textX, 0, 1, where, 'textX', issues)
     const textY = coerceNumber(s.textY, 0, 1, where, 'textY', issues)
     const texts = coerceTextOverrides(s.texts, where, issues)
+    const highlights = coerceHighlights(s.highlights, where, issues)
 
     return {
       layout,
@@ -639,6 +709,7 @@ export function parseManifest(text: string): ManifestParseResult {
       ...(textX !== undefined ? { textX } : {}),
       ...(textY !== undefined ? { textY } : {}),
       ...(texts ? { texts } : {}),
+      ...(highlights ? { highlights } : {}),
     }
   })
 
@@ -730,6 +801,9 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
         : {}),
       ...(spec.ornaments !== undefined
         ? { ornaments: spec.ornaments.map((o) => makeOrnament(o.shape, o)) }
+        : {}),
+      ...(spec.highlights !== undefined
+        ? { highlights: spec.highlights.map((h) => makeHighlight(h)) }
         : {}),
     }
   })

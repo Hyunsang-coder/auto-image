@@ -174,7 +174,10 @@ export function newId(prefix: string): string {
     : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-export function makeHighlight(): Highlight {
+export function makeHighlight(overrides?: {
+  sourceRegion?: Highlight['sourceRegion']
+  popup?: Highlight['popup']
+}): Highlight {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -183,10 +186,8 @@ export function makeHighlight(): Highlight {
   // on top of this region; dragging the card on canvas moves the region.
   return {
     id,
-    sourceRegion: { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
-    popup: {
-      width: 0.78,
-    },
+    sourceRegion: overrides?.sourceRegion ?? { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
+    popup: overrides?.popup ?? { width: 0.78 },
   }
 }
 

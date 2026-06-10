@@ -219,6 +219,14 @@ export const en: Record<string, string> = {
     '{where}: invalid shadow format — ignored',
   '{where}: shadow.color(문자열)이 필요 — shadow 무시':
     '{where}: shadow.color (string) is required — shadow ignored',
+  '{where}: highlights는 배열이어야 함 — 무시':
+    '{where}: highlights must be an array — ignored',
+  '{where}: highlights는 최대 {max}개 — 처음 {max}개만 사용':
+    '{where}: maximum {max} highlights — using first {max}',
+  '{where}: sourceRegion 형식이 올바르지 않음 — 기본값 사용':
+    '{where}: invalid sourceRegion format — using defaults',
+  '{where}: popup 형식이 올바르지 않음 — 기본값 사용':
+    '{where}: invalid popup format — using defaults',
 
   // projectImportRun.ts
   '무시된 파일: {name}': 'Ignored file: {name}',

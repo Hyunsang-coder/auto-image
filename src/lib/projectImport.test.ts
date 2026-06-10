@@ -245,6 +245,39 @@ describe('parseManifest normalization', () => {
     expect(r.issues.some((i) => i.includes('align'))).toBe(true)
     expect(r.issues.some((i) => i.includes('box.fill'))).toBe(true)
   })
+
+  it('parses highlights, fills defaults, clamps, and caps the count', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        {
+          highlights: [
+            { sourceRegion: { x: 0.2, y: 0.3, w: 0.5, h: 0.2 }, popup: { width: 0.9, rotation: -8 } },
+            { popup: { width: 5 } }, // width clamps to 1.5, region → defaults
+          ],
+        },
+      ]),
+    )
+    const hl = manifest?.slides[0].highlights
+    expect(hl?.[0]).toEqual({
+      sourceRegion: { x: 0.2, y: 0.3, w: 0.5, h: 0.2 },
+      popup: { width: 0.9, rotation: -8 },
+    })
+    expect(hl?.[1]).toEqual({
+      sourceRegion: { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
+      popup: { width: 1.5 },
+    })
+    expect(issues.some((i) => i.includes('popup.width'))).toBe(true)
+
+    const capped = parseManifest(
+      minimal({}, [{ highlights: Array.from({ length: 4 }, () => ({})) }]),
+    )
+    expect(capped.manifest?.slides[0].highlights).toHaveLength(3)
+    expect(capped.issues.some((i) => i.includes('최대 3개'))).toBe(true)
+
+    const bad = parseManifest(minimal({}, [{ highlights: { width: 0.5 } }]))
+    expect(bad.manifest?.slides[0].highlights).toBeUndefined()
+    expect(bad.issues.some((i) => i.includes('highlights는 배열'))).toBe(true)
+  })
 })
 
 describe('buildProjectFromManifest', () => {
@@ -368,6 +401,23 @@ describe('buildProjectFromManifest', () => {
       minimal({}, [{ textY: 0.28, textX: 0.5, texts: [{ pos: { x: 0.1, y: 0.4 } }] }]),
     ).manifest!
     expect(buildProjectFromManifest(m).slides[0].texts[0].pos).toEqual({ x: 0.1, y: 0.4 })
+  })
+
+  it('materializes highlights via the factory with fresh ids', () => {
+    const m = parseManifest(
+      minimal({}, [
+        { highlights: [{ sourceRegion: { x: 0.1, y: 0.5, w: 0.4, h: 0.15 }, popup: { width: 0.8, rotation: 6 } }] },
+        {},
+      ]),
+    ).manifest!
+    const p = buildProjectFromManifest(m)
+    const hl = p.slides[0].highlights
+    expect(hl).toHaveLength(1)
+    expect(hl[0].sourceRegion).toEqual({ x: 0.1, y: 0.5, w: 0.4, h: 0.15 })
+    expect(hl[0].popup).toEqual({ width: 0.8, rotation: 6 })
+    expect(hl[0].id).toBeTruthy()
+    // untouched slide keeps the factory empty default
+    expect(p.slides[1].highlights).toEqual([])
   })
 
   it('materializes screenshotStyle over defaults and ornaments via the factory', () => {
