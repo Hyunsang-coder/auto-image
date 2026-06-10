@@ -8,6 +8,7 @@
 
 import type {
   Background,
+  Caption,
   DeviceColor,
   DeviceModel,
   DeviceType,
@@ -46,6 +47,22 @@ const DEVICE_OFFSET_Y_MAX = 600
 const CORNER_RADIUS_RATIO_MAX = 0.2 // matches the floating-card slider range
 const CROP_EDGE_MAX = 0.5 // matches templateLayouts' clampEdge
 
+// Per-caption style clamps. fontSize/box/outline/shadow values are editor-canvas
+// px (440 base, like TEMPLATE_FONT_SIZES) — withScaledFonts multiplies them at
+// export. boxWidth may exceed 1 (a wrap width wider than one page).
+const FONT_SIZE_MIN = 8
+const FONT_SIZE_MAX = 200
+const FONT_SCALE_MIN = 0.3
+const FONT_SCALE_MAX = 4
+const FONT_WEIGHT_MIN = 100
+const FONT_WEIGHT_MAX = 900
+const BOX_WIDTH_MIN = 0.1
+const BOX_WIDTH_MAX = 2
+const PAD_MAX = 200
+const OUTLINE_WIDTH_MAX = 40
+const SHADOW_OFFSET_MAX = 100
+const SHADOW_BLUR_MAX = 100
+
 // text-bottom anchors its caption at 74% of the canvas height, but a
 // default-scale device spans 5%→83% and runs under the text. Editor-authored
 // text-bottom slides tune scale/offset per slide; the import seeds a scale
@@ -77,6 +94,28 @@ export interface ParsedSlide {
    *  feature card. Activated by textY; textX defaults to 0.5 (centered). */
   textX?: number
   textY?: number
+  /** Per-text-block style/placement overrides, index-aligned to the block
+   *  slots (0 = headline). Sparse: a slot may be an empty object (no override)
+   *  to keep later indices aligned. */
+  texts?: ParsedTextOverride[]
+}
+
+/** Per-caption style + placement override. All fields optional — absent ones
+ *  keep the layout's per-block default (makeTextBlock). `pos` generalizes the
+ *  headline-only textX/textY to any block. */
+export interface ParsedTextOverride {
+  /** Absolute editor px; overrides fontScale when both are set. */
+  fontSize?: number
+  /** Multiplier on the block's layout-default fontSize. */
+  fontScale?: number
+  color?: string
+  align?: 'left' | 'center' | 'right'
+  weight?: number
+  pos?: { x: number; y: number }
+  boxWidth?: number
+  box?: { fill: string; opacity: number; paddingX: number; paddingY: number; borderRadius: number }
+  outline?: { color: string; width: number }
+  shadow?: { color: string; opacity: number; offsetX: number; offsetY: number; blur: number }
 }
 
 /** Manifest `deviceFrame`: bare boolean (show/hide, the v1 original) or an
@@ -335,6 +374,139 @@ function coerceOrnaments(
   return out
 }
 
+/** A caption `box` (fill pill): requires a string fill; numeric fields clamp
+ *  with sensible defaults so a `{ "fill": "#000" }` still renders a usable pill. */
+function coerceCaptionBox(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedTextOverride['box'] | undefined {
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: box 형식이 올바르지 않음 — 무시', { where }))
+    return undefined
+  }
+  const b = value as Record<string, unknown>
+  if (typeof b.fill !== 'string') {
+    issues.push(t('{where}: box.fill(문자열)이 필요 — box 무시', { where }))
+    return undefined
+  }
+  return {
+    fill: b.fill,
+    opacity: coerceNumber(b.opacity, 0, 1, where, 'box.opacity', issues) ?? 1,
+    paddingX: coerceNumber(b.paddingX, 0, PAD_MAX, where, 'box.paddingX', issues) ?? 16,
+    paddingY: coerceNumber(b.paddingY, 0, PAD_MAX, where, 'box.paddingY', issues) ?? 10,
+    borderRadius: coerceNumber(b.borderRadius, 0, PAD_MAX, where, 'box.borderRadius', issues) ?? 12,
+  }
+}
+
+function coerceOutline(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedTextOverride['outline'] | undefined {
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: outline 형식이 올바르지 않음 — 무시', { where }))
+    return undefined
+  }
+  const o = value as Record<string, unknown>
+  if (typeof o.color !== 'string') {
+    issues.push(t('{where}: outline.color(문자열)이 필요 — outline 무시', { where }))
+    return undefined
+  }
+  return { color: o.color, width: coerceNumber(o.width, 0, OUTLINE_WIDTH_MAX, where, 'outline.width', issues) ?? 2 }
+}
+
+function coerceTextShadow(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedTextOverride['shadow'] | undefined {
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: shadow 형식이 올바르지 않음 — 무시', { where }))
+    return undefined
+  }
+  const s = value as Record<string, unknown>
+  if (typeof s.color !== 'string') {
+    issues.push(t('{where}: shadow.color(문자열)이 필요 — shadow 무시', { where }))
+    return undefined
+  }
+  return {
+    color: s.color,
+    opacity: coerceNumber(s.opacity, 0, 1, where, 'shadow.opacity', issues) ?? 0.4,
+    offsetX: coerceNumber(s.offsetX, -SHADOW_OFFSET_MAX, SHADOW_OFFSET_MAX, where, 'shadow.offsetX', issues) ?? 0,
+    offsetY: coerceNumber(s.offsetY, -SHADOW_OFFSET_MAX, SHADOW_OFFSET_MAX, where, 'shadow.offsetY', issues) ?? 2,
+    blur: coerceNumber(s.blur, 0, SHADOW_BLUR_MAX, where, 'shadow.blur', issues) ?? 6,
+  }
+}
+
+/** Parse the per-slide `texts` array. Keeps array positions (invalid entries
+ *  become `{}`) so index→block alignment survives a bad slot. */
+function coerceTextOverrides(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedTextOverride[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(t('{where}: texts는 배열이어야 함 — 무시', { where }))
+    return undefined
+  }
+  let items = value
+  if (items.length > MAX_TEXTS) {
+    issues.push(t('{where}: texts는 최대 {max}개 — 처음 {max}개만 사용', { where, max: MAX_TEXTS }))
+    items = items.slice(0, MAX_TEXTS)
+  }
+  return items.map((raw, j) => {
+    const tw = t('{where} texts[{n}]', { where, n: j })
+    if (typeof raw !== 'object' || raw === null) {
+      if (raw !== undefined && raw !== null) issues.push(t('{where}: 항목이 객체가 아님 — 무시', { where: tw }))
+      return {}
+    }
+    const r = raw as Record<string, unknown>
+    const out: ParsedTextOverride = {}
+    const fontSize = coerceNumber(r.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, tw, 'fontSize', issues)
+    if (fontSize !== undefined) out.fontSize = fontSize
+    const fontScale = coerceNumber(r.fontScale, FONT_SCALE_MIN, FONT_SCALE_MAX, tw, 'fontScale', issues)
+    if (fontScale !== undefined) out.fontScale = fontScale
+    if (r.color !== undefined) {
+      if (typeof r.color === 'string') out.color = r.color
+      else issues.push(t('{where}: color는 문자열 — 무시', { where: tw }))
+    }
+    if (r.align !== undefined) {
+      if (r.align === 'left' || r.align === 'center' || r.align === 'right') out.align = r.align
+      else issues.push(t('{where}: align은 left|center|right — 무시', { where: tw }))
+    }
+    const weight = coerceNumber(r.weight, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, tw, 'weight', issues)
+    if (weight !== undefined) out.weight = weight
+    if (r.pos !== undefined) {
+      if (typeof r.pos === 'object' && r.pos !== null) {
+        const p = r.pos as Record<string, unknown>
+        const x = coerceNumber(p.x, 0, 1, tw, 'pos.x', issues)
+        const y = coerceNumber(p.y, 0, 1, tw, 'pos.y', issues)
+        if (x !== undefined && y !== undefined) out.pos = { x, y }
+        else issues.push(t('{where}: pos는 x,y(0~1) 둘 다 필요 — 무시', { where: tw }))
+      } else {
+        issues.push(t('{where}: pos 형식이 올바르지 않음 — 무시', { where: tw }))
+      }
+    }
+    const boxWidth = coerceNumber(r.boxWidth, BOX_WIDTH_MIN, BOX_WIDTH_MAX, tw, 'boxWidth', issues)
+    if (boxWidth !== undefined) out.boxWidth = boxWidth
+    if (r.box !== undefined) {
+      const box = coerceCaptionBox(r.box, tw, issues)
+      if (box) out.box = box
+    }
+    if (r.outline !== undefined) {
+      const outline = coerceOutline(r.outline, tw, issues)
+      if (outline) out.outline = outline
+    }
+    if (r.shadow !== undefined) {
+      const shadow = coerceTextShadow(r.shadow, tw, issues)
+      if (shadow) out.shadow = shadow
+    }
+    return out
+  })
+}
+
 /**
  * Parse + normalize a manifest JSON text. Never throws; recoverable problems
  * (unknown device/locale/layout, count out of range) fall back to defaults and
@@ -455,6 +627,7 @@ export function parseManifest(text: string): ManifestParseResult {
     const ornaments = coerceOrnaments(s.ornaments, where, issues)
     const textX = coerceNumber(s.textX, 0, 1, where, 'textX', issues)
     const textY = coerceNumber(s.textY, 0, 1, where, 'textY', issues)
+    const texts = coerceTextOverrides(s.texts, where, issues)
 
     return {
       layout,
@@ -465,6 +638,7 @@ export function parseManifest(text: string): ManifestParseResult {
       ...(ornaments ? { ornaments } : {}),
       ...(textX !== undefined ? { textX } : {}),
       ...(textY !== undefined ? { textY } : {}),
+      ...(texts ? { texts } : {}),
     }
   })
 
@@ -472,6 +646,22 @@ export function parseManifest(text: string): ManifestParseResult {
     manifest: { name, device, deviceModel, sourceLocale, targetLocales, themeBackground, slides },
     issues,
   }
+}
+
+/** Apply a parsed per-block override onto a factory-built caption (mutates).
+ *  fontSize wins over fontScale; pos here supersedes the headline textX/textY. */
+function applyTextOverride(block: Caption, ov: ParsedTextOverride | undefined): void {
+  if (!ov) return
+  if (ov.fontSize !== undefined) block.style.fontSize = ov.fontSize
+  else if (ov.fontScale !== undefined) block.style.fontSize = Math.round(block.style.fontSize * ov.fontScale)
+  if (ov.color !== undefined) block.style.color = ov.color
+  if (ov.weight !== undefined) block.style.fontWeight = ov.weight
+  if (ov.align !== undefined) block.style.textAlign = ov.align
+  if (ov.pos !== undefined) block.pos = { ...ov.pos }
+  if (ov.boxWidth !== undefined) block.boxWidth = ov.boxWidth
+  if (ov.box !== undefined) block.style.box = { ...ov.box }
+  if (ov.outline !== undefined) block.style.outline = { ...ov.outline }
+  if (ov.shadow !== undefined) block.style.shadow = { ...ov.shadow }
 }
 
 /**
@@ -507,6 +697,7 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
         if (ti === 0 && spec.textY !== undefined) {
           block.pos = { x: spec.textX ?? 0.5, y: spec.textY }
         }
+        applyTextOverride(block, spec.texts?.[ti])
         return block
       }),
       ...(spec.background ? { background: structuredClone(spec.background) } : {}),

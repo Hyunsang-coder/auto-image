@@ -49,6 +49,7 @@
 | `slides[].deviceFrame` | boolean \| object | `true` | `false` = 기기 베젤 숨김(스크린샷만 플로팅). 객체형은 아래 [기기 transform](#기기-transform--플로팅-카드--장식-디자인-노브) |
 | `slides[].screenshotStyle` | object | — | 플로팅 카드 룩(베젤 숨김일 때 적용) — 아래 참조 |
 | `slides[].ornaments` | array | — | 이모지 장식, 슬라이드당 최대 5개 — 아래 참조 |
+| `slides[].texts` | array | — | **블록별 텍스트 스타일/위치 오버라이드**(폰트·색·정렬·박스 등) — 아래 참조 |
 
 ### 레이아웃별 배치
 
@@ -103,6 +104,41 @@
 ```jsonc
 { "layout": "text-top", "textY": 0.2 }   // 헤드라인을 캔버스 20% 지점으로
 ```
+
+### 블록별 텍스트 스타일 (`slides[].texts`)
+
+레이아웃 기본 폰트/색/정렬을 **텍스트 블록 단위로** 덮어쓴다. 배열 인덱스 =
+블록 슬롯(0 = 헤드라인, 1+ = 서브헤드). 전부 옵션 — 생략한 필드는 레이아웃
+기본값을 유지한다. 빈 슬롯(`{}`)을 넣어 뒷 인덱스 정렬을 맞출 수 있다.
+
+```jsonc
+{
+  "layout": "text-top",
+  "textBlocks": 2,
+  "texts": [
+    {                          // 블록 0 (헤드라인)
+      "fontScale": 1.3,        // 레이아웃 기본 크기 ×배수 (0.3–4). 여백 채우기용
+      "fontSize": 52,          // 또는 절대 에디터 px(8–200). 있으면 fontScale보다 우선
+      "color": "#FFFFFF",
+      "align": "left",         // left | center | right
+      "weight": 800,           // 100–900
+      "pos": { "x": 0.2, "y": 0.18 }, // 절대 위치(0–1). textX/textY를 모든 블록으로 일반화 — 있으면 헤드라인 textY보다 우선
+      "boxWidth": 0.7,         // 줄바꿈 폭(캔버스 너비 비율, 0.1–2)
+      "box": { "fill": "#000000", "opacity": 0.5, "paddingX": 16, "paddingY": 10, "borderRadius": 12 }, // 캡션 뒤 필 박스. fill만 필수
+      "outline": { "color": "#000000", "width": 2 },                       // 글리프 외곽선
+      "shadow": { "color": "#000000", "opacity": 0.4, "offsetX": 0, "offsetY": 2, "blur": 6 } // 드롭 섀도
+    },
+    {}                         // 블록 1 (서브헤드) — 오버라이드 없음, 레이아웃 기본 유지
+  ]
+}
+```
+
+- 모든 px 값(`fontSize`, `box`의 padding/radius, `outline.width`, `shadow` offset/blur)은
+  **에디터 캔버스 440px 기준** — export 시 해상도에 맞춰 자동 스케일된다.
+- `fontSize`와 `fontScale`을 둘 다 주면 `fontSize`(절대값)가 이긴다.
+- `box`/`outline`/`shadow`는 `fill`/`color`(문자열)만 필수, 나머지 수치는 기본값으로
+  채워진다(`{ "box": { "fill": "#000" } }`만으로도 동작). 범위 밖 값은 경계값 보정.
+- `texts[0].pos`는 헤드라인의 `textY`/`textX` 단축 표기를 덮어쓴다(둘 다 있으면 `pos`가 이김).
 
 > **핵심 규칙 — 슬롯이 먼저다.** 캡션 파일의 `text:N` 행은 매니페스트가 그 슬롯을 선언한 경우에만 채워진다. `textBlocks: 1`인 슬라이드에 `text:1`(서브헤드) 행을 보내면 조용히 건너뛴다(경고 카운트에만 잡힘). 서브헤드가 있는 슬라이드는 반드시 `textBlocks: 2`를 선언할 것.
 >

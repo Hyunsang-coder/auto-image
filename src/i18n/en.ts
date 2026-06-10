@@ -195,6 +195,30 @@ export const en: Record<string, string> = {
     '{where}: unknown shape "{shape}" — excluded',
   '{where}: color는 문자열 — 무시':
     '{where}: color must be a string — ignored',
+  '{where}: texts는 배열이어야 함 — 무시':
+    '{where}: texts must be an array — ignored',
+  '{where}: texts는 최대 {max}개 — 처음 {max}개만 사용':
+    '{where}: maximum {max} text blocks — using first {max}',
+  '{where}: 항목이 객체가 아님 — 무시':
+    '{where}: entry is not an object — ignored',
+  '{where}: align은 left|center|right — 무시':
+    '{where}: align must be left|center|right — ignored',
+  '{where}: pos는 x,y(0~1) 둘 다 필요 — 무시':
+    '{where}: pos needs both x and y (0–1) — ignored',
+  '{where}: pos 형식이 올바르지 않음 — 무시':
+    '{where}: invalid pos format — ignored',
+  '{where}: box 형식이 올바르지 않음 — 무시':
+    '{where}: invalid box format — ignored',
+  '{where}: box.fill(문자열)이 필요 — box 무시':
+    '{where}: box.fill (string) is required — box ignored',
+  '{where}: outline 형식이 올바르지 않음 — 무시':
+    '{where}: invalid outline format — ignored',
+  '{where}: outline.color(문자열)이 필요 — outline 무시':
+    '{where}: outline.color (string) is required — outline ignored',
+  '{where}: shadow 형식이 올바르지 않음 — 무시':
+    '{where}: invalid shadow format — ignored',
+  '{where}: shadow.color(문자열)이 필요 — shadow 무시':
+    '{where}: shadow.color (string) is required — shadow ignored',
 
   // projectImportRun.ts
   '무시된 파일: {name}': 'Ignored file: {name}',

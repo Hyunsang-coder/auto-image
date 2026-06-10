@@ -191,6 +191,60 @@ describe('parseManifest normalization', () => {
     ])
     expect(issues.some((i) => i.includes('"unicorn"'))).toBe(true)
   })
+
+  it('parses per-block text overrides with clamps and sub-objects', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        {
+          textBlocks: 2,
+          texts: [
+            {
+              fontScale: 1.3,
+              color: '#FFFFFF',
+              align: 'left',
+              weight: 800,
+              pos: { x: 0.2, y: 0.18 },
+              boxWidth: 0.7,
+              box: { fill: '#000000', opacity: 0.5 },
+              outline: { color: '#000', width: 3 },
+              shadow: { color: '#000', offsetY: 4 },
+            },
+            { fontSize: 999 }, // clamps to 200
+          ],
+        },
+      ]),
+    )
+    const tx = manifest?.slides[0].texts
+    expect(tx?.[0]).toEqual({
+      fontScale: 1.3,
+      color: '#FFFFFF',
+      align: 'left',
+      weight: 800,
+      pos: { x: 0.2, y: 0.18 },
+      boxWidth: 0.7,
+      box: { fill: '#000000', opacity: 0.5, paddingX: 16, paddingY: 10, borderRadius: 12 },
+      outline: { color: '#000', width: 3 },
+      shadow: { color: '#000', opacity: 0.4, offsetX: 0, offsetY: 4, blur: 6 },
+    })
+    expect(tx?.[1]).toEqual({ fontSize: 200 })
+    expect(issues.some((i) => i.includes('fontSize'))).toBe(true)
+  })
+
+  it('warns on non-array texts and bad fields but keeps index alignment', () => {
+    const { manifest, issues } = parseManifest(minimal({}, [{ texts: { fontSize: 40 } }]))
+    expect(manifest?.slides[0].texts).toBeUndefined()
+    expect(issues.some((i) => i.includes('texts는 배열'))).toBe(true)
+
+    const r = parseManifest(
+      minimal({}, [
+        { textBlocks: 2, texts: [{ align: 'sideways', box: { opacity: 0.5 } }, { fontScale: 1.1 }] },
+      ]),
+    )
+    // slot 0: align rejected + box dropped (no fill) → empty override, slot 1 kept
+    expect(r.manifest?.slides[0].texts).toEqual([{}, { fontScale: 1.1 }])
+    expect(r.issues.some((i) => i.includes('align'))).toBe(true)
+    expect(r.issues.some((i) => i.includes('box.fill'))).toBe(true)
+  })
 })
 
 describe('buildProjectFromManifest', () => {
@@ -267,6 +321,53 @@ describe('buildProjectFromManifest', () => {
     expect(p.slides[1].texts[0].pos).toEqual({ x: 0.3, y: 0.5 })
     // no textY → no absolute pos (stacks from the layout default)
     expect(p.slides[2].texts[0].pos).toBeUndefined()
+  })
+
+  it('applies per-block text overrides onto the factory blocks', () => {
+    const m = parseManifest(
+      minimal({}, [
+        {
+          textBlocks: 2,
+          texts: [
+            {
+              fontScale: 1.5,
+              color: '#FFFFFF',
+              weight: 800,
+              align: 'left',
+              pos: { x: 0.2, y: 0.15 },
+              boxWidth: 0.7,
+              box: { fill: '#000000', opacity: 0.5 },
+              outline: { color: '#111', width: 2 },
+              shadow: { color: '#000', offsetY: 4 },
+            },
+            { fontSize: 30 },
+          ],
+        },
+      ]),
+    ).manifest!
+    const slide = buildProjectFromManifest(m).slides[0]
+    const [h, sub] = slide.texts
+    // text-top headline default is 40 → ×1.5 = 60
+    expect(h.style.fontSize).toBe(60)
+    expect(h.style.color).toBe('#FFFFFF')
+    expect(h.style.fontWeight).toBe(800)
+    expect(h.style.textAlign).toBe('left')
+    expect(h.pos).toEqual({ x: 0.2, y: 0.15 })
+    expect(h.boxWidth).toBe(0.7)
+    expect(h.style.box).toEqual({ fill: '#000000', opacity: 0.5, paddingX: 16, paddingY: 10, borderRadius: 12 })
+    expect(h.style.outline).toEqual({ color: '#111', width: 2 })
+    expect(h.style.shadow).toEqual({ color: '#000', opacity: 0.4, offsetX: 0, offsetY: 4, blur: 6 })
+    // subhead: absolute fontSize override; everything else stays the layout default
+    expect(sub.style.fontSize).toBe(30)
+    expect(sub.pos).toBeUndefined()
+    expect(sub.style.box).toBeUndefined()
+  })
+
+  it('lets texts[0].pos override the headline textY/textX shorthand', () => {
+    const m = parseManifest(
+      minimal({}, [{ textY: 0.28, textX: 0.5, texts: [{ pos: { x: 0.1, y: 0.4 } }] }]),
+    ).manifest!
+    expect(buildProjectFromManifest(m).slides[0].texts[0].pos).toEqual({ x: 0.1, y: 0.4 })
   })
 
   it('materializes screenshotStyle over defaults and ornaments via the factory', () => {
