@@ -72,6 +72,11 @@ export interface ParsedSlide {
   deviceFrame: ParsedDeviceFrame
   screenshotStyle?: ParsedScreenshotStyle
   ornaments?: ParsedOrnament[]
+  /** Absolute headline placement (0..1 of canvas). Set to override the
+   *  layout's default text band — e.g. drop the headline toward a cropped
+   *  feature card. Activated by textY; textX defaults to 0.5 (centered). */
+  textX?: number
+  textY?: number
 }
 
 /** Manifest `deviceFrame`: bare boolean (show/hide, the v1 original) or an
@@ -448,6 +453,8 @@ export function parseManifest(text: string): ManifestParseResult {
 
     const screenshotStyle = coerceScreenshotStyle(s.screenshotStyle, where, issues)
     const ornaments = coerceOrnaments(s.ornaments, where, issues)
+    const textX = coerceNumber(s.textX, 0, 1, where, 'textX', issues)
+    const textY = coerceNumber(s.textY, 0, 1, where, 'textY', issues)
 
     return {
       layout,
@@ -456,6 +463,8 @@ export function parseManifest(text: string): ManifestParseResult {
       deviceFrame: coerceDeviceFrame(s.deviceFrame, where, issues),
       ...(screenshotStyle ? { screenshotStyle } : {}),
       ...(ornaments ? { ornaments } : {}),
+      ...(textX !== undefined ? { textX } : {}),
+      ...(textY !== undefined ? { textY } : {}),
     }
   })
 
@@ -490,10 +499,16 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
       template: spec.layout,
       // Rebuild all text blocks: per-layout font/align + source-locale
       // placeholder (makeProject seeded the ko default). Extra blocks start
-      // empty — the caption file fills them by index.
-      texts: Array.from({ length: spec.textBlocks }, (_, ti) =>
-        makeTextBlock(ti, spec.layout, ti === 0 ? headlinePlaceholder(sourceLocale) : ''),
-      ),
+      // empty — the caption file fills them by index. An explicit textY drops
+      // the headline (text:0) to an absolute position; later blocks still
+      // stack from the layout default.
+      texts: Array.from({ length: spec.textBlocks }, (_, ti) => {
+        const block = makeTextBlock(ti, spec.layout, ti === 0 ? headlinePlaceholder(sourceLocale) : '')
+        if (ti === 0 && spec.textY !== undefined) {
+          block.pos = { x: spec.textX ?? 0.5, y: spec.textY }
+        }
+        return block
+      }),
       ...(spec.background ? { background: structuredClone(spec.background) } : {}),
       deviceFrame: {
         ...slide.deviceFrame,

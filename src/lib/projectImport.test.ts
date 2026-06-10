@@ -258,6 +258,17 @@ describe('buildProjectFromManifest', () => {
     expect(p.slides[1].deviceFrame.scale).toBe(0.85)
   })
 
+  it('drops the headline to an absolute position via textY', () => {
+    const m = parseManifest(
+      minimal({}, [{ textY: 0.2 }, { textX: 0.3, textY: 0.5 }, {}]),
+    ).manifest!
+    const p = buildProjectFromManifest(m)
+    expect(p.slides[0].texts[0].pos).toEqual({ x: 0.5, y: 0.2 })
+    expect(p.slides[1].texts[0].pos).toEqual({ x: 0.3, y: 0.5 })
+    // no textY → no absolute pos (stacks from the layout default)
+    expect(p.slides[2].texts[0].pos).toBeUndefined()
+  })
+
   it('materializes screenshotStyle over defaults and ornaments via the factory', () => {
     const m = parseManifest(
       minimal({}, [
