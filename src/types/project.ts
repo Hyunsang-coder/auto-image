@@ -310,10 +310,8 @@ export interface BadgeStyle {
 }
 
 /**
- * A loupe: the magnified card renders glued onto its source region's current
- * on-canvas position (device offset/scale/rotation included). Dragging the
- * card on canvas moves `sourceRegion` — there is no independent card position
- * and no separate source marker.
+ * A loupe: `sourceRegion` is the sampled area inside the screenshot, while
+ * `popup` is the independent magnified card placed on the slide canvas.
  */
 export interface Highlight {
   id: string
@@ -324,6 +322,9 @@ export interface Highlight {
     h: number
   }
   popup: {
+    /** Card center as fractions of the canvas. Absent = legacy source-attached placement. */
+    x?: number
+    y?: number
     /** Card width as a fraction of canvas width (its height follows the region's aspect). */
     width: number
     /** Tilt of the magnified card in degrees, about its center. 0 = upright. */

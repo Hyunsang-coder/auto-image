@@ -185,12 +185,12 @@ export function makeHighlight(overrides?: {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `hl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-  // Default: sample the middle band of the screenshot. The loupe card renders
-  // on top of this region; dragging the card on canvas moves the region.
+  // Default: sample the middle band of the screenshot and place the magnified
+  // card independently above it so the two can be adjusted like normal objects.
   return {
     id,
     sourceRegion: overrides?.sourceRegion ?? { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
-    popup: overrides?.popup ?? { width: 0.78 },
+    popup: overrides?.popup ?? { x: 0.5, y: 0.32, width: 0.78 },
   }
 }
 

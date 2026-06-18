@@ -3,6 +3,7 @@ export const LAYER_NAMES = {
   ORNAMENT: 'ornament',
   SCREENSHOT: 'screenshot',
   DEVICE_FRAME: 'device-frame',
+  HIGHLIGHT_SOURCE: 'highlight-source',
   HIGHLIGHT_POPUP: 'highlight-popup',
   TEXT: 'text',
   TEXT_BOX: 'text-box',

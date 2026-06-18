@@ -416,7 +416,7 @@ describe('loupe region ↔ canvas mapping', () => {
     }
   })
 
-  it('clamps the dragged loupe so the sampling window stays inside the shot', () => {
+  it('clamps the dragged source selection so the sampling window stays inside the shot', () => {
     const farOut = { x: SB.left - 500, y: SB.top + SB.height + 500 }
     const origin = canvasPointToRegionOrigin(SB, { w: 0.4, h: 0.12 }, farOut, 0)
     expect(origin.x).toBe(0)

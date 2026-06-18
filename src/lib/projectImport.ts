@@ -103,18 +103,18 @@ export interface ParsedSlide {
    *  slots (0 = headline). Sparse: a slot may be an empty object (no override)
    *  to keep later indices aligned. */
   texts?: ParsedTextOverride[]
-  /** Loupe magnifiers — each pops a magnified card of `sourceRegion` of the
-   *  screenshot, centered on that region. Ignored when the slide has no
+  /** Loupe magnifiers — each samples `sourceRegion` of the screenshot and can
+   *  place a magnified card independently on the canvas. Ignored when the slide has no
    *  screenshot (e.g. a `hero` text-only slide). */
   highlights?: ParsedHighlight[]
 }
 
-/** A loupe spec: which screenshot region to magnify and how big/tilted the
- *  popped card is. Defaults fill any absent field (a degenerate-but-valid
- *  loupe), matching makeHighlight. */
+/** A loupe spec: which screenshot region to magnify and where/how big/tilted
+ *  the popped card is. `popup.x/y` are optional for legacy source-attached
+ *  placement; the other fields fall back to makeHighlight-compatible defaults. */
 export interface ParsedHighlight {
   sourceRegion: { x: number; y: number; w: number; h: number }
-  popup: { width: number; rotation?: number }
+  popup: { x?: number; y?: number; width: number; rotation?: number }
 }
 
 /** Per-caption style + placement override. All fields optional — absent ones
@@ -560,6 +560,8 @@ function coerceHighlights(
       issues.push(t('{where}: popup 형식이 올바르지 않음 — 기본값 사용', { where: hw }))
     }
     const rotation = coerceRotation(p.rotation, hw, 'popup.rotation', issues)
+    const popupX = coerceNumber(p.x, 0, 1, hw, 'popup.x', issues)
+    const popupY = coerceNumber(p.y, 0, 1, hw, 'popup.y', issues)
     out.push({
       sourceRegion: {
         x: coerceNumber(sr.x, 0, 1, hw, 'sourceRegion.x', issues) ?? 0.08,
@@ -568,6 +570,8 @@ function coerceHighlights(
         h: coerceNumber(sr.h, HIGHLIGHT_DIM_MIN, 1, hw, 'sourceRegion.h', issues) ?? 0.18,
       },
       popup: {
+        ...(popupX !== undefined ? { x: popupX } : {}),
+        ...(popupY !== undefined ? { y: popupY } : {}),
         width: coerceNumber(p.width, POPUP_WIDTH_MIN, POPUP_WIDTH_MAX, hw, 'popup.width', issues) ?? 0.78,
         ...(rotation !== undefined ? { rotation } : {}),
       },

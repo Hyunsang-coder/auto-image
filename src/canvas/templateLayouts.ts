@@ -7,7 +7,7 @@ import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
 import { renderCaption, renderCaptionBox } from './objects/caption'
 import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
-import { renderHighlight } from './objects/highlight'
+import { renderHighlight, renderHighlightSource } from './objects/highlight'
 import { renderOrnament } from './objects/ornament'
 import { LAYER_NAMES } from './layerNames'
 import { loadImageObjectUrl, type ImageUrlResolver } from '../lib/imageStore'
@@ -474,11 +474,14 @@ export async function applyTemplate(
     })
   }
 
-  // 5. Highlights — magnified loupe cards glued onto their source spot.
+  // 5. Highlights — source selection boxes plus independent magnified cards.
   // Rendered after the device so they can float above the bezel, but before
   // the badge so the badge stays the top-most attention element.
   if (slide.highlights && slide.highlights.length > 0 && slide.screenshot && screenBounds) {
     const hlRotation = deviceLayout ? (slide.deviceFrame.rotation ?? 0) : 0
+    for (const h of slide.highlights) {
+      canvas.add(renderHighlightSource(h, { screenBounds, rotation: hlRotation }))
+    }
     for (const h of slide.highlights) {
       const popup = await renderHighlight(h, {
         canvasWidth: cw,

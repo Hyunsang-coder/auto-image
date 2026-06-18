@@ -51,7 +51,7 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
 
       {value.length === 0 && hasScreenshot && (
         <p className="rounded-md border border-dashed border-[var(--color-border)] px-3 py-4 text-center text-xs text-[var(--color-text-dim)]">
-          {t('"+ 추가"로 하이라이트를 만드세요. 캔버스에서 드래그해 위치/크기 조정.')}
+          {t('"+ 추가"로 하이라이트를 만드세요. 캔버스에서 원본 박스와 확대 카드를 직접 조정하세요.')}
         </p>
       )}
 
@@ -115,6 +115,22 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
           </Group>
 
           <Group label={t('확대 카드')}>
+            <Slider
+              label="X"
+              value={h.popup.x ?? 0.5}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(v) => updatePopup(h.id, { x: v })}
+            />
+            <Slider
+              label="Y"
+              value={h.popup.y ?? 0.32}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(v) => updatePopup(h.id, { y: v })}
+            />
             <Slider
               label={t('크기')}
               value={h.popup.width}

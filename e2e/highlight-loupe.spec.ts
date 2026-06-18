@@ -10,10 +10,6 @@ import {
   type EditorSurface,
 } from './helpers'
 
-// Loupe highlights: a new highlight's popup spawns centered over its source
-// region, and the popup can be tilted with the mtr handle (rotation persists
-// through the store round-trip).
-
 test.use({ viewport: { width: 1440, height: 1200 } })
 
 test.beforeEach(async ({ page }) => {
@@ -23,172 +19,259 @@ test.beforeEach(async ({ page }) => {
   await uploadScreenshot(page, 'iphone_home.png')
   await page.getByRole('button', { name: '하이라이트' }).click()
   await page.getByRole('button', { name: '+ 추가' }).click()
+  await expect.poll(() => findLayer(page, 'highlight-source')).toBe(true)
   await expect.poll(() => findLayer(page, 'highlight-popup')).toBe(true)
 })
 
-test('새 하이라이트 팝업이 원본 영역 위에 생성됨 (돋보기)', async ({ page }) => {
+test('새 하이라이트는 원본 박스와 확대 카드가 분리되어 생성됨', async ({ page }) => {
   const result = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    const canvas = ed.canvas as unknown as { width: number; height: number }
+    const shot = ed.findByLayer('screenshot') as unknown as {
+      _screenBounds: { left: number; top: number; width: number; height: number }
+    }
+    const source = ed.findByLayer('highlight-source')!
     const popup = ed.findByLayer('highlight-popup')!
-    const body = ed.findByLayer('device-frame')!
-    const c = popup.getCenterPoint()
-    // Default source region: x 0.08, y 0.42, w 0.84, h 0.18 → center (0.5, 0.51)
-    // of the device box.
-    const expectedX = (body.left ?? 0) + (body.width ?? 0) * 0.5
-    const expectedY = (body.top ?? 0) + (body.height ?? 0) * 0.51
-    return { dx: Math.abs(c.x - expectedX), dy: Math.abs(c.y - expectedY) }
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+    const sc = source.getCenterPoint()
+    const pc = popup.getCenterPoint()
+    const expectedSource = {
+      x: shot._screenBounds.left + shot._screenBounds.width * (h.sourceRegion.x + h.sourceRegion.w / 2),
+      y: shot._screenBounds.top + shot._screenBounds.height * (h.sourceRegion.y + h.sourceRegion.h / 2),
+    }
+    const expectedPopup = {
+      x: canvas.width * h.popup.x,
+      y: canvas.height * h.popup.y,
+    }
+    return {
+      sourceDx: Math.abs(sc.x - expectedSource.x),
+      sourceDy: Math.abs(sc.y - expectedSource.y),
+      popupDx: Math.abs(pc.x - expectedPopup.x),
+      popupDy: Math.abs(pc.y - expectedPopup.y),
+      verticalGap: sc.y - pc.y,
+    }
   })
-  // The frame body's bounds include the bezel, so allow a small tolerance.
-  expect(result.dx).toBeLessThan(6)
-  expect(result.dy).toBeLessThan(12)
+  expect(result.sourceDx).toBeLessThan(1)
+  expect(result.sourceDy).toBeLessThan(2)
+  expect(result.popupDx).toBeLessThan(1)
+  expect(result.popupDy).toBeLessThan(1)
+  expect(result.verticalGap).toBeGreaterThan(100)
 })
 
-test('돋보기를 드래그하면 샘플 영역이 따라 움직임', async ({ page }) => {
+test('확대 카드를 드래그해도 원본 영역은 변하지 않음', async ({ page }) => {
   const before = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
-    return ed.findByLayer('highlight-popup')!.getCenterPoint()
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+    return {
+      popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
+      sourceRegion: h.sourceRegion,
+      popupState: h.popup,
+    }
   })
   const box = (await page.locator('canvas.upper-canvas').boundingBox())!
   await selectLayer(page, 'highlight-popup')
   await drag(
     page,
-    { x: box.x + before.x, y: box.y + before.y },
-    { x: box.x + before.x, y: box.y + before.y - 80 },
+    { x: box.x + before.popup.x, y: box.y + before.popup.y },
+    { x: box.x + before.popup.x + 70, y: box.y + before.popup.y - 80 },
   )
-  // 릴리즈 → sourceRegion.y 갱신 → 재렌더된 카드가 새 지점 위에 그대로 있다.
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const ed = (window as unknown as { __editor?: EditorSurface }).__editor
-        return ed?.findByLayer('highlight-popup')?.getCenterPoint().y ?? 0
+        const raw = localStorage.getItem('auto-image:project')
+        const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+        return h ? h.popup.y : null
       }),
     )
-    .toBeLessThan(before.y - 40)
+    .toBeLessThan(before.popupState.y)
+  const after = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+  })
+  expect(after.sourceRegion).toEqual(before.sourceRegion)
+  expect(after.popup.x).toBeGreaterThan(before.popupState.x)
 })
 
-test('팝업을 mtr 핸들로 회전하면 rotation이 저장·복원됨', async ({ page }) => {
+test('원본 박스를 드래그하면 샘플 영역만 이동함', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+    return {
+      source: ed.findByLayer('highlight-source')!.getCenterPoint(),
+      popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
+      sourceRegion: h.sourceRegion,
+      popupState: h.popup,
+    }
+  })
+  const box = (await page.locator('canvas.upper-canvas').boundingBox())!
+  await selectLayer(page, 'highlight-source')
+  await drag(
+    page,
+    { x: box.x + before.source.x, y: box.y + before.source.y },
+    { x: box.x + before.source.x, y: box.y + before.source.y - 80 },
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('auto-image:project')
+        const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+        return h ? h.sourceRegion.y : null
+      }),
+    )
+    .toBeLessThan(before.sourceRegion.y)
+  const after = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+    return {
+      popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
+      sourceRegion: h.sourceRegion,
+      popupState: h.popup,
+    }
+  })
+  expect(after.sourceRegion.x).toBeCloseTo(before.sourceRegion.x, 2)
+  expect(after.sourceRegion.w).toBeCloseTo(before.sourceRegion.w, 3)
+  expect(after.sourceRegion.h).toBeCloseTo(before.sourceRegion.h, 3)
+  expect(after.popupState).toEqual(before.popupState)
+  expect(after.popup.x).toBeCloseTo(before.popup.x, 0)
+  expect(after.popup.y).toBeCloseTo(before.popup.y, 0)
+})
+
+test('원본 박스를 리사이즈하면 샘플 크기가 바뀜', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state.project.slides[0].highlights[0].sourceRegion : null
+  })
+  await selectLayer(page, 'highlight-source')
+  const br = await controlPos(page, 'highlight-source', 'br')
+  await drag(page, br, { x: br.x - 80, y: br.y - 35 })
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('auto-image:project')
+        const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+        return h ? h.sourceRegion.w : null
+      }),
+    )
+    .toBeLessThan(before.w)
+  const after = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state.project.slides[0].highlights[0].sourceRegion : null
+  })
+  expect(after.h).toBeLessThan(before.h)
+})
+
+test('확대 카드를 mtr 핸들로 회전하면 rotation이 저장·복원됨', async ({ page }) => {
+  const sourceBefore = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state.project.slides[0].highlights[0].sourceRegion : null
+  })
   await selectLayer(page, 'highlight-popup')
   const mtr = await controlPos(page, 'highlight-popup', 'mtr')
   await drag(page, mtr, { x: mtr.x + 80, y: mtr.y + 30 })
-  // 릴리즈 → 스토어 sync → 재렌더된 팝업이 그 각도를 유지한다.
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const ed = (window as unknown as { __editor?: EditorSurface }).__editor
-        return ed?.findByLayer('highlight-popup')?.angle ?? 0
+        const raw = localStorage.getItem('auto-image:project')
+        const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+        return h ? h.popup.rotation ?? 0 : 0
       }),
     )
     .not.toBe(0)
+  const sourceAfter = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state.project.slides[0].highlights[0].sourceRegion : null
+  })
+  expect(sourceAfter).toEqual(sourceBefore)
 })
 
-test('기기 드래그 중에도 돋보기가 함께 움직이고 영역은 변하지 않는다', async ({ page }) => {
+test('기기 드래그 중 원본 박스는 스크린샷을 따라가고 확대 카드는 제자리에 남음', async ({ page }) => {
   const before = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
     const body = ed.findByLayer('device-frame')!
     const shot = ed.findByLayer('screenshot')!
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
     return {
+      source: ed.findByLayer('highlight-source')!.getCenterPoint(),
       popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
       shot: { left: shot.left ?? 0, top: shot.top ?? 0 },
-      grab: { x: (body.left ?? 0) + (body.width ?? 0) / 2, y: (body.top ?? 0) + 20 },
+      grab: { x: (body.left ?? 0) + (body.width ?? 0) / 2, y: (body.top ?? 0) + 6 },
+      sourceRegion: h.sourceRegion,
+      popupState: h.popup,
     }
   })
-  const regionBefore = await page.evaluate(() => {
-    const raw = localStorage.getItem('auto-image:project')
-    return raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0]?.sourceRegion : null
-  })
   const box = (await page.locator('canvas.upper-canvas').boundingBox())!
-  // 팝업 밖(기기 상단)을 잡고 드래그 — mouse.up 전 중간 상태를 검사한다.
   const grab = { x: box.x + before.grab.x, y: box.y + before.grab.y }
   await page.mouse.move(grab.x, grab.y)
   await page.mouse.down()
   for (let i = 1; i <= 6; i++) {
     await page.mouse.move(grab.x + (90 * i) / 6, grab.y + (60 * i) / 6)
   }
-  // 드래그 중간(릴리즈 전): 돋보기는 스크린샷 픽셀에 붙어 있어야 한다 —
-  // 카드의 이동량이 스크린샷의 이동량과 같다.
   const mid = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
     const shot = ed.findByLayer('screenshot')!
     return {
+      source: ed.findByLayer('highlight-source')!.getCenterPoint(),
       popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
       shot: { left: shot.left ?? 0, top: shot.top ?? 0 },
     }
   })
   const shotDelta = { x: mid.shot.left - before.shot.left, y: mid.shot.top - before.shot.top }
-  expect(Math.abs(shotDelta.x)).toBeGreaterThan(40) // 실제로 끌렸는지부터 확인
-  expect(mid.popup.x - before.popup.x).toBeCloseTo(shotDelta.x, 0)
-  expect(mid.popup.y - before.popup.y).toBeCloseTo(shotDelta.y, 0)
+  expect(Math.abs(shotDelta.x)).toBeGreaterThan(40)
+  expect(mid.source.x - before.source.x).toBeCloseTo(shotDelta.x, 0)
+  expect(mid.source.y - before.source.y).toBeCloseTo(shotDelta.y, 0)
+  expect(mid.popup.x).toBeCloseTo(before.popup.x, 0)
+  expect(mid.popup.y).toBeCloseTo(before.popup.y, 0)
   await page.mouse.up()
-  // 릴리즈 → sync가 오프셋을 기록할 때까지 대기한 뒤, 영역은 그대로인지 확인
-  // (글루 이동이 sourceRegion으로 새어들면 안 된다).
   await expect
     .poll(() =>
       page.evaluate(() => {
         const raw = localStorage.getItem('auto-image:project')
-        const df = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.deviceFrame : null
+        const df = raw ? JSON.parse(raw).state.project.slides[0].deviceFrame : null
         return df ? (df.offsetX ?? 0) !== 0 || (df.offsetY ?? 0) !== 0 : false
-      }),
-    )
-    .toBe(true)
-  const regionAfter = await page.evaluate(() => {
-    const raw = localStorage.getItem('auto-image:project')
-    return raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0]?.sourceRegion : null
-  })
-  expect(regionAfter).toEqual(regionBefore)
-})
-
-test('기기를 mtr로 회전시켜도 영역과 팝업 기울기는 변하지 않는다', async ({ page }) => {
-  const before = await page.evaluate(() => {
-    const raw = localStorage.getItem('auto-image:project')
-    const h = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0] : null
-    return h ? { sourceRegion: h.sourceRegion, rotation: h.popup.rotation ?? 0 } : null
-  })
-  await selectLayer(page, 'device-frame')
-  const mtr = await controlPos(page, 'device-frame', 'mtr')
-  await drag(page, mtr, { x: mtr.x + 90, y: mtr.y + 40 })
-  // 회전이 스토어에 기록될 때까지 대기 — 그 sync가 영역을 건드리면 안 된다.
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const raw = localStorage.getItem('auto-image:project')
-        const df = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.deviceFrame : null
-        return df ? (df.rotation ?? 0) !== 0 : false
       }),
     )
     .toBe(true)
   const after = await page.evaluate(() => {
     const raw = localStorage.getItem('auto-image:project')
-    const h = raw ? JSON.parse(raw).state?.project?.slides?.[0]?.highlights?.[0] : null
-    return h ? { sourceRegion: h.sourceRegion, rotation: h.popup.rotation ?? 0 } : null
+    return raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
   })
-  expect(after).toEqual(before)
+  expect(after.sourceRegion).toEqual(before.sourceRegion)
+  expect(after.popup.x).toBeCloseTo(before.popupState.x, 3)
+  expect(after.popup.y).toBeCloseTo(before.popupState.y, 3)
 })
 
-test('기기를 회전하면 돋보기가 원본 지점을 따라간다', async ({ page }) => {
+test('기기를 회전하면 원본 박스만 원본 지점을 따라가고 확대 카드는 유지됨', async ({ page }) => {
   const before = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
-    const popup = ed.findByLayer('highlight-popup')!.getCenterPoint()
     const body = ed.findByLayer('device-frame')!
+    const raw = localStorage.getItem('auto-image:project')
+    const h = raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
     return {
-      popup,
+      source: ed.findByLayer('highlight-source')!.getCenterPoint(),
+      popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
       pivot: {
         x: (body.left ?? 0) + (body.width ?? 0) / 2,
         y: (body.top ?? 0) + (body.height ?? 0) / 2,
       },
+      sourceRegion: h.sourceRegion,
+      popupState: h.popup,
     }
   })
-  // 기기 회전 슬라이더 → 30°
   await page.getByRole('button', { name: '디바이스' }).click()
   await page.getByRole('slider').first().evaluate((el: HTMLInputElement) => {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!
     setter.call(el, '30')
     el.dispatchEvent(new Event('input', { bubbles: true }))
   })
-  // 돋보기 카드가 기기 중심을 피벗으로 같이 회전한 위치에 재렌더된다.
   const rad = (30 * Math.PI) / 180
-  const dx = before.popup.x - before.pivot.x
-  const dy = before.popup.y - before.pivot.y
-  const expected = {
+  const dx = before.source.x - before.pivot.x
+  const dy = before.source.y - before.pivot.y
+  const expectedSource = {
     x: before.pivot.x + dx * Math.cos(rad) - dy * Math.sin(rad),
     y: before.pivot.y + dx * Math.sin(rad) + dy * Math.cos(rad),
   }
@@ -196,9 +279,24 @@ test('기기를 회전하면 돋보기가 원본 지점을 따라간다', async 
     .poll(() =>
       page.evaluate(() => {
         const ed = (window as unknown as { __editor?: EditorSurface }).__editor
-        const c = ed?.findByLayer('highlight-popup')?.getCenterPoint()
-        return c ? { x: Math.round(c.x), y: Math.round(c.y) } : null
+        const s = ed?.findByLayer('highlight-source')?.getCenterPoint()
+        const p = ed?.findByLayer('highlight-popup')?.getCenterPoint()
+        return s && p
+          ? { sx: Math.round(s.x), sy: Math.round(s.y), px: Math.round(p.x), py: Math.round(p.y) }
+          : null
       }),
     )
-    .toEqual({ x: Math.round(expected.x), y: Math.round(expected.y) })
+    .toEqual({
+      sx: Math.round(expectedSource.x),
+      sy: Math.round(expectedSource.y),
+      px: Math.round(before.popup.x),
+      py: Math.round(before.popup.y),
+    })
+  const after = await page.evaluate(() => {
+    const raw = localStorage.getItem('auto-image:project')
+    return raw ? JSON.parse(raw).state.project.slides[0].highlights[0] : null
+  })
+  expect(after.sourceRegion).toEqual(before.sourceRegion)
+  expect(after.popup.x).toBeCloseTo(before.popupState.x, 3)
+  expect(after.popup.y).toBeCloseTo(before.popupState.y, 3)
 })

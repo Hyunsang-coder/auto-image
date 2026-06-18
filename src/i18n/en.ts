@@ -537,8 +537,8 @@ export const en: Record<string, string> = {
   '+ 추가': '+ Add',
   '하이라이트는 스크린샷 영역을 확대해 보여주는 기능이에요. 먼저 스크린샷을 업로드해야 추가할 수 있어요.':
     'Highlights zoom into a region of the screenshot. Upload a screenshot first to add one.',
-  '"+ 추가"로 하이라이트를 만드세요. 캔버스에서 드래그해 위치/크기 조정.':
-    'Use "+ Add" to create a highlight. Drag on the canvas to adjust position and size.',
+  '"+ 추가"로 하이라이트를 만드세요. 캔버스에서 원본 박스와 확대 카드를 직접 조정하세요.':
+    'Use "+ Add" to create a highlight. Adjust the source box and zoom card directly on the canvas.',
   '하이라이트 {n}': 'Highlight {n}',
   '원본 영역 (스크린샷 안)': 'Source region (inside screenshot)',
   '확대 카드': 'Zoom card',

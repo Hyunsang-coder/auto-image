@@ -42,6 +42,9 @@ function addSpanSeamGuide(canvas: Canvas, midX: number, height: number): void {
 const DRAG_GUIDE_LAYER = 'drag-guide'
 const SNAP_PX = 6 // screen-px proximity at which an edge/center snaps to a guide
 const GUIDE_PADDING_RATIO = 0.04 // safe-margin lines this far in from each edge
+const SOURCE_REGION_MIN = 0.02
+const POPUP_WIDTH_MIN = 0.08
+const POPUP_WIDTH_MAX = 1.5
 
 function clearDragGuides(canvas: Canvas): void {
   for (const o of canvas.getObjects()) {
@@ -217,6 +220,7 @@ interface Props {
 // Ornaments are per-locale (LocaleOverride.ornaments), so they stay editable.
 const SHARED_LAYER_NAMES = new Set<string>([
   LAYER_NAMES.BADGE,
+  LAYER_NAMES.HIGHLIGHT_SOURCE,
   LAYER_NAMES.HIGHLIGHT_POPUP,
 ])
 
@@ -250,6 +254,32 @@ function trackCaptionBox(canvas: Canvas, text: FabricObject): void {
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n))
+}
+
+function clampPopupWidth(n: number): number {
+  return Math.max(POPUP_WIDTH_MIN, Math.min(POPUP_WIDTH_MAX, n))
+}
+
+function offsetRegion(
+  r: Highlight['sourceRegion'],
+  dx: number,
+  dy: number,
+): Highlight['sourceRegion'] {
+  return {
+    ...r,
+    x: Math.max(0, Math.min(1 - r.w, r.x + dx)),
+    y: Math.max(0, Math.min(1 - r.h, r.y + dy)),
+  }
+}
+
+function geometricCenter(obj: FabricObject): { x: number; y: number } {
+  const left = obj.left ?? 0
+  const top = obj.top ?? 0
+  const w = (obj.width ?? 0) * (obj.scaleX ?? 1)
+  const h = (obj.height ?? 0) * (obj.scaleY ?? 1)
+  const c = { x: left + w / 2, y: top + h / 2 }
+  const angle = obj.angle ?? 0
+  return angle ? rotateAround(c.x, c.y, left, top, angle) : c
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
@@ -581,15 +611,16 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (dirty) slidePatch.badges = next
       }
 
-      // Sync the loupe cards. A dragged card moves its sampling region: the
-      // card's center maps back through the screen box (un-rotating with the
-      // tilt the card was RENDERED at — _renderRot. A device move/rotate
-      // gesture carries the card along AND keeps _renderRot/_screenBounds in
-      // step, so the same inverse mapping derives the unchanged region).
+      // Sync highlights. The source selection box owns sourceRegion; the popup
+      // owns only card placement/size/tilt. Moving one no longer mutates the
+      // other.
+      const hlSourceObjs = objects.filter(
+        (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.HIGHLIGHT_SOURCE,
+      )
       const hlPopupObjs = objects.filter(
         (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.HIGHLIGHT_POPUP,
       )
-      if (hlPopupObjs.length > 0 && slide.highlights) {
+      if ((hlSourceObjs.length > 0 || hlPopupObjs.length > 0) && slide.highlights) {
         // Screen bounds the regions normalize against. Prefer the full box the
         // render stashed — the clipPath used to stand in for it, but crop
         // shrinks the clip and rotation tilts it, so it no longer matches the
@@ -612,33 +643,52 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         let dirty = false
         const next: Highlight[] = slide.highlights.map((h) => {
           let n: Highlight = h
-          const pop = hlPopupObjs.find(
+          const source = hlSourceObjs.find(
             (o) => (o as FabricObject & { highlightId?: string }).highlightId === h.id,
           ) as (FabricObject & { _renderRot?: number }) | undefined
-          if (pop) {
-            const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
-            // getCenterPoint is rotation-safe; left/top + w/2 is not once the
-            // card can tilt.
-            const c = pop.getCenterPoint()
-            const sr = h.sourceRegion
+          if (source) {
+            const nW = Math.max(SOURCE_REGION_MIN, Math.min(1, ((source.width ?? 0) * (source.scaleX ?? 1)) / sb.width))
+            const nH = Math.max(SOURCE_REGION_MIN, Math.min(1, ((source.height ?? 0) * (source.scaleY ?? 1)) / sb.height))
             const origin = canvasPointToRegionOrigin(
               sb,
-              { w: sr.w, h: sr.h },
-              c,
-              pop._renderRot ?? 0,
+              { w: nW, h: nH },
+              geometricCenter(source),
+              source._renderRot ?? 0,
             )
-            const nWidth = clamp01(pW / cw)
-            const nRot = normalizeAngle(pop.angle ?? 0)
+            const sr = h.sourceRegion
             if (
               Math.abs(origin.x - sr.x) > 0.001 ||
               Math.abs(origin.y - sr.y) > 0.001 ||
+              Math.abs(nW - sr.w) > 0.001 ||
+              Math.abs(nH - sr.h) > 0.001
+            ) {
+              n = { ...n, sourceRegion: { x: origin.x, y: origin.y, w: nW, h: nH } }
+              dirty = true
+            }
+          }
+          const pop = hlPopupObjs.find(
+            (o) => (o as FabricObject & { highlightId?: string }).highlightId === h.id,
+          ) as FabricObject | undefined
+          if (pop) {
+            const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
+            const c = pop.getCenterPoint()
+            const nWidth = clampPopupWidth(pW / cw)
+            const nRot = normalizeAngle(pop.angle ?? 0)
+            const nX = c.x / cw
+            const nY = c.y / ch
+            const curX = n.popup.x
+            const curY = n.popup.y
+            if (
+              curX === undefined ||
+              curY === undefined ||
+              Math.abs(nX - curX) > 0.001 ||
+              Math.abs(nY - curY) > 0.001 ||
               Math.abs(nWidth - h.popup.width) > 0.002 ||
               Math.abs(nRot - (h.popup.rotation ?? 0)) > 0.05
             ) {
               n = {
                 ...n,
-                sourceRegion: { ...sr, x: origin.x, y: origin.y },
-                popup: { ...n.popup, width: nWidth, rotation: nRot },
+                popup: { ...n.popup, x: nX, y: nY, width: nWidth, rotation: nRot },
               }
               dirty = true
             }
@@ -688,9 +738,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       }
     }
 
-    // Track last body position while dragging so we can translate the rest of
-    // the device (decorative paths + screenshot + clip) along with it without
-    // having to re-render the whole template every mousemove.
+    // Track last body position while dragging so we can translate the device
+    // siblings, screenshot, clip, and source boxes without a full re-render.
     const lastBodyPos = useRef<{ left: number; top: number } | null>(null)
 
     function handleDeviceMove(canvas: Canvas, body: FabricObject) {
@@ -705,7 +754,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       for (const obj of canvas.getObjects()) {
         if (obj === body) continue
         const ln = (obj as FabricObject & { layerName?: string }).layerName
-        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.HIGHLIGHT_POPUP) continue
+        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.HIGHLIGHT_SOURCE) continue
         obj.set({ left: (obj.left ?? 0) + dx, top: (obj.top ?? 0) + dy })
         const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
         if (clip) {
@@ -722,9 +771,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       lastBodyPos.current = { left: body.left ?? 0, top: body.top ?? 0 }
     }
 
-    // mtr-drag counterpart of handleDeviceMove: spin the rest of the device
-    // (decorative paths + screenshot + clip) around the body's center — which
-    // centeredRotation keeps fixed mid-drag — by the per-tick angle delta.
+    // mtr-drag counterpart of handleDeviceMove: spin the device siblings,
+    // screenshot, clip, and source boxes around the body's center by the
+    // per-tick angle delta.
     const lastBodyAngle = useRef<number | null>(null)
 
     function handleDeviceRotate(canvas: Canvas, body: FabricObject) {
@@ -739,24 +788,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       for (const obj of canvas.getObjects()) {
         if (obj === body) continue
         const ln = (obj as FabricObject & { layerName?: string }).layerName
-        if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
-          // The loupe rides its region's pixel position but keeps its own tilt:
-          // orbit the card's center around the pivot without spinning it.
-          const o = obj as FabricObject & { clipPath?: FabricObject; _renderRot?: number }
-          const c = obj.getCenterPoint()
-          const nc = rotateAround(c.x, c.y, pivot.x, pivot.y, delta)
-          obj.set({ left: (obj.left ?? 0) + nc.x - c.x, top: (obj.top ?? 0) + nc.y - c.y })
-          if (o.clipPath) {
-            o.clipPath.set({ left: (o.clipPath.left ?? 0) + nc.x - c.x, top: (o.clipPath.top ?? 0) + nc.y - c.y })
-            obj.dirty = true
-          }
-          // Sync un-rotates the card center with the tilt it was rendered at —
-          // the gesture has effectively re-rendered it at +delta.
-          o._renderRot = (o._renderRot ?? 0) + delta
-          obj.setCoords()
-          continue
-        }
-        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT) continue
+        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.HIGHLIGHT_SOURCE) continue
         const p = rotateAround(obj.left ?? 0, obj.top ?? 0, pivot.x, pivot.y, delta)
         obj.set({ left: p.x, top: p.y, angle: (obj.angle ?? 0) + delta })
         const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
@@ -774,6 +806,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           const sc = rotateAround(s.left + s.width / 2, s.top + s.height / 2, pivot.x, pivot.y, delta)
           stash._screenBounds = { ...s, left: sc.x - s.width / 2, top: sc.y - s.height / 2 }
         }
+        const source = obj as FabricObject & { _renderRot?: number }
+        if (ln === LAYER_NAMES.HIGHLIGHT_SOURCE) source._renderRot = (source._renderRot ?? 0) + delta
         obj.setCoords()
       }
     }
@@ -837,7 +871,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           patch = { badges: (slide.badges ?? []).filter((b) => b.id !== a.badgeId) }
         } else if (ln === LAYER_NAMES.ORNAMENT && a.ornamentId) {
           patch = { ornaments: (slide.ornaments ?? []).filter((o) => o.id !== a.ornamentId) }
-        } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP && a.highlightId) {
+        } else if ((ln === LAYER_NAMES.HIGHLIGHT_POPUP || ln === LAYER_NAMES.HIGHLIGHT_SOURCE) && a.highlightId) {
           patch = { highlights: (slide.highlights ?? []).filter((h) => h.id !== a.highlightId) }
         }
         if (!patch) return
@@ -878,7 +912,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
                 { ...src, id: newId('orn'), x: clamp01(src.x + 0.03), y: clamp01(src.y + 0.03) },
               ],
             }
-        } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP && a.highlightId) {
+        } else if ((ln === LAYER_NAMES.HIGHLIGHT_POPUP || ln === LAYER_NAMES.HIGHLIGHT_SOURCE) && a.highlightId) {
           const src = (slide.highlights ?? []).find((h) => h.id === a.highlightId)
           if (src)
             patch = {
@@ -887,12 +921,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
                 {
                   ...src,
                   id: newId('hl'),
-                  // The card is glued to its region — shifting the region is
-                  // what un-stacks the copy.
-                  sourceRegion: {
-                    ...src.sourceRegion,
-                    x: clamp01(src.sourceRegion.x + 0.03),
-                    y: clamp01(src.sourceRegion.y + 0.03),
+                  sourceRegion: offsetRegion(src.sourceRegion, 0.03, 0.03),
+                  popup: {
+                    ...src.popup,
+                    x: (src.popup.x ?? 0.5) + 0.03,
+                    y: (src.popup.y ?? 0.32) + 0.03,
                   },
                 },
               ],
@@ -927,6 +960,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           LAYER_NAMES.DEVICE_FRAME,
           LAYER_NAMES.BADGE,
           LAYER_NAMES.ORNAMENT,
+          LAYER_NAMES.HIGHLIGHT_SOURCE,
           LAYER_NAMES.HIGHLIGHT_POPUP,
         ]
         if (!ln || !NUDGEABLE.includes(ln)) return
