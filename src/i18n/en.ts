@@ -45,6 +45,7 @@ export const en: Record<string, string> = {
   '여러 슬라이드 일괄 스타일': 'Bulk style — multiple slides',
   폰트: 'Font',
   크기: 'Size',
+  '최대 크기': 'Max size',
   굵기: 'Weight',
   '변경 안 함': 'No change',
   '선택 {n}개에 적용': 'Apply to {n} selected',

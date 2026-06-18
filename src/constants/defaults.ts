@@ -168,6 +168,9 @@ export const DEFAULT_BADGE_STYLE: BadgeStyle = {
   fontWeight: 600,
 }
 
+export const CAPTION_FONT_SIZE_MIN = 10
+export const CAPTION_FONT_SIZE_MAX = 300
+
 export function newId(prefix: string): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()

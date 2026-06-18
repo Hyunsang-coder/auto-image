@@ -10,7 +10,7 @@ import { awaitSlideFonts } from '../../lib/fonts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
-import { newId } from '../../constants/defaults'
+import { CAPTION_FONT_SIZE_MAX, CAPTION_FONT_SIZE_MIN, newId } from '../../constants/defaults'
 import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
 
 const SEAM_LAYER = 'span-seam-guide'
@@ -429,8 +429,12 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           // text back. A side-handle width drag (and a plain move) leaves
           // scaleY at 1: keep the design size so fit-to-box can re-fit.
           const scaleY = itext.scaleY ?? 1
-          const bakeFont = (base: number) =>
-            Math.abs(scaleY - 1) > 0.001 ? Math.round((itext.fontSize ?? base) * scaleY) : undefined
+          const bakeFont = (base: number) => {
+            if (Math.abs(scaleY - 1) <= 0.001) return undefined
+            if (!existing.style.fitToBox) return Math.round((itext.fontSize ?? base) * scaleY)
+            const raw = base * scaleY
+            return Math.min(CAPTION_FONT_SIZE_MAX, Math.max(CAPTION_FONT_SIZE_MIN, Math.round(raw)))
+          }
 
           // Persist position/width when the user manipulated THIS caption.
           // Capturing on every sync would pin text that's still meant to

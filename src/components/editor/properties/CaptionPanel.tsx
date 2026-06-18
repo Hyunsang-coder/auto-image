@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Caption, CaptionBox, TemplateType, TextShadow, TextStyle } from '../../../types/project'
-import { FONT_OPTIONS, MAX_TEXTS, makeTextBlock } from '../../../constants/defaults'
+import { CAPTION_FONT_SIZE_MAX, CAPTION_FONT_SIZE_MIN, FONT_OPTIONS, MAX_TEXTS, makeTextBlock } from '../../../constants/defaults'
 import { useT } from '../../../i18n'
 
 interface CaptionFieldProps {
@@ -95,11 +95,27 @@ function ShadowControls({ label, value, onChange }: {
 
 function CaptionField({ label, value, onChange }: CaptionFieldProps) {
   const t = useT()
+  const [fontSizeDraft, setFontSizeDraft] = useState(() => ({
+    source: value.style.fontSize,
+    value: String(value.style.fontSize),
+  }))
+  const fontSizeValue =
+    fontSizeDraft.source === value.style.fontSize
+      ? fontSizeDraft.value
+      : String(value.style.fontSize)
+
   function updateStyle(patch: Partial<TextStyle>) {
     onChange({ ...value, style: { ...value.style, ...patch } })
   }
   function updateBox(patch: Partial<CaptionBox>) {
     updateStyle({ box: { ...value.style.box!, ...patch } })
+  }
+  function updateFontSize(raw: string) {
+    setFontSizeDraft({ source: value.style.fontSize, value: raw })
+    if (raw.trim() === '') return
+    const next = Number(raw)
+    if (!Number.isFinite(next) || next < CAPTION_FONT_SIZE_MIN || next > CAPTION_FONT_SIZE_MAX) return
+    updateStyle({ fontSize: next })
   }
 
   return (
@@ -136,13 +152,19 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('크기')}</label>
+          <label className="mb-1 block text-xs text-[var(--color-text-dim)]">
+            {value.style.fitToBox ? t('최대 크기') : t('크기')}
+          </label>
           <input
             type="number"
-            min={10}
-            max={300}
-            value={value.style.fontSize}
-            onChange={(e) => updateStyle({ fontSize: Number(e.target.value) })}
+            min={CAPTION_FONT_SIZE_MIN}
+            max={CAPTION_FONT_SIZE_MAX}
+            value={fontSizeValue}
+            onChange={(e) => updateFontSize(e.target.value)}
+            onBlur={() => setFontSizeDraft({ source: value.style.fontSize, value: String(value.style.fontSize) })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
             className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
           />
         </div>
@@ -437,8 +459,8 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
               <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('크기')}</label>
               <input
                 type="number"
-                min={10}
-                max={300}
+                min={CAPTION_FONT_SIZE_MIN}
+                max={CAPTION_FONT_SIZE_MAX}
                 placeholder={t('변경 안 함')}
                 value={bulkStyle.fontSize ?? ''}
                 onChange={(e) => setBulkStyle((s) => ({ ...s, fontSize: e.target.value ? Number(e.target.value) : undefined }))}
