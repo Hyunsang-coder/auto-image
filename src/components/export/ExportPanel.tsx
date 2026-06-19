@@ -4,7 +4,8 @@ import { saveAs } from 'file-saver'
 import { open } from '@tauri-apps/plugin-dialog'
 import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
-import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
+import { renderSlide, renderSlideWithReport, renderSpanGroup, renderSpanGroupWithReport } from '../../lib/renderSlide'
+import { createLayoutReport, type LayoutReport, type LayoutReportEntry } from '../../lib/layoutReport'
 import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
 import { typeOfModel } from '../../constants/deviceSpecs'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from '../../lib/readiness'
@@ -28,6 +29,19 @@ type Status = 'idle' | 'running' | 'done' | 'error'
 // One slide+locale that failed to render/emit during an export run. The batch
 // continues past it; these are collected and shown as a persistent list.
 type RenderFailure = { slideNo: number; locale: string; device: DeviceType; message: string }
+
+type LayoutReportWindow = Window & {
+  __layoutReportEnabled?: boolean
+  __layoutReport?: LayoutReport | null
+}
+
+function isLayoutReportEnabled(): boolean {
+  return (window as LayoutReportWindow).__layoutReportEnabled === true
+}
+
+function publishLayoutReport(report: LayoutReport | null): void {
+  ;(window as LayoutReportWindow).__layoutReport = report
+}
 
 // 'default' = human-organized {locale}/{device}/NN.png.
 // 'fastlane' = `deliver` layout: screenshots/{ascLocale}/{device}_NN.png, flat
@@ -212,6 +226,9 @@ export function ExportPanel() {
     // Local mirror of `failures` — state updates are async, so we accumulate
     // here and decide all-ok / partial / total at the end from this array.
     const failed: RenderFailure[] = []
+    const collectLayoutReport = isLayoutReportEnabled()
+    const layoutEntries: LayoutReportEntry[] = []
+    if (collectLayoutReport) publishLayoutReport(null)
 
     const filePath = (loc: string, dev: string, n: string) =>
       layout === 'fastlane' ? `fastlane/screenshots/${loc}/${dev}_${n}.png` : `${loc}/${dev}/${n}.png`
@@ -260,11 +277,18 @@ export function ExportPanel() {
               // Per-slide guard: a failure here records both halves and moves
               // on, so one broken span group can't abort the whole export.
               try {
-                const { leader: leftBlob, follower: rightBlob } = await renderSpanGroup(
-                  slide,
-                  follower,
-                  renderLocale,
-                )
+                let leftBlob: Blob
+                let rightBlob: Blob
+                if (collectLayoutReport) {
+                  const rendered = await renderSpanGroupWithReport(slide, follower, renderLocale, locale)
+                  layoutEntries.push(...rendered.reports)
+                  leftBlob = rendered.leader
+                  rightBlob = rendered.follower
+                } else {
+                  const rendered = await renderSpanGroup(slide, follower, renderLocale)
+                  leftBlob = rendered.leader
+                  rightBlob = rendered.follower
+                }
                 const lName = String(slide.index + 1).padStart(2, '0')
                 const rName = String(follower.index + 1).padStart(2, '0')
                 await emit(filePath(localeDir, device, lName), leftBlob)
@@ -291,7 +315,14 @@ export function ExportPanel() {
           // Per-slide guard: record the failure and continue so the rest of the
           // batch still renders and a partial ZIP/folder is produced.
           try {
-            const blob = await renderSlide(slide, renderLocale)
+            let blob: Blob
+            if (collectLayoutReport) {
+              const rendered = await renderSlideWithReport(slide, renderLocale, locale)
+              layoutEntries.push(rendered.report)
+              blob = rendered.blob
+            } else {
+              blob = await renderSlide(slide, renderLocale)
+            }
             const name = String(slide.index + 1).padStart(2, '0')
             await emit(filePath(localeDir, device, name), blob)
           } catch (e) {
@@ -306,6 +337,7 @@ export function ExportPanel() {
       }
 
       setCurrent(null)
+      if (collectLayoutReport) publishLayoutReport(createLayoutReport(project, layoutEntries))
 
       // Total failure: every planned render failed, so there's nothing to
       // package. Skip the artifact and surface an error state (the per-slide
@@ -336,6 +368,7 @@ export function ExportPanel() {
       }
     } catch (e) {
       setCurrent(null)
+      if (collectLayoutReport) publishLayoutReport(createLayoutReport(project, layoutEntries))
       setError(e instanceof Error ? e.message : String(e))
       setStatus('error')
     }

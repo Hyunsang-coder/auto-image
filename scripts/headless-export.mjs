@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Headless render pipeline: agent-authored import folder in → exact-size PNGs out.
 //
-//   node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane]
+//   node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report]
 //
 // <input-dir> is a flat folder in the project-import format (docs/project-import.md):
 // manifest.json + caption CSV/JSON + {n}[-desc].{locale}.{ext} screenshots.
@@ -18,8 +18,9 @@ import { fileURLToPath } from 'node:url'
 const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const [inDir, outDir] = positional
 const fastlane = process.argv.includes('--fastlane')
+const report = process.argv.includes('--report')
 if (!inDir || !outDir) {
-  console.error('Usage: node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane]')
+  console.error('Usage: node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report]')
   process.exit(2)
 }
 
@@ -58,6 +59,12 @@ try {
   // always where we land and no overwrite confirmation appears.
   // ko-KR: the UI language follows navigator.language and we drive Korean text.
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, locale: 'ko-KR' })
+  if (report) {
+    await page.addInitScript(() => {
+      window.__layoutReportEnabled = true
+      window.__layoutReport = null
+    })
+  }
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
@@ -116,6 +123,27 @@ try {
     }
     await rm(zipPath)
     log(`extracted ${count} files → ${outDir}`)
+  }
+
+  if (report) {
+    await mkdir(outDir, { recursive: true })
+    const layoutReport = await page.evaluate(() => window.__layoutReport ?? null)
+    if (!layoutReport) {
+      console.error(':: layout report was not produced')
+      exitCode = 1
+    } else {
+      const reportPath = join(outDir, 'layout-report.json')
+      await writeFile(reportPath, JSON.stringify(layoutReport, null, 2))
+      const byCode = Object.entries(layoutReport.summary.byCode)
+        .map(([code, n]) => `${code}=${n}`)
+        .join(', ')
+      log(
+        `layout report: ${layoutReport.summary.renderCount} renders, ` +
+        `${layoutReport.summary.issueCount} issues` +
+        (byCode ? ` (${byCode})` : ''),
+      )
+      log(`layout report saved → ${reportPath}`)
+    }
   }
 
   if (errors.length > 0) log('console errors:', JSON.stringify(errors))

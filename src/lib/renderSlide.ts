@@ -6,6 +6,7 @@ import { createImageUrlCache } from './imageStore'
 import { encodeOpaquePng } from './encodePng'
 import { resolveSlideForLocale } from './resolveSlide'
 import { awaitSlideFonts } from './fonts'
+import { captureLayoutReportEntry, type LayoutReportEntry } from './layoutReport'
 
 // Scale must stay exact (no rounding) and letterSpacing must NOT be scaled:
 // Fabric's charSpacing is em-relative so it already tracks fontSize, and
@@ -64,11 +65,17 @@ export function withScaledFonts(slide: Slide, scale: number): Slide {
   }
 }
 
-export async function renderSlide(
+export interface RenderedSlideWithReport {
+  blob: Blob
+  report: LayoutReportEntry
+}
+
+async function renderSlideResult(
   slide: Slide,
   locale: string | null,
   previewWidth?: number,
-): Promise<Blob> {
+  reportLocale?: string,
+): Promise<{ blob: Blob; report?: LayoutReportEntry }> {
   const spec = DEVICE_SPECS[slide.deviceFrame.model]
   const width = previewWidth ?? spec.exportWidth
   const height = previewWidth
@@ -89,11 +96,37 @@ export async function renderSlide(
     await awaitSlideFonts(exportSlide)
     await applyTemplate(canvas, exportSlide, { width, height }, { resolveUrl: urls.get })
 
-    return encodeOpaquePng(el)
+    const report = reportLocale
+      ? captureLayoutReportEntry(canvas, {
+          slide: exportSlide,
+          locale: reportLocale,
+          page: { x: 0, y: 0, width, height },
+        })
+      : undefined
+    return { blob: encodeOpaquePng(el), report }
   } finally {
     canvas.dispose()
     urls.revokeAll()
   }
+}
+
+export async function renderSlide(
+  slide: Slide,
+  locale: string | null,
+  previewWidth?: number,
+): Promise<Blob> {
+  return (await renderSlideResult(slide, locale, previewWidth)).blob
+}
+
+export async function renderSlideWithReport(
+  slide: Slide,
+  locale: string | null,
+  reportLocale: string,
+  previewWidth?: number,
+): Promise<RenderedSlideWithReport> {
+  const result = await renderSlideResult(slide, locale, previewWidth, reportLocale)
+  if (!result.report) throw new Error('layout report was not produced')
+  return { blob: result.blob, report: result.report }
 }
 
 /**
@@ -103,12 +136,19 @@ export async function renderSlide(
  * full renders, and guarantees objects crossing the seam (device frame, text)
  * line up pixel-perfect across the split.
  */
-export async function renderSpanGroup(
+export interface RenderedSpanGroupWithReport {
+  leader: Blob
+  follower: Blob
+  reports: [LayoutReportEntry, LayoutReportEntry]
+}
+
+async function renderSpanGroupResult(
   leader: Slide,
   follower: Slide,
   locale: string | null,
   previewHalfWidth?: number,
-): Promise<{ leader: Blob; follower: Blob }> {
+  reportLocale?: string,
+): Promise<{ leader: Blob; follower: Blob; reports?: [LayoutReportEntry, LayoutReportEntry] }> {
   const spec = DEVICE_SPECS[leader.deviceFrame.model]
   const halfWidth = previewHalfWidth ?? spec.exportWidth
   const fullWidth = halfWidth * 2
@@ -148,10 +188,50 @@ export async function renderSpanGroup(
     }
     const leftBlob = makeHalf(0)
     const rightBlob = makeHalf(halfWidth)
+    const groupId = leader.spanGroupId ?? follower.spanGroupId ?? ''
+    const reports = reportLocale
+      ? [
+          captureLayoutReportEntry(canvas, {
+            slide: exportSlide,
+            locale: reportLocale,
+            page: { x: 0, y: 0, width: halfWidth, height },
+            span: { groupId, role: 'leader', seamX: halfWidth },
+          }),
+          captureLayoutReportEntry(canvas, {
+            slide: exportFollower,
+            locale: reportLocale,
+            page: { x: halfWidth, y: 0, width: halfWidth, height },
+            span: { groupId, role: 'follower', seamX: halfWidth },
+          }),
+        ] as [LayoutReportEntry, LayoutReportEntry]
+      : undefined
 
-    return { leader: leftBlob, follower: rightBlob }
+    return { leader: leftBlob, follower: rightBlob, reports }
   } finally {
     canvas.dispose()
     urls.revokeAll()
   }
+}
+
+export async function renderSpanGroup(
+  leader: Slide,
+  follower: Slide,
+  locale: string | null,
+  previewHalfWidth?: number,
+): Promise<{ leader: Blob; follower: Blob }> {
+  const { reports, ...blobs } = await renderSpanGroupResult(leader, follower, locale, previewHalfWidth)
+  void reports
+  return blobs
+}
+
+export async function renderSpanGroupWithReport(
+  leader: Slide,
+  follower: Slide,
+  locale: string | null,
+  reportLocale: string,
+  previewHalfWidth?: number,
+): Promise<RenderedSpanGroupWithReport> {
+  const result = await renderSpanGroupResult(leader, follower, locale, previewHalfWidth, reportLocale)
+  if (!result.reports) throw new Error('layout report was not produced')
+  return { leader: result.leader, follower: result.follower, reports: result.reports }
 }
