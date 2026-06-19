@@ -25,6 +25,8 @@ export type LayoutLayer =
 export interface LayoutBox {
   id: string
   layer: LayoutLayer
+  /** JSON Pointer-style path to the closest manifest object an agent can edit. */
+  manifestPath: string
   canvasBox: LayoutRect
   /** Full object box translated into the exported PNG's coordinate space. */
   outputBox: LayoutRect
@@ -48,7 +50,20 @@ export interface LayoutIssue {
   severity: 'warning'
   message: string
   objects: string[]
+  manifestPaths: string[]
+  suggestedFix: LayoutSuggestedFix
   metrics?: Record<string, number | string | string[]>
+}
+
+export interface LayoutSuggestedEdit {
+  manifestPath: string
+  fields: string[]
+  hint: string
+}
+
+export interface LayoutSuggestedFix {
+  summary: string
+  edits: LayoutSuggestedEdit[]
 }
 
 export interface LayoutPage {
@@ -97,6 +112,29 @@ export interface LayoutReport {
   project: { id: string; name: string; sourceLocale: string; targetLocales: string[] }
   summary: LayoutReportSummary
   renders: LayoutReportEntry[]
+}
+
+export interface LayoutSummaryIssue {
+  slideNo: number
+  slideId: string
+  locale: string
+  template: TemplateType
+  device: 'iphone' | 'ipad'
+  code: LayoutIssueCode
+  severity: 'warning'
+  message: string
+  objects: string[]
+  manifestPaths: string[]
+  suggestedFix: LayoutSuggestedFix
+  metrics?: Record<string, number | string | string[]>
+}
+
+export interface LayoutSummary {
+  version: 1
+  generatedAt: string
+  project: LayoutReport['project']
+  summary: LayoutReportSummary
+  issues: LayoutSummaryIssue[]
 }
 
 interface RawBox {
@@ -264,12 +302,61 @@ function collectRawBoxes(canvas: Canvas): RawBox[] {
   return raw
 }
 
-function boxForPage(raw: RawBox, page: LayoutPage): LayoutBox | null {
+function manifestSlidePath(slide: Slide): string {
+  return `manifest.json#/slides/${slide.index}`
+}
+
+function indexedPath(root: string, collection: string, index: number): string {
+  return index >= 0 ? `${root}/${collection}/${index}` : `${root}/${collection}`
+}
+
+function owningSlideForBox(
+  raw: RawBox,
+  fallback: Slide,
+  ownerSlides?: { leader: Slide; follower?: Slide },
+): Slide {
+  if (!ownerSlides) return fallback
+  if (raw.layer === 'text') {
+    if (raw.owner === 'follower' && ownerSlides.follower) return ownerSlides.follower
+    return ownerSlides.leader
+  }
+  return ownerSlides.leader
+}
+
+function manifestPathForBox(
+  raw: RawBox,
+  fallbackSlide: Slide,
+  ownerSlides?: { leader: Slide; follower?: Slide },
+): string {
+  const slide = owningSlideForBox(raw, fallbackSlide, ownerSlides)
+  const root = manifestSlidePath(slide)
+  if (raw.layer === 'text') return `${root}/texts/${raw.textIndex ?? 0}`
+  if (raw.layer === 'device-frame') return `${root}/deviceFrame`
+  if (raw.layer === 'screenshot') return slide.deviceFrame.show ? `${root}/deviceFrame` : `${root}/screenshotStyle`
+  if (raw.layer === 'badge') {
+    const index = slide.badges.findIndex((badge) => badge.id === raw.badgeId)
+    return indexedPath(root, 'badges', index)
+  }
+  if (raw.layer === 'highlight-source' || raw.layer === 'highlight-popup') {
+    const index = slide.highlights.findIndex((highlight) => highlight.id === raw.highlightId)
+    const field = raw.layer === 'highlight-source' ? 'sourceRegion' : 'popup'
+    return `${indexedPath(root, 'highlights', index)}/${field}`
+  }
+  return root
+}
+
+function boxForPage(
+  raw: RawBox,
+  page: LayoutPage,
+  slide: Slide,
+  ownerSlides?: { leader: Slide; follower?: Slide },
+): LayoutBox | null {
   const pageRect = rect(page.x, page.y, page.width, page.height)
   const visibleCanvas = intersection(raw.canvasBox, pageRect)
   if (!visibleCanvas) return null
   return {
     ...raw,
+    manifestPath: manifestPathForBox(raw, slide, ownerSlides),
     outputBox: translate(raw.canvasBox, -page.x, -page.y),
     visibleBox: translate(visibleCanvas, -page.x, -page.y),
   }
@@ -300,6 +387,83 @@ function objectLabel(box: LayoutBox): string {
   return box.id
 }
 
+function issueBoxes(entry: LayoutReportEntryBase, objectIds: string[]): LayoutBox[] {
+  const all = [
+    ...entry.boxes.text,
+    ...entry.boxes.device,
+    ...entry.boxes.screenshot,
+    ...entry.boxes.highlightSource,
+    ...entry.boxes.highlightPopup,
+    ...entry.boxes.badge,
+  ]
+  return objectIds
+    .map((id) => all.find((box) => box.id === id))
+    .filter((box): box is LayoutBox => box !== undefined)
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values)]
+}
+
+function suggestedEditForBox(box: LayoutBox): LayoutSuggestedEdit {
+  if (box.layer === 'text') {
+    return {
+      manifestPath: box.manifestPath,
+      fields: ['pos', 'boxWidth', 'fontSize', 'fitToBox'],
+      hint: 'Move this text block away from the collision, narrow its wrap width, or reduce/fit its font size.',
+    }
+  }
+  if (box.layer === 'device-frame' || box.layer === 'screenshot') {
+    return {
+      manifestPath: box.manifestPath,
+      fields: box.manifestPath.endsWith('/screenshotStyle')
+        ? ['crop']
+        : ['offsetX', 'offsetY', 'scale'],
+      hint: 'Move or scale the device/screenshot area if moving text is not enough.',
+    }
+  }
+  if (box.layer === 'badge') {
+    return {
+      manifestPath: box.manifestPath,
+      fields: ['left', 'top'],
+      hint: 'Move the badge center/top so the pill sits fully inside its intended page.',
+    }
+  }
+  if (box.layer === 'highlight-source') {
+    return {
+      manifestPath: box.manifestPath,
+      fields: ['x', 'y', 'w', 'h'],
+      hint: 'Adjust the sampled source region only if the popup cannot move without hiding the feature.',
+    }
+  }
+  return {
+    manifestPath: box.manifestPath,
+    fields: ['x', 'y', 'width'],
+    hint: 'Move the highlight popup inside the page or shrink its width.',
+  }
+}
+
+function makeIssue(
+  entry: LayoutReportEntryBase,
+  code: LayoutIssueCode,
+  message: string,
+  objects: string[],
+  summary: string,
+  metrics?: Record<string, number | string | string[]>,
+): LayoutIssue {
+  const boxes = issueBoxes(entry, objects)
+  const edits = boxes.map(suggestedEditForBox)
+  return {
+    code,
+    severity: 'warning',
+    message,
+    objects,
+    manifestPaths: unique(edits.map((edit) => edit.manifestPath)),
+    suggestedFix: { summary, edits },
+    ...(metrics ? { metrics } : {}),
+  }
+}
+
 function pushSafeMarginIssues(entry: LayoutReportEntryBase, issues: LayoutIssue[]): void {
   const checked = [
     ...entry.boxes.text,
@@ -309,13 +473,14 @@ function pushSafeMarginIssues(entry: LayoutReportEntryBase, issues: LayoutIssue[
   for (const box of checked) {
     const sides = overflowSides(box.outputBox, entry.safeArea)
     if (sides.length === 0) continue
-    issues.push({
-      code: 'safe-margin-overflow',
-      severity: 'warning',
-      message: `${objectLabel(box)} is outside the safe margin on ${sides.join(', ')}`,
-      objects: [box.id],
-      metrics: { sides, safeMarginX: entry.safeMargin.x, safeMarginY: entry.safeMargin.y },
-    })
+    issues.push(makeIssue(
+      entry,
+      'safe-margin-overflow',
+      `${objectLabel(box)} is outside the safe margin on ${sides.join(', ')}`,
+      [box.id],
+      'Move the object back inside safeArea, or reduce its size if it cannot move without covering important content.',
+      { sides, safeMarginX: entry.safeMargin.x, safeMarginY: entry.safeMargin.y },
+    ))
   }
 }
 
@@ -334,17 +499,18 @@ function pushTextOverlapIssues(entry: LayoutReportEntryBase, issues: LayoutIssue
       if (!overlap) continue
       const ratio = area(overlap) / Math.max(1, area(text.visibleBox))
       if (ratio <= TEXT_OVERLAP_RATIO) continue
-      issues.push({
-        code: 'text-overlap',
-        severity: 'warning',
-        message: `${objectLabel(text)} overlaps ${objectLabel(target)} by ${round(ratio * 100)}%`,
-        objects: [text.id, target.id],
-        metrics: {
+      issues.push(makeIssue(
+        entry,
+        'text-overlap',
+        `${objectLabel(text)} overlaps ${objectLabel(target)} by ${round(ratio * 100)}%`,
+        [text.id, target.id],
+        'Move or resize the text block first; if the target is the device, badge, or popup, move/scale that target as the secondary fix.',
+        {
           overlapArea: round(area(overlap)),
           overlapRatio: round(ratio),
           threshold: TEXT_OVERLAP_RATIO,
         },
-      })
+      ))
     }
   }
 }
@@ -354,13 +520,14 @@ function pushBadgeSeamIssues(entry: LayoutReportEntryBase, issues: LayoutIssue[]
   const seamX = entry.span.seamX
   for (const badge of entry.boxes.badge) {
     if (badge.canvasBox.x < seamX - EPS && badge.canvasBox.right > seamX + EPS) {
-      issues.push({
-        code: 'badge-seam-overlap',
-        severity: 'warning',
-        message: `${objectLabel(badge)} crosses the span seam`,
-        objects: [badge.id],
-        metrics: { seamX },
-      })
+      issues.push(makeIssue(
+        entry,
+        'badge-seam-overlap',
+        `${objectLabel(badge)} crosses the span seam`,
+        [badge.id],
+        'Move the badge left/right so its full pill stays on one side of the span seam.',
+        { seamX },
+      ))
     }
   }
 }
@@ -370,13 +537,14 @@ function pushHighlightIssues(entry: LayoutReportEntryBase, issues: LayoutIssue[]
   for (const popup of entry.boxes.highlightPopup) {
     const sides = overflowSides(popup.outputBox, screen)
     if (sides.length > 0) {
-      issues.push({
-        code: 'highlight-popup-overflow',
-        severity: 'warning',
-        message: `${objectLabel(popup)} is outside the output screen on ${sides.join(', ')}`,
-        objects: [popup.id],
-        metrics: { sides },
-      })
+      issues.push(makeIssue(
+        entry,
+        'highlight-popup-overflow',
+        `${objectLabel(popup)} is outside the output screen on ${sides.join(', ')}`,
+        [popup.id],
+        'Move the highlight popup inside the output bounds or shrink popup.width.',
+        { sides },
+      ))
     }
 
     const source = entry.boxes.highlightSource.find((s) => s.highlightId === popup.highlightId)
@@ -385,17 +553,18 @@ function pushHighlightIssues(entry: LayoutReportEntryBase, issues: LayoutIssue[]
     if (!overlap) continue
     const ratio = area(overlap) / Math.max(1, Math.min(area(popup.visibleBox), area(source.visibleBox)))
     if (ratio <= POPUP_SOURCE_OVERLAP_RATIO) continue
-    issues.push({
-      code: 'highlight-popup-source-overlap',
-      severity: 'warning',
-      message: `${objectLabel(popup)} overlaps its source by ${round(ratio * 100)}%`,
-      objects: [popup.id, source.id],
-      metrics: {
+    issues.push(makeIssue(
+      entry,
+      'highlight-popup-source-overlap',
+      `${objectLabel(popup)} overlaps its source by ${round(ratio * 100)}%`,
+      [popup.id, source.id],
+      'Move the highlight popup away from sourceRegion or shrink popup.width.',
+      {
         overlapArea: round(area(overlap)),
         overlapRatio: round(ratio),
         threshold: POPUP_SOURCE_OVERLAP_RATIO,
       },
-    })
+    ))
   }
 }
 
@@ -415,11 +584,12 @@ export function captureLayoutReportEntry(
     locale: string
     page: LayoutPage
     span?: { groupId: string; role: 'leader' | 'follower'; seamX: number }
+    ownerSlides?: { leader: Slide; follower?: Slide }
   },
 ): LayoutReportEntry {
   const raw = collectRawBoxes(canvas)
   const pageBoxes = raw
-    .map((box) => boxForPage(box, opts.page))
+    .map((box) => boxForPage(box, opts.page, opts.slide, opts.ownerSlides))
     .filter((box): box is LayoutBox => box !== null)
   const { margin, area: safe } = safeArea(opts.page.width, opts.page.height)
   const base: LayoutReportEntryBase = {
@@ -473,5 +643,30 @@ export function createLayoutReport(project: Project, renders: LayoutReportEntry[
     },
     summary: summarizeLayoutReport(renders),
     renders,
+  }
+}
+
+export function createLayoutSummary(report: LayoutReport): LayoutSummary {
+  return {
+    version: 1,
+    generatedAt: report.generatedAt,
+    project: report.project,
+    summary: report.summary,
+    issues: report.renders.flatMap((render) =>
+      render.issues.map((issue) => ({
+        slideNo: render.slideNo,
+        slideId: render.slideId,
+        locale: render.locale,
+        template: render.template,
+        device: render.device,
+        code: issue.code,
+        severity: issue.severity,
+        message: issue.message,
+        objects: issue.objects,
+        manifestPaths: issue.manifestPaths,
+        suggestedFix: issue.suggestedFix,
+        ...(issue.metrics ? { metrics: issue.metrics } : {}),
+      })),
+    ),
   }
 }

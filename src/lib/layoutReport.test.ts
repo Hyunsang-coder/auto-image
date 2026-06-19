@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createLayoutSummary,
   summarizeLayoutReport,
   validateLayoutEntry,
   type LayoutBox,
@@ -35,6 +36,7 @@ function box(
   return {
     id,
     layer,
+    manifestPath: `manifest.json#/slides/0/${id.replaceAll(':', '/')}`,
     canvasBox: rect,
     outputBox: rect,
     visibleBox: rect,
@@ -77,6 +79,8 @@ describe('layout validator', () => {
     expect(issues.map((i) => i.code)).toEqual(
       expect.arrayContaining(['text-overlap', 'safe-margin-overflow']),
     )
+    expect(issues.every((i) => i.manifestPaths.length > 0)).toBe(true)
+    expect(issues.every((i) => i.suggestedFix.edits.length > 0)).toBe(true)
   })
 
   it('does not flag text over a full-bleed screenshot as a screenshot overlap', () => {
@@ -129,6 +133,40 @@ describe('layout validator', () => {
       byCode: {
         'text-overlap': 1,
         'safe-margin-overflow': 1,
+      },
+    })
+  })
+
+  it('creates an agent-facing flat issue summary', () => {
+    const base = entry({
+      highlightPopup: [
+        box('highlight-popup:h1', 'highlight-popup', 850, 1850, 220, 180, {
+          highlightId: 'h1',
+          manifestPath: 'manifest.json#/slides/0/highlights/0/popup',
+        }),
+      ],
+    })
+    const render: LayoutReportEntry = { ...base, issues: validateLayoutEntry(base) }
+
+    const summary = createLayoutSummary({
+      version: 1,
+      generatedAt: '2026-06-19T00:00:00.000Z',
+      project: { id: 'project-1', name: 'Demo', sourceLocale: 'en', targetLocales: ['ja'] },
+      summary: summarizeLayoutReport([render]),
+      renders: [render],
+    })
+
+    const overflow = summary.issues.find((issue) => issue.code === 'highlight-popup-overflow')
+    expect(overflow).toMatchObject({
+      slideNo: 1,
+      locale: 'en',
+      code: 'highlight-popup-overflow',
+      manifestPaths: ['manifest.json#/slides/0/highlights/0/popup'],
+      suggestedFix: {
+        edits: [{
+          manifestPath: 'manifest.json#/slides/0/highlights/0/popup',
+          fields: ['x', 'y', 'width'],
+        }],
       },
     })
   })

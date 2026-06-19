@@ -5,7 +5,13 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSlideWithReport, renderSpanGroup, renderSpanGroupWithReport } from '../../lib/renderSlide'
-import { createLayoutReport, type LayoutReport, type LayoutReportEntry } from '../../lib/layoutReport'
+import {
+  createLayoutReport,
+  createLayoutSummary,
+  type LayoutReport,
+  type LayoutReportEntry,
+  type LayoutSummary,
+} from '../../lib/layoutReport'
 import { ascExportCode, SUPPORTED_LOCALES } from '../../constants/defaults'
 import { typeOfModel } from '../../constants/deviceSpecs'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from '../../lib/readiness'
@@ -33,6 +39,7 @@ type RenderFailure = { slideNo: number; locale: string; device: DeviceType; mess
 type LayoutReportWindow = Window & {
   __layoutReportEnabled?: boolean
   __layoutReport?: LayoutReport | null
+  __layoutSummary?: LayoutSummary | null
 }
 
 function isLayoutReportEnabled(): boolean {
@@ -40,7 +47,9 @@ function isLayoutReportEnabled(): boolean {
 }
 
 function publishLayoutReport(report: LayoutReport | null): void {
-  ;(window as LayoutReportWindow).__layoutReport = report
+  const target = window as LayoutReportWindow
+  target.__layoutReport = report
+  target.__layoutSummary = report ? createLayoutSummary(report) : null
 }
 
 // 'default' = human-organized {locale}/{device}/NN.png.

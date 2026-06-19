@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Headless render pipeline: agent-authored import folder in → exact-size PNGs out.
 //
-//   node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report]
+//   node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--fail-on-layout-issues]
 //
 // <input-dir> is a flat folder in the project-import format (docs/project-import.md):
 // manifest.json + caption CSV/JSON + {n}[-desc].{locale}.{ext} screenshots.
@@ -18,9 +18,10 @@ import { fileURLToPath } from 'node:url'
 const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const [inDir, outDir] = positional
 const fastlane = process.argv.includes('--fastlane')
-const report = process.argv.includes('--report')
+const failOnLayoutIssues = process.argv.includes('--fail-on-layout-issues')
+const report = process.argv.includes('--report') || failOnLayoutIssues
 if (!inDir || !outDir) {
-  console.error('Usage: node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report]')
+  console.error('Usage: node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--fail-on-layout-issues]')
   process.exit(2)
 }
 
@@ -63,6 +64,7 @@ try {
     await page.addInitScript(() => {
       window.__layoutReportEnabled = true
       window.__layoutReport = null
+      window.__layoutSummary = null
     })
   }
   const errors = []
@@ -127,13 +129,40 @@ try {
 
   if (report) {
     await mkdir(outDir, { recursive: true })
-    const layoutReport = await page.evaluate(() => window.__layoutReport ?? null)
+    const { layoutReport, layoutSummary } = await page.evaluate(() => ({
+      layoutReport: window.__layoutReport ?? null,
+      layoutSummary: window.__layoutSummary ?? null,
+    }))
     if (!layoutReport) {
       console.error(':: layout report was not produced')
       exitCode = 1
     } else {
       const reportPath = join(outDir, 'layout-report.json')
+      const summaryPath = join(outDir, 'layout-summary.json')
+      const summary = layoutSummary ?? {
+        version: 1,
+        generatedAt: layoutReport.generatedAt,
+        project: layoutReport.project,
+        summary: layoutReport.summary,
+        issues: layoutReport.renders.flatMap((render) =>
+          render.issues.map((issue) => ({
+            slideNo: render.slideNo,
+            slideId: render.slideId,
+            locale: render.locale,
+            template: render.template,
+            device: render.device,
+            code: issue.code,
+            severity: issue.severity,
+            message: issue.message,
+            objects: issue.objects,
+            manifestPaths: issue.manifestPaths ?? [],
+            suggestedFix: issue.suggestedFix ?? null,
+            ...(issue.metrics ? { metrics: issue.metrics } : {}),
+          })),
+        ),
+      }
       await writeFile(reportPath, JSON.stringify(layoutReport, null, 2))
+      await writeFile(summaryPath, JSON.stringify(summary, null, 2))
       const byCode = Object.entries(layoutReport.summary.byCode)
         .map(([code, n]) => `${code}=${n}`)
         .join(', ')
@@ -143,6 +172,11 @@ try {
         (byCode ? ` (${byCode})` : ''),
       )
       log(`layout report saved → ${reportPath}`)
+      log(`layout summary saved → ${summaryPath}`)
+      if (failOnLayoutIssues && layoutReport.summary.issueCount > 0) {
+        console.error(`:: failing because --fail-on-layout-issues found ${layoutReport.summary.issueCount} layout issues`)
+        exitCode = 1
+      }
     }
   }
 

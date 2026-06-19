@@ -196,12 +196,14 @@ async function renderSpanGroupResult(
             locale: reportLocale,
             page: { x: 0, y: 0, width: halfWidth, height },
             span: { groupId, role: 'leader', seamX: halfWidth },
+            ownerSlides: { leader: exportSlide, follower: exportFollower },
           }),
           captureLayoutReportEntry(canvas, {
             slide: exportFollower,
             locale: reportLocale,
             page: { x: halfWidth, y: 0, width: halfWidth, height },
             span: { groupId, role: 'follower', seamX: halfWidth },
+            ownerSlides: { leader: exportSlide, follower: exportFollower },
           }),
         ] as [LayoutReportEntry, LayoutReportEntry]
       : undefined
