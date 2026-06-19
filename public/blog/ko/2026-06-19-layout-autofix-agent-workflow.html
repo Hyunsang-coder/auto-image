@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2026년 6월 업데이트: 안전한 레이아웃 검사와 더 자율적인 에이전트 워크플로</title>
+  <meta
+    name="description"
+    content="2026년 6월 19일 App Store Screenshot Studio 업데이트: layout-report가 manifest 필드로 연결되고, suggestedFix를 dry-run으로 확인한 뒤 적용할 수 있으며, 프로젝트 스킬로 에이전트 기반 스크린샷 작업이 더 반복 가능해졌습니다."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/blog/ko/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/blog/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/blog/ko/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/blog/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="2026년 6월 업데이트: 안전한 레이아웃 검사와 더 자율적인 에이전트 워크플로" />
+  <meta
+    property="og:description"
+    content="이번 업데이트는 레이아웃 리포트를 실제 manifest 수정으로 연결하고, 헤들리스 스크린샷 파이프라인을 코딩 에이전트가 더 안전하게 다룰 수 있게 만듭니다."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/blog/ko/2026-06-19-layout-autofix-agent-workflow.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "2026년 6월 업데이트: 안전한 레이아웃 검사와 더 자율적인 에이전트 워크플로",
+    "datePublished": "2026-06-19",
+    "dateModified": "2026-06-19",
+    "inLanguage": "ko",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../../">← App Store Screenshot Studio</a><a href="../2026-06-19-layout-autofix-agent-workflow.html">Read in English →</a></p>
+  <h1>2026년 6월 업데이트: 안전한 레이아웃 검사와 더 자율적인 에이전트 워크플로</h1>
+  <p class="lead">
+    오늘 업데이트는 화려한 기능보다 도구를 믿고 반복해서 쓸 수 있게 만드는 쪽에 가깝습니다.
+    레이아웃 리포트 데이터가 더 정확해졌고, 작은 진단 버그들이 정리됐으며, AI 코딩
+    에이전트가 스크린샷 세트를 검사하고 보수적인 manifest 수정을 적용한 뒤 다시 렌더링할
+    수 있는 안전한 루프가 생겼습니다.
+  </p>
+
+  <h2>루프를 믿을 수 있게 만드는 기본 수정</h2>
+  <p>
+    헤들리스 렌더러는 이미 파일 폴더에서 스크린샷을 만들어낼 수 있었습니다. 약한 부분은
+    렌더링 뒤 레이아웃 문제가 발견됐을 때였습니다. 리포트가 텍스트 겹침이나 팝업의
+    안전 영역 이탈을 알려주더라도, 그 문제가 manifest의 어떤 필드에서 왔는지 항상
+    분명하지는 않았습니다.
+  </p>
+  <p>
+    이제 그 부분이 정리됐습니다. 레이아웃 리포트의 각 박스는 <code>manifestPath</code>를
+    갖고, issue는 관련 <code>manifestPaths</code>를 함께 전달하며, 각 issue는
+    <code>suggestedFix</code>를 노출할 수 있습니다. 렌더러는
+    <code>--fail-on-layout-issues</code> 옵션으로 레이아웃 문제가 있으면 명시적으로 실패할
+    수도 있습니다. CI나 에이전트가 돌리는 작업에서는 조용한 경고보다 훨씬 다루기 좋습니다.
+  </p>
+
+  <h2>에이전트가 실제로 쓸 수 있는 요약 파일</h2>
+  <p>
+    새로 중요한 산출물은 <code>layout-summary.json</code>입니다. 사람이든 에이전트든 긴
+    시각 리포트를 거꾸로 해석하지 않아도 되도록, issue와 suggested edit을 원래
+    manifest에 가까운 형식으로 묶습니다.
+  </p>
+  <p>
+    이게 중요한 이유는 manifest가 스크린샷 프로젝트와 자동화 사이의 안정적인 계약이기
+    때문입니다. <code>/slides/1/highlights/0/popup/centerY</code> 같은 JSON Pointer는
+    "두 번째 카드를 조금 아래로 내려"보다 훨씬 안전합니다. 전자는 검사하고, diff로 보고,
+    적용할 수 있습니다.
+  </p>
+
+  <h2>제안에서 안전한 자동 수정까지</h2>
+  <p>
+    이제 <code>layout-summary.json</code>을 읽고 suggested manifest edit을 적용하는 작은
+    fixer가 있습니다. 의도적으로 보수적으로 동작합니다. 기본은 dry-run입니다: 무엇이
+    바뀔지 출력만 하고 파일은 건드리지 않습니다. 실제 파일을 쓰려면 명시적으로
+    <code>--write</code>를 붙여야 합니다.
+  </p>
+  <pre><code>npm run headless:export -- launch-screenshots/ out/ --report
+npm run layout:fix -- out/layout-summary.json launch-screenshots/manifest.json
+npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3</code></pre>
+  <p>
+    첫 번째 명령은 렌더링과 리포트를 만듭니다. 두 번째는 사람이 읽을 수 있는 dry-run
+    요약을 보여줍니다. 세 번째는 전체 루프를 실행합니다: 렌더링하고, 안전한 manifest
+    수정을 적용하고, 다시 렌더링하며, 문제가 없어지거나 최대 반복 횟수에 도달하면 멈춥니다.
+  </p>
+  <p>
+    첫 지원 범위는 현지화된 App Store 스크린샷에서 자주 막히는 문제들입니다:
+    <code>text-overlap</code>, <code>safe-margin-overflow</code>,
+    <code>badge-seam-overlap</code>, 그리고 highlight popup의 overflow/source-overlap
+    계열입니다. 내보낸 PNG가 아니라 manifest 값을 고치기 때문에, 프로젝트는 계속 편집
+    가능하고 반복 가능합니다.
+  </p>
+
+  <h2>정리된 에이전트 스킬과 덜 시끄러운 저장소</h2>
+  <p>
+    프로젝트 전용 에이전트 스킬은 이제 <code>.agents/skills/</code> 아래에 모았습니다.
+    반복해서 쓰는 루틴도 더 찾기 쉬워졌습니다: 세 단계 테스트 흐름 실행, 동작 변경 뒤
+    stale test 업데이트, 브라우저에서 project-import 파이프라인 검증, promo 플로 기록.
+    로컬 런타임 상태는 저장소 밖으로 빠져서, 다음 에이전트가 일을 시작할 때 관계없는
+    변경사항에 덜 흔들립니다.
+  </p>
+
+  <h2>왜 중요한가</h2>
+  <p>
+    목표는 에이전트에게 디자인 결정을 마음대로 맡기는 것이 아닙니다. 지루한 부분을 좁고
+    검토 가능한 경로로 넘기는 것입니다: 정확한 산출물을 렌더링하고, 기계적인 레이아웃
+    문제를 찾고, 가장 작은 manifest 수정을 만들고, diff를 보여주는 것. 취향은 여전히
+    사람이 가집니다. 루프는 수동으로 몇 번씩 위치를 미는 일을 줄여줄 뿐입니다.
+  </p>
+  <p>
+    이것은 App Store Screenshot Studio의 원래 철학과도 맞습니다: 계정 없음, 서버 없음,
+    스크린샷 업로드 없음, 숨겨진 상태 없음. 파일을 넣으면 PNG와 리포트가 나오고, 자동으로
+    바뀐 것은 적용 전에 검토할 수 있습니다.
+  </p>
+
+  <a class="cta" href="../../guides/ko/how-to-use.html">
+    <strong>워크플로 가이드 읽기</strong> — manifest를 가져오고, 로컬에서 렌더링하고,
+    레이아웃 리포트를 확인하면서 프로젝트는 완전히 클라이언트사이드로 유지하세요. →
+  </a>
+
+  <footer>
+    <p>
+      <a href="../../">홈</a> · <a href="../../guides/ko/how-to-use.html">사용법</a> ·
+      <a href="../../about.html">About</a> ·
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a> — 2026년 6월 19일.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

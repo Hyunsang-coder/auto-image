@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>June 2026 Update: Safer Layout Checks and a More Autonomous Agent Workflow</title>
+  <meta
+    name="description"
+    content="A June 19, 2026 update for App Store Screenshot Studio: layout reports now point back to manifest fields, suggested fixes can run in a guarded dry-run loop, and project skills make agent-driven screenshot work more repeatable."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/blog/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/blog/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/blog/ko/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/blog/2026-06-19-layout-autofix-agent-workflow.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="June 2026 Update: Safer Layout Checks and a More Autonomous Agent Workflow" />
+  <meta
+    property="og:description"
+    content="The latest update turns layout reports into actionable manifest fixes and makes the headless screenshot pipeline easier for coding agents to drive safely."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/blog/2026-06-19-layout-autofix-agent-workflow.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "June 2026 Update: Safer Layout Checks and a More Autonomous Agent Workflow",
+    "datePublished": "2026-06-19",
+    "dateModified": "2026-06-19",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../">← App Store Screenshot Studio</a><a href="./ko/2026-06-19-layout-autofix-agent-workflow.html">한국어로 읽기 →</a></p>
+  <h1>June 2026 update: safer layout checks and a more autonomous agent workflow</h1>
+  <p class="lead">
+    Today's update is mostly the unglamorous kind of work that makes a tool reliable:
+    better report data, smaller bug fixes around layout diagnostics, and a new guarded
+    loop that lets an AI coding agent inspect a screenshot set, apply conservative manifest
+    edits, and render again without turning the process into guesswork.
+  </p>
+
+  <h2>The basic fixes that make the loop trustworthy</h2>
+  <p>
+    The headless renderer already knew how to produce screenshots from a folder of files.
+    The weak spot was what happened after a render found a layout problem. A report could
+    say that text overlapped or a popup crossed a safe margin, but it did not always point
+    cleanly back to the manifest field that caused the problem.
+  </p>
+  <p>
+    That is fixed now. Layout report boxes include <code>manifestPath</code>, issues carry
+    their related <code>manifestPaths</code>, and every issue can expose a
+    <code>suggestedFix</code>. The renderer can also fail explicitly with
+    <code>--fail-on-layout-issues</code>, which is useful in CI or an agent-run workflow
+    where a quiet warning is too easy to miss.
+  </p>
+
+  <h2>A summary file an agent can actually use</h2>
+  <p>
+    The important new artifact is <code>layout-summary.json</code>. Instead of forcing a
+    human or agent to reverse-engineer a long visual report, the summary groups issues and
+    suggested edits in a format that is deliberately close to the original manifest.
+  </p>
+  <p>
+    That matters because the manifest is the stable contract between a screenshot project
+    and the automation around it. A JSON Pointer such as
+    <code>/slides/1/highlights/0/popup/centerY</code> is much safer than an instruction like
+    "move the second card down a bit." The former can be checked, diffed, and applied.
+  </p>
+
+  <h2>From suggestion to guarded auto-fix</h2>
+  <p>
+    There is now a small fixer that reads <code>layout-summary.json</code> and applies the
+    suggested manifest edits. It is conservative on purpose. The default mode is a dry run:
+    it prints what would change and leaves files untouched. Only an explicit
+    <code>--write</code> writes the updated manifest.
+  </p>
+  <pre><code>npm run headless:export -- launch-screenshots/ out/ --report
+npm run layout:fix -- out/layout-summary.json launch-screenshots/manifest.json
+npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3</code></pre>
+  <p>
+    The first command renders and reports. The second shows a human-readable dry-run
+    summary. The third runs the full loop: render, apply guarded manifest fixes, render
+    again, and stop when the layout is clean or the maximum run count is reached.
+  </p>
+  <p>
+    The first set of supported fixes covers the issues that tend to block localized App
+    Store screenshots most often: <code>text-overlap</code>,
+    <code>safe-margin-overflow</code>, <code>badge-seam-overlap</code>, and the highlight
+    popup overflow/source-overlap cases. They adjust manifest values, not exported PNGs, so
+    the project remains editable and repeatable.
+  </p>
+
+  <h2>Cleaner agent skills, less repository noise</h2>
+  <p>
+    The repository now keeps project-specific agent skills under <code>.agents/skills/</code>.
+    The useful routines are easier to reuse: run the three-layer test flow, update stale
+    tests after behavior changes, verify the project-import pipeline in a browser, or record
+    the promo flow. Local runtime state stays out of the repository, so a future agent sees
+    fewer unrelated dirty files before it starts work.
+  </p>
+
+  <h2>Why this matters</h2>
+  <p>
+    The end goal is not to let an agent make unlimited design decisions. It is to give the
+    agent a narrow, inspectable path through the boring parts: render the exact outputs,
+    detect mechanical layout problems, make the smallest manifest edits, and show the diff.
+    A person still owns the taste. The loop just removes a few rounds of manual nudging.
+  </p>
+  <p>
+    That fits the original philosophy of App Store Screenshot Studio: no account, no server,
+    no screenshot upload, and no hidden state. Files go in, PNGs and reports come out, and
+    every automated change can be reviewed before it lands.
+  </p>
+
+  <a class="cta" href="../guides/how-to-use.html">
+    <strong>Read the workflow guide</strong> — import a manifest, render locally, inspect
+    layout reports, and keep the project fully client-side. →
+  </a>
+
+  <footer>
+    <p>
+      <a href="../">Home</a> · <a href="../guides/how-to-use.html">How to use</a> ·
+      <a href="../about.html">About</a> ·
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a> — June 19, 2026.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>
