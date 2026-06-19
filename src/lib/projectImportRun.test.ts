@@ -69,6 +69,28 @@ describe('runProjectImport', () => {
     expect(r.project!.slides[1].texts[1].translations.en).toBe('Sub')
   })
 
+  it('fills badge rows when the manifest declares badge slots', async () => {
+    const manifest = JSON.stringify({
+      version: 1,
+      name: 'Dogo',
+      sourceLocale: 'ko',
+      targetLocales: ['en'],
+      slides: [{ textBlocks: 1, badges: [{}] }],
+    })
+    const captions = JSON.stringify({
+      rows: [
+        { slide: 1, field: 'badge:0', texts: { ko: '인기', en: 'Popular' } },
+      ],
+    })
+    const r = await runProjectImport([f('copy.json', captions), f('manifest.json', manifest)])
+    expect(r.issues).toEqual([])
+    expect(r.applied.captions).toBe(2)
+    expect(r.project!.slides[0].badges[0]).toMatchObject({
+      text: '인기',
+      translations: { en: 'Popular' },
+    })
+  })
+
   it('prefers CSV over caption JSON and warns', async () => {
     const csv = 'slide,slideId,field,ko,en\n1,,text:0,씨에스브이,CSV\n'
     const json = JSON.stringify({ rows: [{ slide: 1, field: 'text:0', texts: { ko: '제이슨' } }] })

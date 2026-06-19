@@ -196,6 +196,26 @@ export const en: Record<string, string> = {
     '{where}: unknown shape "{shape}" — excluded',
   '{where}: color는 문자열 — 무시':
     '{where}: color must be a string — ignored',
+  '{where}: badges는 배열이어야 함 — 무시':
+    '{where}: badges must be an array — ignored',
+  '{where}: badges는 최대 {max}개 — 처음 {max}개만 사용':
+    '{where}: maximum {max} badges — using first {max}',
+  '{where}: text는 문자열 — 무시':
+    '{where}: text must be a string — ignored',
+  '{where}: badge.style 형식이 올바르지 않음 — 무시':
+    '{where}: invalid badge.style format — ignored',
+  '{where}: badge.style.backgroundColor는 문자열 — 무시':
+    '{where}: badge.style.backgroundColor must be a string — ignored',
+  '{where}: badge.style.textColor는 문자열 — 무시':
+    '{where}: badge.style.textColor must be a string — ignored',
+  '{where}: span은 {group, role} 객체여야 함 — 무시':
+    '{where}: span must be a {group, role} object — ignored',
+  '{where}: span.group이 필요 — span 무시':
+    '{where}: span.group is required — span ignored',
+  '{where}: span.role은 leader|follower — span 무시':
+    '{where}: span.role must be leader|follower — span ignored',
+  'span "{group}"은 인접한 leader/follower 한 쌍이어야 함 — span 무시':
+    'span "{group}" must be one adjacent leader/follower pair — span ignored',
   '{where}: texts는 배열이어야 함 — 무시':
     '{where}: texts must be an array — ignored',
   '{where}: texts는 최대 {max}개 — 처음 {max}개만 사용':
@@ -204,6 +224,8 @@ export const en: Record<string, string> = {
     '{where}: entry is not an object — ignored',
   '{where}: align은 left|center|right — 무시':
     '{where}: align must be left|center|right — ignored',
+  '{where}: fitToBox는 boolean — 무시':
+    '{where}: fitToBox must be a boolean — ignored',
   '{where}: pos는 x,y(0~1) 둘 다 필요 — 무시':
     '{where}: pos needs both x and y (0–1) — ignored',
   '{where}: pos 형식이 올바르지 않음 — 무시':

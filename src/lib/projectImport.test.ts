@@ -200,6 +200,7 @@ describe('parseManifest normalization', () => {
           texts: [
             {
               fontScale: 1.3,
+              fitToBox: true,
               color: '#FFFFFF',
               align: 'left',
               weight: 800,
@@ -217,6 +218,7 @@ describe('parseManifest normalization', () => {
     const tx = manifest?.slides[0].texts
     expect(tx?.[0]).toEqual({
       fontScale: 1.3,
+      fitToBox: true,
       color: '#FFFFFF',
       align: 'left',
       weight: 800,
@@ -228,6 +230,72 @@ describe('parseManifest normalization', () => {
     })
     expect(tx?.[1]).toEqual({ fontSize: 200 })
     expect(issues.some((i) => i.includes('fontSize'))).toBe(true)
+  })
+
+  it('parses badges with placement/style and caps the count', () => {
+    const capped = parseManifest(minimal({}, [{ badges: Array.from({ length: 6 }, () => ({})) }]))
+    expect(capped.manifest?.slides[0].badges).toHaveLength(5)
+    expect(capped.issues.some((i) => i.includes('최대 5개'))).toBe(true)
+
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        {
+          badges: [
+            {
+              text: 'Hot',
+              left: 0.2,
+              top: 0.12,
+              style: {
+                backgroundColor: '#111111',
+                textColor: '#FFFFFF',
+                fontSize: 32,
+                fontWeight: 800,
+                paddingX: 12,
+              },
+            },
+          ],
+        },
+      ]),
+    )
+    expect(issues).toEqual([])
+    expect(manifest?.slides[0].badges).toEqual([
+      {
+        text: 'Hot',
+        left: 0.2,
+        top: 0.12,
+        style: {
+          backgroundColor: '#111111',
+          textColor: '#FFFFFF',
+          fontSize: 32,
+          fontWeight: 800,
+          paddingX: 12,
+        },
+      },
+    ])
+  })
+
+  it('keeps only adjacent leader/follower span pairs', () => {
+    const ok = parseManifest(
+      minimal({}, [
+        { span: { group: 'a', role: 'leader' } },
+        { span: { group: 'a', role: 'follower' } },
+      ]),
+    )
+    expect(ok.issues).toEqual([])
+    expect(ok.manifest?.slides.map((s) => s.span)).toEqual([
+      { group: 'a', role: 'leader' },
+      { group: 'a', role: 'follower' },
+    ])
+
+    const bad = parseManifest(
+      minimal({}, [
+        { span: { group: 'b', role: 'leader' } },
+        {},
+        { span: { group: 'b', role: 'follower' } },
+      ]),
+    )
+    expect(bad.manifest?.slides.every((s) => s.span === undefined)).toBe(true)
+    expect(bad.issues.some((i) => i.includes('인접한 leader/follower'))).toBe(true)
   })
 
   it('warns on non-array texts and bad fields but keeps index alignment', () => {
@@ -364,6 +432,7 @@ describe('buildProjectFromManifest', () => {
           texts: [
             {
               fontScale: 1.5,
+              fitToBox: true,
               color: '#FFFFFF',
               weight: 800,
               align: 'left',
@@ -382,6 +451,7 @@ describe('buildProjectFromManifest', () => {
     const [h, sub] = slide.texts
     // text-top headline default is 40 → ×1.5 = 60
     expect(h.style.fontSize).toBe(60)
+    expect(h.style.fitToBox).toBe(true)
     expect(h.style.color).toBe('#FFFFFF')
     expect(h.style.fontWeight).toBe(800)
     expect(h.style.textAlign).toBe('left')
@@ -418,6 +488,51 @@ describe('buildProjectFromManifest', () => {
     expect(hl[0].id).toBeTruthy()
     // untouched slide keeps the factory empty default
     expect(p.slides[1].highlights).toEqual([])
+  })
+
+  it('materializes badges with fresh ids', () => {
+    const m = parseManifest(
+      minimal(
+        { sourceLocale: 'en' },
+        [
+          {
+            badges: [
+              {
+                text: 'New',
+                left: 0.25,
+                top: 0.08,
+                style: { backgroundColor: '#111111', textColor: '#FFFFFF', fontSize: 30 },
+              },
+            ],
+          },
+        ],
+      ),
+    ).manifest!
+    const slide = buildProjectFromManifest(m).slides[0]
+    expect(slide.badges).toHaveLength(1)
+    expect(slide.badges[0]).toMatchObject({
+      text: 'New',
+      left: 0.25,
+      top: 0.08,
+      style: { backgroundColor: '#111111', textColor: '#FFFFFF', fontSize: 30 },
+    })
+    expect(slide.badges[0].id).toBeTruthy()
+  })
+
+  it('materializes adjacent span pairs with one shared fresh group id', () => {
+    const m = parseManifest(
+      minimal({}, [
+        { span: { group: 'a', role: 'leader' } },
+        { span: { group: 'a', role: 'follower' } },
+        {},
+      ]),
+    ).manifest!
+    const p = buildProjectFromManifest(m)
+    expect(p.slides[0].spanRole).toBe('leader')
+    expect(p.slides[1].spanRole).toBe('follower')
+    expect(p.slides[0].spanGroupId).toBeTruthy()
+    expect(p.slides[0].spanGroupId).toBe(p.slides[1].spanGroupId)
+    expect(p.slides[2].spanGroupId).toBeUndefined()
   })
 
   it('materializes screenshotStyle over defaults and ornaments via the factory', () => {

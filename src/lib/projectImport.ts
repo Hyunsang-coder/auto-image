@@ -8,6 +8,7 @@
 
 import type {
   Background,
+  BadgeStyle,
   Caption,
   DeviceColor,
   DeviceModel,
@@ -22,22 +23,27 @@ import {
   DEFAULT_BACKGROUND,
   DEFAULT_SCREENSHOT_STYLE,
   DEFAULT_SOURCE_LOCALE,
+  accentFromBackground,
+  badgePlaceholder,
   MAX_TEXTS,
   ORNAMENT_DEFAULTS,
   SUPPORTED_LOCALES,
   TEMPLATE_FONT_SIZES,
   findThemePreset,
   headlinePlaceholder,
+  makeBadge,
   makeHighlight,
   makeOrnament,
   makeProject,
   makeTextBlock,
+  newId,
 } from '../constants/defaults'
 import { DEFAULT_MODEL, MODELS_BY_TYPE } from '../constants/deviceSpecs'
 
 const MAX_SLIDES = 10
 const MAX_ORNAMENTS = 5
 const MAX_HIGHLIGHTS = 3 // a loupe per slide reads clean; more clutters the cut
+const MAX_BADGES = 5
 const HIGHLIGHT_DIM_MIN = 0.02 // a sampling window narrower than this is degenerate
 const POPUP_WIDTH_MIN = 0.1
 const POPUP_WIDTH_MAX = 1.5
@@ -85,8 +91,6 @@ export interface ParsedManifest {
   slides: ParsedSlide[]
 }
 
-// Imported slides are deliberately text + image only — no badge slots, so
-// badge rows in the caption file are skipped (badges stay an editor feature).
 export interface ParsedSlide {
   layout: TemplateType
   textBlocks: number
@@ -107,6 +111,10 @@ export interface ParsedSlide {
    *  place a magnified card independently on the canvas. Ignored when the slide has no
    *  screenshot (e.g. a `hero` text-only slide). */
   highlights?: ParsedHighlight[]
+  /** App Store-style badges/pills. Captions can fill them via `badge:N` rows. */
+  badges?: ParsedBadge[]
+  /** 2-page span marker. Valid only as adjacent leader/follower pairs. */
+  span?: ParsedSpan
 }
 
 /** A loupe spec: which screenshot region to magnify and where/how big/tilted
@@ -125,6 +133,8 @@ export interface ParsedTextOverride {
   fontSize?: number
   /** Multiplier on the block's layout-default fontSize. */
   fontScale?: number
+  /** Shrink long copy to the box width while preserving the authored max size. */
+  fitToBox?: boolean
   color?: string
   align?: 'left' | 'center' | 'right'
   weight?: number
@@ -133,6 +143,18 @@ export interface ParsedTextOverride {
   box?: { fill: string; opacity: number; paddingX: number; paddingY: number; borderRadius: number }
   outline?: { color: string; width: number }
   shadow?: { color: string; opacity: number; offsetX: number; offsetY: number; blur: number }
+}
+
+export interface ParsedBadge {
+  text?: string
+  left?: number
+  top?: number
+  style?: Partial<Pick<BadgeStyle, 'backgroundColor' | 'textColor' | 'borderRadius' | 'paddingX' | 'paddingY' | 'fontSize' | 'fontWeight'>>
+}
+
+export interface ParsedSpan {
+  group: string
+  role: 'leader' | 'follower'
 }
 
 /** Manifest `deviceFrame`: bare boolean (show/hide, the v1 original) or an
@@ -391,6 +413,101 @@ function coerceOrnaments(
   return out
 }
 
+function coerceBadgeStyle(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedBadge['style'] | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: badge.style 형식이 올바르지 않음 — 무시', { where }))
+    return undefined
+  }
+  const raw = value as Record<string, unknown>
+  const style: ParsedBadge['style'] = {}
+  if (raw.backgroundColor !== undefined) {
+    if (typeof raw.backgroundColor === 'string') style.backgroundColor = raw.backgroundColor
+    else issues.push(t('{where}: badge.style.backgroundColor는 문자열 — 무시', { where }))
+  }
+  if (raw.textColor !== undefined) {
+    if (typeof raw.textColor === 'string') style.textColor = raw.textColor
+    else issues.push(t('{where}: badge.style.textColor는 문자열 — 무시', { where }))
+  }
+  const borderRadius = coerceNumber(raw.borderRadius, 0, PAD_MAX, where, 'badge.style.borderRadius', issues)
+  if (borderRadius !== undefined) style.borderRadius = borderRadius
+  const paddingX = coerceNumber(raw.paddingX, 0, PAD_MAX, where, 'badge.style.paddingX', issues)
+  if (paddingX !== undefined) style.paddingX = paddingX
+  const paddingY = coerceNumber(raw.paddingY, 0, PAD_MAX, where, 'badge.style.paddingY', issues)
+  if (paddingY !== undefined) style.paddingY = paddingY
+  const fontSize = coerceNumber(raw.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, where, 'badge.style.fontSize', issues)
+  if (fontSize !== undefined) style.fontSize = fontSize
+  const fontWeight = coerceNumber(raw.fontWeight, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, where, 'badge.style.fontWeight', issues)
+  if (fontWeight !== undefined) style.fontWeight = fontWeight
+  return Object.keys(style).length ? style : undefined
+}
+
+function coerceBadges(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedBadge[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(t('{where}: badges는 배열이어야 함 — 무시', { where }))
+    return undefined
+  }
+  let items = value
+  if (items.length > MAX_BADGES) {
+    issues.push(t('{where}: badges는 최대 {max}개 — 처음 {max}개만 사용', { where, max: MAX_BADGES }))
+    items = items.slice(0, MAX_BADGES)
+  }
+  const out: ParsedBadge[] = []
+  items.forEach((rawBadge, j) => {
+    const bw = t('{where} badge {n}', { where, n: j + 1 })
+    if (typeof rawBadge !== 'object' || rawBadge === null) {
+      issues.push(t('{where}: 항목이 객체가 아님 — 제외', { where: bw }))
+      return
+    }
+    const b = rawBadge as Record<string, unknown>
+    const badge: ParsedBadge = {}
+    if (b.text !== undefined) {
+      if (typeof b.text === 'string') badge.text = b.text
+      else issues.push(t('{where}: text는 문자열 — 무시', { where: bw }))
+    }
+    const left = coerceNumber(b.left, 0, 1, bw, 'left', issues)
+    if (left !== undefined) badge.left = left
+    const top = coerceNumber(b.top, 0, 1, bw, 'top', issues)
+    if (top !== undefined) badge.top = top
+    const style = coerceBadgeStyle(b.style, bw, issues)
+    if (style) badge.style = style
+    out.push(badge)
+  })
+  return out
+}
+
+function coerceSpan(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedSpan | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: span은 {group, role} 객체여야 함 — 무시', { where }))
+    return undefined
+  }
+  const raw = value as Record<string, unknown>
+  const group = typeof raw.group === 'string' ? raw.group.trim() : ''
+  if (!group) {
+    issues.push(t('{where}: span.group이 필요 — span 무시', { where }))
+    return undefined
+  }
+  if (raw.role !== 'leader' && raw.role !== 'follower') {
+    issues.push(t('{where}: span.role은 leader|follower — span 무시', { where }))
+    return undefined
+  }
+  return { group, role: raw.role }
+}
+
 /** A caption `box` (fill pill): requires a string fill; numeric fields clamp
  *  with sensible defaults so a `{ "fill": "#000" }` still renders a usable pill. */
 function coerceCaptionBox(
@@ -485,6 +602,10 @@ function coerceTextOverrides(
     if (fontSize !== undefined) out.fontSize = fontSize
     const fontScale = coerceNumber(r.fontScale, FONT_SCALE_MIN, FONT_SCALE_MAX, tw, 'fontScale', issues)
     if (fontScale !== undefined) out.fontScale = fontScale
+    if (r.fitToBox !== undefined) {
+      if (typeof r.fitToBox === 'boolean') out.fitToBox = r.fitToBox
+      else issues.push(t('{where}: fitToBox는 boolean — 무시', { where: tw }))
+    }
     if (r.color !== undefined) {
       if (typeof r.color === 'string') out.color = r.color
       else issues.push(t('{where}: color는 문자열 — 무시', { where: tw }))
@@ -702,6 +823,8 @@ export function parseManifest(text: string): ManifestParseResult {
     const textY = coerceNumber(s.textY, 0, 1, where, 'textY', issues)
     const texts = coerceTextOverrides(s.texts, where, issues)
     const highlights = coerceHighlights(s.highlights, where, issues)
+    const badges = coerceBadges(s.badges, where, issues)
+    const span = coerceSpan(s.span, where, issues)
 
     return {
       layout,
@@ -714,12 +837,39 @@ export function parseManifest(text: string): ManifestParseResult {
       ...(textY !== undefined ? { textY } : {}),
       ...(texts ? { texts } : {}),
       ...(highlights ? { highlights } : {}),
+      ...(badges ? { badges } : {}),
+      ...(span ? { span } : {}),
     }
   })
+
+  validateSpanPairs(slides, issues)
 
   return {
     manifest: { name, device, deviceModel, sourceLocale, targetLocales, themeBackground, slides },
     issues,
+  }
+}
+
+function validateSpanPairs(slides: ParsedSlide[], issues: string[]): void {
+  const byGroup = new Map<string, Array<{ index: number; role: ParsedSpan['role'] }>>()
+  slides.forEach((slide, index) => {
+    if (!slide.span) return
+    const members = byGroup.get(slide.span.group) ?? []
+    members.push({ index, role: slide.span.role })
+    byGroup.set(slide.span.group, members)
+  })
+
+  for (const [group, members] of byGroup) {
+    const leader = members.find((m) => m.role === 'leader')
+    const follower = members.find((m) => m.role === 'follower')
+    const valid =
+      members.length === 2 &&
+      !!leader &&
+      !!follower &&
+      follower.index === leader.index + 1
+    if (valid) continue
+    issues.push(t('span "{group}"은 인접한 leader/follower 한 쌍이어야 함 — span 무시', { group }))
+    for (const member of members) slides[member.index].span = undefined
   }
 }
 
@@ -729,6 +879,7 @@ function applyTextOverride(block: Caption, ov: ParsedTextOverride | undefined): 
   if (!ov) return
   if (ov.fontSize !== undefined) block.style.fontSize = ov.fontSize
   else if (ov.fontScale !== undefined) block.style.fontSize = Math.round(block.style.fontSize * ov.fontScale)
+  if (ov.fitToBox !== undefined) block.style.fitToBox = ov.fitToBox
   if (ov.color !== undefined) block.style.color = ov.color
   if (ov.weight !== undefined) block.style.fontWeight = ov.weight
   if (ov.align !== undefined) block.style.textAlign = ov.align
@@ -757,8 +908,17 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
   project.sourceLocale = sourceLocale
   project.targetLocales = [...manifest.targetLocales]
 
+  const spanGroupIds = new Map<string, string>()
   project.slides = project.slides.map((slide, i) => {
     const spec = manifest.slides[i]
+    const background = spec.background ? structuredClone(spec.background) : slide.background
+    let spanGroupId: string | undefined
+    let spanRole: ParsedSpan['role'] | undefined
+    if (spec.span) {
+      spanGroupId = spanGroupIds.get(spec.span.group) ?? newId('span')
+      spanGroupIds.set(spec.span.group, spanGroupId)
+      spanRole = spec.span.role
+    }
     return {
       ...slide,
       template: spec.layout,
@@ -775,7 +935,7 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
         applyTextOverride(block, spec.texts?.[ti])
         return block
       }),
-      ...(spec.background ? { background: structuredClone(spec.background) } : {}),
+      background,
       deviceFrame: {
         ...slide.deviceFrame,
         show: spec.deviceFrame.show,
@@ -809,6 +969,20 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
       ...(spec.highlights !== undefined
         ? { highlights: spec.highlights.map((h) => makeHighlight(h)) }
         : {}),
+      ...(spec.badges !== undefined
+        ? {
+            badges: spec.badges.map((b) => {
+              const badge = makeBadge(b.text ?? badgePlaceholder(sourceLocale), accentFromBackground(background))
+              return {
+                ...badge,
+                ...(b.left !== undefined ? { left: b.left } : {}),
+                ...(b.top !== undefined ? { top: b.top } : {}),
+                ...(b.style ? { style: { ...badge.style, ...b.style } } : {}),
+              }
+            }),
+          }
+        : {}),
+      ...(spanGroupId ? { spanGroupId, spanRole } : {}),
     }
   })
   return project
