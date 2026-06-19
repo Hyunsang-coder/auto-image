@@ -300,6 +300,44 @@ npm run headless:export -- <input-dir> <out-dir> --fail-on-layout-issues
 - 에이전트 루프: manifest/캡션 수정 → 재실행 → `<out-dir>` PNG와
   `layout-summary.json` 확인 → 수렴할 때까지 반복.
 
+### Layout 자동 수정 루프
+
+`layout-summary.json`의 `suggestedFix.edits[]`는 바로 manifest에 반영할 수 있다.
+기본은 dry-run이라 파일을 쓰지 않고, 어떤 JSON Pointer를 어떤 값으로 바꿀지만 출력한다.
+
+```bash
+npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json
+npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json --write
+```
+
+권장 루프:
+
+```bash
+npm run headless:export -- <input-dir> <out-dir> --report --fail-on-layout-issues
+npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json
+npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json --write
+npm run headless:export -- <input-dir> <out-dir> --report --fail-on-layout-issues
+```
+
+- 첫 번째 `layout:fix`는 사람이 확인하는 적용 요약이다. 예: `old -> new`, issue code,
+  slide/locale, `manifest.json#/slides/...` 경로를 출력한다.
+- `--write`를 줄 때만 `<input-dir>/manifest.json`을 2-space JSON으로 다시 쓴다.
+- 같은 run에서 같은 `code + manifestPath`가 여러 locale에 반복되면 한 번만 적용한다. 같은
+  레이아웃 문제가 언어별로 중복 보고되어도 한 번의 보수적 수정만 들어가게 하기 위해서다.
+- 없는 `texts[]`/`deviceFrame`/`screenshotStyle` object는 필요한 최소 override로 만든다.
+  기존 `badges[]`/`highlights[]` 항목이 없거나 경로가 manifest 밖이면 건너뛰고 warning을 낸다.
+
+자동 수정 전략은 한 번에 크게 움직이지 않는다. 수렴할 때까지 export → fix → export를
+반복하는 전제를 둔다.
+
+| issue code | 자동 수정 |
+|---|---|
+| `text-overlap` | text edit을 우선 선택. `fontSize` 또는 `fontScale`을 10% 줄이고 `fitToBox`를 켠다. 기존 `boxWidth`가 있으면 약간 줄인다 |
+| `safe-margin-overflow` | `metrics.sides` 방향을 보고 text/badge/popup을 안쪽으로 소폭 이동한다. popup은 `width`도 10% 줄인다 |
+| `badge-seam-overlap` | badge `left`를 seam 반대쪽이 아니라 같은 페이지 안쪽으로 이동한다 |
+| `highlight-popup-overflow` | popup `x/y`를 화면 안쪽으로 이동하고 `width`를 10% 줄인다 |
+| `highlight-popup-source-overlap` | popup을 `sourceRegion` 중심에서 멀어지는 방향으로 이동하고 `width`를 10% 줄인다 |
+
 ### Layout report (`--report`)
 
 `--report`는 PNG를 만드는 실제 export 렌더 경로를 그대로 사용한다. 렌더가 끝난 직후

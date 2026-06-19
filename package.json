@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "headless:export": "node scripts/headless-export.mjs",
+    "layout:fix": "node --disable-warning=ExperimentalWarning scripts/apply-layout-summary.mjs",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
