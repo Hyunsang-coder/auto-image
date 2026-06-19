@@ -305,6 +305,26 @@ npm run headless:export -- <input-dir> <out-dir> --fail-on-layout-issues
 `layout-summary.json`의 `suggestedFix.edits[]`는 바로 manifest에 반영할 수 있다.
 기본은 dry-run이라 파일을 쓰지 않고, 어떤 JSON Pointer를 어떤 값으로 바꿀지만 출력한다.
 
+한 명령으로 렌더 → 수정 제안/적용 → 재렌더를 반복하려면:
+
+```bash
+npm run layout:loop -- <input-dir> <out-dir>
+npm run layout:loop -- <input-dir> <out-dir> --write --max-runs 3
+```
+
+- `--write`가 없으면 한 번 렌더하고 `layout:fix`와 같은 dry-run 적용 요약을 출력한 뒤
+  멈춘다. manifest는 바꾸지 않는다.
+- `--write`가 있으면 issue가 0이 되거나 `--max-runs`에 닿을 때까지 manifest를 쓰고
+  다시 렌더한다. `--max-runs`는 최대 렌더 횟수이므로 기본값 3은 "초기 렌더 + 수정 후
+  최대 2회 재검증"이다.
+- manifest 파일명이 `manifest.json`이 아니어도 input 폴더에서 manifest 모양
+  (`version` + `slides`)의 JSON을 찾는다. 후보가 여러 개면 `--manifest <path>`를 준다.
+- loop는 내부에서 `headless:export --report`를 사용하고, `layout-summary.json`의 issue
+  count를 직접 판정한다. issue가 남았는데 `--write`가 없거나 최대 렌더 횟수에 닿으면
+  exit 1이다.
+
+개별 단계로 직접 실행하려면:
+
 ```bash
 npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json
 npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json --write
@@ -313,7 +333,7 @@ npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json --
 권장 루프:
 
 ```bash
-npm run headless:export -- <input-dir> <out-dir> --report --fail-on-layout-issues
+npm run headless:export -- <input-dir> <out-dir> --report
 npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json
 npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json --write
 npm run headless:export -- <input-dir> <out-dir> --report --fail-on-layout-issues
