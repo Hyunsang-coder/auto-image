@@ -284,12 +284,113 @@ launch-screenshots/
 ```bash
 npm run headless:export -- <input-dir> <out-dir>             # {locale}/{device}/NN.png
 npm run headless:export -- <input-dir> <out-dir> --fastlane  # deliver 레이아웃 + Appfile/Deliverfile/upload.sh
+npm run headless:export -- <input-dir> <out-dir> --report    # PNG + layout-report.json
 ```
 
 - `<input-dir>` = 위 예시 폴더 그대로 (manifest + 캡션 CSV/JSON + 스크린샷, 플랫).
 - dev 서버가 없으면 직접 띄우고 끝나면 정리한다 (떠 있으면 재사용). 다른 포트는 `BASE_URL` env로.
 - 임포트 요약·경고, 슬라이드별 렌더 실패가 stdout/stderr로 나온다. 실패가 있으면 exit 1 (부분 성공 시 PNG는 그대로 남음).
-- 에이전트 루프: manifest/캡션 수정 → 재실행 → `<out-dir>` PNG를 눈으로 확인 → 수렴할 때까지 반복.
+- `--report`를 주면 각 slide/locale 렌더 직후 같은 Fabric canvas에서 layout geometry를
+  수집해 `<out-dir>/layout-report.json`에 저장하고, CLI에 issue 요약을 함께 출력한다.
+- 에이전트 루프: manifest/캡션 수정 → 재실행 → `<out-dir>` PNG와
+  `layout-report.json` 확인 → 수렴할 때까지 반복.
+
+### Layout report (`--report`)
+
+`--report`는 PNG를 만드는 실제 export 렌더 경로를 그대로 사용한다. 렌더가 끝난 직후
+canvas 객체의 bounding box를 읽기 때문에, report 좌표는 사람이 보는 최종 PNG와 같은
+레이아웃을 기준으로 한다. 2-page span은 2배 폭 canvas에서 한 번 렌더한 뒤 leader/follower
+각 페이지 기준으로 report를 나눈다.
+
+저장 위치:
+
+```text
+<out-dir>/layout-report.json
+```
+
+CLI 요약 예:
+
+```text
+:: layout report: 2 renders, 4 issues (text-overlap=2, safe-margin-overflow=2)
+:: layout report saved → /path/to/output/layout-report.json
+```
+
+최상위 구조:
+
+```jsonc
+{
+  "version": 1,
+  "generatedAt": "2026-06-19T02:00:00.000Z",
+  "project": {
+    "id": "project-id",
+    "name": "My App",
+    "sourceLocale": "ko",
+    "targetLocales": ["en", "ja"]
+  },
+  "summary": {
+    "renderCount": 6,
+    "issueCount": 2,
+    "affectedRenderCount": 1,
+    "byCode": { "text-overlap": 1, "safe-margin-overflow": 1 }
+  },
+  "renders": []
+}
+```
+
+`renders[]`는 slide/locale 하나의 결과다. 주요 필드:
+
+| 필드 | 의미 |
+|---|---|
+| `slideNo`, `slideId`, `locale` | 어떤 슬라이드/언어 렌더인지 |
+| `template`, `device` | 사용한 레이아웃과 기기 타입 |
+| `canvas` | 측정이 일어난 Fabric canvas 크기. span leader/follower는 2배 폭 canvas |
+| `output` | 최종 PNG 한 장의 크기 |
+| `page` | span canvas에서 이 PNG가 잘려 나온 영역. 단일 슬라이드는 `{x:0,y:0}` |
+| `safeMargin`, `safeArea` | validator가 쓰는 안전 여백과 그 안쪽 영역 |
+| `span` | span 렌더일 때 `groupId`, `role`, `seamX` |
+| `boxes` | 레이어별 bounding box 묶음 |
+| `issues` | validator 경고 목록 |
+
+`boxes`는 다음 레이어를 분리해 기록한다.
+
+```jsonc
+{
+  "boxes": {
+    "text": [],
+    "device": [],
+    "screenshot": [],
+    "highlightSource": [],
+    "highlightPopup": [],
+    "badge": []
+  }
+}
+```
+
+각 box는 세 좌표계를 가진다.
+
+| 필드 | 의미 |
+|---|---|
+| `canvasBox` | 원본 Fabric canvas 좌표. span seam 판단은 이 좌표를 사용 |
+| `outputBox` | 최종 PNG 좌표로 변환한 전체 box. 화면 밖으로 나간 부분도 포함 |
+| `visibleBox` | 최종 PNG 안에 실제로 보이는 부분 |
+
+box 식별 필드는 레이어별로 붙는다: text는 `textIndex`/`owner`, badge는 `badgeId`,
+highlight는 `highlightId`를 가진다. AI agent는 이 id와 slide/locale을 보고 manifest의
+`texts[].pos`, `texts[].boxWidth`, `badges[].left/top`, `highlights[].popup.x/y/width`,
+`deviceFrame.offsetX/offsetY/scale` 등을 조정한다.
+
+감지하는 issue code:
+
+| code | 의미 | 일반적인 수정 방향 |
+|---|---|---|
+| `text-overlap` | text가 device/screenshot/highlight-popup/badge와 과도하게 겹침 | text 위치/폭/fontSize 조정, device 또는 popup 이동 |
+| `badge-seam-overlap` | badge가 2-page span seam을 가로지름 | badge `left`를 한쪽 페이지 안으로 이동 |
+| `safe-margin-overflow` | text/highlight-popup/badge가 안전 여백 밖으로 나감 | 해당 요소를 안쪽으로 이동하거나 크기 축소 |
+| `highlight-popup-source-overlap` | highlight popup이 자기 source 영역을 너무 덮음 | popup `x/y` 이동 또는 `width` 축소 |
+| `highlight-popup-overflow` | highlight popup이 최종 PNG 밖으로 나감 | popup `x/y` 이동 또는 `width` 축소 |
+
+report는 경고용이다. issue가 있어도 PNG export 자체는 계속 진행하고, 렌더 실패가 아닌
+레이아웃 문제는 exit code를 실패로 만들지 않는다.
 
 ## 구현 참조
 
@@ -297,3 +398,4 @@ npm run headless:export -- <input-dir> <out-dir> --fastlane  # deliver 레이아
 - 파이프라인: `src/lib/projectImportRun.ts` (`runProjectImport` — 라우팅 → 스켈레톤 → 이미지 → 캡션, 미커밋 Project 반환)
 - 스크린샷 규칙: `src/lib/imageImport.ts` / `src/lib/bulkImageImport.ts`
 - 캡션 형식: `src/lib/localeIO.ts` / `src/lib/localePatch.ts` (`applyCaptionRows`)
+- layout report/validator: `src/lib/layoutReport.ts`
