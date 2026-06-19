@@ -145,12 +145,16 @@
     <a href="https://github.com/Hyunsang-coder/auto-image">저장소</a>의 헤들리스
     파이프라인으로 브라우저를 아예 건너뛸 수도 있습니다:
   </p>
-  <pre><code>node scripts/headless-export.mjs launch-screenshots/ out/
+  <pre><code>npm run headless:export -- launch-screenshots/ out/ --report
 # → out/en-US/iphone/01.png … 모든 로케일, 정확한 규격
-# --fastlane → Appfile/Deliverfile/upload.sh가 포함된 deliver 폴더</code></pre>
+# → out/layout-report.json + out/layout-summary.json
+
+npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3
+# 렌더 → 보수적 manifest 수정 → 재렌더를 깨끗해질 때까지 반복</code></pre>
   <p>
-    에이전트 루프는 이렇습니다: 매니페스트나 캡션을 수정 → 다시 실행 → PNG 확인 → 만족할
-    때까지 반복. 매니페스트 스키마와 파일명 규칙은
+    에이전트 루프는 이렇습니다: 매니페스트나 캡션을 수정 → 렌더 → layout summary와 PNG 확인
+    → 안전한 manifest 수정 적용 → 만족할 때까지 반복. 매니페스트 스키마, 파일명 규칙,
+    layout 자동 수정 명령은
     <a href="https://github.com/Hyunsang-coder/auto-image/blob/main/docs/project-import.md">docs/project-import.md</a>에
     문서화돼 있습니다. 실행 환경 요구사항: Node, <code>@playwright/test</code> + Chromium,
     그리고 로컬 체크아웃 또는 호스팅된 스튜디오를 가리키는 <code>BASE_URL</code>.

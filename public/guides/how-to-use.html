@@ -146,12 +146,16 @@
     entirely with the headless pipeline from the
     <a href="https://github.com/Hyunsang-coder/auto-image">repository</a>:
   </p>
-  <pre><code>node scripts/headless-export.mjs launch-screenshots/ out/
+  <pre><code>npm run headless:export -- launch-screenshots/ out/ --report
 # → out/en-US/iphone/01.png … every locale, exact sizes
-# --fastlane → deliver-ready folder with Appfile/Deliverfile/upload.sh</code></pre>
+# → out/layout-report.json + out/layout-summary.json
+
+npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3
+# render → apply conservative manifest fixes → re-render until clean</code></pre>
   <p>
-    The agent loop is: edit the manifest or captions → re-run → inspect the PNGs → repeat
-    until it converges. The manifest schema and naming rules are documented in
+    The agent loop is: edit the manifest or captions → render → read the layout summary
+    and PNGs → apply safe manifest fixes → repeat until it converges. The manifest schema,
+    naming rules, and layout autofix commands are documented in
     <a href="https://github.com/Hyunsang-coder/auto-image/blob/main/docs/project-import.md">docs/project-import.md</a>.
     Requirements on the machine running it: Node, <code>@playwright/test</code> + Chromium, and
     either a local checkout or <code>BASE_URL</code> pointed at the hosted studio.

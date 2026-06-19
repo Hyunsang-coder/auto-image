@@ -13,7 +13,7 @@ A fully client-side editor for building localized App Store / iPad screenshots �
 - **Visual canvas editor** (Fabric.js) — background/gradient, device frame, headline + subheadline, highlight popouts (magnified callouts), badges, emoji ornaments, device tilt.
 - **iPhone & iPad** — exports at the App Store Connect upload sizes: iPhone 6.9" (1320×2868) / 6.5" (1242×2688) and iPad 13" (2064×2752) / 11" (1668×2388). The device type is auto-detected from each screenshot's aspect ratio.
 - **Localization, your way** — translate captions in *your own* AI tool, not ours. Export a CSV/JSON template, copy the bundled translation prompt, paste both into any LLM, then re-import the filled file. Per-locale screenshots and per-locale caption editing are supported.
-- **Agent-ready project import** — an AI agent can author the entire project as files: a manifest JSON + screenshots named `{n}[-desc].{locale}.{ext}` + a caption CSV. Select them all in one file pick on the setup step and a complete pre-export project is assembled. Spec: [docs/project-import.md](./docs/project-import.md). For zero clicks, `node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report]` renders that folder straight to final PNGs and can emit `layout-report.json` for automated layout fixes — so an agent can loop *edit files → render → inspect report/PNGs* unattended.
+- **Agent-ready project import** — an AI agent can author the entire project as files: a manifest JSON + screenshots named `{n}[-desc].{locale}.{ext}` + a caption CSV. Select them all in one file pick on the setup step and a complete pre-export project is assembled. Spec: [docs/project-import.md](./docs/project-import.md). For zero clicks, `npm run headless:export -- <input-dir> <out-dir> --report` renders that folder straight to final PNGs and emits `layout-report.json` / `layout-summary.json`; `npm run layout:loop -- <input-dir> <out-dir> --write` can apply conservative manifest fixes and re-render until layout issues clear.
 - **One-click export** — renders every slide to PNG (alpha-stripped, App Store Connect-safe) and packages them as a ZIP grouped by `{locale}/{device}/`, or as a fastlane `deliver`-ready ZIP for direct App Store Connect upload.
 - **Multi-project library** + custom background presets and slide-style templates.
 
@@ -41,6 +41,20 @@ A Tauri shell is included for a native macOS build:
 npm run tauri:dev
 npm run tauri:build
 ```
+
+## Headless automation
+
+For agent-authored import folders, render and validate without opening the UI:
+
+```bash
+npm run headless:export -- <input-dir> <out-dir> --report
+npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json
+npm run layout:loop -- <input-dir> <out-dir> --write --max-runs 3
+```
+
+`layout:fix` is dry-run by default and prints the manifest fields it would change.
+`layout:loop` renders, applies those fixes only with `--write`, and re-renders until
+`layout-summary.json` has no issues or the run budget is exhausted.
 
 ## How it works
 
