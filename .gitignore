@@ -16,6 +16,11 @@ dist-ssr
 .env
 .env.*
 
+# Agent runtime state
+.claude/scheduled_tasks.lock
+.claude/handoff.md
+.claude/skills/
+
 # Playwright
 test-results
 playwright-report

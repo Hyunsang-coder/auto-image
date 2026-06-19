@@ -1,7 +1,6 @@
 ---
 name: test
 description: Test the App Store Screenshot Studio app across its three verification layers — logic (pure-function unit tests via Vitest), real behavior (canvas pixels / export split driven in a real browser), and e2e (DOM flows via Playwright). Use when asked to test a change, add coverage, verify a feature works, or run the test gates. Routes the change to the right layer instead of defaulting to e2e for everything. For reconciling tests that broke after a code change, use the `update-tests` skill instead.
-license: MIT
 ---
 
 # Test

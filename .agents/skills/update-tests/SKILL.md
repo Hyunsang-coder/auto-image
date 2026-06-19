@@ -1,7 +1,6 @@
 ---
 name: update-tests
 description: Reconcile this project's tests after a code change — when a unit/e2e test fails, goes stale, or new behavior needs coverage. The core job is to classify each failure as "the test is now wrong (intended behavior changed)" vs "the code regressed (a real bug)" BEFORE touching anything, then fix surgically. Use after editing source when tests break, when a feature changed and its tests need updating, or when adding coverage for a change. For writing tests from scratch or picking a test layer, use the `test` skill.
-license: MIT
 ---
 
 # Update Tests

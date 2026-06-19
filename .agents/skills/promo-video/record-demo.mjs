@@ -7,7 +7,7 @@
 // pick is done programmatically — no fake dialog is shown). Records to .webm,
 // then transcodes to H.264 .mp4 (X/Threads-friendly) if an ffmpeg is found.
 //
-//   node .claude/skills/promo-video/record-demo.mjs \
+//   node .agents/skills/promo-video/record-demo.mjs \
 //     --in <en-only-import-dir> --csv <translated.csv> --out <out.mp4>
 //
 // Flags: --base-url <url> (default http://localhost:5173/app/), --keep-webm,

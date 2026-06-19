@@ -25,6 +25,10 @@ npm run test:e2e:ui  # playwright UI mode
 
 E2E specs live in `e2e/` (one per step + a top-level navigation spec). `playwright.config.ts` reuses an already-running dev server on `localhost:5173`.
 
+Project-specific Codex skills live in `.agents/skills/` (for example `test`,
+`update-tests`, `verifier-project-import`, and `promo-video`). `.claude/` is
+reserved for local runtime state and is not the canonical skill source.
+
 ## Architecture
 
 **App Store Screenshot Studio** — fully client-side React/TypeScript app. No backend, no API keys (translation is import-only — see Translation). Vite MPA: static landing at `/` (root `index.html`), the React app at `/app/`, plus static guide/blog pages under `public/` (see Static pages).

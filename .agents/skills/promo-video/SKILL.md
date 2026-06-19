@@ -25,10 +25,10 @@ it, it reads as dishonest).
 
 ```bash
 # 1. build a self-contained sample (en-only set + translated CSV, from e2e fixtures)
-bash .claude/skills/promo-video/make-sample.sh /tmp/promo-demo
+bash .agents/skills/promo-video/make-sample.sh /tmp/promo-demo
 
 # 2. record (dev server is auto-started if localhost:5173 is down)
-node .claude/skills/promo-video/record-demo.mjs \
+node .agents/skills/promo-video/record-demo.mjs \
   --in /tmp/promo-demo/import-en \
   --csv /tmp/promo-demo/translated.csv \
   --out /tmp/promo-demo/promo.mp4

@@ -13,8 +13,8 @@ captures numbered screenshots + `::`-prefixed observations.
 
 ```bash
 # dev server must be up (npm run dev — reuses localhost:5173; override with BASE_URL)
-bash .claude/skills/verifier-project-import/make-sample.sh /tmp/verify-import
-node .claude/skills/verifier-project-import/drive.mjs /tmp/verify-import
+bash .agents/skills/verifier-project-import/make-sample.sh /tmp/verify-import
+node .agents/skills/verifier-project-import/drive.mjs /tmp/verify-import
 ```
 
 Outputs: `/tmp/verify-import/shots/*.png` (01 setup → 11 garbage-modal) and
