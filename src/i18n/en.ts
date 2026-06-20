@@ -322,6 +322,9 @@ export const en: Record<string, string> = {
   이탈리아어: 'Italian',
   '포르투갈어(브라질)': 'Portuguese (Brazil)',
   '스페인어(멕시코)': 'Spanish (Mexico)',
+  베트남어: 'Vietnamese',
+  인도네시아어: 'Indonesian',
+  태국어: 'Thai',
 
   // ProjectSetup.tsx
   '새 스크린샷 프로젝트': 'New Screenshot Project',

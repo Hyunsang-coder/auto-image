@@ -22,7 +22,7 @@ describe('ascExportCode — App Store Connect export folder codes', () => {
   })
 
   it('passes through codes that already match ASC', () => {
-    for (const code of ['ko', 'ja', 'pt-BR', 'it', 'es-MX']) {
+    for (const code of ['ko', 'ja', 'pt-BR', 'it', 'es-MX', 'vi', 'id', 'th']) {
       expect(ascExportCode(code)).toBe(code)
     }
   })
@@ -32,10 +32,13 @@ describe('ascExportCode — App Store Connect export folder codes', () => {
     expect(new Set(dirs).size).toBe(dirs.length)
   })
 
-  it('is scoped to the ASO seed-locale set (no Chinese/Thai/etc.)', () => {
+  it('includes the ASO seed-locale set and Southeast Asian locales', () => {
     const codes = SUPPORTED_LOCALES.map(l => l.code)
     expect(codes).toContain('es-MX')
-    for (const dropped of ['zh-Hans', 'zh-Hant', 'pl', 'th', 'id', 'vi', 'tr']) {
+    for (const added of ['vi', 'id', 'th']) {
+      expect(codes).toContain(added)
+    }
+    for (const dropped of ['zh-Hans', 'zh-Hant', 'pl', 'tr']) {
       expect(codes).not.toContain(dropped)
     }
   })

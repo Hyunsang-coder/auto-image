@@ -25,9 +25,9 @@ export const DEFAULT_TRANSLATION_API: TranslationAPI = 'claude'
 // `label` is the Korean UI name shown on the localize page; `name` is the
 // English language name fed to the translation prompt (kept unambiguous so a
 // Korean UI doesn't leak into the LLM instruction). Order = display order.
-// Scoped to the ASO/ASC seed-locale set we ship store copy for (all Latin +
-// Korean + Japanese) — Chinese/Thai/etc. are intentionally out of scope, which
-// is also why Noto Sans JP is the only non-Latin webfont we load.
+// Scoped to the ASO/ASC seed-locale set we ship store copy for. Thai uses a
+// dedicated webfont in the export path; the rest are covered by Pretendard or
+// Noto Sans JP fallback.
 export const SUPPORTED_LOCALES = [
   { code: 'en', label: '영어', name: 'English' },
   { code: 'ko', label: '한국어', name: 'Korean' },
@@ -38,6 +38,9 @@ export const SUPPORTED_LOCALES = [
   { code: 'it', label: '이탈리아어', name: 'Italian' },
   { code: 'pt-BR', label: '포르투갈어(브라질)', name: 'Brazilian Portuguese' },
   { code: 'es-MX', label: '스페인어(멕시코)', name: 'Mexican Spanish' },
+  { code: 'vi', label: '베트남어', name: 'Vietnamese' },
+  { code: 'id', label: '인도네시아어', name: 'Indonesian' },
+  { code: 'th', label: '태국어', name: 'Thai' },
 ] as const
 
 // Canvas placeholder copy per locale — covers every SUPPORTED_LOCALES entry.
@@ -54,6 +57,9 @@ const HEADLINE_PLACEHOLDERS: Record<string, readonly string[]> = {
   it: ['Il tuo titolo'],
   'pt-BR': ['Seu título'],
   'es-MX': ['Tu titular'],
+  vi: ['Tiêu đề của bạn'],
+  id: ['Judul Anda'],
+  th: ['หัวข้อของคุณ'],
 }
 const BADGE_PLACEHOLDERS: Record<string, readonly string[]> = {
   ko: ['새 기능'],
@@ -65,6 +71,9 @@ const BADGE_PLACEHOLDERS: Record<string, readonly string[]> = {
   it: ['Novità'],
   'pt-BR': ['Novo'],
   'es-MX': ['Nuevo'],
+  vi: ['Mới'],
+  id: ['Baru'],
+  th: ['ใหม่'],
 }
 
 export function headlinePlaceholder(locale: string): string {

@@ -1,21 +1,25 @@
 import type { Slide } from '../types/project'
 
-// Japanese is the only non-Latin script in the supported locale set (Korean is
-// covered by Pretendard, the rest are Latin), so Noto Sans JP is the single
-// Noto webfont we load — on demand, because it's multi-MB and most projects are
-// Korean/Latin only. Chinese/Thai are intentionally out of scope.
+// Load script-specific Noto fonts on demand. Pretendard covers Korean + Latin;
+// Japanese and Thai need explicit canvas font requests for consistent export.
 const NOTO_JP = { family: 'Noto Sans JP', param: 'Noto+Sans+JP' }
+const NOTO_THAI = { family: 'Noto Sans Thai', param: 'Noto+Sans+Thai' }
 const KANA = /[぀-ヿ]/ // Hiragana + Katakana ⇒ Japanese
+const THAI = /[\u0E00-\u0E7F]/
 
-// Fallback chain appended after a caption/badge's own family. Leads with Noto
-// Sans JP when the text is Japanese so kanji/kana render instead of tofu; the
-// trailing sans-serif lets the browser's per-glyph fallback cover anything else.
+// Fallback chain appended after a caption/badge's own family. Leads with a
+// script-specific family when needed; the trailing sans-serif lets the browser's
+// per-glyph fallback cover anything else.
 export function scriptFallback(text: string): string {
-  const lead = KANA.test(text) ? `'${NOTO_JP.family}', ` : ''
-  return `${lead}'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans JP', sans-serif`
+  const lead = [
+    KANA.test(text) ? `'${NOTO_JP.family}'` : '',
+    THAI.test(text) ? `'${NOTO_THAI.family}'` : '',
+  ].filter(Boolean)
+  return `${lead.length ? `${lead.join(', ')}, ` : ''}'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans JP', 'Noto Sans Thai', sans-serif`
 }
 
 let jpLink: Promise<void> | null = null
+let thaiLink: Promise<void> | null = null
 
 function loadNotoJp(): Promise<void> {
   if (jpLink) return jpLink
@@ -29,6 +33,19 @@ function loadNotoJp(): Promise<void> {
   })
   document.head.appendChild(link)
   return jpLink
+}
+
+function loadNotoThai(): Promise<void> {
+  if (thaiLink) return thaiLink
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = `https://fonts.googleapis.com/css2?family=${NOTO_THAI.param}:wght@400;500;700;900&display=swap`
+  thaiLink = new Promise<void>((resolve) => {
+    link.onload = () => resolve()
+    link.onerror = () => resolve()
+  })
+  document.head.appendChild(link)
+  return thaiLink
 }
 
 // Every text a slide renders, paired with the exact CSS font shorthand it will
@@ -57,6 +74,7 @@ function slideFontRequests(slide: Slide): { text: string; font: string }[] {
 export async function awaitSlideFonts(slide: Slide): Promise<void> {
   const reqs = slideFontRequests(slide)
   if (reqs.some((r) => KANA.test(r.text))) await loadNotoJp()
+  if (reqs.some((r) => THAI.test(r.text))) await loadNotoThai()
   await document.fonts.ready
   await Promise.all(reqs.map((r) => document.fonts.load(r.font, r.text).catch(() => {})))
 }
