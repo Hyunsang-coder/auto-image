@@ -20,6 +20,9 @@ npm run headless:export -- <input-dir> <out-dir> --report  # render an import fo
 npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json  # dry-run manifest fixes
 npm run layout:loop -- <input-dir> <out-dir> --write --max-runs 3  # render/fix/re-render loop
 npm run headless:export -- <input-dir> <out-dir> --bundle  # import → editable project bundle (.studio.zip), skips render
+npm run headless:export -- <project.studio.zip> <out-dir> --report  # render a saved bundle straight to PNGs (no re-import)
+npm run headless:export -- <input-dir> <out-dir> --validate  # dry-run import → import-result.json, no render
+npm run project:patch -- <in.studio.zip> <patch.json> <out.studio.zip>  # surgical lossless edit of a bundle (--in-place)
 npm run test:e2e     # playwright e2e (chromium, against the Vite dev server)
 npm run test:e2e:ui  # playwright UI mode
 ```
@@ -53,6 +56,15 @@ ProjectSetup also accepts a flat multi-file selection (an AI-authored manifest J
 ### Project bundle (save / reload)
 
 A project + its images can be saved to one portable `.studio.zip` and reopened later for tweaking — the only file format that survives a full GUI round-trip (badges, highlights, ornaments, per-locale screenshot overrides — none of which the import format carries). Pure lib: `src/lib/projectBundle.ts`. The zip is `project.json` (`{ bundleVersion: 1, project, images }`) + `images/<uuid>.<ext>` blobs; `exportProjectBundle` collects the same image surface as the GC keep-set (`projectImageKeys`, now exported from `imageRefs.ts`), `importProjectBundle` restores blobs to IndexedDB **under their original keys** via `putImage` (no remap — keys are UUIDs) and returns the uncommitted Project for `loadProject`. Surfaces: header "프로젝트 파일 저장" (App.tsx) + step-1 "프로젝트 파일 열기" (ProjectSetup, routed through the existing overwrite confirm; declined opens are swept by `gcImages`), and `headless:export --bundle` (the app exposes `window.__downloadProjectBundle` only when `__bundleExportEnabled`, set via the script's init script). Caveat: same-app-version round-trip — `loadProject` does not run the persist migrations, so a bundle from an older schema is not migrated on open. `themeBackground` images are excluded, matching the GC keep-set.
+
+### Agent CLI — bundle render input, validate, surgical patch
+
+The agent loop has three headless extensions (design + status: `docs/agent-cli.md`).
+- **Bundle as render input**: `headless:export <project.studio.zip> <out>` — a `.zip`/`.studio.zip` file positional loads the bundle straight into the editor (step 2, no re-import, no overwrite confirm on the fresh profile) and renders/`--report`s it like an import folder. Harness-only; no app change. Step-2 signal is the header "프로젝트 파일 저장" button; a `bundleError` modal fails the run.
+- **Validate / dry-run**: `headless:export <input-dir> <out> --validate` → writes `<out>/import-result.json` (`{ ok, applied, addedLocales, issues, project }`) and stops before the editor/render. One app hook: `ProjectSetup.handleImportFiles` publishes `window.__importResult` when the harness arms `window.__validateEnabled`. Import folders only.
+- **Surgical patch**: `npm run project:patch -- <in.studio.zip> <patch.json> <out.studio.zip>` (or `--in-place`). Pure lib `src/lib/projectPatch.ts` `applyPatch(project, ops) → { project, issues }`; CLI `scripts/project-patch.mjs` (run via `tsx`) unzips, decodes any `setScreenshot` `file` (dims via `image-size`, blob added to the zip), applies, then prunes unreferenced images via `projectImageKeys` and re-zips. Lossless: a one-field edit preserves ids, `localeOverrides`, highlights bit-for-bit (unlike a manifest re-import, which is lossy + regenerates ids). Ops: `setText` (delegates to `localePatch`'s base↔translation routing + targetLocale auto-add), `setScreenshot` (base vs `localeOverrides`; cross-type aspect keeps the frame unless `"redetect": true`), and `set` over a whitelisted path set (`deviceFrame.*`, `screenshotStyle.*`, `background`, `template`, `texts[i]`/`.pos`/`.boxWidth`/`.style.*`, `badges[i].style.*`, `ornaments`, `highlights`, and project `name`/`sourceLocale`/`targetLocales`/`deviceModels`) — each delegates to the existing `projectImport` coercers (now exported). Forbidden: `id`/`imageKey`/`spanGroupId`/`index`; span followers reject leader-owned (shared-layer) paths but allow their own `texts`. Every rejection/clamp lands in `issues`.
+
+`scripts/project-patch.mjs` imports the TS lib graph directly, so it runs under `tsx` (not bare `node`); the graph is now node-loadable because `src/i18n/index.ts` guards its `document` side-effect with `typeof document !== 'undefined'`.
 
 ### State management
 

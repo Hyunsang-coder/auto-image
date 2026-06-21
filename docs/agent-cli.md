@@ -1,7 +1,7 @@
-# Agent CLI 로드맵 — 설계 (미구현)
+# Agent CLI 로드맵 — Phase 1 + Surgical Patch 구현됨
 
-> 상태: **설계 단계**. 코드 미작성. 새 세션이 이 문서를 읽고 워크트리에서 구현한다.
-> 전제 사실은 별도 딥 조사로 검증됨(file:line은 설계 시점 기준 — 구현 전 재확인할 것).
+> 상태: **Phase 1(#1 번들 렌더 입력, #3 validate) + Surgical Patch 구현·검증 완료**. Phase 2(#4 타겟 렌더, #2 역방향)와 (B) 마이그레이션 하드닝은 **미구현(설계만)**.
+> 구현 산출물: 순수 lib `src/lib/projectPatch.ts`(+`projectPatch.test.ts`), CLI `scripts/project-patch.mjs`(tsx 실행), 하니스 `scripts/headless-export.mjs`(번들 입력 + `--validate` 분기), 앱 hook `ProjectSetup.handleImportFiles`(`window.__importResult`), `projectImport.ts` coercer export, `i18n/index.ts` `document` 가드, devDep `image-size`/`tsx`.
 
 AI 에이전트가 에디터를 **더 자유롭고 surgical하게** 활용하게 하는 CLI/헤들리스 확장.
 기존 에이전트 루프(manifest 폴더 → 렌더 → `layout-report` 확인 → manifest 수정 → 재렌더)를
@@ -18,9 +18,14 @@ AI 에이전트가 에디터를 **더 자유롭고 surgical하게** 활용하게
 
 ## 우선순위 / 순서
 
-1. **Phase 1**: #1 번들 렌더 입력 + #3 validate/dry-run (저비용, 무손실 루프 + 빠른 검증)
-2. **Surgical patch**: 번들 위 부분 수정 (핵심 신규 니즈)
-3. **(뒤로) Phase 2**: #4 타겟 렌더, #2 역방향 텍스트 내보내기 (아키텍처 호환만 확보)
+1. ✅ **Phase 1**: #1 번들 렌더 입력 + #3 validate/dry-run (저비용, 무손실 루프 + 빠른 검증)
+2. ✅ **Surgical patch**: 번들 위 부분 수정 (핵심 신규 니즈)
+3. ⬜ **(뒤로) Phase 2**: #4 타겟 렌더, #2 역방향 텍스트 내보내기 (아키텍처 호환만 확보)
+
+> 구현 메모(설계와 달라진 점):
+> - CLI는 순수 lib의 런타임 TS 그래프를 import하므로 bare `node`로는 extensionless `.ts`가 resolve 안 됨 → `tsx`로 실행(`.mjs` 엔트리도 tsx 로더가 처리). `apply-layout-summary.mjs`가 되는 건 그게 **type-only** import만 써서 i18n을 런타임 로드하지 않기 때문.
+> - 그 그래프가 node에서 로드되려면 `i18n/index.ts`의 모듈-로드 `document` 부작용을 `typeof document !== 'undefined'`로 가드해야 했음(localStorage는 이미 `safeLocalStorage`로 가드됨). navigator.language는 node 21+ 글로벌이라 OK — CLI issues는 그래서 영어로 렌더됨.
+> - patch lib의 자체 issue 문자열은 `t()`를 쓰지 않고 평문 영어(en.test의 literal 스캔/dict 부담 회피, CLI 전용). 위임한 coercer가 내는 `t()` 메시지는 node에서 영어로 나와 일관됨.
 
 > **중요**: surgical patch를 번들 위에서 하면 #2(lossy 역방향)의 손실을 우회한다.
 > 에이전트가 무손실 `project.json`을 읽고 무손실 패치를 꽂으므로, "에이전트 편집" 용도엔 #2보다 낫다.
