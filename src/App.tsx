@@ -14,6 +14,7 @@ import { saveAs } from 'file-saver'
 import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
 import { exportProjectBundle } from './lib/projectBundle'
+import { exportProject } from './lib/projectExport'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
 import { useI18nStore, useT } from './i18n'
@@ -21,6 +22,8 @@ import { useI18nStore, useT } from './i18n'
 interface BundleWindow extends Window {
   __bundleExportEnabled?: boolean
   __downloadProjectBundle?: () => Promise<void>
+  __exportManifestEnabled?: boolean
+  __exportManifest?: () => string
 }
 
 function App() {
@@ -74,6 +77,20 @@ function App() {
       const p = useProjectStore.getState().project
       if (!p) return
       saveAs(await exportProjectBundle(p), `${p.name || 'project'}.studio.zip`)
+    }
+  }, [])
+
+  // Headless reverse-export hook: `--export-manifest` reads the active project
+  // back out as a re-importable manifest + caption template (lossy). The harness
+  // does the reversal in-app since it bundles the lib. Inert in the app.
+  useEffect(() => {
+    const w = window as BundleWindow
+    if (!w.__exportManifestEnabled) return
+    w.__exportManifest = () => {
+      const p = useProjectStore.getState().project
+      return p
+        ? JSON.stringify(exportProject(p))
+        : JSON.stringify({ manifest: null, captions: '', screenshotPlan: [], issues: ['no project loaded'] })
     }
   }, [])
 

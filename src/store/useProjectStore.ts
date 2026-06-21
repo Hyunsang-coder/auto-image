@@ -6,7 +6,7 @@ import { typeOfModel, detectTypeFromAspect, DEFAULT_MODEL } from '../constants/d
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
-import { migrateSpanSlides } from '../lib/spanTextMigration'
+import { PROJECT_SCHEMA_VERSION, migrateProject } from '../lib/projectMigrate'
 import { t } from '../i18n'
 
 function newId(prefix: string): string {
@@ -547,17 +547,14 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'auto-image:project',
       storage: createJSONStorage(() => safeLocalStorage),
-      version: 5,
-      // v3→v4: fixed `slide.headline`/`slide.subheadline` became `slide.texts[]`.
-      // No back-compat: any pre-v4 persisted project is dropped to a clean slate.
-      // v4→v5: span texts moved from wide-canvas normalization on the leader to
-      // per-slide ownership — right-half captions migrate onto the follower.
+      version: PROJECT_SCHEMA_VERSION,
+      // Project-schema transforms live in `migrateProject` (shared with the
+      // bundle reopen path). A pre-v4 project is unrecoverable, so the whole
+      // persisted state (step/activeSlideId too) drops to a clean slate.
       migrate: (_persisted, version) => {
         if (version < 4) return { project: null, step: 1, activeSlideId: null }
         const state = _persisted as { project: Project | null; step: Step; activeSlideId: string | null }
-        if (version < 5 && state.project) {
-          state.project = { ...state.project, slides: migrateSpanSlides(state.project.slides) }
-        }
+        if (state.project) state.project = migrateProject(state.project, version)
         return state
       },
       partialize: (state) => ({
