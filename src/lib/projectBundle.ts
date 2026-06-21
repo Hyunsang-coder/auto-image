@@ -2,12 +2,17 @@ import JSZip from 'jszip'
 import type { Project } from '../types/project'
 import { loadImageBlob, putImage } from './imageStore'
 import { projectImageKeys } from './imageRefs'
+import { PROJECT_SCHEMA_VERSION, migrateProject } from './projectMigrate'
 
 const BUNDLE_VERSION = 1
 const MANIFEST = 'project.json'
 
 interface ProjectBundle {
+  /** Envelope format version (the zip layout), independent of the project schema. */
   bundleVersion: number
+  /** Project-schema version the `project` was written under (absent in v1
+   *  bundles, predating per-slide span texts → treated as schema v4). */
+  schemaVersion?: number
   project: Project
   images: Record<string, string> // imageKey -> zip path
 }
@@ -35,7 +40,12 @@ export async function exportProjectBundle(project: Project): Promise<Blob> {
     zip.file(path, blob)
     images[key] = path
   }
-  const manifest: ProjectBundle = { bundleVersion: BUNDLE_VERSION, project, images }
+  const manifest: ProjectBundle = {
+    bundleVersion: BUNDLE_VERSION,
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    project,
+    images,
+  }
   zip.file(MANIFEST, JSON.stringify(manifest, null, 2))
   return zip.generateAsync({ type: 'blob' })
 }
@@ -54,10 +64,15 @@ export async function importProjectBundle(file: Blob): Promise<Project> {
   if (manifest.bundleVersion !== BUNDLE_VERSION || !manifest.project) {
     throw new Error('unsupported or malformed project bundle')
   }
+  // Bring an older-schema bundle up to the current schema before it's loaded —
+  // loadProject doesn't run the persist migrations. A v1 bundle predates the
+  // schemaVersion stamp and the per-slide span split, so it's schema v4.
+  const project = migrateProject(manifest.project, manifest.schemaVersion ?? 4)
+  if (!project) throw new Error('project bundle is too old to open')
   for (const [key, path] of Object.entries(manifest.images ?? {})) {
     const entry = zip.file(path)
     if (!entry) continue
     await putImage(key, await entry.async('blob'))
   }
-  return manifest.project
+  return project
 }
