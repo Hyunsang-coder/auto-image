@@ -24,10 +24,14 @@ export const useI18nStore = create<I18nState>()(
 )
 
 // Keep <html lang> in sync for accessibility/SEO (index.html ships lang="en").
-document.documentElement.lang = useI18nStore.getState().locale
-useI18nStore.subscribe((s) => {
-  document.documentElement.lang = s.locale
-})
+// Guarded so the lib graph (which transitively imports this for `t`) can load
+// in a non-DOM context — e.g. the node CLIs that drive the pure import/patch libs.
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = useI18nStore.getState().locale
+  useI18nStore.subscribe((s) => {
+    document.documentElement.lang = s.locale
+  })
+}
 
 /**
  * Translate a UI string. The Korean source text is the dictionary key, so a

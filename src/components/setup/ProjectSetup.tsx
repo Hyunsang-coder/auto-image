@@ -115,7 +115,21 @@ export function ProjectSetup() {
   async function handleImportFiles(files: File[]) {
     setImportBusy(true)
     try {
-      setImportResult(await runProjectImport(files))
+      const result = await runProjectImport(files)
+      setImportResult(result)
+      // Headless validate/dry-run channel: when the harness arms
+      // __validateEnabled, publish the structured import result (still
+      // uncommitted — no loadProject, no render) for it to read and exit.
+      const w = window as Window & { __validateEnabled?: boolean; __importResult?: string }
+      if (w.__validateEnabled) {
+        w.__importResult = JSON.stringify({
+          ok: !!result.project,
+          applied: result.applied,
+          addedLocales: result.addedLocales,
+          issues: result.issues,
+          project: result.project,
+        })
+      }
     } finally {
       setImportBusy(false)
     }

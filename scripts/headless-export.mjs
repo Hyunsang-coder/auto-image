@@ -1,19 +1,24 @@
 #!/usr/bin/env node
-// Headless render pipeline: agent-authored import folder in → exact-size PNGs out.
+// Headless render pipeline: agent-authored input in → exact-size PNGs out.
 //
-//   node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--bundle] [--fail-on-layout-issues]
+//   node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues]
 //
-// <input-dir> is a flat folder in the project-import format (docs/project-import.md):
-// manifest.json + caption CSV/JSON + {n}[-desc].{locale}.{ext} screenshots.
+// <input> is either:
+//   • a flat folder in the project-import format (docs/project-import.md):
+//     manifest.json + caption CSV/JSON + {n}[-desc].{locale}.{ext} screenshots, or
+//   • a lossless project bundle (.studio.zip) saved earlier — loaded straight
+//     into the editor (no re-import), then rendered/exported the same way.
 // PNGs land in <out-dir> as {locale}/{device}/NN.png (--fastlane: deliver layout
 // + Appfile/Deliverfile/upload.sh). --bundle skips render and saves an editable
 // project bundle (<out-dir>/<name>.studio.zip) to reopen in the editor later.
+// --validate (import folders only) writes <out-dir>/import-result.json — the
+// structured import result — and skips the editor + render entirely.
 // Starts the Vite dev server itself if localhost:5173 is down; reuses (and
 // leaves alone) one that's already running.
 import { chromium } from '@playwright/test'
 import JSZip from 'jszip'
 import { spawn } from 'node:child_process'
-import { chmod, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -23,8 +28,9 @@ const fastlane = process.argv.includes('--fastlane')
 const failOnLayoutIssues = process.argv.includes('--fail-on-layout-issues')
 const report = process.argv.includes('--report') || failOnLayoutIssues
 const bundle = process.argv.includes('--bundle')
+const validate = process.argv.includes('--validate')
 if (!inDir || !outDir) {
-  console.error('Usage: node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--bundle] [--fail-on-layout-issues]')
+  console.error('Usage: node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues]')
   process.exit(2)
 }
 
@@ -32,13 +38,31 @@ const BASE_URL = process.env.BASE_URL ?? 'http://localhost:5173/app/'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const log = (...a) => console.log('::', ...a)
 
-const IMPORT_EXTS = new Set(['.json', '.csv', '.png', '.jpg', '.jpeg', '.webp'])
-const files = (await readdir(inDir))
-  .filter((f) => IMPORT_EXTS.has(extname(f).toLowerCase()))
-  .map((f) => join(inDir, f))
-if (files.length === 0) {
-  console.error(`no importable files (.json/.csv/images) in ${inDir}`)
+// A single .zip/.studio.zip file is a bundle (loaded as-is); a directory is an
+// import folder (manifest + screenshots + captions assembled on the fly).
+const inputStat = await stat(inDir).catch(() => null)
+if (!inputStat) {
+  console.error(`input not found: ${inDir}`)
   process.exit(2)
+}
+const bundleMode = inputStat.isFile() && extname(inDir).toLowerCase() === '.zip'
+
+const IMPORT_EXTS = new Set(['.json', '.csv', '.png', '.jpg', '.jpeg', '.webp'])
+let files = []
+if (!bundleMode) {
+  files = (await readdir(inDir))
+    .filter((f) => IMPORT_EXTS.has(extname(f).toLowerCase()))
+    .map((f) => join(inDir, f))
+  if (files.length === 0) {
+    console.error(`no importable files (.json/.csv/images) in ${inDir}`)
+    process.exit(2)
+  }
+}
+if (validate && bundleMode) {
+  log('--validate applies to import folders only; ignoring for a bundle input')
+}
+if (bundle && bundleMode) {
+  log('bundle input + --bundle: loading then re-emitting a bundle (no-op-ish)')
 }
 
 const ping = () => fetch(BASE_URL).then((r) => r.ok, () => false)
@@ -73,26 +97,75 @@ try {
   if (bundle) {
     await page.addInitScript(() => { window.__bundleExportEnabled = true })
   }
+  if (validate && !bundleMode) {
+    await page.addInitScript(() => { window.__validateEnabled = true })
+  }
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
 
   await page.goto(BASE_URL)
-  await page.getByText('프로젝트 가져오기').first().waitFor()
-  await page.locator('input[accept=".json,.csv,image/*"]').setInputFiles(files)
 
-  const summary = page.locator('p', { hasText: /슬라이드 \d+장 · 스크린샷 \d+개 · 캡션 \d+개 적용/ })
-  await summary.waitFor({ timeout: 30_000 })
-  log('import:', (await summary.textContent()).trim())
-  const warnToggle = page.getByText(/경고 \d+건 보기/)
-  if (await warnToggle.isVisible()) {
-    await warnToggle.click()
-    const issues = (await page.locator('details ul').innerText()).trim()
-    log('import warnings:\n:: ' + issues.replace(/\n/g, '\n:: '))
+  // True once a --validate dry run has written its result and we should stop
+  // short of the editor/Export entirely.
+  let validated = false
+
+  if (bundleMode) {
+    // Lossless bundle path: open the .studio.zip directly. Fresh profile → the
+    // load commits immediately (no overwrite confirm). Success lands on step 2
+    // (the header "프로젝트 파일 저장" button only shows there); failure shows
+    // the bundle-error modal.
+    await page.getByText('프로젝트 파일 열기').first().waitFor()
+    await page.locator('input[accept=".zip"]').setInputFiles(inDir)
+    const ready = page
+      .getByRole('button', { name: '프로젝트 파일 저장' })
+      .waitFor({ timeout: 30_000 })
+      .then(() => 'ok', () => null)
+    const failed = page
+      .getByText('프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.')
+      .waitFor({ timeout: 30_000 })
+      .then(() => 'fail', () => null)
+    if ((await Promise.race([ready, failed])) !== 'ok') {
+      console.error(':: failed to open project bundle: ' + inDir)
+      process.exit(1)
+    }
+    log('opened bundle:', inDir)
+  } else {
+    await page.getByText('프로젝트 가져오기').first().waitFor()
+    await page.locator('input[accept=".json,.csv,image/*"]').setInputFiles(files)
+
+    const summary = page.locator('p', { hasText: /슬라이드 \d+장 · 스크린샷 \d+개 · 캡션 \d+개 적용/ })
+    await summary.waitFor({ timeout: 30_000 })
+    log('import:', (await summary.textContent()).trim())
+    const warnToggle = page.getByText(/경고 \d+건 보기/)
+    if (await warnToggle.isVisible()) {
+      await warnToggle.click()
+      const issues = (await page.locator('details ul').innerText()).trim()
+      log('import warnings:\n:: ' + issues.replace(/\n/g, '\n:: '))
+    }
+
+    if (validate) {
+      // Dry run: read the structured result the app published and stop — no
+      // commit, no editor, no render. blob side effects ride with the profile.
+      await mkdir(outDir, { recursive: true })
+      const importResult = await page.evaluate(() => window.__importResult ?? null)
+      if (!importResult) {
+        console.error(':: validate: __importResult was not produced')
+        exitCode = 1
+      } else {
+        const resultPath = join(outDir, 'import-result.json')
+        await writeFile(resultPath, JSON.stringify(JSON.parse(importResult), null, 2))
+        log('import result saved →', resultPath)
+      }
+      validated = true
+    } else {
+      await page.getByRole('button', { name: '에디터에서 검수 →' }).click()
+    }
   }
-  await page.getByRole('button', { name: '에디터에서 검수 →' }).click()
 
-  if (bundle) {
+  if (validated) {
+    // nothing more to do — the dry run already wrote import-result.json
+  } else if (bundle) {
     // Editable project bundle (project.json + image blobs) instead of PNGs —
     // reopen in the editor later via "프로젝트 파일 열기". App exposes the
     // download via window.__downloadProjectBundle when __bundleExportEnabled.

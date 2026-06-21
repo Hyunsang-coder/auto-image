@@ -207,7 +207,7 @@ const KNOWN_LOCALES = new Set<string>(SUPPORTED_LOCALES.map((l) => l.code))
 
 /** Accepts a THEME_PRESETS id or an inline solid/gradient background.
  *  `image` is rejected — an imageKey can't exist before the import runs. */
-function coerceBackground(
+export function coerceBackground(
   value: unknown,
   where: string,
   issues: string[],
@@ -304,7 +304,7 @@ function coerceRotation(
 }
 
 /** Bare boolean (the v1 original) or the object form with device transform. */
-function coerceDeviceFrame(
+export function coerceDeviceFrame(
   value: unknown,
   where: string,
   issues: string[],
@@ -332,7 +332,7 @@ function coerceDeviceFrame(
   return out
 }
 
-function coerceScreenshotStyle(
+export function coerceScreenshotStyle(
   value: unknown,
   where: string,
   issues: string[],
@@ -366,7 +366,7 @@ function coerceScreenshotStyle(
   return out
 }
 
-function coerceOrnaments(
+export function coerceOrnaments(
   value: unknown,
   where: string,
   issues: string[],
@@ -413,7 +413,7 @@ function coerceOrnaments(
   return out
 }
 
-function coerceBadgeStyle(
+export function coerceBadgeStyle(
   value: unknown,
   where: string,
   issues: string[],
@@ -575,7 +575,7 @@ function coerceTextShadow(
 
 /** Parse the per-slide `texts` array. Keeps array positions (invalid entries
  *  become `{}`) so index→block alignment survives a bad slot. */
-function coerceTextOverrides(
+export function coerceTextOverrides(
   value: unknown,
   where: string,
   issues: string[],
@@ -647,7 +647,7 @@ function coerceTextOverrides(
 
 /** Parse the per-slide `highlights` array. Each entry's missing fields fall
  *  back to makeHighlight's defaults so a partial region still renders. */
-function coerceHighlights(
+export function coerceHighlights(
   value: unknown,
   where: string,
   issues: string[],
@@ -875,7 +875,7 @@ function validateSpanPairs(slides: ParsedSlide[], issues: string[]): void {
 
 /** Apply a parsed per-block override onto a factory-built caption (mutates).
  *  fontSize wins over fontScale; pos here supersedes the headline textX/textY. */
-function applyTextOverride(block: Caption, ov: ParsedTextOverride | undefined): void {
+export function applyTextOverride(block: Caption, ov: ParsedTextOverride | undefined): void {
   if (!ov) return
   if (ov.fontSize !== undefined) block.style.fontSize = ov.fontSize
   else if (ov.fontScale !== undefined) block.style.fontSize = Math.round(block.style.fontSize * ov.fontScale)
