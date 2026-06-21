@@ -52,6 +52,20 @@ function publishLayoutReport(report: LayoutReport | null): void {
   target.__layoutSummary = report ? createLayoutSummary(report) : null
 }
 
+type RenderFilterWindow = Window & {
+  __renderFilter?: { slides?: number[]; locales?: string[] } | null
+}
+
+// Headless targeted-render override (`--slides`/`--locale`): a 1-based slide
+// whitelist + locale subset injected before mount so a run can re-render just a
+// few slides/locales. Inert in the app (the flag is never set there).
+function readRenderFilter(): { slides: Set<number> | null; locales: string[] | null } {
+  const f = (window as RenderFilterWindow).__renderFilter
+  const slides = f && Array.isArray(f.slides) && f.slides.length ? new Set(f.slides) : null
+  const locales = f && Array.isArray(f.locales) && f.locales.length ? f.locales : null
+  return { slides, locales }
+}
+
 // 'default' = human-organized {locale}/{device}/NN.png.
 // 'fastlane' = `deliver` layout: screenshots/{ascLocale}/{device}_NN.png, flat
 // under each locale (deliver doesn't recurse and infers the device from image
@@ -135,8 +149,14 @@ export function ExportPanel() {
   const prevUrlsRef = useRef<(string | null)[]>([])
   // Preview thumbnail size: 1 (small, more columns) … 5 (large, single column).
   const [previewSize, setPreviewSize] = useState(4)
-  // Locales the user unticked for export; empty = export everything.
-  const [excludedLocales, setExcludedLocales] = useState<Set<string>>(new Set())
+  // Locales the user unticked for export; empty = export everything. Seeded
+  // from a headless `--locale` filter (locales outside it start excluded).
+  const [excludedLocales, setExcludedLocales] = useState<Set<string>>(() => {
+    const { locales } = readRenderFilter()
+    const p = useProjectStore.getState().project
+    if (!locales || !p) return new Set()
+    return new Set([p.sourceLocale, ...p.targetLocales].filter((l) => !locales.includes(l)))
+  })
 
   // Auto-render every slide for the chosen locale — no button. Re-runs whenever
   // the project or preview locale changes; a cancelled flag drops stale results
@@ -212,9 +232,16 @@ export function ExportPanel() {
   ]
   const exportLocales = allLocales.filter((l) => !excludedLocales.has(l))
   const previewCols = [14, 12, 10, 8, 6][previewSize - 1]
+  // Headless `--slides` whitelist (1-based); null = every slide. Both the total
+  // and the render loop honor it so a targeted run renders just those slides.
+  const renderSlideFilter = readRenderFilter().slides
+  const wantSlide = (s: Slide) => !renderSlideFilter || renderSlideFilter.has(s.index + 1)
   // Each slide exports to exactly one device — the one its screenshot belongs
   // to (auto-detected on upload). project.devices is no longer multiplied in.
-  const total = project.slides.length * exportLocales.length
+  const renderSlideCount = renderSlideFilter
+    ? project.slides.filter(wantSlide).length
+    : project.slides.length
+  const total = renderSlideCount * exportLocales.length
   const untranslated = getUntranslatedLocales(project)
   const missingScreenshots = getSlidesMissingScreenshot(project)
   const devicesInUse = Array.from(new Set(project.slides.map(deviceOf)))
@@ -283,6 +310,15 @@ export function ExportPanel() {
           if (slide.spanGroupId && slide.spanRole === 'leader') {
             const follower = project.slides[i + 1]
             if (follower && follower.spanGroupId === slide.spanGroupId) {
+              // A targeted run may want only one half, but the leader still has
+              // to draw the full 2× canvas — so render whenever either half is
+              // selected and emit/count only the wanted halves. Neither → skip.
+              const wantLeader = wantSlide(slide)
+              const wantFollower = wantSlide(follower)
+              if (!wantLeader && !wantFollower) {
+                i += 2
+                continue
+              }
               // Per-slide guard: a failure here records both halves and moves
               // on, so one broken span group can't abort the whole export.
               try {
@@ -300,15 +336,15 @@ export function ExportPanel() {
                 }
                 const lName = String(slide.index + 1).padStart(2, '0')
                 const rName = String(follower.index + 1).padStart(2, '0')
-                await emit(filePath(localeDir, device, lName), leftBlob)
-                await emit(filePath(localeDir, device, rName), rightBlob)
+                if (wantLeader) await emit(filePath(localeDir, device, lName), leftBlob)
+                if (wantFollower) await emit(filePath(localeDir, device, rName), rightBlob)
               } catch (e) {
                 const message = e instanceof Error ? e.message : String(e)
-                failed.push({ slideNo: slide.index + 1, locale, device, message })
-                failed.push({ slideNo: follower.index + 1, locale, device, message })
+                if (wantLeader) failed.push({ slideNo: slide.index + 1, locale, device, message })
+                if (wantFollower) failed.push({ slideNo: follower.index + 1, locale, device, message })
                 setFailures([...failed])
               }
-              count += 2
+              count += (wantLeader ? 1 : 0) + (wantFollower ? 1 : 0)
               setDone(count)
               i += 2
               continue
@@ -317,6 +353,12 @@ export function ExportPanel() {
           // Defensive: stray follower with no preceding leader. Skip — its
           // content was consumed by the leader pass or is genuinely orphaned.
           if (slide.spanRole === 'follower') {
+            i++
+            continue
+          }
+
+          // Targeted run: a slide outside the whitelist isn't rendered at all.
+          if (!wantSlide(slide)) {
             i++
             continue
           }

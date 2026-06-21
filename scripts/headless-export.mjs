@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Headless render pipeline: agent-authored input in → exact-size PNGs out.
 //
-//   node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues]
+//   node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues] [--slides 2,3] [--locale en,ja]
 //
 // <input> is either:
 //   • a flat folder in the project-import format (docs/project-import.md):
@@ -13,6 +13,8 @@
 // project bundle (<out-dir>/<name>.studio.zip) to reopen in the editor later.
 // --validate (import folders only) writes <out-dir>/import-result.json — the
 // structured import result — and skips the editor + render entirely.
+// --slides / --locale render only that subset (1-based slide numbers / locale
+// codes) for fast iteration; a selected span half pulls in its partner.
 // Starts the Vite dev server itself if localhost:5173 is down; reuses (and
 // leaves alone) one that's already running.
 import { chromium } from '@playwright/test'
@@ -22,15 +24,48 @@ import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/pr
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'))
+const rawArgs = process.argv.slice(2)
+const VALUE_FLAGS = new Set(['--slides', '--locale'])
+
+// Read a value flag in either `--slides=2,3` or `--slides 2,3` form.
+function flagValue(name) {
+  const eq = rawArgs.find((a) => a.startsWith(`${name}=`))
+  if (eq) return eq.slice(name.length + 1)
+  const i = rawArgs.indexOf(name)
+  if (i >= 0 && i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('--')) return rawArgs[i + 1]
+  return undefined
+}
+
+// Positional args, skipping the value a space-form value flag consumes.
+const positional = []
+for (let i = 0; i < rawArgs.length; i++) {
+  const a = rawArgs[i]
+  if (a.startsWith('--')) {
+    if (VALUE_FLAGS.has(a) && !a.includes('=')) i++
+    continue
+  }
+  positional.push(a)
+}
 const [inDir, outDir] = positional
-const fastlane = process.argv.includes('--fastlane')
-const failOnLayoutIssues = process.argv.includes('--fail-on-layout-issues')
-const report = process.argv.includes('--report') || failOnLayoutIssues
-const bundle = process.argv.includes('--bundle')
-const validate = process.argv.includes('--validate')
+const fastlane = rawArgs.includes('--fastlane')
+const failOnLayoutIssues = rawArgs.includes('--fail-on-layout-issues')
+const report = rawArgs.includes('--report') || failOnLayoutIssues
+const bundle = rawArgs.includes('--bundle')
+const validate = rawArgs.includes('--validate')
+
+// Targeted render: a subset of slides (1-based) and/or locales. Inert with
+// --validate/--bundle (those don't reach the render path).
+const slidesVal = flagValue('--slides')
+const localeVal = flagValue('--locale')
+const renderFilter =
+  slidesVal || localeVal
+    ? {
+        ...(slidesVal ? { slides: slidesVal.split(',').map((s) => Number(s.trim())).filter(Number.isFinite) } : {}),
+        ...(localeVal ? { locales: localeVal.split(',').map((s) => s.trim()).filter(Boolean) } : {}),
+      }
+    : null
 if (!inDir || !outDir) {
-  console.error('Usage: node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues]')
+  console.error('Usage: node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues] [--slides 2,3] [--locale en,ja]')
   process.exit(2)
 }
 
@@ -63,6 +98,9 @@ if (validate && bundleMode) {
 }
 if (bundle && bundleMode) {
   log('bundle input + --bundle: loading then re-emitting a bundle (no-op-ish)')
+}
+if (renderFilter && (validate || bundle)) {
+  log('--slides/--locale apply to render only; ignoring with --validate/--bundle')
 }
 
 const ping = () => fetch(BASE_URL).then((r) => r.ok, () => false)
@@ -99,6 +137,9 @@ try {
   }
   if (validate && !bundleMode) {
     await page.addInitScript(() => { window.__validateEnabled = true })
+  }
+  if (renderFilter && !validate && !bundle) {
+    await page.addInitScript((rf) => { window.__renderFilter = rf }, renderFilter)
   }
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
