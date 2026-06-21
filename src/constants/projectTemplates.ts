@@ -63,7 +63,7 @@ export const BUILTIN_PROJECT_TEMPLATES: ProjectTemplate[] = [
       {
         template: 'hero-bleed',
         background: REFERENCE_BG,
-        deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black', offsetX: -85, offsetY: -72, scale: 1 },
+        deviceFrame: { show: false, model: 'iphone-16-pro', color: 'black', offsetX: -85, offsetY: -72, scale: 1 },
         texts: [
           {
             text: '헤드라인을 작성하세요',
@@ -77,7 +77,7 @@ export const BUILTIN_PROJECT_TEMPLATES: ProjectTemplate[] = [
       {
         template: 'hero-bleed',
         background: REFERENCE_BG,
-        deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black', offsetX: -88, offsetY: -232, scale: 1 },
+        deviceFrame: { show: false, model: 'iphone-16-pro', color: 'black', offsetX: -88, offsetY: -232, scale: 1 },
         texts: [
           {
             text: '헤드라인을 작성하세요',
@@ -93,7 +93,7 @@ export const BUILTIN_PROJECT_TEMPLATES: ProjectTemplate[] = [
       {
         template: 'text-bottom',
         background: REFERENCE_BG,
-        deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black', offsetX: 31, offsetY: 41, scale: 0.55, rotation: 28 },
+        deviceFrame: { show: false, model: 'iphone-16-pro', color: 'black', offsetX: 31, offsetY: 41, scale: 0.55, rotation: 28 },
         texts: [
           {
             text: '헤드라인을 작성하세요',
@@ -108,7 +108,7 @@ export const BUILTIN_PROJECT_TEMPLATES: ProjectTemplate[] = [
       {
         template: 'text-top',
         background: REFERENCE_BG,
-        deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black' },
+        deviceFrame: { show: false, model: 'iphone-16-pro', color: 'black' },
         texts: [
           {
             text: '헤드라인을 작성하세요',
