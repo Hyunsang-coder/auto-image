@@ -222,7 +222,7 @@ export function makeBadge(text = t('새 기능'), accentColor?: string): Badge {
 
 export function defaultDeviceFrame(device: DeviceType = 'iphone'): DeviceFrame {
   const model = device === 'ipad' ? 'ipad-pro-13' : 'iphone-16-pro'
-  return { show: true, model, color: 'black' }
+  return { show: false, model, color: 'black' }
 }
 
 // New-slide default: a soft, near-white wash (faint cool corner → warm cream)

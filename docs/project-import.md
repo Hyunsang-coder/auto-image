@@ -48,7 +48,7 @@
 | `slides[].layout` | string | `text-top` | `hero` \| `hero-bleed` \| `text-top` \| `text-bottom` \| `split` |
 | `slides[].textBlocks` | 1–4 | `1` | **캡션 슬롯 수.** 텍스트 블록 0 = 헤드라인 |
 | `slides[].background` | string \| object | 테마 배경 | 슬라이드별 오버라이드 |
-| `slides[].deviceFrame` | boolean \| object | `true` | `false` = 기기 베젤 숨김(스크린샷만 플로팅). 객체형은 아래 [기기 transform](#기기-transform--플로팅-카드--장식-디자인-노브) |
+| `slides[].deviceFrame` | boolean \| object | `false` | 기본은 베젤 숨김(스크린샷만 플로팅). `true` = 기기 베젤 표시. 객체형은 `show: true`를 명시해야 베젤이 나오며 아래 [기기 transform](#기기-transform--플로팅-카드--장식-디자인-노브) 적용 |
 | `slides[].screenshotStyle` | object | — | 플로팅 카드 룩(베젤 숨김일 때 적용) — 아래 참조 |
 | `slides[].ornaments` | array | — | 이모지 장식, 슬라이드당 최대 5개 — 아래 참조 |
 | `slides[].texts` | array | — | **블록별 텍스트 스타일/위치 오버라이드**(폰트·색·정렬·박스 등) — 아래 참조 |
@@ -75,7 +75,7 @@
 {
   "layout": "text-top",
   "deviceFrame": {           // boolean 대신 객체를 주면 기기 transform까지 제어
-    "show": true,            // 기본 true
+    "show": true,            // 기본 false — 베젤을 보이려면 명시해야 함
     "offsetX": 30,           // 에디터 캔버스(440px 기준) px, ±400
     "offsetY": -20,          // ±600
     "scale": 0.9,            // 0.3–2.0. text-bottom은 생략 시 0.85 자동 시드 — 명시하면 명시값이 이김
@@ -186,7 +186,7 @@
   "slides": [
     {
       "layout": "text-bottom",
-      "deviceFrame": { "scale": 0.55, "rotation": 24, "offsetX": 20 },
+      "deviceFrame": { "show": true, "scale": 0.55, "rotation": 24, "offsetX": 20 },
       "span": { "group": "feature-a", "role": "leader" }
     },
     {

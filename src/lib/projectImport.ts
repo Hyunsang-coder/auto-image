@@ -309,14 +309,14 @@ function coerceDeviceFrame(
   where: string,
   issues: string[],
 ): ParsedDeviceFrame {
-  if (value === undefined || value === true) return { show: true }
-  if (value === false) return { show: false }
+  if (value === undefined || value === false) return { show: false }
+  if (value === true) return { show: true }
   if (typeof value !== 'object' || value === null) {
     issues.push(t('{where}: deviceFrame 형식이 올바르지 않음 — 기본값 사용', { where }))
-    return { show: true }
+    return { show: false }
   }
   const f = value as Record<string, unknown>
-  const out: ParsedDeviceFrame = { show: f.show !== false }
+  const out: ParsedDeviceFrame = { show: f.show === true }
   const offsetX = coerceNumber(f.offsetX, -DEVICE_OFFSET_X_MAX, DEVICE_OFFSET_X_MAX, where, 'deviceFrame.offsetX', issues)
   if (offsetX !== undefined) out.offsetX = offsetX
   const offsetY = coerceNumber(f.offsetY, -DEVICE_OFFSET_Y_MAX, DEVICE_OFFSET_Y_MAX, where, 'deviceFrame.offsetY', issues)

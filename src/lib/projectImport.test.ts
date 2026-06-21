@@ -48,7 +48,7 @@ describe('parseManifest normalization', () => {
       sourceLocale: 'ko',
       targetLocales: [],
       themeBackground: DEFAULT_BACKGROUND,
-      slides: [{ layout: 'text-top', textBlocks: 1, deviceFrame: { show: true } }],
+      slides: [{ layout: 'text-top', textBlocks: 1, deviceFrame: { show: false } }],
     })
   })
 
@@ -119,7 +119,7 @@ describe('parseManifest normalization', () => {
     expect(manifest?.slides[0]).toEqual({
       layout: 'text-top',
       textBlocks: 1,
-      deviceFrame: { show: true },
+      deviceFrame: { show: false },
     })
     expect(issues).toHaveLength(2)
     expect(manifest?.slides[1]).toEqual({
@@ -383,7 +383,7 @@ describe('buildProjectFromManifest', () => {
   it('applies layout, per-slide background, and device-frame visibility', () => {
     const p = buildProjectFromManifest(base())
     expect(p.slides[0].template).toBe('split')
-    expect(p.slides[0].deviceFrame.show).toBe(true)
+    expect(p.slides[0].deviceFrame.show).toBe(false)
     expect(p.slides[1].template).toBe('hero')
     expect(p.slides[1].deviceFrame.show).toBe(false)
     expect(p.slides[1].background).toEqual({ type: 'solid', color: '#101010' })
@@ -392,7 +392,7 @@ describe('buildProjectFromManifest', () => {
 
   it('applies manifest device transform onto the factory deviceFrame', () => {
     const m = parseManifest(
-      minimal({}, [{ deviceFrame: { offsetX: 24, offsetY: -16, scale: 1.1, rotation: 8, color: 'silver' } }]),
+      minimal({}, [{ deviceFrame: { show: true, offsetX: 24, offsetY: -16, scale: 1.1, rotation: 8, color: 'silver' } }]),
     ).manifest!
     const f = buildProjectFromManifest(m).slides[0].deviceFrame
     expect(f.show).toBe(true)
