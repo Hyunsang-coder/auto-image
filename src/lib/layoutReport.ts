@@ -464,6 +464,87 @@ function makeIssue(
   }
 }
 
+// pos semantics (Caption.pos): x = box centerX / width, y = box top / height —
+// so an agent/autofix can move a text block to an absolute target without
+// guessing its current placement (template-anchored text has no manifest pos).
+function textPosMetrics(box: LayoutBox, output: { width: number; height: number }): { posX: number; posY: number } {
+  return {
+    posX: round(box.outputBox.centerX / output.width),
+    posY: round(box.outputBox.y / output.height),
+  }
+}
+
+// Minimum move (along the axis of least penetration) that separates a text box
+// from an overlapping target, expressed as an absolute target pos. Clamped to
+// the safe area; `shrink` flags that the clamp left residual overlap so the
+// autofix should also reduce the font.
+function textOverlapMoveMetrics(
+  text: LayoutBox,
+  target: LayoutBox,
+  overlap: LayoutRect,
+  entry: LayoutReportEntryBase,
+): Record<string, number> {
+  const { width: W, height: H } = entry.output
+  const t = text.visibleBox
+  const gap = Math.min(W, H) * 0.01
+  let shiftX = 0
+  let shiftY = 0
+  let clamped = false
+  if (overlap.width <= overlap.height) {
+    const dir = t.centerX >= target.visibleBox.centerX ? 1 : -1
+    const need = overlap.width + gap
+    const room = Math.max(0, dir > 0 ? entry.safeArea.right - t.right : t.x - entry.safeArea.x)
+    shiftX = dir * Math.min(need, room)
+    if (need > room + EPS) clamped = true
+  } else {
+    const dir = t.centerY >= target.visibleBox.centerY ? 1 : -1
+    const need = overlap.height + gap
+    const room = Math.max(0, dir > 0 ? entry.safeArea.bottom - t.bottom : t.y - entry.safeArea.y)
+    shiftY = dir * Math.min(need, room)
+    if (need > room + EPS) clamped = true
+  }
+  return {
+    ...textPosMetrics(text, entry.output),
+    targetX: round((t.centerX + shiftX) / W),
+    targetY: round((t.y + shiftY) / H),
+    ...(clamped ? { shrink: 1 } : {}),
+  }
+}
+
+// Absolute target pos that pulls a text box back inside the safe area. Derived
+// from the box's real geometry, never a fabricated default. `narrowBox` flags a
+// box wider than the safe area (no move can fully fit it) so the autofix narrows
+// the wrap width too.
+function textSafeMarginMoveMetrics(box: LayoutBox, entry: LayoutReportEntryBase): Record<string, number> {
+  const { width: W, height: H } = entry.output
+  const a = entry.safeArea
+  const b = box.outputBox
+  let shiftX = 0
+  let narrowBox = false
+  if (b.width >= a.width) {
+    shiftX = a.x - b.x
+    narrowBox = true
+  } else if (b.x < a.x - EPS) {
+    shiftX = a.x - b.x
+  } else if (b.right > a.right + EPS) {
+    shiftX = a.right - b.right
+  }
+  let shiftY = 0
+  if (b.height >= a.height) {
+    shiftY = a.y - b.y
+  } else if (b.y < a.y - EPS) {
+    shiftY = a.y - b.y
+  } else if (b.bottom > a.bottom + EPS) {
+    shiftY = a.bottom - b.bottom
+  }
+  return {
+    ...textPosMetrics(box, entry.output),
+    targetX: round((b.centerX + shiftX) / W),
+    targetY: round((b.y + shiftY) / H),
+    ...(narrowBox ? { narrowBox: 1 } : {}),
+  }
+}
+
 function pushSafeMarginIssues(entry: LayoutReportEntryBase, issues: LayoutIssue[]): void {
   const checked = [
     ...entry.boxes.text,
@@ -473,13 +554,14 @@ function pushSafeMarginIssues(entry: LayoutReportEntryBase, issues: LayoutIssue[
   for (const box of checked) {
     const sides = overflowSides(box.outputBox, entry.safeArea)
     if (sides.length === 0) continue
+    const move = box.layer === 'text' ? textSafeMarginMoveMetrics(box, entry) : {}
     issues.push(makeIssue(
       entry,
       'safe-margin-overflow',
       `${objectLabel(box)} is outside the safe margin on ${sides.join(', ')}`,
       [box.id],
       'Move the object back inside safeArea, or reduce its size if it cannot move without covering important content.',
-      { sides, safeMarginX: entry.safeMargin.x, safeMarginY: entry.safeMargin.y },
+      { ...move, sides, safeMarginX: entry.safeMargin.x, safeMarginY: entry.safeMargin.y },
     ))
   }
 }
@@ -506,6 +588,7 @@ function pushTextOverlapIssues(entry: LayoutReportEntryBase, issues: LayoutIssue
         [text.id, target.id],
         'Move or resize the text block first; if the target is the device, badge, or popup, move/scale that target as the secondary fix.',
         {
+          ...textOverlapMoveMetrics(text, target, overlap, entry),
           overlapArea: round(area(overlap)),
           overlapRatio: round(ratio),
           threshold: TEXT_OVERLAP_RATIO,

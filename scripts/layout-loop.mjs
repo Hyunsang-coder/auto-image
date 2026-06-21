@@ -19,6 +19,7 @@ import {
   layoutIssueCount,
   parseLayoutLoopArgs,
 } from '../src/lib/layoutLoop.ts'
+import { isManifestShaped } from '../src/lib/manifestShape.ts'
 
 const parsed = parseLayoutLoopArgs(process.argv.slice(2))
 if (!parsed.ok) {
@@ -116,7 +117,11 @@ async function runHeadlessExport(inDir, targetDir, includeFastlane) {
 }
 
 async function discoverManifestPath(inDir) {
-  const files = await readdir(inDir)
+  // Sorted by name so the "first manifest wins" pick is deterministic and
+  // matches the app's choice — headless-export feeds files to the importer in
+  // the same sorted order, and runProjectImport keeps the first manifest-shaped
+  // JSON it sees (the rest are ignored with a warning).
+  const files = (await readdir(inDir)).sort()
   const candidates = []
   for (const file of files) {
     if (extname(file).toLowerCase() !== '.json') continue
@@ -128,24 +133,15 @@ async function discoverManifestPath(inDir) {
       // Broken JSON will be reported by the import pipeline if selected.
     }
   }
-  if (candidates.length === 1) return candidates[0]
   if (candidates.length === 0) {
     console.error(`:: no manifest-shaped JSON found in ${inDir}; pass --manifest <path>`)
-  } else {
-    console.error(`:: multiple manifest-shaped JSON files found in ${inDir}; pass --manifest <path>`)
-    for (const candidate of candidates) console.error(`:: - ${candidate}`)
+    process.exit(1)
   }
-  process.exit(1)
-}
-
-function isManifestShaped(value) {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    'version' in value &&
-    Array.isArray(value.slides)
-  )
+  if (candidates.length > 1) {
+    console.warn(`:: multiple manifest-shaped JSON files in ${inDir}; using ${candidates[0]} (the app imports the first one too). Pass --manifest <path> to override.`)
+    for (const candidate of candidates.slice(1)) console.warn(`:: - ignored: ${candidate}`)
+  }
+  return candidates[0]
 }
 
 async function readJson(path, label) {

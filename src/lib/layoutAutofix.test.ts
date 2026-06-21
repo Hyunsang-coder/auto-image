@@ -65,6 +65,104 @@ describe('layout autofix', () => {
     ])
   })
 
+  it('moves overlapping text to the geometry target without shrinking the font', () => {
+    const manifest = {
+      version: 1,
+      name: 'Demo',
+      slides: [{ layout: 'text-top', textBlocks: 1, texts: [{ fontSize: 40, pos: { x: 0.5, y: 0.2 } }] }],
+    }
+    const result = applyLayoutSummaryFixes(manifest, {
+      issues: [
+        issue('text-overlap', 'manifest.json#/slides/0/texts/0', {
+          posX: 0.5,
+          posY: 0.2,
+          targetX: 0.5,
+          targetY: 0.1,
+        }),
+      ],
+    })
+    const fixed = fixedManifest(result)
+    const text = ((fixed.slides as Array<Record<string, unknown>>)[0].texts as Array<Record<string, unknown>>)[0]
+
+    expect(text).toMatchObject({ pos: { x: 0.5, y: 0.1 }, fitToBox: true, fontSize: 40 })
+    expect(result.changes.map((change) => change.fieldPath)).toEqual([
+      'manifest.json#/slides/0/texts/0/pos',
+      'manifest.json#/slides/0/texts/0/fitToBox',
+    ])
+  })
+
+  it('also shrinks the font when a clamped overlap move cannot fully clear', () => {
+    const manifest = {
+      version: 1,
+      name: 'Demo',
+      slides: [{ layout: 'text-top', textBlocks: 1, texts: [{ fontSize: 40 }] }],
+    }
+    const result = applyLayoutSummaryFixes(manifest, {
+      issues: [
+        issue('text-overlap', 'manifest.json#/slides/0/texts/0', {
+          targetX: 0.5,
+          targetY: 0.12,
+          shrink: 1,
+        }),
+      ],
+    })
+    const fixed = fixedManifest(result)
+    const text = ((fixed.slides as Array<Record<string, unknown>>)[0].texts as Array<Record<string, unknown>>)[0]
+
+    expect(text).toMatchObject({ pos: { x: 0.5, y: 0.12 }, fitToBox: true, fontSize: 36 })
+    expect(result.changes.map((change) => change.fieldPath)).toEqual([
+      'manifest.json#/slides/0/texts/0/pos',
+      'manifest.json#/slides/0/texts/0/fitToBox',
+      'manifest.json#/slides/0/texts/0/fontSize',
+    ])
+  })
+
+  it('moves pos-less safe-margin text to the real-geometry target, not a fabricated default', () => {
+    const manifest = {
+      version: 1,
+      name: 'Demo',
+      slides: [{ layout: 'text-top', textBlocks: 1 }],
+    }
+    const result = applyLayoutSummaryFixes(manifest, {
+      issues: [
+        issue('safe-margin-overflow', 'manifest.json#/slides/0/texts/0', {
+          posX: 0.16,
+          posY: 0.02,
+          targetX: 0.2,
+          targetY: 0.05,
+          sides: ['left', 'top'],
+        }),
+      ],
+    })
+    const fixed = fixedManifest(result)
+    const text = ((fixed.slides as Array<Record<string, unknown>>)[0].texts as Array<Record<string, unknown>>)[0]
+
+    // The fabricated-default path would have produced { x: 0.56, y: 0.12 }.
+    expect(text).toMatchObject({ pos: { x: 0.2, y: 0.05 }, fitToBox: true })
+  })
+
+  it('narrows the wrap box for safe-margin text flagged wider than the safe area', () => {
+    const manifest = {
+      version: 1,
+      name: 'Demo',
+      slides: [{ layout: 'text-top', textBlocks: 1, texts: [{ boxWidth: 0.9 }] }],
+    }
+    const result = applyLayoutSummaryFixes(manifest, {
+      issues: [
+        issue('safe-margin-overflow', 'manifest.json#/slides/0/texts/0', {
+          targetX: 0.5,
+          targetY: 0.05,
+          narrowBox: 1,
+          sides: ['left', 'right'],
+        }),
+      ],
+    })
+    const fixed = fixedManifest(result)
+    const text = ((fixed.slides as Array<Record<string, unknown>>)[0].texts as Array<Record<string, unknown>>)[0]
+
+    expect(text).toMatchObject({ pos: { x: 0.5, y: 0.05 }, fitToBox: true, boxWidth: 0.846 })
+  })
+
   it('creates a sparse text override when moving text inside the safe margin', () => {
     const manifest = {
       version: 1,

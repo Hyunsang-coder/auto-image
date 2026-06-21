@@ -230,29 +230,28 @@ function applyTextOverlap(
   target: AutofixTarget,
 ): void {
   if (target.kind === 'text') {
-    const fontSize = numberField(target.node, 'fontSize')
-    if (fontSize !== undefined) {
+    // Primary fix: MOVE the text out of the collision (the report computed an
+    // absolute target away from the overlapping object). Only shrink the font
+    // when the move was clamped and could not fully clear the overlap.
+    const targetPos = metricTargetPos(issue)
+    if (targetPos) {
       setField(
         ctx,
         issue,
         issueIndex,
         target,
-        'fontSize',
-        round3(Math.max(MIN_FONT_SIZE, fontSize * SIZE_REDUCTION)),
-        'reduce text fontSize to clear an overlap',
+        'pos',
+        { x: round3(clamp(targetPos.x, 0.02, 0.98)), y: round3(clamp(targetPos.y, 0.02, 0.98)) },
+        'move text away from the overlapping target',
       )
-    } else {
-      const fontScale = numberField(target.node, 'fontScale') ?? 1
-      setField(
-        ctx,
-        issue,
-        issueIndex,
-        target,
-        'fontScale',
-        round3(Math.max(MIN_FONT_SCALE, fontScale * SIZE_REDUCTION)),
-        'reduce text fontScale to clear an overlap',
-      )
+      setField(ctx, issue, issueIndex, target, 'fitToBox', true, 'keep text within its box after the move')
+      if (metricNumber(issue, 'shrink') !== undefined) {
+        reduceTextFont(ctx, issue, issueIndex, target)
+      }
+      return
     }
+
+    reduceTextFont(ctx, issue, issueIndex, target)
     setField(ctx, issue, issueIndex, target, 'fitToBox', true, 'allow text to fit within its box')
 
     const boxWidth = numberField(target.node, 'boxWidth')
@@ -294,6 +293,36 @@ function applySafeMarginOverflow(
 ): void {
   const sides = metricSides(issue)
   if (target.kind === 'text') {
+    const targetPos = metricTargetPos(issue)
+    if (targetPos) {
+      // Move to the report's geometry-derived target — for template-anchored
+      // text (no manifest pos) this is its real rendered position pulled inside
+      // the safe area, not an invented 0.5/defaultTextY guess.
+      setField(
+        ctx,
+        issue,
+        issueIndex,
+        target,
+        'pos',
+        { x: round3(clamp(targetPos.x, 0.02, 0.98)), y: round3(clamp(targetPos.y, 0.02, 0.98)) },
+        `move text inside safe margin (${sides.join(', ') || 'unknown side'})`,
+      )
+      setField(ctx, issue, issueIndex, target, 'fitToBox', true, 'keep text within its adjusted box')
+      const boxWidth = numberField(target.node, 'boxWidth')
+      if (metricNumber(issue, 'narrowBox') !== undefined && boxWidth !== undefined) {
+        setField(
+          ctx,
+          issue,
+          issueIndex,
+          target,
+          'boxWidth',
+          round3(Math.max(MIN_BOX_WIDTH, boxWidth * TEXT_WIDTH_REDUCTION)),
+          'narrow text box wider than the safe area',
+        )
+      }
+      return
+    }
+
     const pos = isRecord(target.node.pos) ? target.node.pos : {}
     let x = numberField(pos, 'x') ?? 0.5
     let y = numberField(pos, 'y') ?? defaultTextY(sides)
@@ -606,6 +635,51 @@ function ensureObjectField(parent: JsonObject, field: string, fallback: JsonObje
     parent[field] = { ...fallback }
   }
   return isRecord(parent[field]) ? parent[field] : null
+}
+
+function metricNumber(issue: LayoutSummaryIssue, key: string): number | undefined {
+  const value = issue.metrics?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+// Absolute target pos the report derived from real rendered geometry. Present =
+// move the text there (no fabricated default); absent = fall back to the
+// directional nudge heuristic.
+function metricTargetPos(issue: LayoutSummaryIssue): { x: number; y: number } | null {
+  const x = metricNumber(issue, 'targetX')
+  const y = metricNumber(issue, 'targetY')
+  return x !== undefined && y !== undefined ? { x, y } : null
+}
+
+function reduceTextFont(
+  ctx: AutofixContext,
+  issue: LayoutSummaryIssue,
+  issueIndex: number,
+  target: AutofixTarget,
+): void {
+  const fontSize = numberField(target.node, 'fontSize')
+  if (fontSize !== undefined) {
+    setField(
+      ctx,
+      issue,
+      issueIndex,
+      target,
+      'fontSize',
+      round3(Math.max(MIN_FONT_SIZE, fontSize * SIZE_REDUCTION)),
+      'reduce text fontSize to clear an overlap',
+    )
+  } else {
+    const fontScale = numberField(target.node, 'fontScale') ?? 1
+    setField(
+      ctx,
+      issue,
+      issueIndex,
+      target,
+      'fontScale',
+      round3(Math.max(MIN_FONT_SCALE, fontScale * SIZE_REDUCTION)),
+      'reduce text fontScale to clear an overlap',
+    )
+  }
 }
 
 function metricSides(issue: LayoutSummaryIssue): string[] {

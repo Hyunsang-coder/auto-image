@@ -83,6 +83,54 @@ describe('layout validator', () => {
     expect(issues.every((i) => i.suggestedFix.edits.length > 0)).toBe(true)
   })
 
+  it('flows a move target that pushes overlapping text off the device (least-penetration axis)', () => {
+    const issues = validateLayoutEntry(entry({
+      text: [box('text:leader:0', 'text', 300, 240, 400, 200)],
+      device: [box('device-frame', 'device-frame', 250, 400, 500, 1200)],
+    }))
+    const overlap = issues.find((i) => i.code === 'text-overlap')
+
+    // text sits above the device; the vertical overlap is the shallow axis, so
+    // the suggested target moves it straight up and leaves x untouched.
+    expect(overlap?.metrics).toMatchObject({ posX: 0.5, posY: 0.12, targetX: 0.5 })
+    expect(Number(overlap?.metrics?.targetY)).toBeLessThan(0.12)
+    expect(overlap?.metrics?.shrink).toBeUndefined()
+  })
+
+  it('flags shrink when a text overlap cannot be cleared by moving within the safe area', () => {
+    // A tall text band that fills the page top-to-bottom can only move a hair
+    // before hitting the safe margin, so the report asks the autofix to shrink.
+    const issues = validateLayoutEntry(entry({
+      text: [box('text:leader:0', 'text', 100, 110, 800, 1780)],
+      device: [box('device-frame', 'device-frame', 100, 200, 800, 1600)],
+    }))
+    const overlap = issues.find((i) => i.code === 'text-overlap')
+    expect(overlap?.metrics?.shrink).toBe(1)
+  })
+
+  it('flows a real-geometry target for safe-margin text instead of a fabricated default', () => {
+    const issues = validateLayoutEntry(entry({
+      text: [box('text:leader:0', 'text', 10, 40, 300, 120)],
+    }))
+    const overflow = issues.find((i) => i.code === 'safe-margin-overflow')
+
+    expect(overflow?.metrics).toMatchObject({
+      posX: 0.16,
+      posY: 0.02,
+      targetX: 0.2,
+      targetY: 0.05,
+    })
+    expect(overflow?.metrics?.narrowBox).toBeUndefined()
+  })
+
+  it('flags narrowBox for a safe-margin text wider than the safe area', () => {
+    const issues = validateLayoutEntry(entry({
+      text: [box('text:leader:0', 'text', 20, 200, 960, 120)],
+    }))
+    const overflow = issues.find((i) => i.code === 'safe-margin-overflow')
+    expect(overflow?.metrics?.narrowBox).toBe(1)
+  })
+
   it('does not flag text over a full-bleed screenshot as a screenshot overlap', () => {
     const issues = validateLayoutEntry(entry({
       text: [box('text:leader:0', 'text', 200, 300, 300, 120)],

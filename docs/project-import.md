@@ -323,7 +323,10 @@ npm run layout:loop -- <input-dir> <out-dir> --write --max-runs 3
   다시 렌더한다. `--max-runs`는 최대 렌더 횟수이므로 기본값 3은 "초기 렌더 + 수정 후
   최대 2회 재검증"이다.
 - manifest 파일명이 `manifest.json`이 아니어도 input 폴더에서 manifest 모양
-  (`version` + `slides`)의 JSON을 찾는다. 후보가 여러 개면 `--manifest <path>`를 준다.
+  (`version` + `slides`)의 JSON을 찾는다. 후보가 여러 개면 이름 정렬상 첫 번째를 쓴다
+  (`headless:export`가 같은 정렬 순서로 파일을 넘기고, 앱 import도 첫 manifest를 고르므로
+  loop가 고치는 manifest와 앱이 렌더하는 manifest가 일치한다). 다른 걸 쓰려면
+  `--manifest <path>`.
 - loop는 내부에서 `headless:export --report`를 사용하고, `layout-summary.json`의 issue
   count를 직접 판정한다. issue가 남았는데 `--write`가 없거나 최대 렌더 횟수에 닿으면
   exit 1이다.
@@ -357,8 +360,8 @@ npm run headless:export -- <input-dir> <out-dir> --report --fail-on-layout-issue
 
 | issue code | 자동 수정 |
 |---|---|
-| `text-overlap` | text edit을 우선 선택. `fontSize` 또는 `fontScale`을 10% 줄이고 `fitToBox`를 켠다. 기존 `boxWidth`가 있으면 약간 줄인다 |
-| `safe-margin-overflow` | `metrics.sides` 방향을 보고 text/badge/popup을 안쪽으로 소폭 이동한다. popup은 `width`도 10% 줄인다 |
+| `text-overlap` | text를 `metrics.targetX/targetY`(report가 충돌 geometry로 계산한 목표 위치)로 옮기고 `fitToBox`를 켠다. 옮길 공간이 없어 `metrics.shrink`가 붙은 경우에만 `fontSize`/`fontScale`도 10% 줄인다. (geometry가 없는 옛 summary는 폰트만 줄이던 과거 동작으로 폴백) |
+| `safe-margin-overflow` | text는 `metrics.targetX/targetY`(실제 렌더 위치를 안전 영역 안으로 당긴 값)로 옮긴다 — pos가 없는 템플릿 정렬 텍스트도 좌표를 날조하지 않는다. 안전 영역보다 넓어 `metrics.narrowBox`가 붙으면 `boxWidth`도 줄인다. badge/popup은 `metrics.sides` 방향으로 소폭 이동(popup은 `width`도 10% 축소) |
 | `badge-seam-overlap` | badge `left`를 seam 반대쪽이 아니라 같은 페이지 안쪽으로 이동한다 |
 | `highlight-popup-overflow` | popup `x/y`를 화면 안쪽으로 이동하고 `width`를 10% 줄인다 |
 | `highlight-popup-source-overlap` | popup을 `sourceRegion` 중심에서 멀어지는 방향으로 이동하고 `width`를 10% 줄인다 |
@@ -457,6 +460,7 @@ issue는 다음 agent-facing 필드를 가진다.
 | `manifestPaths` | issue에 직접 관련된 수정 대상 경로들. box의 `manifestPath`에서 중복 제거 |
 | `suggestedFix.summary` | 사람이 읽는 수정 방향 |
 | `suggestedFix.edits[]` | 수정 후보. 각 항목은 `manifestPath`, 후보 `fields`, 짧은 `hint`를 가진다 |
+| `metrics` | 수치 컨텍스트. text 이슈는 `posX/posY`(현재 정규화 위치, pos 의미 = centerX/width·top/height)와 `targetX/targetY`(report가 실제 geometry로 계산한 이동 목표)를 담고, 필요 시 `shrink`(이동만으로 안 되니 폰트도 축소)·`narrowBox`(안전 영역보다 넓어 wrap 폭도 축소) 플래그가 붙는다 |
 
 예:
 

@@ -200,14 +200,7 @@ export interface ManifestParseResult {
 }
 
 /** Shape probe for routing a .json file: manifest vs caption template. */
-export function isManifestShaped(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'version' in value &&
-    Array.isArray((value as { slides?: unknown }).slides)
-  )
-}
+export { isManifestShaped } from './manifestShape'
 
 const KNOWN_LOCALES = new Set<string>(SUPPORTED_LOCALES.map((l) => l.code))
 

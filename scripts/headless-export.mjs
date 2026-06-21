@@ -103,8 +103,11 @@ const bundleMode = inputStat.isFile() && extname(inDir).toLowerCase() === '.zip'
 const IMPORT_EXTS = new Set(['.json', '.csv', '.png', '.jpg', '.jpeg', '.webp'])
 let files = []
 if (!bundleMode) {
+  // Sorted by name so the importer's "first manifest-shaped JSON wins" tie-break
+  // is deterministic — the layout-loop discovers the manifest in the same order.
   files = (await readdir(inDir))
     .filter((f) => IMPORT_EXTS.has(extname(f).toLowerCase()))
+    .sort()
     .map((f) => join(inDir, f))
   if (files.length === 0) {
     console.error(`no importable files (.json/.csv/images) in ${inDir}`)
