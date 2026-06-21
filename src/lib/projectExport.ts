@@ -86,6 +86,8 @@ function reverseTextOverride(c: Caption, where: string, issues: string[]): Recor
     color: s.color,
     weight: s.fontWeight,
     align: s.textAlign,
+    ...(s.letterSpacing !== undefined ? { letterSpacing: s.letterSpacing } : {}),
+    ...(s.lineHeight !== undefined ? { lineHeight: s.lineHeight } : {}),
     ...(s.fitToBox !== undefined ? { fitToBox: s.fitToBox } : {}),
     ...(c.pos ? { pos: { ...c.pos } } : {}),
     ...(c.boxWidth !== undefined ? { boxWidth: c.boxWidth } : {}),
@@ -114,6 +116,19 @@ function reverseBadge(b: Badge, where: string, issues: string[]): Record<string,
 
 function reverseSlide(slide: Slide, n: number, issues: string[]): Record<string, unknown> {
   const where = `slide ${n}`
+  // A span follower's shared layers (background, device frame, screenshot,
+  // ornaments, highlights, badges, per-locale look) are leader-owned and
+  // ignored while grouped — reversing the follower's own (stale) copies would
+  // emit phantom lossy-issues and write follower look that diverges from the
+  // leader on re-import. Only its texts are per-slide.
+  if (slide.spanGroupId && slide.spanRole === 'follower') {
+    return {
+      layout: slide.template,
+      textBlocks: slide.texts.length,
+      ...(slide.texts.length ? { texts: slide.texts.map((c, i) => reverseTextOverride(c, `${where} text:${i}`, issues)) } : {}),
+      span: { group: slide.spanGroupId, role: slide.spanRole },
+    }
+  }
   if (slide.localeOverrides && Object.keys(slide.localeOverrides).length)
     issues.push(`${where}: per-locale look overrides (localeOverrides) can't be expressed — dropped (text translations stay in the caption file)`)
   if (slide.screenshot?.localeSource && Object.keys(slide.screenshot.localeSource).length)
@@ -144,9 +159,20 @@ function reverseSlide(slide: Slide, n: number, issues: string[]): Record<string,
 export function exportProject(project: Project): ProjectExportResult {
   const issues: string[] = []
 
-  const firstModel = project.slides[0]?.deviceFrame.model ?? DEFAULT_MODEL.iphone
-  const device: DeviceType = typeOfModel(firstModel)
-  const types = new Set(project.slides.map((s) => typeOfModel(s.deviceFrame.model)))
+  // The manifest is single-device. Keep the DOMINANT (majority) type so the
+  // fewest slides re-import under the wrong frame; ties keep first-seen order.
+  const typeCounts = new Map<DeviceType, number>()
+  for (const s of project.slides) {
+    const ty = typeOfModel(s.deviceFrame.model)
+    typeCounts.set(ty, (typeCounts.get(ty) ?? 0) + 1)
+  }
+  const device: DeviceType =
+    [...typeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? typeOfModel(DEFAULT_MODEL.iphone)
+  const firstModel =
+    project.slides.find((s) => typeOfModel(s.deviceFrame.model) === device)?.deviceFrame.model ??
+    project.deviceModels?.[device] ??
+    DEFAULT_MODEL[device]
+  const types = new Set(typeCounts.keys())
   if (types.size > 1)
     issues.push(`project mixes ${[...types].join('/')} devices; the manifest keeps only ${device} — other slides re-import as ${device}`)
 
@@ -184,7 +210,9 @@ export function exportProject(project: Project): ProjectExportResult {
   // supplies on re-import (the bulk-import naming convention).
   const screenshotPlan: string[] = []
   project.slides.forEach((s, i) => {
-    if (!s.screenshot) return
+    // A span follower's screenshot is leader-owned — the leader's plan entry
+    // covers both pages.
+    if (!s.screenshot || s.spanRole === 'follower') return
     screenshotPlan.push(`${i + 1}.${project.sourceLocale}.png`)
     for (const loc of Object.keys(s.screenshot.localeOverrides ?? {})) screenshotPlan.push(`${i + 1}.${loc}.png`)
   })

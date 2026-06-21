@@ -235,8 +235,13 @@ function applyProjectSet(project: Project, path: string, value: unknown, issues:
       else issues.push('set name: value must be a non-empty string')
       return
     case 'sourceLocale':
-      if (typeof value === 'string' && KNOWN_LOCALES.has(value)) project.sourceLocale = value
-      else issues.push(`set sourceLocale: unsupported locale "${String(value)}"`)
+      if (typeof value === 'string' && KNOWN_LOCALES.has(value)) {
+        project.sourceLocale = value
+        // Keep the invariant sourceLocale ∉ targetLocales (the targetLocales
+        // setter below enforces the same); leaving the overlap corrupts the
+        // localize template (a duplicate source column).
+        project.targetLocales = project.targetLocales.filter((l) => l !== value)
+      } else issues.push(`set sourceLocale: unsupported locale "${String(value)}"`)
       return
     case 'targetLocales': {
       if (!Array.isArray(value)) {
@@ -263,6 +268,15 @@ function applyProjectSet(project: Project, path: string, value: unknown, issues:
           issues.push(`set deviceModels: unknown device type "${type}" — skipped`)
         } else if (MODELS_BY_TYPE[type].includes(model as never)) {
           next[type] = model as never
+          // Resize every slide of this type. Render/export resolution follows
+          // slide.deviceFrame.model (renderSlide reads DEVICE_SPECS[model]), so
+          // updating deviceModels alone is invisible — mirror the store's
+          // setDeviceSize same-type remap.
+          project.slides = project.slides.map((s) =>
+            typeOfModel(s.deviceFrame.model) === type
+              ? { ...s, deviceFrame: { ...s.deviceFrame, model: model as never } }
+              : s,
+          )
         } else {
           issues.push(`set deviceModels: "${String(model)}" is not a ${type} model — skipped`)
         }

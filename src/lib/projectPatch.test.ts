@@ -166,6 +166,29 @@ describe('set (whitelisted paths)', () => {
     expect(p.targetLocales).toEqual(['ja', 'de'])
   })
 
+  it('set deviceModels resizes every slide of that type (not just project.deviceModels)', () => {
+    const base = project()
+    expect(base.slides.every((s) => s.deviceFrame.model === 'iphone-16-pro')).toBe(true)
+    const { project: p, issues } = applyPatch(base, [
+      { op: 'set', path: 'deviceModels', value: { iphone: 'iphone-6-5' } },
+    ])
+    expect(issues).toEqual([])
+    expect(p.deviceModels?.iphone).toBe('iphone-6-5')
+    // The render target follows slide.deviceFrame.model, so the remap is what
+    // actually changes the exported resolution.
+    expect(p.slides.every((s) => s.deviceFrame.model === 'iphone-6-5')).toBe(true)
+  })
+
+  it('set sourceLocale prunes the new source from targetLocales', () => {
+    const base = project()
+    expect(base.targetLocales).toContain('ja')
+    const { project: p } = applyPatch(base, [
+      { op: 'set', path: 'sourceLocale', value: 'ja' },
+    ])
+    expect(p.sourceLocale).toBe('ja')
+    expect(p.targetLocales).not.toContain('ja')
+  })
+
   it('rejects forbidden identity/image paths', () => {
     const { issues } = applyPatch(project(), [
       { op: 'set', slide: 1, path: 'id', value: 'hacked' },

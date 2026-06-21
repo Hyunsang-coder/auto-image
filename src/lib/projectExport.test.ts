@@ -73,6 +73,61 @@ describe('exportProject round-trip', () => {
     const out = exportProject(p)
     expect(out.screenshotPlan).toContain('1.en.png')
   })
+
+  it('round-trips caption letterSpacing and lineHeight (no silent loss)', () => {
+    const p = coreProject()
+    p.slides[0].texts[0].style = { ...p.slides[0].texts[0].style, letterSpacing: -3.5, lineHeight: 1.4 }
+    const out = exportProject(p)
+    expect(out.issues).toEqual([])
+    const p2 = reimport(out)
+    expect(p2.slides[0].texts[0].style.letterSpacing).toBe(-3.5)
+    expect(p2.slides[0].texts[0].style.lineHeight).toBe(1.4)
+  })
+
+  it('keeps the dominant device type when slide 0 is the odd one out', () => {
+    const p = makeProject({ name: 'Mixed', devices: ['iphone'], screenshotCount: 3, themeBackground: SOLID })
+    // Slide 0 iPad, slides 1-2 iPhone → majority is iPhone.
+    p.slides[0] = { ...p.slides[0], deviceFrame: { ...p.slides[0].deviceFrame, model: 'ipad-pro-13' } }
+    const out = exportProject(p)
+    expect(out.manifest.device).toBe('iphone')
+    expect(typeof out.manifest.deviceModel).toBe('string')
+    expect(String(out.manifest.deviceModel).startsWith('iphone')).toBe(true)
+  })
+})
+
+describe('exportProject span follower', () => {
+  function spanProject(): Project {
+    const text = JSON.stringify({
+      version: 1,
+      name: 'Span',
+      device: 'iphone',
+      sourceLocale: 'en',
+      targetLocales: [],
+      slides: [
+        { layout: 'text-top', textBlocks: 1, deviceFrame: true, span: { group: 'g', role: 'leader' } },
+        { layout: 'text-top', textBlocks: 1, deviceFrame: true, span: { group: 'g', role: 'follower' } },
+      ],
+    })
+    const parsed = parseManifest(text)
+    if (!parsed.manifest) throw new Error(parsed.issues.join('; '))
+    return buildProjectFromManifest(parsed.manifest)
+  }
+
+  it('does not reverse a follower leader-owned layers or emit phantom issues', () => {
+    const p = spanProject()
+    // A stale image background on the follower (leader-owned, ignored while
+    // grouped) must NOT produce a phantom "image background" loss issue.
+    p.slides[1] = { ...p.slides[1], background: { type: 'image', imageKey: 'img:stale' } }
+    const out = exportProject(p)
+    expect(out.issues.join('\n')).not.toContain('image background')
+    const slides = out.manifest.slides as Record<string, unknown>[]
+    const followerManifest = slides[1]
+    expect(followerManifest.background).toBeUndefined()
+    const span = followerManifest.span as { group: string; role: string }
+    expect(span.role).toBe('follower')
+    // Leader and follower share the (re-generated) group id.
+    expect(span.group).toBe((slides[0].span as { group: string }).group)
+  })
 })
 
 describe('exportProject lossy reporting', () => {

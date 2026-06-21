@@ -67,6 +67,10 @@ const FONT_SCALE_MIN = 0.3
 const FONT_SCALE_MAX = 4
 const FONT_WEIGHT_MIN = 100
 const FONT_WEIGHT_MAX = 900
+const LETTER_SPACING_MIN = -20
+const LETTER_SPACING_MAX = 20
+const LINE_HEIGHT_MIN = 0.5
+const LINE_HEIGHT_MAX = 3
 const BOX_WIDTH_MIN = 0.1
 const BOX_WIDTH_MAX = 2
 const PAD_MAX = 200
@@ -138,6 +142,8 @@ export interface ParsedTextOverride {
   color?: string
   align?: 'left' | 'center' | 'right'
   weight?: number
+  letterSpacing?: number
+  lineHeight?: number
   pos?: { x: number; y: number }
   boxWidth?: number
   box?: { fill: string; opacity: number; paddingX: number; paddingY: number; borderRadius: number }
@@ -616,6 +622,10 @@ export function coerceTextOverrides(
     }
     const weight = coerceNumber(r.weight, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, tw, 'weight', issues)
     if (weight !== undefined) out.weight = weight
+    const letterSpacing = coerceNumber(r.letterSpacing, LETTER_SPACING_MIN, LETTER_SPACING_MAX, tw, 'letterSpacing', issues)
+    if (letterSpacing !== undefined) out.letterSpacing = letterSpacing
+    const lineHeight = coerceNumber(r.lineHeight, LINE_HEIGHT_MIN, LINE_HEIGHT_MAX, tw, 'lineHeight', issues)
+    if (lineHeight !== undefined) out.lineHeight = lineHeight
     if (r.pos !== undefined) {
       if (typeof r.pos === 'object' && r.pos !== null) {
         const p = r.pos as Record<string, unknown>
@@ -882,6 +892,8 @@ export function applyTextOverride(block: Caption, ov: ParsedTextOverride | undef
   if (ov.fitToBox !== undefined) block.style.fitToBox = ov.fitToBox
   if (ov.color !== undefined) block.style.color = ov.color
   if (ov.weight !== undefined) block.style.fontWeight = ov.weight
+  if (ov.letterSpacing !== undefined) block.style.letterSpacing = ov.letterSpacing
+  if (ov.lineHeight !== undefined) block.style.lineHeight = ov.lineHeight
   if (ov.align !== undefined) block.style.textAlign = ov.align
   if (ov.pos !== undefined) block.pos = { ...ov.pos }
   if (ov.boxWidth !== undefined) block.boxWidth = ov.boxWidth
