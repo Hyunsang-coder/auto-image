@@ -286,6 +286,7 @@ npm run headless:export -- <input-dir> <out-dir>             # {locale}/{device}
 npm run headless:export -- <input-dir> <out-dir> --fastlane  # deliver 레이아웃 + Appfile/Deliverfile/upload.sh
 npm run headless:export -- <input-dir> <out-dir> --report    # PNG + layout-report.json + layout-summary.json
 npm run headless:export -- <input-dir> <out-dir> --fail-on-layout-issues
+npm run headless:export -- <input-dir> <out-dir> --bundle    # 렌더 대신 편집 가능한 <name>.studio.zip 저장
 ```
 
 - `<input-dir>` = 위 예시 폴더 그대로 (manifest + 캡션 CSV/JSON + 스크린샷, 플랫).
@@ -297,6 +298,10 @@ npm run headless:export -- <input-dir> <out-dir> --fail-on-layout-issues
 - `--fail-on-layout-issues`는 `--report`를 자동으로 켜며, 렌더가 성공해도 layout issue가
   1개 이상이면 exit 1로 끝난다. CI/에이전트 루프에서 "레이아웃 경고 없음"을 게이트로
   걸 때 사용한다.
+- `--bundle`은 렌더를 건너뛰고 편집 가능한 프로젝트 번들(`<out-dir>/<name>.studio.zip`)을
+  저장한다. PNG가 아니라 에디터에서 "프로젝트 파일 열기"로 다시 열어 손볼 산출물이
+  필요할 때 쓴다. import 포맷과 달리 GUI 편집(하이라이트·배지·장식·로케일별 스크린샷)이
+  무손실로 왕복된다.
 - 에이전트 루프: manifest/캡션 수정 → 재실행 → `<out-dir>` PNG와
   `layout-summary.json` 확인 → 수렴할 때까지 반복.
 

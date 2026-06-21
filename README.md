@@ -15,6 +15,7 @@ A fully client-side editor for building localized App Store / iPad screenshots �
 - **Localization, your way** — translate captions in *your own* AI tool, not ours. Export a CSV/JSON template, copy the bundled translation prompt, paste both into any LLM, then re-import the filled file. Per-locale screenshots and per-locale caption editing are supported.
 - **Agent-ready project import** — an AI agent can author the entire project as files: a manifest JSON + screenshots named `{n}[-desc].{locale}.{ext}` + a caption CSV. Select them all in one file pick on the setup step and a complete pre-export project is assembled. Spec: [docs/project-import.md](./docs/project-import.md). For zero clicks, `npm run headless:export -- <input-dir> <out-dir> --report` renders that folder straight to final PNGs and emits `layout-report.json` / `layout-summary.json`; `npm run layout:loop -- <input-dir> <out-dir> --write` can apply conservative manifest fixes and re-render until layout issues clear.
 - **One-click export** — renders every slide to PNG (alpha-stripped, App Store Connect-safe) and packages them as a ZIP grouped by `{locale}/{device}/`, or as a fastlane `deliver`-ready ZIP for direct App Store Connect upload.
+- **Portable project files** — save the whole project (slides + screenshots) to one `.studio.zip` and reopen it later for tweaking. It's the only format that round-trips every edit (highlights, badges, ornaments, per-locale screenshots), so you can hand a CLI-built project to the visual editor and back. Header **Save Project File** / setup-step **Open Project File**, or `--bundle` from the CLI (see Headless automation).
 - **Multi-project library** + custom background presets and slide-style templates.
 
 ## Quick start
@@ -48,6 +49,7 @@ For agent-authored import folders, render and validate without opening the UI:
 
 ```bash
 npm run headless:export -- <input-dir> <out-dir> --report
+npm run headless:export -- <input-dir> <out-dir> --bundle
 npm run layout:fix -- <out-dir>/layout-summary.json <input-dir>/manifest.json
 npm run layout:loop -- <input-dir> <out-dir> --write --max-runs 3
 ```
@@ -55,10 +57,13 @@ npm run layout:loop -- <input-dir> <out-dir> --write --max-runs 3
 `layout:fix` is dry-run by default and prints the manifest fields it would change.
 `layout:loop` renders, applies those fixes only with `--write`, and re-renders until
 `layout-summary.json` has no issues or the run budget is exhausted.
+`--bundle` skips rendering and instead saves an editable project bundle
+(`<out-dir>/<name>.studio.zip`) you can reopen in the editor via **Open Project File** —
+useful when you want to fine-tune a CLI-built project visually before exporting.
 
 ## How it works
 
-1. **Setup** — pick device, slide count, theme color — or import an agent-authored file bundle ([spec](./docs/project-import.md)) and skip straight to review.
+1. **Setup** — pick device, slide count, theme color — or import an agent-authored file bundle ([spec](./docs/project-import.md)), or reopen a saved `.studio.zip` project file, and skip straight to review.
 2. **Edit** — compose each slide on the canvas.
 3. **Localize** — manage target languages, export/import the translation template, bulk-import per-locale screenshots.
 4. **Export** — render to PNG and download the ZIP.
