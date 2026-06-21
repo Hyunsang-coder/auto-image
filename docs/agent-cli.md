@@ -189,20 +189,45 @@ npm run headless:export -- out.studio.zip render-out --report
 
 ---
 
-## Phase 2 (뒤로, 호환만 확보)
+## Phase 2 — 마지막 단계 (머지 후 새 세션이 구현·검증)
 
-- **#4 타겟 렌더** (`--slides 2,3 --locale en`): `__renderFilter` addInitScript → `ExportPanel.tsx` 로케일 필터(`excludedLocales` 패턴, trivial) + 슬라이드 루프 게이트. **반드시 span 짝 확장**(선택된 span 반쪽은 인접 파트너 포함 렌더 후 불필요 PNG 폐기) — naive index 필터는 crash/누락.
-- **#2 역방향 텍스트 내보내기** (`--export-manifest`): 순수 lib `projectExport.ts`(projectImport 역). `__getProject()` → manifest + 캡션(localeIO 재사용) + 스크린샷 plan. **lossy 집합**(`localeOverrides` 로케일별 레이아웃·이미지 배경·`localeSource`·fontFamily·box border/shadow·badge icon·frameModel)은 `issues[]` 보고. 무손실 필요하면 #1+`--bundle`로 충분 → surgical patch가 있으면 편집 용도엔 대체로 불필요.
+> 진입점: `feat/agent-cli-phase1-patch`가 main에 머지된 뒤 새 워크트리에서.
+> 권장 순서: **(B) 하드닝 → #4 타겟 렌더 → #2 역방향 내보내기**. (B)를 먼저 해야 #4가 구버전/번들 입력에서도 오렌더 안 함. file:line은 아래에서 재확인됨(2026-06-21 기준) — 구현 전 한 번 더 grep.
+> 공유 패턴: Phase 1에서 쓴 게이트(`addInitScript` 플래그 → 앱이 `window.__x`를 읽거나 발행)를 그대로 답습. 새 in-app hook은 #4용 `__renderFilter`(읽기), #2용 `__getProject`(발행) 2개.
+
+### (B) loadProject 마이그레이션 하드닝 (먼저)
+현 리스크: `importProjectBundle`→`loadProject`는 persist의 마이그레이션을 안 돌림. persist `migrate`는 부팅 rehydration에서만 실행 → 구버전 번들을 #1 입력/주입하면 span 캡션 오렌더, pre-v4 malformed.
+- 현 상태(재확인): `useProjectStore.ts` persist `version: 5`, `migrate: (_persisted, version) => { if (version<4) return {project:null,…}; if (version<5 && state.project) state.project.slides = migrateSpanSlides(state.project.slides); return state }`. 번들 envelope는 `projectBundle.ts` `bundleVersion: 1`(envelope만, 앱 스키마 버전 아님).
+- 작업:
+  1. `migrate` 클로저의 프로젝트 마이그레이션을 순수 헬퍼로 추출 — 새 `src/lib/projectMigrate.ts` `migrateProject(project, fromVersion): Project | null`(`fromVersion<4`→null, `<5`→`migrateSpanSlides`). persist `migrate`가 이 헬퍼를 호출하도록 교체(동작 보존).
+  2. `exportProjectBundle`가 envelope에 `schemaVersion: PERSIST_VERSION`(=5) stamp. `importProjectBundle`이 `migrateProject(project, manifest.schemaVersion ?? 4)` 적용 후 반환(`schemaVersion` 없는 구 번들 = v4로 간주). `bundleVersion`(envelope)와 `schemaVersion`(프로젝트 스키마)은 별개로 유지.
+- 검증: v4 형태(leader-owned 우반 캡션) 번들을 `importProjectBundle` → follower가 우페이지 캡션 소유로 split됐는지 단위 테스트. persist `migrate` 기존 테스트(있으면) green. `spanTextMigration.test.ts` 패턴 재사용.
+
+### #4 타겟 렌더 (`--slides 2,3 --locale en`)
+목적: 슬라이드/로케일 부분 집합만 렌더(반복 빠르게).
+- 기반(재확인, `ExportPanel.tsx`): 로케일은 이미 `excludedLocales: Set<string>` state로 필터(`exportLocales = allLocales.filter(l => !excludedLocales.has(l))`, line ~213). 슬라이드 루프는 `for (locale) { while (i<slides.length) … }`(line ~268), span leader는 2× 캔버스 한 번 렌더 후 양쪽 PNG emit + `i+=2`(line ~283), 외톨이 follower는 skip(line ~319).
+- 작업:
+  1. 하니스 `--slides`/`--locale` 플래그 → `addInitScript(() => { window.__renderFilter = { slides:[2,3], locales:['en'] } })`.
+  2. `ExportPanel`이 마운트 시 `window.__renderFilter`를 읽어 `excludedLocales`(로케일은 기존 경로 그대로) + **슬라이드 화이트셋**을 초기화. 렌더 루프에서 화이트셋 밖 슬라이드는 emit 스킵.
+  3. **span 짝 확장 필수**: 선택된 슬라이드가 span 반쪽이면 인접 파트너를 렌더에 포함(leader가 2×를 그려야 하므로)하되, 화이트셋에 없는 쪽 PNG는 emit하지 않음(또는 emit 후 폐기). naive index 필터는 leader 누락 시 crash/빈 PNG → 반드시 `spanGroupId`로 파트너를 끌어옴.
+- 검증: 2슬라이드+2로케일 프로젝트(span 1쌍 포함)로 `--slides 2 --locale en` → `out/en*/…/02.png`만, 나머지 PNG 없음. span 반쪽만 지정 시 파트너 포함 렌더되고 지정 슬라이드 PNG만 남는지.
+
+### #2 역방향 텍스트 내보내기 (`--export-manifest`)
+목적: 라이브 프로젝트 → manifest + 캡션(에이전트가 텍스트만 손보고 재import). **lossy** — 무손실 편집은 surgical patch가 이미 커버하므로 이건 "텍스트 일괄 추출/재작성" 용도.
+- 작업:
+  1. 순수 lib `src/lib/projectExport.ts` = `projectImport.ts`의 역. `Project` → `{ manifest: <ParsedManifest 형태 JSON>, captions: <serializeTemplate 결과> }`. 캡션은 `localeIO.ts` `serializeTemplate`(line ~47) 재사용, 스크린샷은 plan(파일명 규약)만.
+  2. in-app hook `window.__getProject()` → `JSON.stringify(useProjectStore.getState().project)`(`__getProjectEnabled` 게이트). 하니스가 `page.evaluate`로 받아 lib에 통과.
+  3. **lossy 집합은 `issues[]`로 명시 보고**: `localeOverrides` 로케일별 레이아웃·이미지 배경(`type:'image'`)·`localeSource`·`fontFamily`·box `border`/`shadow`·badge `icon`/`iconPosition`·`frameModel`은 manifest로 표현 불가 → 떨어짐을 경고.
+- 검증: 알려진 프로젝트 → export → 핵심 필드(텍스트·레이아웃·deviceFrame·배경 solid/gradient) 왕복 일치, lossy 필드가 `issues`에 빠짐없이 나열되는지 단위 테스트.
 
 ---
 
-## 검증 계획
+## 검증 계획 (Phase 1 + patch — 완료, 참고용)
 
-- #1: manifest 폴더 → `--bundle`로 `.studio.zip` → `headless:export <zip> out` → PNG가 manifest 직행 렌더와 동일 구조인지. GUI 왕복(열기→1슬라이드 수정→재저장→재렌더 반영) 확인.
-- #3: manifest 폴더 → `--validate` → `import-result.json`의 `applied`/`issues`가 DOM 요약과 일치 + PNG 0개.
-- patch: op별(setText base/translation, setScreenshot base/override, set clamp, 거부) 단위 테스트 + 번들 라운드트립(patch → 열기/렌더로 반영 확인).
-- 전 구간 build/lint/test green.
+- ✅ #1: manifest 폴더 → `--bundle`로 `.studio.zip` → `headless:export <zip> out --report` → PNG 4장 + layout 0 issue 확인.
+- ✅ #3: manifest 폴더 → `--validate` → `import-result.json`의 `applied`(slides/screenshots/captions)/`project` 일치 + PNG 0개 확인.
+- ✅ patch: op별 단위 테스트 20개(setText base/translation·targetLocale 자동추가, setScreenshot base/override/cross-type/redetect, set clamp/거부, span follower 거부, 순수성) + 실번들 라운드트립(patch → 헤들리스 렌더로 텍스트·배경·신규 로케일 반영 확인).
+- ✅ 전 구간 build/lint/test green(334 tests).
 
-## 작업량 (대략)
-- #1: 하니스 분기만, ~0.5d. #3: hook 1 + serializer + 플래그, ~0.5d. patch: 순수 lib + CLI + image-size devDep + 테스트, 보통. (B) 하드닝: ~0.5–1d.
-- 권장 순서: #1 → #3 → surgical patch → (B). #1·#3 독립이라 병렬 가능.
+## 작업량 (대략, 남은 것)
+- (B) 하드닝: ~0.5d(순수 헬퍼 추출 + envelope stamp + 마이그레이션 단위 테스트). #4: ~0.5–1d(하니스 플래그 + ExportPanel 필터 + span 확장 + 검증). #2: ~1d(역방향 lib + hook + lossy 보고 + 왕복 테스트).
