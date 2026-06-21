@@ -10,11 +10,18 @@ import { useLibraryStore } from './store/useLibraryStore'
 import { useCustomStore } from './store/useCustomStore'
 import { projectTemplateFromProject } from './constants/projectTemplates'
 import { newId } from './constants/defaults'
+import { saveAs } from 'file-saver'
 import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
+import { exportProjectBundle } from './lib/projectBundle'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
 import { useI18nStore, useT } from './i18n'
+
+interface BundleWindow extends Window {
+  __bundleExportEnabled?: boolean
+  __downloadProjectBundle?: () => Promise<void>
+}
 
 function App() {
   const t = useT()
@@ -58,6 +65,18 @@ function App() {
     return () => window.removeEventListener(STORAGE_ERROR_EVENT, onError)
   }, [])
 
+  // Headless bundle hook: the CLI `--bundle` flag drives this to download an
+  // editable project .zip without rendering. Inert in the app (flag never set).
+  useEffect(() => {
+    const w = window as BundleWindow
+    if (!w.__bundleExportEnabled) return
+    w.__downloadProjectBundle = async () => {
+      const p = useProjectStore.getState().project
+      if (!p) return
+      saveAs(await exportProjectBundle(p), `${p.name || 'project'}.studio.zip`)
+    }
+  }, [])
+
   function handleReset() {
     resetProject()
     setShowResetConfirm(false)
@@ -83,6 +102,12 @@ function App() {
     setShowSaveModal(false)
     setJustSaved(true)
     window.setTimeout(() => setJustSaved(false), 1600)
+  }
+
+  async function handleExportBundle() {
+    const current = useProjectStore.getState().project
+    if (!current) return
+    saveAs(await exportProjectBundle(current), `${current.name || t('제목 없음')}.studio.zip`)
   }
 
   function openTemplateModal() {
@@ -157,6 +182,15 @@ function App() {
               className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
             >
               {justSavedTemplate ? t('템플릿 저장됨 ✓') : t('템플릿으로 저장')}
+            </button>
+          )}
+          {project && step !== 1 && (
+            <button
+              type="button"
+              onClick={handleExportBundle}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+            >
+              {t('프로젝트 파일 저장')}
             </button>
           )}
           {project && (

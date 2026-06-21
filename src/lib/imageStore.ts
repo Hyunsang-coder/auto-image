@@ -16,6 +16,11 @@ export async function loadImageBlob(key: string): Promise<Blob | undefined> {
   return get<Blob>(key)
 }
 
+/** Restore a blob under an explicit key (bundle import reuses original keys). */
+export async function putImage(key: string, blob: Blob): Promise<void> {
+  await set(key, blob)
+}
+
 export async function loadImageObjectUrl(
   key: string,
 ): Promise<string | undefined> {

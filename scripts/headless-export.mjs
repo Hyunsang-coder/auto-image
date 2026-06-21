@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // Headless render pipeline: agent-authored import folder in → exact-size PNGs out.
 //
-//   node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--fail-on-layout-issues]
+//   node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--bundle] [--fail-on-layout-issues]
 //
 // <input-dir> is a flat folder in the project-import format (docs/project-import.md):
 // manifest.json + caption CSV/JSON + {n}[-desc].{locale}.{ext} screenshots.
 // PNGs land in <out-dir> as {locale}/{device}/NN.png (--fastlane: deliver layout
-// + Appfile/Deliverfile/upload.sh). Starts the Vite dev server itself if
-// localhost:5173 is down; reuses (and leaves alone) one that's already running.
+// + Appfile/Deliverfile/upload.sh). --bundle skips render and saves an editable
+// project bundle (<out-dir>/<name>.studio.zip) to reopen in the editor later.
+// Starts the Vite dev server itself if localhost:5173 is down; reuses (and
+// leaves alone) one that's already running.
 import { chromium } from '@playwright/test'
 import JSZip from 'jszip'
 import { spawn } from 'node:child_process'
@@ -20,8 +22,9 @@ const [inDir, outDir] = positional
 const fastlane = process.argv.includes('--fastlane')
 const failOnLayoutIssues = process.argv.includes('--fail-on-layout-issues')
 const report = process.argv.includes('--report') || failOnLayoutIssues
+const bundle = process.argv.includes('--bundle')
 if (!inDir || !outDir) {
-  console.error('Usage: node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--fail-on-layout-issues]')
+  console.error('Usage: node scripts/headless-export.mjs <input-dir> <out-dir> [--fastlane] [--report] [--bundle] [--fail-on-layout-issues]')
   process.exit(2)
 }
 
@@ -67,6 +70,9 @@ try {
       window.__layoutSummary = null
     })
   }
+  if (bundle) {
+    await page.addInitScript(() => { window.__bundleExportEnabled = true })
+  }
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
@@ -85,6 +91,19 @@ try {
     log('import warnings:\n:: ' + issues.replace(/\n/g, '\n:: '))
   }
   await page.getByRole('button', { name: '에디터에서 검수 →' }).click()
+
+  if (bundle) {
+    // Editable project bundle (project.json + image blobs) instead of PNGs —
+    // reopen in the editor later via "프로젝트 파일 열기". App exposes the
+    // download via window.__downloadProjectBundle when __bundleExportEnabled.
+    await mkdir(outDir, { recursive: true })
+    const dl = page.waitForEvent('download', { timeout: 120_000 })
+    await page.evaluate(() => window.__downloadProjectBundle())
+    const d = await dl
+    const bundlePath = join(outDir, d.suggestedFilename())
+    await d.saveAs(bundlePath)
+    log(`project bundle → ${bundlePath}`)
+  } else {
   await page.getByRole('button', { name: /Export/ }).click()
 
   const exportBtn = page.getByRole('button', { name: fastlane ? 'fastlane용 ZIP' : /ZIP 내보내기/ })
@@ -178,6 +197,7 @@ try {
         exitCode = 1
       }
     }
+  }
   }
 
   if (errors.length > 0) log('console errors:', JSON.stringify(errors))

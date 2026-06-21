@@ -8,6 +8,7 @@ import { useCustomStore } from '../../store/useCustomStore'
 import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
 import { runProjectImport, type ImportRunResult } from '../../lib/projectImportRun'
+import { importProjectBundle } from '../../lib/projectBundle'
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
 import { Modal } from '../common/Modal'
@@ -33,6 +34,8 @@ export function ProjectSetup() {
   const importInputRef = useRef<HTMLInputElement>(null)
   const [importResult, setImportResult] = useState<ImportRunResult | null>(null)
   const [importBusy, setImportBusy] = useState(false)
+  const bundleInputRef = useRef<HTMLInputElement>(null)
+  const [bundleError, setBundleError] = useState(false)
 
   const [name, setName] = useState(existingProject?.name ?? t('내 앱'))
   // Exactly one device type per project (radio, never both/neither). The chosen
@@ -127,6 +130,23 @@ export function ProjectSetup() {
 
   function cancelImport() {
     setImportResult(null)
+    gcImages()
+  }
+
+  async function handleOpenBundle(file: File) {
+    setImportBusy(true)
+    try {
+      handleLoad(await importProjectBundle(file)) // confirm-on-overwrite reused
+    } catch {
+      setBundleError(true)
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  // Bundle open writes blobs before the load is confirmed; sweep them if declined.
+  function cancelLoad() {
+    setConfirmLoad(null)
     gcImages()
   }
 
@@ -248,6 +268,31 @@ export function ProjectSetup() {
           type="button"
           disabled={importBusy}
           onClick={() => importInputRef.current?.click()}
+          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {importBusy ? t('가져오는 중…') : t('파일 선택')}
+        </button>
+      </Section>
+
+      <Section
+        title={t('프로젝트 파일 열기')}
+        hint={t('이전에 저장한 프로젝트 파일(.zip)을 열어 이어서 편집합니다. 스크린샷과 모든 편집 내용이 그대로 복원됩니다.')}
+      >
+        <input
+          ref={bundleInputRef}
+          type="file"
+          accept=".zip"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file) void handleOpenBundle(file)
+          }}
+        />
+        <button
+          type="button"
+          disabled={importBusy}
+          onClick={() => bundleInputRef.current?.click()}
           className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {importBusy ? t('가져오는 중…') : t('파일 선택')}
@@ -445,7 +490,7 @@ export function ProjectSetup() {
       )}
 
       {confirmLoad && (
-        <Modal title={t('프로젝트 불러오기')} onClose={() => setConfirmLoad(null)}>
+        <Modal title={t('프로젝트 불러오기')} onClose={cancelLoad}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               {t('현재 편집 중인 작업을')}{' '}
               <span className="font-medium text-[var(--color-text)]">{confirmLoad.name}</span>
@@ -454,7 +499,7 @@ export function ProjectSetup() {
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setConfirmLoad(null)}
+                onClick={cancelLoad}
                 className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
               >
                 {t('취소')}
@@ -465,6 +510,23 @@ export function ProjectSetup() {
                 className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
               >
                 {t('불러오기')}
+              </button>
+            </div>
+        </Modal>
+      )}
+
+      {bundleError && (
+        <Modal title={t('프로젝트 파일 열기')} onClose={() => setBundleError(false)}>
+            <p className="mt-2 text-sm text-red-600">
+              {t('프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.')}
+            </p>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setBundleError(false)}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+              >
+                {t('닫기')}
               </button>
             </div>
         </Modal>

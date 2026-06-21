@@ -14,6 +14,7 @@ export const en: Record<string, string> = {
   저장: 'Save',
   '템플릿 저장됨 ✓': 'Template saved ✓',
   '템플릿으로 저장': 'Save as Template',
+  '프로젝트 파일 저장': 'Save Project File',
   초기화: 'Reset',
   '저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다. 슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.':
     'Storage is full — your latest changes may not have been saved. Reduce the number of slides or highlights, or export and reset the project.',
@@ -341,6 +342,11 @@ export const en: Record<string, string> = {
   'AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 선택하면 export 전 단계까지 채워진 프로젝트로 시작합니다.':
     'Select files prepared by an AI agent (manifest.json + screenshots + caption CSV/JSON) all at once to start a project ready for export.',
   '가져오는 중…': 'Importing…',
+  '프로젝트 파일 열기': 'Open Project File',
+  '이전에 저장한 프로젝트 파일(.zip)을 열어 이어서 편집합니다. 스크린샷과 모든 편집 내용이 그대로 복원됩니다.':
+    'Open a previously saved project file (.zip) to keep editing. Screenshots and all edits are restored as-is.',
+  '프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.':
+    'Could not open the project file. Make sure it is a valid project .zip.',
   '예: Dogo, Claude, ADHD': 'e.g. Dogo, Claude, ADHD',
   '파일 선택': 'Select Files',
   '앱 이름': 'App Name',

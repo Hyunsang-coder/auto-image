@@ -8,7 +8,7 @@ function bgImageKey(bg: Background): string | undefined {
   return bg.type === 'image' ? bg.imageKey : undefined
 }
 
-function projectImageKeys(p: Project): string[] {
+export function projectImageKeys(p: Project): string[] {
   return p.slides
     .flatMap((s) => [
       s.screenshot?.imageKey,
