@@ -1,7 +1,7 @@
-# Agent CLI 로드맵 — Phase 1 + Surgical Patch 구현됨
+# Agent CLI 로드맵 — Phase 1 + Surgical Patch + Phase 2 구현됨
 
-> 상태: **Phase 1(#1 번들 렌더 입력, #3 validate) + Surgical Patch 구현·검증 완료**. Phase 2(#4 타겟 렌더, #2 역방향)와 (B) 마이그레이션 하드닝은 **미구현(설계만)**.
-> 구현 산출물: 순수 lib `src/lib/projectPatch.ts`(+`projectPatch.test.ts`), CLI `scripts/project-patch.mjs`(tsx 실행), 하니스 `scripts/headless-export.mjs`(번들 입력 + `--validate` 분기), 앱 hook `ProjectSetup.handleImportFiles`(`window.__importResult`), `projectImport.ts` coercer export, `i18n/index.ts` `document` 가드, devDep `image-size`/`tsx`.
+> 상태: **전 단계 구현·검증 완료.** Phase 1(#1 번들 렌더 입력, #3 validate) + Surgical Patch + Phase 2((B) 마이그레이션 하드닝, #4 타겟 렌더, #2 역방향 내보내기) 모두 머지됨.
+> 구현 산출물: 순수 lib `src/lib/projectPatch.ts`·`projectMigrate.ts`·`projectExport.ts`(+각 `.test.ts`), CLI `scripts/project-patch.mjs`(tsx 실행), 하니스 `scripts/headless-export.mjs`(번들 입력 + `--validate`/`--slides`/`--locale`/`--export-manifest` 분기), 앱 hook `ProjectSetup.handleImportFiles`(`window.__importResult`)·`App.tsx`(`window.__exportManifest`)·`ExportPanel`(`window.__renderFilter`), `projectImport.ts` coercer export, `i18n/index.ts` `document` 가드, devDep `image-size`/`tsx`.
 
 AI 에이전트가 에디터를 **더 자유롭고 surgical하게** 활용하게 하는 CLI/헤들리스 확장.
 기존 에이전트 루프(manifest 폴더 → 렌더 → `layout-report` 확인 → manifest 수정 → 재렌더)를
@@ -20,7 +20,7 @@ AI 에이전트가 에디터를 **더 자유롭고 surgical하게** 활용하게
 
 1. ✅ **Phase 1**: #1 번들 렌더 입력 + #3 validate/dry-run (저비용, 무손실 루프 + 빠른 검증)
 2. ✅ **Surgical patch**: 번들 위 부분 수정 (핵심 신규 니즈)
-3. ⬜ **(뒤로) Phase 2**: #4 타겟 렌더, #2 역방향 텍스트 내보내기 (아키텍처 호환만 확보)
+3. ✅ **Phase 2**: (B) 마이그레이션 하드닝 + #4 타겟 렌더(`--slides`/`--locale`) + #2 역방향 내보내기(`--export-manifest`)
 
 > 구현 메모(설계와 달라진 점):
 > - CLI는 순수 lib의 런타임 TS 그래프를 import하므로 bare `node`로는 extensionless `.ts`가 resolve 안 됨 → `tsx`로 실행(`.mjs` 엔트리도 tsx 로더가 처리). `apply-layout-summary.mjs`가 되는 건 그게 **type-only** import만 써서 i18n을 런타임 로드하지 않기 때문.
@@ -180,45 +180,35 @@ npm run headless:export -- out.studio.zip render-out --report
 
 ---
 
-## 가로지르는 리스크 — `loadProject` 마이그레이션 부재
+## 가로지르는 리스크 — `loadProject` 마이그레이션 부재 → (B)로 하드닝됨 ✅
 
-`useProjectStore.loadProject`는 `ensureThemeBackground`만 적용, persist의 v4→v5 span 마이그레이션(`migrateSpanSlides`)은 부팅 rehydration에서만 실행. → 구버전 번들을 #1 입력/주입하면 span 캡션 오렌더, pre-v4는 malformed.
+(과거 리스크) `useProjectStore.loadProject`는 `ensureThemeBackground`만 적용, persist의 v4→v5 span 마이그레이션은 부팅 rehydration에서만 실행 → 구버전 번들을 #1 입력/주입하면 span 캡션 오렌더, pre-v4는 malformed.
 
-- (A) 문서화만 — "동일 앱 버전 번들만"(기본, 비용 0).
-- (B) 하드닝(권장) — persist `migrate` 클로저의 마이그레이션을 순수 헬퍼 `migrateProject(project, fromVersion)`로 추출 → `importProjectBundle`이 반환 전 적용. 번들 envelope에 앱 스키마 버전 stamp 추가(현 `bundleVersion`은 envelope만).
+**(B) 구현됨**: persist `migrate`의 프로젝트 마이그레이션을 순수 `src/lib/projectMigrate.ts` `migrateProject(project, fromVersion): Project | null`(`<4`→null, `<5`→`migrateSpanSlides`)로 추출. persist `version`/번들 envelope `schemaVersion`/이 헬퍼가 모두 `PROJECT_SCHEMA_VERSION`(=5) 단일 상수를 공유. `exportProjectBundle`이 `schemaVersion`을 stamp하고, `importProjectBundle`이 반환 전 `migrateProject(project, schemaVersion ?? 4)` 적용(구 v1 번들=schema v4로 간주). `bundleVersion`(envelope 포맷)과 `schemaVersion`(프로젝트 스키마)은 별개로 유지.
 
 ---
 
-## Phase 2 — 마지막 단계 (머지 후 새 세션이 구현·검증)
+## Phase 2 — 구현·검증 완료 ✅
 
-> 진입점: `feat/agent-cli-phase1-patch`가 main에 머지된 뒤 새 워크트리에서.
-> 권장 순서: **(B) 하드닝 → #4 타겟 렌더 → #2 역방향 내보내기**. (B)를 먼저 해야 #4가 구버전/번들 입력에서도 오렌더 안 함. file:line은 아래에서 재확인됨(2026-06-21 기준) — 구현 전 한 번 더 grep.
-> 공유 패턴: Phase 1에서 쓴 게이트(`addInitScript` 플래그 → 앱이 `window.__x`를 읽거나 발행)를 그대로 답습. 새 in-app hook은 #4용 `__renderFilter`(읽기), #2용 `__getProject`(발행) 2개.
+> 순서대로 (B) → #4 → #2 구현, 각 단계 build/lint/test green + 헤들리스 end-to-end 검증.
+> 공유 패턴: Phase 1의 게이트(`addInitScript` 플래그 → 앱이 `window.__x`를 읽거나 발행) 답습. 새 in-app hook: #4용 `window.__renderFilter`(ExportPanel 읽기), #2용 `window.__exportManifest`(App 발행).
 
-### (B) loadProject 마이그레이션 하드닝 (먼저)
-현 리스크: `importProjectBundle`→`loadProject`는 persist의 마이그레이션을 안 돌림. persist `migrate`는 부팅 rehydration에서만 실행 → 구버전 번들을 #1 입력/주입하면 span 캡션 오렌더, pre-v4 malformed.
-- 현 상태(재확인): `useProjectStore.ts` persist `version: 5`, `migrate: (_persisted, version) => { if (version<4) return {project:null,…}; if (version<5 && state.project) state.project.slides = migrateSpanSlides(state.project.slides); return state }`. 번들 envelope는 `projectBundle.ts` `bundleVersion: 1`(envelope만, 앱 스키마 버전 아님).
-- 작업:
-  1. `migrate` 클로저의 프로젝트 마이그레이션을 순수 헬퍼로 추출 — 새 `src/lib/projectMigrate.ts` `migrateProject(project, fromVersion): Project | null`(`fromVersion<4`→null, `<5`→`migrateSpanSlides`). persist `migrate`가 이 헬퍼를 호출하도록 교체(동작 보존).
-  2. `exportProjectBundle`가 envelope에 `schemaVersion: PERSIST_VERSION`(=5) stamp. `importProjectBundle`이 `migrateProject(project, manifest.schemaVersion ?? 4)` 적용 후 반환(`schemaVersion` 없는 구 번들 = v4로 간주). `bundleVersion`(envelope)와 `schemaVersion`(프로젝트 스키마)은 별개로 유지.
-- 검증: v4 형태(leader-owned 우반 캡션) 번들을 `importProjectBundle` → follower가 우페이지 캡션 소유로 split됐는지 단위 테스트. persist `migrate` 기존 테스트(있으면) green. `spanTextMigration.test.ts` 패턴 재사용.
+### (B) loadProject 마이그레이션 하드닝 ✅
+위 "가로지르는 리스크" 섹션 참고. `src/lib/projectMigrate.ts` `migrateProject` + `PROJECT_SCHEMA_VERSION`, persist `migrate`/`exportProjectBundle`/`importProjectBundle`이 공유. 검증: `projectMigrate.test.ts`가 v4 형태(leader-owned 우반 캡션) 프로젝트 → follower 우페이지 split, pre-v4→null, v5→identity.
 
-### #4 타겟 렌더 (`--slides 2,3 --locale en`)
-목적: 슬라이드/로케일 부분 집합만 렌더(반복 빠르게).
-- 기반(재확인, `ExportPanel.tsx`): 로케일은 이미 `excludedLocales: Set<string>` state로 필터(`exportLocales = allLocales.filter(l => !excludedLocales.has(l))`, line ~213). 슬라이드 루프는 `for (locale) { while (i<slides.length) … }`(line ~268), span leader는 2× 캔버스 한 번 렌더 후 양쪽 PNG emit + `i+=2`(line ~283), 외톨이 follower는 skip(line ~319).
-- 작업:
-  1. 하니스 `--slides`/`--locale` 플래그 → `addInitScript(() => { window.__renderFilter = { slides:[2,3], locales:['en'] } })`.
-  2. `ExportPanel`이 마운트 시 `window.__renderFilter`를 읽어 `excludedLocales`(로케일은 기존 경로 그대로) + **슬라이드 화이트셋**을 초기화. 렌더 루프에서 화이트셋 밖 슬라이드는 emit 스킵.
-  3. **span 짝 확장 필수**: 선택된 슬라이드가 span 반쪽이면 인접 파트너를 렌더에 포함(leader가 2×를 그려야 하므로)하되, 화이트셋에 없는 쪽 PNG는 emit하지 않음(또는 emit 후 폐기). naive index 필터는 leader 누락 시 crash/빈 PNG → 반드시 `spanGroupId`로 파트너를 끌어옴.
-- 검증: 2슬라이드+2로케일 프로젝트(span 1쌍 포함)로 `--slides 2 --locale en` → `out/en*/…/02.png`만, 나머지 PNG 없음. span 반쪽만 지정 시 파트너 포함 렌더되고 지정 슬라이드 PNG만 남는지.
+### #4 타겟 렌더 (`--slides 2,3 --locale en`) ✅
+슬라이드/로케일 부분 집합만 렌더(반복 빠르게).
+- 하니스 `--slides`/`--locale`(둘 다 `--x v`/`--x=v` 형식 지원) → `addInitScript`로 `window.__renderFilter = { slides:[2,3], locales:['en'] }`. `--validate`/`--bundle`과는 비호환(렌더 경로 미진입) → 경고 후 무시.
+- `ExportPanel`이 `readRenderFilter()`로 읽어 마운트 시 `excludedLocales`를 시드(로케일은 기존 경로 그대로) + 1-based **슬라이드 화이트셋**으로 `total`/렌더 루프를 게이트. 화이트셋 밖 일반 슬라이드는 렌더 자체 스킵.
+- **span 짝 확장**: 선택 슬라이드가 span 반쪽이면 leader가 2× 캔버스를 그려야 하므로, 두 반쪽 중 하나라도 선택되면 렌더하되 원하는 반쪽 PNG만 emit/count. 둘 다 미선택이면 그 짝은 통째 스킵.
+- 검증: 3슬라이드(1 일반 + span 1쌍)+2로케일 fixture. `--slides 2 --locale en` → `en-US/iphone/02.png` 1장만(leader 반쪽), `--slides 1,3 --locale ko` → `01.png`+`03.png`(span follower 03 포함, leader 02 미emit). 전부 full-res(1320×2868).
 
-### #2 역방향 텍스트 내보내기 (`--export-manifest`)
-목적: 라이브 프로젝트 → manifest + 캡션(에이전트가 텍스트만 손보고 재import). **lossy** — 무손실 편집은 surgical patch가 이미 커버하므로 이건 "텍스트 일괄 추출/재작성" 용도.
-- 작업:
-  1. 순수 lib `src/lib/projectExport.ts` = `projectImport.ts`의 역. `Project` → `{ manifest: <ParsedManifest 형태 JSON>, captions: <serializeTemplate 결과> }`. 캡션은 `localeIO.ts` `serializeTemplate`(line ~47) 재사용, 스크린샷은 plan(파일명 규약)만.
-  2. in-app hook `window.__getProject()` → `JSON.stringify(useProjectStore.getState().project)`(`__getProjectEnabled` 게이트). 하니스가 `page.evaluate`로 받아 lib에 통과.
-  3. **lossy 집합은 `issues[]`로 명시 보고**: `localeOverrides` 로케일별 레이아웃·이미지 배경(`type:'image'`)·`localeSource`·`fontFamily`·box `border`/`shadow`·badge `icon`/`iconPosition`·`frameModel`은 manifest로 표현 불가 → 떨어짐을 경고.
-- 검증: 알려진 프로젝트 → export → 핵심 필드(텍스트·레이아웃·deviceFrame·배경 solid/gradient) 왕복 일치, lossy 필드가 `issues`에 빠짐없이 나열되는지 단위 테스트.
+### #2 역방향 텍스트 내보내기 (`--export-manifest`) ✅
+라이브 프로젝트 → manifest + 캡션(에이전트가 텍스트만 손보고 재import). **lossy** — 무손실 편집은 surgical patch가 커버하므로 이건 "텍스트 일괄 추출/재작성" 용도.
+- 순수 lib `src/lib/projectExport.ts` `exportProject(project) → { manifest, captions, screenshotPlan, issues }` = `projectImport.ts`의 역. manifest는 authored 파일 스키마(`parseManifest`가 읽는 형태), 캡션은 `localeIO.ts` `serializeTemplate`(text:N·badge:N × 모든 로케일) 재사용, 스크린샷은 파일명 plan(`{n}.{locale}.png`)만.
+- in-app hook `window.__exportManifest()`(`__exportManifestEnabled` 게이트, `App.tsx`)가 **브라우저에서** 역변환을 돌려 결과 JSON을 반환 — 하니스(bare node)는 TS lib 그래프를 import 못 하므로(그건 `project:patch`=tsx 전용) 앱이 번들한 lib을 쓰는 게 일관됨(설계의 `__getProject`+하니스-측 lib에서 변경된 점). 하니스 `--export-manifest`가 `manifest.json`+`captions.csv`를 쓰고 plan/issues를 로깅, 렌더는 스킵.
+- **lossy는 `issues[]`로 명시**(평문 영어, projectPatch 컨벤션): `localeOverrides`(로케일별 룩)·이미지 배경·`localeSource`·non-default `fontFamily`·caption box `border`/`shadow`·badge `icon`/`iconPosition`·`frameModel`·혼합 디바이스 타입.
+- 검증: `projectExport.test.ts`가 export → `parseManifest`→`buildProjectFromManifest`→`applyCaptionRows` 왕복으로 핵심 필드(텍스트·레이아웃·deviceFrame·배경 solid/gradient·번역) 일치 + lossy 마커 전부 `issues`에 나열. 헤들리스로 import 폴더·번들 양쪽 입력에서 manifest/captions 생성 + 재import 렌더(6 PNG) 확인.
 
 ---
 
