@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Headless render pipeline: agent-authored input in → exact-size PNGs out.
 //
-//   node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues] [--slides 2,3] [--locale en,ja]
+//   node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--export-manifest] [--fail-on-layout-issues] [--slides 2,3] [--locale en,ja]
 //
 // <input> is either:
 //   • a flat folder in the project-import format (docs/project-import.md):
@@ -15,6 +15,9 @@
 // structured import result — and skips the editor + render entirely.
 // --slides / --locale render only that subset (1-based slide numbers / locale
 // codes) for fast iteration; a selected span half pulls in its partner.
+// --export-manifest writes <out-dir>/manifest.json + captions.csv — the loaded
+// project reversed into a re-importable manifest (lossy; lossless edits use
+// project:patch) — and skips render.
 // Starts the Vite dev server itself if localhost:5173 is down; reuses (and
 // leaves alone) one that's already running.
 import { chromium } from '@playwright/test'
@@ -52,6 +55,7 @@ const failOnLayoutIssues = rawArgs.includes('--fail-on-layout-issues')
 const report = rawArgs.includes('--report') || failOnLayoutIssues
 const bundle = rawArgs.includes('--bundle')
 const validate = rawArgs.includes('--validate')
+const exportManifest = rawArgs.includes('--export-manifest')
 
 // Targeted render: a subset of slides (1-based) and/or locales. Inert with
 // --validate/--bundle (those don't reach the render path).
@@ -65,7 +69,7 @@ const renderFilter =
       }
     : null
 if (!inDir || !outDir) {
-  console.error('Usage: node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--fail-on-layout-issues] [--slides 2,3] [--locale en,ja]')
+  console.error('Usage: node scripts/headless-export.mjs <input> <out-dir> [--fastlane] [--report] [--bundle] [--validate] [--export-manifest] [--fail-on-layout-issues] [--slides 2,3] [--locale en,ja]')
   process.exit(2)
 }
 
@@ -101,6 +105,9 @@ if (bundle && bundleMode) {
 }
 if (renderFilter && (validate || bundle)) {
   log('--slides/--locale apply to render only; ignoring with --validate/--bundle')
+}
+if (exportManifest && (validate || bundle)) {
+  log('--export-manifest takes precedence; ignoring --validate/--bundle')
 }
 
 const ping = () => fetch(BASE_URL).then((r) => r.ok, () => false)
@@ -140,6 +147,9 @@ try {
   }
   if (renderFilter && !validate && !bundle) {
     await page.addInitScript((rf) => { window.__renderFilter = rf }, renderFilter)
+  }
+  if (exportManifest) {
+    await page.addInitScript(() => { window.__exportManifestEnabled = true })
   }
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
@@ -185,7 +195,7 @@ try {
       log('import warnings:\n:: ' + issues.replace(/\n/g, '\n:: '))
     }
 
-    if (validate) {
+    if (validate && !exportManifest) {
       // Dry run: read the structured result the app published and stop — no
       // commit, no editor, no render. blob side effects ride with the profile.
       await mkdir(outDir, { recursive: true })
@@ -206,6 +216,30 @@ try {
 
   if (validated) {
     // nothing more to do — the dry run already wrote import-result.json
+  } else if (exportManifest) {
+    // Reverse the loaded project back to a manifest + caption template. Both the
+    // bundle and import paths land on step 2 first (the header "프로젝트 파일
+    // 저장" button only shows there), so the store has a committed project.
+    await page.getByRole('button', { name: '프로젝트 파일 저장' }).first().waitFor({ timeout: 30_000 })
+    await mkdir(outDir, { recursive: true })
+    const raw = await page.evaluate(() => window.__exportManifest?.() ?? null)
+    if (!raw) {
+      console.error(':: export-manifest: __exportManifest produced nothing')
+      exitCode = 1
+    } else {
+      const res = JSON.parse(raw)
+      if (!res.manifest) {
+        console.error(':: export-manifest: no project loaded')
+        exitCode = 1
+      } else {
+        await writeFile(join(outDir, 'manifest.json'), JSON.stringify(res.manifest, null, 2))
+        await writeFile(join(outDir, 'captions.csv'), res.captions)
+        log('manifest →', join(outDir, 'manifest.json'))
+        log('captions →', join(outDir, 'captions.csv'))
+        if (res.screenshotPlan?.length) log('screenshot plan:', res.screenshotPlan.join(', '))
+        if (res.issues?.length) log('lossy (not represented in the manifest):\n:: ' + res.issues.join('\n:: '))
+      }
+    }
   } else if (bundle) {
     // Editable project bundle (project.json + image blobs) instead of PNGs —
     // reopen in the editor later via "프로젝트 파일 열기". App exposes the
