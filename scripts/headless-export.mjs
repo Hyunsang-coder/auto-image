@@ -61,11 +61,25 @@ const exportManifest = rawArgs.includes('--export-manifest')
 // --validate/--bundle (those don't reach the render path).
 const slidesVal = flagValue('--slides')
 const localeVal = flagValue('--locale')
+const parsedSlides = slidesVal
+  ? slidesVal.split(',').map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n >= 1)
+  : undefined
+const parsedLocales = localeVal ? localeVal.split(',').map((s) => s.trim()).filter(Boolean) : undefined
+// A provided-but-unparseable filter must fail loudly — an empty array silently
+// renders everything (slides) or nothing (out-of-range), the opposite of intent.
+if (slidesVal !== undefined && (!parsedSlides || parsedSlides.length === 0)) {
+  console.error(`--slides: no valid 1-based slide numbers in "${slidesVal}"`)
+  process.exit(2)
+}
+if (localeVal !== undefined && (!parsedLocales || parsedLocales.length === 0)) {
+  console.error(`--locale: no valid locale codes in "${localeVal}"`)
+  process.exit(2)
+}
 const renderFilter =
-  slidesVal || localeVal
+  parsedSlides || parsedLocales
     ? {
-        ...(slidesVal ? { slides: slidesVal.split(',').map((s) => Number(s.trim())).filter(Number.isFinite) } : {}),
-        ...(localeVal ? { locales: localeVal.split(',').map((s) => s.trim()).filter(Boolean) } : {}),
+        ...(parsedSlides ? { slides: parsedSlides } : {}),
+        ...(parsedLocales ? { locales: parsedLocales } : {}),
       }
     : null
 if (!inDir || !outDir) {
@@ -126,8 +140,9 @@ if (!(await ping())) {
 }
 
 let exitCode = 0
-const browser = await chromium.launch()
+let browser = null
 try {
+  browser = await chromium.launch()
   // Fresh profile every run — no persisted project, so step 1 (import) is
   // always where we land and no overwrite confirmation appears.
   // ko-KR: the UI language follows navigator.language and we drive Korean text.
@@ -185,31 +200,38 @@ try {
     await page.getByText('프로젝트 가져오기').first().waitFor()
     await page.locator('input[accept=".json,.csv,image/*"]').setInputFiles(files)
 
-    const summary = page.locator('p', { hasText: /슬라이드 \d+장 · 스크린샷 \d+개 · 캡션 \d+개 적용/ })
-    await summary.waitFor({ timeout: 30_000 })
-    log('import:', (await summary.textContent()).trim())
-    const warnToggle = page.getByText(/경고 \d+건 보기/)
-    if (await warnToggle.isVisible()) {
-      await warnToggle.click()
-      const issues = (await page.locator('details ul').innerText()).trim()
-      log('import warnings:\n:: ' + issues.replace(/\n/g, '\n:: '))
-    }
-
     if (validate && !exportManifest) {
-      // Dry run: read the structured result the app published and stop — no
-      // commit, no editor, no render. blob side effects ride with the profile.
+      // Dry run: wait for the structured result the app publishes — it's set on
+      // BOTH success and failure (a malformed manifest yields {ok:false}), so we
+      // must not block on the success-only summary line (which never appears on
+      // failure). No commit, no editor, no render; blobs ride with the profile.
+      await page
+        .waitForFunction(() => window.__importResult != null, { timeout: 30_000 })
+        .catch(() => {})
       await mkdir(outDir, { recursive: true })
       const importResult = await page.evaluate(() => window.__importResult ?? null)
       if (!importResult) {
         console.error(':: validate: __importResult was not produced')
         exitCode = 1
       } else {
+        const parsed = JSON.parse(importResult)
         const resultPath = join(outDir, 'import-result.json')
-        await writeFile(resultPath, JSON.stringify(JSON.parse(importResult), null, 2))
+        await writeFile(resultPath, JSON.stringify(parsed, null, 2))
         log('import result saved →', resultPath)
+        log(`import ${parsed.ok ? 'ok' : 'FAILED'}; issues: ${parsed.issues?.length ?? 0}`)
+        if (!parsed.ok) exitCode = 1
       }
       validated = true
     } else {
+      const summary = page.locator('p', { hasText: /슬라이드 \d+장 · 스크린샷 \d+개 · 캡션 \d+개 적용/ })
+      await summary.waitFor({ timeout: 30_000 })
+      log('import:', (await summary.textContent()).trim())
+      const warnToggle = page.getByText(/경고 \d+건 보기/)
+      if (await warnToggle.isVisible()) {
+        await warnToggle.click()
+        const issues = (await page.locator('details ul').innerText()).trim()
+        log('import warnings:\n:: ' + issues.replace(/\n/g, '\n:: '))
+      }
       await page.getByRole('button', { name: '에디터에서 검수 →' }).click()
     }
   }
@@ -255,6 +277,18 @@ try {
   await page.getByRole('button', { name: /Export/ }).click()
 
   const exportBtn = page.getByRole('button', { name: fastlane ? 'fastlane용 ZIP' : /ZIP 내보내기/ })
+  // Empty render plan (e.g. --locale matched no project locale) disables export
+  // and relabels the primary button — detect it and fail fast instead of
+  // clicking a disabled button and waiting out the action timeout.
+  const emptyPlanBtn = page.getByRole('button', { name: '내보낼 언어를 선택하세요' })
+  await Promise.race([
+    exportBtn.waitFor({ timeout: 30_000 }).then(() => {}, () => {}),
+    emptyPlanBtn.waitFor({ timeout: 30_000 }).then(() => {}, () => {}),
+  ])
+  if (await emptyPlanBtn.isVisible()) {
+    console.error(':: nothing to export — no locales matched (check --locale)')
+    process.exit(1)
+  }
   await exportBtn.waitFor()
   // Render can take minutes for slides × locales. Two terminal states: the ZIP
   // download fires, or every render failed and the no-files error shows.
@@ -292,6 +326,12 @@ try {
     }
     await rm(zipPath)
     log(`extracted ${count} files → ${outDir}`)
+    // A targeted run that matched nothing yields an empty archive — that's a
+    // failed invocation, not a success (don't let exitCode stay 0).
+    if (renderFilter && count === 0) {
+      console.error(':: targeted render produced no files — check --slides/--locale match the project')
+      exitCode = 1
+    }
   }
 
   if (report) {
@@ -350,7 +390,8 @@ try {
 
   if (errors.length > 0) log('console errors:', JSON.stringify(errors))
 } finally {
-  await browser.close()
+  if (browser) await browser.close()
+  // Tear down a self-started dev server even if browser launch itself threw.
   if (server) try { process.kill(-server.pid) } catch { /* already gone */ }
 }
 process.exit(exitCode)

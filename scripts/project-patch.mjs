@@ -77,7 +77,17 @@ for (const op of ops) {
     console.error(`setScreenshot: cannot read image file "${op.file}"`)
     process.exit(1)
   }
-  const dim = imageSize(buf)
+  let dim
+  try {
+    dim = imageSize(buf)
+  } catch (e) {
+    console.error(`setScreenshot: cannot decode image "${op.file}": ${e.message}`)
+    process.exit(1)
+  }
+  if (!dim.width || !dim.height) {
+    console.error(`setScreenshot: could not read dimensions of "${op.file}"`)
+    process.exit(1)
+  }
   const uuid = randomUUID()
   const path = `images/${uuid}.${extFor(op.file)}`
   zip.file(path, buf)
