@@ -14,39 +14,35 @@ Generate a full set of localized App Store / iPad screenshots — device frames,
 
 ## Two ways to use it
 
-### 1. Let AI build it (recommended)
+### 1. Just ask your AI agent (recommended)
 
-Point an AI coding agent (Claude Code, etc.) at this repo together with your raw screenshots and ask it to assemble the set. The agent writes three things into a folder:
+Open this repo in Claude Code (or any AI coding agent), point it at your raw simulator screenshots, and say what you want — *"build a localized App Store screenshot set from these shots, English and Korean."* That's the whole interaction. You stay in plain language; the agent does everything:
 
-- a small **manifest** (`manifest.json`) describing each slide's layout,
-- your **screenshots**, named `{number}-{description}.{locale}.png` (e.g. `01-home.en.png`),
-- a **captions** file (CSV/JSON) with the headline for each slide in every language.
+- picks a layout per slide and writes the project **manifest**,
+- names and places your **screenshots**,
+- writes the **captions** in each language,
+- renders the final PNGs and auto-fixes any layout problems (text overlapping the device, anything past the safe margins),
+- optionally packages them for direct App Store Connect upload.
 
-Then one command turns that folder into final, upload-ready PNGs:
+No terminal, no config — you describe the result and review what comes back. The agent already knows the format from [docs/project-import.md](./docs/project-import.md); it just reads that file and runs the commands for you.
+
+<details>
+<summary>The commands the agent runs (in case you want to run them yourself)</summary>
 
 ```bash
-npm run headless:export -- ./my-screenshots ./out --report
+npm run headless:export -- ./my-screenshots ./out --report   # folder → final PNGs + layout check
+npm run layout:loop      -- ./my-screenshots ./out --write    # auto-fix layout issues and re-render
 ```
 
-That's it — no clicking. `--report` also checks every slide for layout problems (text overlapping the device, anything spilling past the safe margins) and can auto-fix them in a loop:
+The folder holds a `manifest.json`, screenshots named `{number}-{description}.{locale}.png` (e.g. `01-home.en.png`), and a captions CSV/JSON. Full reference: [docs/agent-cli.md](./docs/agent-cli.md).
 
-```bash
-npm run layout:loop -- ./my-screenshots ./out --write
-```
-
-The agent spec lives in [docs/project-import.md](./docs/project-import.md) — hand that file to your agent and it knows the exact format. Full headless reference: [docs/agent-cli.md](./docs/agent-cli.md).
+</details>
 
 ### 2. Want to tweak by hand?
 
-Add `--bundle` and you get an **editable project file** instead of flat PNGs:
+When you do want to touch something, ask the agent for an **editable project file** instead of flat PNGs, and it hands you a `.studio.zip`. Open it in the editor (**Open Project File** on the setup step), change whatever you like on the canvas, then export.
 
-```bash
-npm run headless:export -- ./my-screenshots ./out --bundle
-```
-
-Open the resulting `.studio.zip` in the editor (**Open Project File** on the setup step), adjust whatever you like on the canvas, then export. The bundle round-trips *every* edit losslessly — highlights, badges, ornaments, per-locale screenshots — so you can bounce between the AI workflow and the visual editor freely.
-
-You can also start from scratch in the editor (**Setup → Edit → Localize → Export**) and skip AI entirely. Both paths produce the same App Store Connect-ready output.
+The bundle round-trips *every* edit losslessly — highlights, badges, ornaments, per-language screenshots — so you can bounce between the AI workflow and the visual editor freely. You can also start from scratch in the editor (**Setup → Edit → Localize → Export**) and skip AI entirely. Both paths produce the same App Store Connect-ready output.
 
 ---
 
@@ -55,18 +51,12 @@ You can also start from scratch in the editor (**Setup → Edit → Localize →
 The whole pipeline, end to end:
 
 ```
-raw simulator shots  →  AI builds manifest + captions  →  headless render  →  PNGs (or fastlane upload)
-                                                              ↑
-                                              open .studio.zip in editor to tweak
+raw simulator shots  →  AI builds manifest + captions  →  render  →  PNGs (or fastlane upload)
+                                                            ↑
+                                            open .studio.zip in editor to tweak
 ```
 
-Add `--fastlane` and the export is laid out the way fastlane `deliver` expects, complete with an `Appfile`, `Deliverfile`, and `upload.sh` — so pushing the finished screenshots straight to App Store Connect is a single script:
-
-```bash
-npm run headless:export -- ./my-screenshots ./out --fastlane
-```
-
-(You provide your own App Store Connect credentials in the generated config — they're never part of this app.)
+Ask the agent to package for **fastlane** and the export comes out the way fastlane `deliver` expects — complete with an `Appfile`, `Deliverfile`, and `upload.sh` — so the finished screenshots go straight to App Store Connect with a single script. You provide your own App Store Connect credentials in the generated config; they're never part of this app.
 
 ---
 
