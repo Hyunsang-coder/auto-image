@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "name": "Headless Smoke",
+  "device": "iphone",
+  "sourceLocale": "en",
+  "targetLocales": ["ko"],
+  "slides": [
+    {
+      "layout": "text-top",
+      "textBlocks": 1,
+      "deviceFrame": { "show": true },
+      "externalImages": [
+        { "file": "1-external-1.png", "x": 0.78, "y": 0.6, "width": 0.3, "rotation": -8, "shadow": true }
+      ]
+    },
+    {
+      "layout": "text-bottom",
+      "textBlocks": 2
+    }
+  ]
+}

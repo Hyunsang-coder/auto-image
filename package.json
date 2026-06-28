@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "headless:export": "node scripts/headless-export.mjs",
+    "test:headless": "node scripts/headless-smoke.mjs",
     "layout:fix": "node --disable-warning=ExperimentalWarning scripts/apply-layout-summary.mjs",
     "layout:loop": "node --disable-warning=ExperimentalWarning scripts/layout-loop.mjs",
     "project:patch": "tsx scripts/project-patch.mjs",
