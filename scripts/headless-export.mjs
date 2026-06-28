@@ -226,7 +226,7 @@ try {
       }
       validated = true
     } else {
-      const summary = page.locator('p', { hasText: /슬라이드 \d+장 · 스크린샷 \d+개 · 캡션 \d+개 적용/ })
+      const summary = page.locator('p', { hasText: /슬라이드 \d+장 · 스크린샷 \d+개 · (?:외부 이미지 \d+개 · )?캡션 \d+개 적용/ })
       await summary.waitFor({ timeout: 30_000 })
       log('import:', (await summary.textContent()).trim())
       const warnToggle = page.getByText(/경고 \d+건 보기/)
