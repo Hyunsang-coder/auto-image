@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
-import { createProject } from './helpers'
+import { createProject, showDeviceFrame } from './helpers'
 
 // React maps onChange on a range input to the native 'input' event, so set the
 // value through the prototype setter and dispatch 'input' to drive the store.
@@ -26,10 +26,8 @@ test.describe('Device rotation', () => {
     await page.goto('/app/')
     await page.evaluate(() => localStorage.clear())
     await createProject(page, { name: 'Rotate Test' })
-    await page.getByRole('button', { name: '디바이스' }).click()
-    // With the frame shown (default) the screenshot tab has a single range
-    // input: 기기 회전.
-    await setSlider(page.getByRole('slider'), 15)
+    await showDeviceFrame(page)
+    await setSlider(page.getByRole('slider').first(), 15)
     await expect.poll(() => deviceAngle(page)).toBe(15)
     await page.evaluate(() => localStorage.clear())
   })
@@ -40,13 +38,13 @@ test.describe('Device rotation', () => {
     // on every reload and would defeat this test.
     await page.evaluate(() => localStorage.clear())
     await createProject(page, { name: 'Rotate Test' })
-    await page.getByRole('button', { name: '디바이스' }).click()
-    await setSlider(page.getByRole('slider'), -20)
+    await showDeviceFrame(page)
+    await setSlider(page.getByRole('slider').first(), -20)
     await expect.poll(() => deviceAngle(page)).toBe(-20)
 
     await page.reload()
     await page.getByRole('button', { name: '디바이스' }).click()
-    await expect(page.getByRole('slider')).toHaveValue('-20')
+    await expect(page.getByRole('slider').first()).toHaveValue('-20')
     await expect.poll(() => deviceAngle(page)).toBe(-20)
     await page.evaluate(() => localStorage.clear())
   })

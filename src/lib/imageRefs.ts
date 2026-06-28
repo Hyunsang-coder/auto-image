@@ -14,6 +14,7 @@ export function projectImageKeys(p: Project): string[] {
       s.screenshot?.imageKey,
       ...Object.values(s.screenshot?.localeOverrides ?? {}).map((o) => o.imageKey),
       bgImageKey(s.background),
+      ...(s.externalImages ?? []).map((img) => img.imageKey),
     ])
     .filter((k): k is string => !!k)
 }
@@ -42,6 +43,7 @@ export function allReferencedImageKeys(): Set<string> {
     for (const sl of t.slides) {
       const k = bgImageKey(sl.background)
       if (k) keys.add(k)
+      for (const img of sl.externalImages ?? []) keys.add(img.imageKey)
     }
   }
   return keys

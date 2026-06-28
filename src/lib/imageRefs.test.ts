@@ -52,6 +52,16 @@ describe('allReferencedImageKeys', () => {
     expect(keys.has('img:shot-en')).toBe(true)
   })
 
+  it('includes external image keys', () => {
+    const p = projWithKeys('A', 'img:shot-a', 'img:bg-a')
+    p.slides[0].externalImages = [
+      { id: 'ext', imageKey: 'img:external-a', originalWidth: 100, originalHeight: 80, x: 0.5, y: 0.5, width: 0.3, rotation: 0, opacity: 1, cornerRadiusRatio: 0.06, shadow: true },
+    ]
+    useProjectStore.setState({ project: p })
+    const keys = allReferencedImageKeys()
+    expect(keys.has('img:external-a')).toBe(true)
+  })
+
   it('includes custom preset + project-template image backgrounds', () => {
     useCustomStore.setState({
       presets: [
@@ -77,6 +87,9 @@ describe('allReferencedImageKeys', () => {
               background: { type: 'image', imageKey: 'img:tpl-slide-bg' },
               deviceFrame: { show: true, model: 'iphone-16-pro', color: 'black' },
               texts: [],
+              externalImages: [
+                { id: 'ext', imageKey: 'img:tpl-ext', originalWidth: 100, originalHeight: 80, x: 0.5, y: 0.5, width: 0.3, rotation: 0, opacity: 1, cornerRadiusRatio: 0.06, shadow: true },
+              ],
             },
           ],
         },
@@ -86,6 +99,7 @@ describe('allReferencedImageKeys', () => {
     expect(keys.has('img:preset-bg')).toBe(true)
     expect(keys.has('img:tpl-theme-bg')).toBe(true)
     expect(keys.has('img:tpl-slide-bg')).toBe(true)
+    expect(keys.has('img:tpl-ext')).toBe(true)
   })
 
   it('ignores non-image backgrounds', () => {

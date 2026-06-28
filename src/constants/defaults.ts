@@ -505,6 +505,7 @@ export function makeSlide(
     badges: [],
     highlights: [],
     ornaments: [],
+    externalImages: [],
     screenshotStyle: { ...DEFAULT_SCREENSHOT_STYLE },
   }
 }

@@ -17,7 +17,7 @@
 // codes) for fast iteration; a selected span half pulls in its partner.
 // --export-manifest writes <out-dir>/manifest.json + captions.csv — the loaded
 // project reversed into a re-importable manifest (lossy; lossless edits use
-// project:patch) — and skips render.
+// project:patch) — plus image filename plans, and skips render.
 // Starts the Vite dev server itself if localhost:5173 is down; reuses (and
 // leaves alone) one that's already running.
 import { chromium } from '@playwright/test'
@@ -259,9 +259,15 @@ try {
       } else {
         await writeFile(join(outDir, 'manifest.json'), JSON.stringify(res.manifest, null, 2))
         await writeFile(join(outDir, 'captions.csv'), res.captions)
+        await writeFile(join(outDir, 'image-plan.json'), JSON.stringify({
+          screenshots: res.screenshotPlan ?? [],
+          externalImages: res.externalImagePlan ?? [],
+        }, null, 2))
         log('manifest →', join(outDir, 'manifest.json'))
         log('captions →', join(outDir, 'captions.csv'))
+        log('image plan →', join(outDir, 'image-plan.json'))
         if (res.screenshotPlan?.length) log('screenshot plan:', res.screenshotPlan.join(', '))
+        if (res.externalImagePlan?.length) log('external image plan:', res.externalImagePlan.join(', '))
         if (res.issues?.length) log('lossy (not represented in the manifest):\n:: ' + res.issues.join('\n:: '))
       }
     }

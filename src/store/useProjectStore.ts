@@ -60,6 +60,7 @@ function cloneSlideStandalone(src: Slide): Slide {
   c.badges = c.badges.map((b) => ({ ...b, id: newId('badge') }))
   c.highlights = c.highlights.map((h) => ({ ...h, id: newId('hl') }))
   c.ornaments = c.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
+  c.externalImages = c.externalImages?.map((img) => ({ ...img, id: newId('ext') }))
   c.spanGroupId = undefined
   c.spanRole = undefined
   return c
@@ -91,9 +92,12 @@ async function buildIndependentFromLeader(
   leader: Slide,
   follower: Slide,
 ): Promise<Slide> {
-  const screenshot = await duplicateScreenshot(leader.screenshot)
+  const screenshot = follower.screenshot
+    ? structuredClone(follower.screenshot)
+    : await duplicateScreenshot(leader.screenshot)
   const highlights = leader.highlights.map((h) => ({ ...h, id: newId('hl') }))
   const ornaments = leader.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
+  const externalImages = leader.externalImages?.map((img) => ({ ...img, id: newId('ext') }))
   const badges = leader.badges.map((b) => ({ ...b, id: newId('badge') }))
   // Look overrides referenced the follower's pre-link look, which the leader
   // clone replaces — keep only the caption overrides that belong to its texts.
@@ -114,6 +118,7 @@ async function buildIndependentFromLeader(
     badges,
     highlights,
     ornaments,
+    externalImages,
     screenshotStyle: leader.screenshotStyle ? { ...leader.screenshotStyle } : undefined,
     spanGroupId: undefined,
     spanRole: undefined,
@@ -565,4 +570,3 @@ export const useProjectStore = create<ProjectState>()(
     },
   ),
 )
-

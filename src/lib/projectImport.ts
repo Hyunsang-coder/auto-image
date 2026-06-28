@@ -42,11 +42,14 @@ import { DEFAULT_MODEL, MODELS_BY_TYPE } from '../constants/deviceSpecs'
 
 const MAX_SLIDES = 10
 const MAX_ORNAMENTS = 5
+const MAX_EXTERNAL_IMAGES = 3
 const MAX_HIGHLIGHTS = 3 // a loupe per slide reads clean; more clutters the cut
 const MAX_BADGES = 5
 const HIGHLIGHT_DIM_MIN = 0.02 // a sampling window narrower than this is degenerate
 const POPUP_WIDTH_MIN = 0.1
 const POPUP_WIDTH_MAX = 1.5
+const EXTERNAL_IMAGE_WIDTH_MIN = 0.05
+const EXTERNAL_IMAGE_WIDTH_MAX = 1.5
 
 // Device-transform clamps mirror the editor: scale matches FabricCanvas's
 // drag clamp (0.3–2.0); offsets are editor-canvas px (EDITOR_CANVAS_WIDTH 440)
@@ -102,6 +105,9 @@ export interface ParsedSlide {
   deviceFrame: ParsedDeviceFrame
   screenshotStyle?: ParsedScreenshotStyle
   ornaments?: ParsedOrnament[]
+  /** External bitmap assets. `file` is resolved by runProjectImport from the
+   *  selected image files; geometry is preserved in manifest round-trips. */
+  externalImages?: ParsedExternalImage[]
   /** Absolute headline placement (0..1 of canvas). Set to override the
    *  layout's default text band — e.g. drop the headline toward a cropped
    *  feature card. Activated by textY; textX defaults to 0.5 (centered). */
@@ -192,6 +198,18 @@ export interface ParsedOrnament {
   rotation?: number
   color?: string
   opacity?: number
+}
+
+export interface ParsedExternalImage {
+  file: string
+  x?: number
+  y?: number
+  width?: number
+  rotation?: number
+  opacity?: number
+  cornerRadiusRatio?: number
+  shadow?: boolean
+  crop?: ScreenshotCrop
 }
 
 export interface ManifestParseResult {
@@ -408,6 +426,53 @@ export function coerceOrnaments(
     const opacity = coerceNumber(o.opacity, 0, 1, ow, 'opacity', issues)
     if (opacity !== undefined) orn.opacity = opacity
     out.push(orn)
+  })
+  return out
+}
+
+export function coerceExternalImages(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedExternalImage[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(t('{where}: externalImages는 배열이어야 함 — 무시', { where }))
+    return undefined
+  }
+  let items = value
+  if (items.length > MAX_EXTERNAL_IMAGES) {
+    issues.push(t('{where}: externalImages는 최대 {max}개 — 처음 {max}개만 사용', { where, max: MAX_EXTERNAL_IMAGES }))
+    items = items.slice(0, MAX_EXTERNAL_IMAGES)
+  }
+  const out: ParsedExternalImage[] = []
+  items.forEach((rawImage, j) => {
+    const iw = t('{where} externalImage {n}', { where, n: j + 1 })
+    if (typeof rawImage !== 'object' || rawImage === null) {
+      issues.push(t('{where}: 항목이 객체가 아님 — 제외', { where: iw }))
+      return
+    }
+    const img = rawImage as Record<string, unknown>
+    if (typeof img.file !== 'string' || !img.file.trim()) {
+      issues.push(t('{where}: file 문자열이 필요함 — 제외', { where: iw }))
+      return
+    }
+    const external: ParsedExternalImage = { file: img.file.trim() }
+    const x = coerceNumber(img.x, -0.5, 1.5, iw, 'x', issues)
+    if (x !== undefined) external.x = x
+    const y = coerceNumber(img.y, -0.5, 1.5, iw, 'y', issues)
+    if (y !== undefined) external.y = y
+    const width = coerceNumber(img.width, EXTERNAL_IMAGE_WIDTH_MIN, EXTERNAL_IMAGE_WIDTH_MAX, iw, 'width', issues)
+    if (width !== undefined) external.width = width
+    const rotation = coerceRotation(img.rotation, iw, 'rotation', issues)
+    if (rotation !== undefined) external.rotation = rotation
+    const opacity = coerceNumber(img.opacity, 0, 1, iw, 'opacity', issues)
+    if (opacity !== undefined) external.opacity = opacity
+    const style = coerceScreenshotStyle(img, iw, issues)
+    if (style?.cornerRadiusRatio !== undefined) external.cornerRadiusRatio = style.cornerRadiusRatio
+    if (style?.shadow !== undefined) external.shadow = style.shadow
+    if (style?.crop !== undefined) external.crop = style.crop
+    out.push(external)
   })
   return out
 }
@@ -822,6 +887,7 @@ export function parseManifest(text: string): ManifestParseResult {
 
     const screenshotStyle = coerceScreenshotStyle(s.screenshotStyle, where, issues)
     const ornaments = coerceOrnaments(s.ornaments, where, issues)
+    const externalImages = coerceExternalImages(s.externalImages, where, issues)
     const textX = coerceNumber(s.textX, 0, 1, where, 'textX', issues)
     const textY = coerceNumber(s.textY, 0, 1, where, 'textY', issues)
     const texts = coerceTextOverrides(s.texts, where, issues)
@@ -836,6 +902,7 @@ export function parseManifest(text: string): ManifestParseResult {
       deviceFrame: coerceDeviceFrame(s.deviceFrame, where, issues),
       ...(screenshotStyle ? { screenshotStyle } : {}),
       ...(ornaments ? { ornaments } : {}),
+      ...(externalImages ? { externalImages } : {}),
       ...(textX !== undefined ? { textX } : {}),
       ...(textY !== undefined ? { textY } : {}),
       ...(texts ? { texts } : {}),

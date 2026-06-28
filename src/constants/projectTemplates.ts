@@ -1,4 +1,4 @@
-import type { Background, Badge, Caption, DeviceType, Ornament, Project, ScreenshotStyle, Slide } from '../types/project'
+import type { Background, Badge, Caption, DeviceType, ExternalImage, Ornament, Project, ScreenshotStyle, Slide } from '../types/project'
 import { makeProject, newId, relocalizePlaceholder } from './defaults'
 import { splitLeaderTexts } from '../lib/spanTextMigration'
 import { t } from '../i18n'
@@ -22,6 +22,7 @@ interface TemplateSlide {
   texts: Caption[]
   badges?: Badge[]
   ornaments?: Ornament[]
+  externalImages?: ExternalImage[]
   screenshotStyle?: ScreenshotStyle
   /**
    * Span-group marker shared by the two members of a 2-page spanning pair.
@@ -166,6 +167,7 @@ export function buildProjectFromTemplate(tpl: ProjectTemplate, name: string): Pr
       })),
       highlights: [],
       ornaments: (s.ornaments ?? []).map((o) => ({ ...structuredClone(o), id: newId('orn') })),
+      externalImages: (s.externalImages ?? []).map((img) => ({ ...structuredClone(img), id: newId('ext') })),
       screenshotStyle: s.screenshotStyle ? { ...s.screenshotStyle } : undefined,
       spanGroupId,
       spanRole,
@@ -226,6 +228,7 @@ export function projectTemplateFromProject(project: Project, label: string): Pro
       texts: structuredClone(s.texts),
       badges: structuredClone(s.badges ?? []),
       ornaments: structuredClone(s.ornaments ?? []),
+      externalImages: structuredClone(s.externalImages ?? []),
       screenshotStyle: s.screenshotStyle ? { ...s.screenshotStyle } : undefined,
       span,
     }

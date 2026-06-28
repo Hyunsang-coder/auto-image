@@ -9,9 +9,9 @@
 //   npm run project:patch -- <in.studio.zip> <patch.json> <out.studio.zip>
 //   npm run project:patch -- <in.studio.zip> <patch.json> --in-place
 //
-// patch.json is an array of ops (see docs/agent-cli.md). A setScreenshot op
-// names an image `file` (relative to patch.json); the CLI decodes its dims,
-// adds the blob to the bundle, and prunes any image no longer referenced.
+// patch.json is an array of ops (see docs/agent-cli.md). Image-bearing ops
+// name a `file` (relative to patch.json); the CLI decodes its dims, adds the
+// blob to the bundle, and prunes any image no longer referenced.
 import JSZip from 'jszip'
 import { imageSize } from 'image-size'
 import { randomUUID } from 'node:crypto'
@@ -65,27 +65,29 @@ if (!Array.isArray(ops)) {
   process.exit(1)
 }
 
-// Decode each setScreenshot file → a blob in the zip + the {imageKey,width,
+const IMAGE_FILE_OPS = new Set(['setScreenshot', 'addExternalImage', 'setExternalImage'])
+
+// Decode each image-bearing file → a blob in the zip + the {imageKey,width,
 // height} the pure lib needs (it never touches the filesystem).
 const patchDir = dirname(resolve(patchArg))
 for (const op of ops) {
-  if (op?.op !== 'setScreenshot' || !op.file) continue
+  if (!IMAGE_FILE_OPS.has(op?.op) || !op.file) continue
   let buf
   try {
     buf = await readFile(resolve(patchDir, op.file))
   } catch {
-    console.error(`setScreenshot: cannot read image file "${op.file}"`)
+    console.error(`${op.op}: cannot read image file "${op.file}"`)
     process.exit(1)
   }
   let dim
   try {
     dim = imageSize(buf)
   } catch (e) {
-    console.error(`setScreenshot: cannot decode image "${op.file}": ${e.message}`)
+    console.error(`${op.op}: cannot decode image "${op.file}": ${e.message}`)
     process.exit(1)
   }
   if (!dim.width || !dim.height) {
-    console.error(`setScreenshot: could not read dimensions of "${op.file}"`)
+    console.error(`${op.op}: could not read dimensions of "${op.file}"`)
     process.exit(1)
   }
   const uuid = randomUUID()
@@ -94,8 +96,13 @@ for (const op of ops) {
   const key = `img:${uuid}`
   bundle.images[key] = path
   op.imageKey = key
-  op.width = dim.width
-  op.height = dim.height
+  if (op.op === 'setScreenshot') {
+    op.width = dim.width
+    op.height = dim.height
+  } else {
+    op.imageWidth = dim.width
+    op.imageHeight = dim.height
+  }
 }
 
 const { project, issues } = applyPatch(bundle.project, ops)

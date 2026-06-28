@@ -90,7 +90,7 @@ function App() {
       const p = useProjectStore.getState().project
       return p
         ? JSON.stringify(exportProject(p))
-        : JSON.stringify({ manifest: null, captions: '', screenshotPlan: [], issues: ['no project loaded'] })
+        : JSON.stringify({ manifest: null, captions: '', screenshotPlan: [], externalImagePlan: [], issues: ['no project loaded'] })
     }
   }, [])
 

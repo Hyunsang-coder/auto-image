@@ -74,6 +74,43 @@ describe('exportProject round-trip', () => {
     expect(out.screenshotPlan).toContain('1.en.png')
   })
 
+  it('exports external image geometry and filename plan', () => {
+    const p = coreProject()
+    p.slides[0].externalImages = [
+      {
+        id: 'ext',
+        imageKey: 'img:ext',
+        originalWidth: 800,
+        originalHeight: 600,
+        x: 0.4,
+        y: 0.6,
+        width: 0.25,
+        rotation: 12,
+        opacity: 0.8,
+        cornerRadiusRatio: 0.1,
+        shadow: false,
+        crop: { top: 0.05, right: 0, bottom: 0.2, left: 0.1 },
+      },
+    ]
+    const out = exportProject(p)
+    expect(out.externalImagePlan).toEqual(['1-external-1.png'])
+    const slides = out.manifest.slides as Record<string, unknown>[]
+    expect(slides[0].externalImages).toEqual([
+      {
+        file: '1-external-1.png',
+        x: 0.4,
+        y: 0.6,
+        width: 0.25,
+        rotation: 12,
+        opacity: 0.8,
+        cornerRadiusRatio: 0.1,
+        shadow: false,
+        crop: { top: 0.05, right: 0, bottom: 0.2, left: 0.1 },
+      },
+    ])
+  })
+
+
   it('round-trips caption letterSpacing and lineHeight (no silent loss)', () => {
     const p = coreProject()
     p.slides[0].texts[0].style = { ...p.slides[0].texts[0].style, letterSpacing: -3.5, lineHeight: 1.4 }

@@ -5,6 +5,7 @@ import type {
   Background,
   Caption,
   DeviceFrame,
+  ExternalImage,
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
@@ -15,6 +16,7 @@ import { BackgroundPanel } from './BackgroundPanel'
 import { BadgePanel } from './BadgePanel'
 import { CaptionPanel } from './CaptionPanel'
 import { ScreenshotPanel } from './ScreenshotPanel'
+import { ExternalImagePanel } from './ExternalImagePanel'
 import { OrnamentPanel } from './OrnamentPanel'
 import { HighlightPanel } from './HighlightPanel'
 import { useT } from '../../../i18n'
@@ -23,6 +25,7 @@ export type PanelTab =
   | 'background'
   | 'caption'
   | 'screenshot'
+  | 'externalImages'
   | 'badge'
   | 'ornaments'
   | 'highlights'
@@ -31,6 +34,7 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: 'background',  label: '배경' },
   { id: 'caption',     label: '텍스트' },
   { id: 'screenshot',  label: '디바이스' },
+  { id: 'externalImages', label: '이미지' },
   { id: 'highlights',  label: '하이라이트' },
   { id: 'ornaments',   label: '장식' },
   { id: 'badge',       label: '배지' },
@@ -52,6 +56,7 @@ interface Props {
   onBadgesChange: (badges: Badge[]) => void
   onDeviceFrameChange: (df: DeviceFrame) => void
   onScreenshotStyleChange: (style: ScreenshotStyle) => void
+  onExternalImagesChange: (next: ExternalImage[]) => void
   onOrnamentsChange: (next: Ornament[]) => void
   onHighlightsChange: (next: Highlight[]) => void
   onApplyThemePreset: (preset: ThemePreset) => void
@@ -77,6 +82,7 @@ export function PropertiesPanel({
   onBadgesChange,
   onDeviceFrameChange,
   onScreenshotStyleChange,
+  onExternalImagesChange,
   onOrnamentsChange,
   onHighlightsChange,
   onApplyThemePreset,
@@ -144,6 +150,12 @@ export function PropertiesPanel({
             screenshotStyle={screenshotStyle}
             onScreenshotStyleChange={onScreenshotStyleChange}
             template={slide.template}
+          />
+        )}
+        {tab === 'externalImages' && (
+          <ExternalImagePanel
+            value={slide.externalImages ?? []}
+            onChange={onExternalImagesChange}
           />
         )}
         {tab === 'highlights' && (

@@ -197,6 +197,12 @@ export const en: Record<string, string> = {
     '{where}: unknown shape "{shape}" — excluded',
   '{where}: color는 문자열 — 무시':
     '{where}: color must be a string — ignored',
+  '{where}: externalImages는 배열이어야 함 — 무시':
+    '{where}: externalImages must be an array — ignored',
+  '{where}: externalImages는 최대 {max}개 — 처음 {max}개만 사용':
+    '{where}: maximum {max} external images — using first {max}',
+  '{where}: file 문자열이 필요함 — 제외':
+    '{where}: file string is required — excluded',
   '{where}: badges는 배열이어야 함 — 무시':
     '{where}: badges must be an array — ignored',
   '{where}: badges는 최대 {max}개 — 처음 {max}개만 사용':
@@ -263,6 +269,10 @@ export const en: Record<string, string> = {
     'JSON is neither a manifest nor a caption template: {name}',
   '매니페스트(version + slides 배열을 가진 JSON)를 찾을 수 없습니다':
     'No manifest found (JSON with version + slides array)',
+  '슬라이드 {n}: 외부 이미지 파일을 찾을 수 없음: {name}':
+    'Slide {n}: external image file not found: {name}',
+  '슬라이드 {n}: 외부 이미지를 읽을 수 없음: {name}':
+    'Slide {n}: could not read external image: {name}',
   '캡션 CSV가 여러 개 — 첫 파일만 사용 (무시: {name})':
     'Multiple caption CSV files — using first file (ignored: {name})',
   '캡션 CSV와 JSON이 함께 있음 — CSV 사용':
@@ -372,6 +382,8 @@ export const en: Record<string, string> = {
   '(으)로 교체합니다. 저장하지 않은 변경 사항은 사라집니다.': '. Unsaved changes will be lost.',
   '— 슬라이드 {slides}장 · 스크린샷 {screenshots}개 · 캡션 {captions}개 적용':
     '— {slides} slide(s) · {screenshots} screenshot(s) · {captions} caption(s) applied',
+  '— 슬라이드 {slides}장 · 스크린샷 {screenshots}개 · 외부 이미지 {externalImages}개 · 캡션 {captions}개 적용':
+    '— {slides} slide(s) · {screenshots} screenshot(s) · {externalImages} external image(s) · {captions} caption(s) applied',
   '가져올 수 없습니다.': 'Could not import.',
   '경고 {n}건 보기': 'View {n} warning(s)',
   '가져오면 현재 편집 중인 프로젝트를 덮어씁니다. 저장하지 않은 변경 사항은 사라집니다.':
@@ -538,6 +550,13 @@ export const en: Record<string, string> = {
   '가장자리 잘라내기': 'Edge crop',
   위: 'Top',
   아래: 'Bottom',
+
+  // ExternalImagePanel.tsx
+  '외부 이미지': 'External images',
+  '이미지 추가': 'Add image',
+  '최대 {n}개까지 추가할 수 있습니다': 'You can add up to {n}',
+  '추가된 이미지 ({n}/{max})': 'Images ({n}/{max})',
+  '이미지 {n}': 'Image {n}',
 
   // OrnamentPanel.tsx
   '추가된 장식 ({n})': 'Decorations ({n})',

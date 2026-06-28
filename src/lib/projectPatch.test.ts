@@ -113,6 +113,71 @@ describe('setScreenshot', () => {
   })
 })
 
+describe('external images', () => {
+  it('adds, adjusts, and removes an external image', () => {
+    const { project: p1, issues: addIssues } = applyPatch(project(), [
+      {
+        op: 'addExternalImage',
+        slide: 1,
+        imageKey: 'img:ext',
+        imageWidth: 800,
+        imageHeight: 600,
+        x: 0.4,
+        y: 0.6,
+        width: 0.25,
+        cornerRadiusRatio: 0.12,
+        shadow: false,
+        crop: { bottom: 0.2 },
+      },
+    ])
+    expect(addIssues).toEqual([])
+    expect(p1.slides[0].externalImages).toHaveLength(1)
+    expect(p1.slides[0].externalImages![0]).toMatchObject({
+      imageKey: 'img:ext',
+      originalWidth: 800,
+      originalHeight: 600,
+      x: 0.4,
+      y: 0.6,
+      width: 0.25,
+      cornerRadiusRatio: 0.12,
+      shadow: false,
+      crop: { top: 0, right: 0, bottom: 0.2, left: 0 },
+    })
+
+    const { project: p2 } = applyPatch(p1, [
+      { op: 'set', slide: 1, path: 'externalImages[0].rotation', value: 45 },
+      { op: 'set', slide: 1, path: 'externalImages[0].crop.top', value: 0.1 },
+      { op: 'setExternalImage', slide: 1, index: 0, opacity: 0.5, shadow: true },
+    ])
+    expect(p2.slides[0].externalImages![0]).toMatchObject({
+      rotation: 45,
+      opacity: 0.5,
+      shadow: true,
+      crop: { top: 0.1, right: 0, bottom: 0.2, left: 0 },
+    })
+
+    const { project: p3 } = applyPatch(p2, [
+      { op: 'removeExternalImage', slide: 1, index: 0 },
+    ])
+    expect(p3.slides[0].externalImages).toHaveLength(0)
+  })
+
+  it('enforces the max external image count and rejects follower edits', () => {
+    const base = project()
+    base.slides[0].externalImages = [
+      { id: 'e1', imageKey: 'img:1', originalWidth: 10, originalHeight: 10, x: 0.5, y: 0.5, width: 0.2, rotation: 0, opacity: 1, cornerRadiusRatio: 0.06, shadow: true },
+      { id: 'e2', imageKey: 'img:2', originalWidth: 10, originalHeight: 10, x: 0.5, y: 0.5, width: 0.2, rotation: 0, opacity: 1, cornerRadiusRatio: 0.06, shadow: true },
+      { id: 'e3', imageKey: 'img:3', originalWidth: 10, originalHeight: 10, x: 0.5, y: 0.5, width: 0.2, rotation: 0, opacity: 1, cornerRadiusRatio: 0.06, shadow: true },
+    ]
+    const { issues } = applyPatch(base, [
+      { op: 'addExternalImage', slide: 1, imageKey: 'img:4', imageWidth: 10, imageHeight: 10 },
+      { op: 'addExternalImage', slide: 4, imageKey: 'img:follower', imageWidth: 10, imageHeight: 10 },
+    ])
+    expect(issues.join('\n')).toContain('already has 3 external images')
+    expect(issues.join('\n')).toContain('leader-owned')
+  })
+})
+
 describe('set (whitelisted paths)', () => {
   it('clamps deviceFrame.scale and reports it', () => {
     const { project: p, issues } = applyPatch(project(), [

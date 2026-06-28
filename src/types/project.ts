@@ -76,6 +76,8 @@ export interface Slide {
   highlights: Highlight[]
   /** Decorative SVG ornaments rendered above background, below screenshot. */
   ornaments?: Ornament[]
+  /** User-added bitmap images, independent of the device screenshot. */
+  externalImages?: ExternalImage[]
   /** When deviceFrame.show is false, controls how the screenshot floats. */
   screenshotStyle?: ScreenshotStyle
   /**
@@ -159,6 +161,24 @@ export interface Ornament {
   rotation: number
   color: string
   opacity: number
+}
+
+export interface ExternalImage {
+  id: string
+  imageKey: string
+  originalWidth: number
+  originalHeight: number
+  /** Canvas-relative center, 0..1 on each axis. */
+  x: number
+  y: number
+  /** Width as fraction of canvas width. Height follows the source aspect. */
+  width: number
+  rotation: number
+  opacity: number
+  /** Floating-card render style, same controls as a frameless device image. */
+  cornerRadiusRatio: number
+  shadow: boolean
+  crop?: ScreenshotCrop
 }
 
 export interface Background {

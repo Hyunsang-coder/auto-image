@@ -1,11 +1,12 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Canvas, FabricImage, Line, Rect, Textbox, controlsUtils } from 'fabric'
 import type { FabricObject, Transform } from 'fabric'
-import type { Highlight, ScreenshotCrop, Slide } from '../../types/project'
+import type { ExternalImage, Highlight, ScreenshotCrop, Slide } from '../../types/project'
 import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, EMPTY_CROP } from '../../canvas/templateLayouts'
 import { fitCaption, placeCaptionBoxUnderlay } from '../../canvas/objects/caption'
 import { normalizeAngle, rotateAround } from '../../canvas/geometry'
 import { canvasPointToRegionOrigin } from '../../canvas/objects/highlight'
+import { updateExternalImageClip } from '../../canvas/objects/externalImage'
 import { awaitSlideFonts } from '../../lib/fonts'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
@@ -134,13 +135,14 @@ type ObjIdentity = {
   layerName?: string
   badgeId?: string
   ornamentId?: string
+  externalImageId?: string
   highlightId?: string
 }
 type IdentifiedObject = FabricObject & ObjIdentity
 
 function objIdentity(o: FabricObject): ObjIdentity {
   const x = o as IdentifiedObject
-  return { layerName: x.layerName, badgeId: x.badgeId, ornamentId: x.ornamentId, highlightId: x.highlightId }
+  return { layerName: x.layerName, badgeId: x.badgeId, ornamentId: x.ornamentId, externalImageId: x.externalImageId, highlightId: x.highlightId }
 }
 
 function findByIdentity(canvas: Canvas, id: ObjIdentity): FabricObject | null {
@@ -152,6 +154,7 @@ function findByIdentity(canvas: Canvas, id: ObjIdentity): FabricObject | null {
         x.layerName === id.layerName &&
         x.badgeId === id.badgeId &&
         x.ornamentId === id.ornamentId &&
+        x.externalImageId === id.externalImageId &&
         x.highlightId === id.highlightId
       )
     }) ?? null
@@ -220,6 +223,7 @@ interface Props {
 // Ornaments are per-locale (LocaleOverride.ornaments), so they stay editable.
 const SHARED_LAYER_NAMES = new Set<string>([
   LAYER_NAMES.BADGE,
+  LAYER_NAMES.EXTERNAL_IMAGE,
   LAYER_NAMES.HIGHLIGHT_SOURCE,
   LAYER_NAMES.HIGHLIGHT_POPUP,
 ])
@@ -229,9 +233,10 @@ const HISTORY_LIMIT = 50
 // round-trip, otherwise restored objects lose their identity and syncToZustand
 // can't map them back to the store (positions would silently un-revert).
 const HISTORY_PROPS = [
-  'layerName', 'badgeId', 'ornamentId', 'highlightId', 'textIndex', 'owner',
+  'layerName', 'badgeId', 'ornamentId', 'externalImageId', 'highlightId', 'textIndex', 'owner',
   '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
   '_crop', '_fullW', '_fullH', '_screenBounds', '_renderRot',
+  '_externalCrop', '_externalCornerRadiusRatio',
   '_absolutePos', '_designFontSize', '_padX', '_padY',
 ]
 
@@ -732,6 +737,42 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (dirty) slidePatch.ornaments = next
       }
 
+      const externalImagesOnCanvas = objects.filter(
+        (o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.EXTERNAL_IMAGE,
+      )
+      if (externalImagesOnCanvas.length > 0 && slide.externalImages) {
+        let dirty = false
+        const next: ExternalImage[] = slide.externalImages.map((image) => {
+          const fab = externalImagesOnCanvas.find(
+            (o) => (o as FabricObject & { externalImageId?: string }).externalImageId === image.id,
+          )
+          if (!fab) return image
+          const center = fab.getCenterPoint()
+          const width = fab.getScaledWidth() / cw
+          const rotation = normalizeAngle(fab.angle ?? 0)
+          const opacity = fab.opacity ?? 1
+          if (
+            Math.abs(center.x / cw - image.x) > 0.001 ||
+            Math.abs(center.y / ch - image.y) > 0.001 ||
+            Math.abs(width - image.width) > 0.002 ||
+            Math.abs(rotation - image.rotation) > 0.05 ||
+            Math.abs(opacity - image.opacity) > 0.001
+          ) {
+            dirty = true
+            return {
+              ...image,
+              x: center.x / cw,
+              y: center.y / ch,
+              width,
+              rotation,
+              opacity,
+            }
+          }
+          return image
+        })
+        if (dirty) slidePatch.externalImages = next
+      }
+
       const hasFollowerPatch = Object.keys(followerPatch).length > 0
       if (Object.keys(slidePatch).length > 0 || hasFollowerPatch) {
         onSlideChangeRef.current(slidePatch, hasFollowerPatch ? followerPatch : undefined)
@@ -864,6 +905,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const a = active as FabricObject & {
           badgeId?: string
           ornamentId?: string
+          externalImageId?: string
           highlightId?: string
         }
         let patch: Partial<Slide> | null = null
@@ -871,6 +913,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           patch = { badges: (slide.badges ?? []).filter((b) => b.id !== a.badgeId) }
         } else if (ln === LAYER_NAMES.ORNAMENT && a.ornamentId) {
           patch = { ornaments: (slide.ornaments ?? []).filter((o) => o.id !== a.ornamentId) }
+        } else if (ln === LAYER_NAMES.EXTERNAL_IMAGE && a.externalImageId) {
+          patch = { externalImages: (slide.externalImages ?? []).filter((img) => img.id !== a.externalImageId) }
         } else if ((ln === LAYER_NAMES.HIGHLIGHT_POPUP || ln === LAYER_NAMES.HIGHLIGHT_SOURCE) && a.highlightId) {
           patch = { highlights: (slide.highlights ?? []).filter((h) => h.id !== a.highlightId) }
         }
@@ -889,6 +933,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const a = active as FabricObject & {
           badgeId?: string
           ornamentId?: string
+          externalImageId?: string
           highlightId?: string
         }
         // Clone the store entry with a fresh id, offset slightly so the copy is
@@ -910,6 +955,15 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               ornaments: [
                 ...(slide.ornaments ?? []),
                 { ...src, id: newId('orn'), x: clamp01(src.x + 0.03), y: clamp01(src.y + 0.03) },
+              ],
+            }
+        } else if (ln === LAYER_NAMES.EXTERNAL_IMAGE && a.externalImageId && (slide.externalImages ?? []).length < 3) {
+          const src = (slide.externalImages ?? []).find((img) => img.id === a.externalImageId)
+          if (src)
+            patch = {
+              externalImages: [
+                ...(slide.externalImages ?? []),
+                { ...src, id: newId('ext'), x: clamp01(src.x + 0.03), y: clamp01(src.y + 0.03) },
               ],
             }
         } else if ((ln === LAYER_NAMES.HIGHLIGHT_POPUP || ln === LAYER_NAMES.HIGHLIGHT_SOURCE) && a.highlightId) {
@@ -960,6 +1014,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           LAYER_NAMES.DEVICE_FRAME,
           LAYER_NAMES.BADGE,
           LAYER_NAMES.ORNAMENT,
+          LAYER_NAMES.EXTERNAL_IMAGE,
           LAYER_NAMES.HIGHLIGHT_SOURCE,
           LAYER_NAMES.HIGHLIGHT_POPUP,
         ]
@@ -973,9 +1028,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           handleDeviceMove(canvas, active)
         } else {
           active.set({ left: (active.left ?? 0) + dx, top: (active.top ?? 0) + dy })
-          const clip = (active as FabricObject & { clipPath?: FabricObject }).clipPath
-          if (clip && (clip as FabricObject & { absolutePositioned?: boolean }).absolutePositioned) {
-            clip.set({ left: (clip.left ?? 0) + dx, top: (clip.top ?? 0) + dy })
+          if (ln === LAYER_NAMES.EXTERNAL_IMAGE) {
+            updateExternalImageClip(active)
+          } else {
+            const clip = (active as FabricObject & { clipPath?: FabricObject }).clipPath
+            if (clip && (clip as FabricObject & { absolutePositioned?: boolean }).absolutePositioned) {
+              clip.set({ left: (clip.left ?? 0) + dx, top: (clip.top ?? 0) + dy })
+            }
           }
         }
         active.setCoords()
@@ -1016,9 +1075,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               height: o.height,
               angle: o.angle,
               text: (o as Textbox).text,
+              externalImageId: (o as FabricObject & { externalImageId?: string }).externalImageId,
               selectable: o.selectable,
               evented: o.evented,
               crop: base._crop,
+              externalCrop: (o as FabricObject & { _externalCrop?: ScreenshotCrop })._externalCrop,
             }
           }),
         }),
@@ -1042,6 +1103,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const ln = (target as FabricObject & { layerName?: string }).layerName
         if (ln === LAYER_NAMES.DEVICE_FRAME) {
           handleDeviceRotate(canvas, target)
+        } else if (ln === LAYER_NAMES.EXTERNAL_IMAGE) {
+          updateExternalImageClip(target)
         } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
           // Keep the rounded mask glued to the spinning card — same shape, so
           // mirroring the anchor + angle is enough.
@@ -1080,6 +1143,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           handleDeviceMove(canvas, target)
         } else if (ln === LAYER_NAMES.TEXT) {
           trackCaptionBox(canvas, target)
+        } else if (ln === LAYER_NAMES.EXTERNAL_IMAGE) {
+          updateExternalImageClip(target)
         } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
           // Popup uses an absolutely-positioned clipPath; keep it pinned to the
           // image's current position so the rounded mask doesn't lag behind
@@ -1160,6 +1225,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         const ln = (target as FabricObject & { layerName?: string }).layerName
         if (ln === LAYER_NAMES.TEXT) {
           trackCaptionBox(canvas, target)
+          return
+        }
+        if (ln === LAYER_NAMES.EXTERNAL_IMAGE) {
+          updateExternalImageClip(target)
           return
         }
         if (ln !== LAYER_NAMES.HIGHLIGHT_POPUP) return
@@ -1249,6 +1318,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         screenshotStyle: activeSlide.screenshotStyle,
         badges: activeSlide.badges,
         ornaments: activeSlide.ornaments,
+        externalImages: activeSlide.externalImages,
         highlights: activeSlide.highlights,
         // Include grouped state in the cache key so toggling link/unlink
         // forces a re-render even when the slide data didn't change.
