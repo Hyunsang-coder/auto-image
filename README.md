@@ -111,6 +111,7 @@ React + TypeScript, Vite, Tailwind v4, Fabric.js, Zustand, IndexedDB (`idb-keyva
 ```bash
 npm run lint
 npm run test:unit
+npm run test:headless  # smoke-renders a fixture through the headless pipeline
 npm run test:e2e
 ```
 

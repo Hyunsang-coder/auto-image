@@ -13,6 +13,7 @@ AI 에이전트가 에디터를 **더 자유롭고 surgical하게** 활용하게
 - manifest 가져오기 포맷은 **의도적으로 lossy**(텍스트+이미지+디자인 노브; `localeOverrides`·이미지 배경 등은 표현 불가).
 - 헤들리스 하니스(`scripts/headless-export.mjs`)는 dev 서버를 띄워 실제 앱을 Playwright로 구동.
 - 페이지↔노드 패턴: `addInitScript` 플래그 + window 함수. 바이너리는 download 이벤트, 구조화 데이터는 `page.evaluate` 반환 문자열.
+- import 완료 감지는 로컬라이즈된 요약 텍스트 스크래핑이 아니라 구조적 신호 `window.__importResult`(`__headless`/`__validateEnabled`로 arm)로 한다 — UI 카피 변경에 면역. 회귀 가드: `npm run test:headless`(CI)가 커밋된 fixture를 렌더해 PNG + 레이아웃 이슈 0을 단언.
 
 ---
 
