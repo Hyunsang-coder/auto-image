@@ -175,6 +175,44 @@ describe('parseManifest normalization', () => {
     expect(issues.length).toBe(2) // ratio + crop.bottom clamped
   })
 
+  it('parses external image file references and clamps geometry', () => {
+    const parsed = parseManifest(
+      minimal({}, [
+        {
+          externalImages: [
+            {
+              file: '1-external-1.png',
+              x: 0.4,
+              y: 0.6,
+              width: 0.25,
+              rotation: 400,
+              opacity: 1.2,
+              cornerRadiusRatio: 0.3,
+              shadow: false,
+              crop: { bottom: 0.7 },
+            },
+            { file: '1-external-2.png' },
+            { file: '1-external-3.png' },
+            { file: 'ignored.png' },
+          ],
+        },
+      ]),
+    )
+    expect(parsed.manifest?.slides[0].externalImages).toHaveLength(3)
+    expect(parsed.manifest?.slides[0].externalImages?.[0]).toMatchObject({
+      file: '1-external-1.png',
+      x: 0.4,
+      y: 0.6,
+      width: 0.25,
+      rotation: 40,
+      opacity: 1,
+      cornerRadiusRatio: 0.2,
+      shadow: false,
+      crop: { top: 0, right: 0, bottom: 0.5, left: 0 },
+    })
+    expect(parsed.issues.join('\n')).toContain('externalImages')
+  })
+
   it('parses ornaments, skips unknown shapes, and caps the count', () => {
     const six = Array.from({ length: 6 }, () => ({ shape: 'star' }))
     const capped = parseManifest(minimal({}, [{ ornaments: six }]))

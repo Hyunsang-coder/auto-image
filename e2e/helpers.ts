@@ -102,6 +102,12 @@ export async function uploadScreenshot(page: Page, name: string) {
     .setInputFiles(`${fixturesDir}/${name}`)
 }
 
+export async function showDeviceFrame(page: Page) {
+  await page.getByRole('button', { name: '디바이스' }).click()
+  await page.getByRole('checkbox', { name: '기기 프레임 표시' }).check()
+  await expect.poll(() => findLayer(page, 'device-frame')).toBe(true)
+}
+
 /**
  * Upload a background image fixture via the 배경 → 이미지 tab's file input.
  */

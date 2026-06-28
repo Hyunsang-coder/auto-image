@@ -46,7 +46,7 @@ describe('runProjectImport', () => {
   it('builds a project from a lone manifest', async () => {
     const r = await runProjectImport([f('manifest.json', MANIFEST)])
     expect(r.project?.name).toBe('Dogo')
-    expect(r.applied).toEqual({ slides: 2, screenshots: 0, captions: 0 })
+    expect(r.applied).toEqual({ slides: 2, screenshots: 0, externalImages: 0, captions: 0 })
     expect(r.issues).toEqual([])
   })
 

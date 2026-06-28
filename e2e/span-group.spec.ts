@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject } from './helpers'
+import { clearAppState, createProject, showDeviceFrame } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
@@ -131,6 +131,7 @@ test('링크하면 기기가 seam(캔버스 중앙)에 정렬됨', async ({ page
   // seam for every template, including off-center ones (split, hero-bleed).
   // New slides default to text-top, so this exercises the forced-centering path
   // with the default layout.
+  await showDeviceFrame(page)
   await page.getByTitle('옆 슬라이드와 한 장으로 묶기').first().click()
   await page.waitForFunction(() => {
     const c = document.querySelector('canvas.upper-canvas') as HTMLCanvasElement | null

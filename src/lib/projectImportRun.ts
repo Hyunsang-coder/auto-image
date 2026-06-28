@@ -5,13 +5,14 @@
 // persists image blobs to IndexedDB; on cancel they're orphans and gcImages
 // sweeps them.
 
-import type { Project, Slide } from '../types/project'
-import { SUPPORTED_LOCALES } from '../constants/defaults'
+import type { ExternalImage, Project, Slide } from '../types/project'
+import { DEFAULT_SCREENSHOT_STYLE, SUPPORTED_LOCALES, newId } from '../constants/defaults'
 import { t } from '../i18n'
 import { importBulkImages } from './bulkImageImport'
+import { fileToImageKey } from './imageStore'
 import { parseTemplate, type LocaleFileFormat } from './localeIO'
 import { applyCaptionRows } from './localePatch'
-import { buildProjectFromManifest, isManifestShaped, parseManifest } from './projectImport'
+import { buildProjectFromManifest, isManifestShaped, parseManifest, type ParsedManifest } from './projectImport'
 
 const IMAGE_EXT = /\.(png|jpe?g|webp)$/i
 
@@ -37,7 +38,7 @@ export function routeImportFiles(files: File[]): RoutedImportFiles {
 
 export interface ImportRunResult {
   project: Project | null
-  applied: { slides: number; screenshots: number; captions: number }
+  applied: { slides: number; screenshots: number; externalImages: number; captions: number }
   /** Locales added beyond the manifest's targetLocales by overrides/captions. */
   addedLocales: string[]
   issues: string[]
@@ -47,9 +48,72 @@ function foldPatches(slides: Slide[], patches: Record<string, Partial<Slide>>): 
   return slides.map(s => (patches[s.id] ? { ...s, ...patches[s.id] } : s))
 }
 
+function basename(name: string): string {
+  return name.split(/[\\/]/).pop() ?? name
+}
+
+async function importExternalImages(
+  imageFiles: File[],
+  manifest: ParsedManifest,
+  project: Project,
+  issues: string[],
+): Promise<{ applied: number; consumed: Set<File> }> {
+  const filesByName = new Map<string, File[]>()
+  for (const file of imageFiles) {
+    const bucket = filesByName.get(file.name) ?? []
+    bucket.push(file)
+    filesByName.set(file.name, bucket)
+  }
+
+  const consumed = new Set<File>()
+  let applied = 0
+  for (const [slideIndex, spec] of manifest.slides.entries()) {
+    if (!spec.externalImages?.length) continue
+    const slide = project.slides[slideIndex]
+    if (!slide) continue
+    const externalImages: ExternalImage[] = []
+    for (const [imageIndex, imageSpec] of spec.externalImages.entries()) {
+      const wanted = basename(imageSpec.file)
+      const file = filesByName.get(wanted)?.find((candidate) => !consumed.has(candidate))
+      if (!file) {
+        issues.push(t('슬라이드 {n}: 외부 이미지 파일을 찾을 수 없음: {name}', { n: slideIndex + 1, name: imageSpec.file }))
+        continue
+      }
+      let result
+      try {
+        result = await fileToImageKey(file)
+      } catch {
+        issues.push(t('슬라이드 {n}: 외부 이미지를 읽을 수 없음: {name}', { n: slideIndex + 1, name: imageSpec.file }))
+        consumed.add(file)
+        continue
+      }
+      consumed.add(file)
+      externalImages.push({
+        id: newId('ext'),
+        imageKey: result.key,
+        originalWidth: result.width,
+        originalHeight: result.height,
+        x: imageSpec.x ?? Math.min(0.62, 0.5 + imageIndex * 0.04),
+        y: imageSpec.y ?? Math.min(0.62, 0.5 + imageIndex * 0.04),
+        width: imageSpec.width ?? 0.32,
+        rotation: imageSpec.rotation ?? 0,
+        opacity: imageSpec.opacity ?? 1,
+        cornerRadiusRatio: imageSpec.cornerRadiusRatio ?? DEFAULT_SCREENSHOT_STYLE.cornerRadiusRatio,
+        shadow: imageSpec.shadow ?? DEFAULT_SCREENSHOT_STYLE.shadow,
+        ...(imageSpec.crop ? { crop: { ...imageSpec.crop } } : {}),
+      })
+      applied++
+    }
+    if (externalImages.length) {
+      project.slides[slideIndex] = { ...slide, externalImages }
+    }
+  }
+  return { applied, consumed }
+}
+
 /** Run the full import pipeline. Never throws; failures land in `issues`. */
 export async function runProjectImport(files: File[]): Promise<ImportRunResult> {
-  const none = { slides: 0, screenshots: 0, captions: 0 }
+  const none = { slides: 0, screenshots: 0, externalImages: 0, captions: 0 }
   const routed = routeImportFiles(files)
   const issues = [...routed.issues]
 
@@ -91,10 +155,14 @@ export async function runProjectImport(files: File[]): Promise<ImportRunResult> 
   const labelOf = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
   const addedLocales: string[] = []
   let screenshots = 0
+  let externalImages = 0
   let captions = 0
 
   if (routed.imageFiles.length) {
-    const r = await importBulkImages(routed.imageFiles, {
+    const external = await importExternalImages(routed.imageFiles, manifest, project, issues)
+    externalImages = external.applied
+    const screenshotFiles = routed.imageFiles.filter((file) => !external.consumed.has(file))
+    const r = await importBulkImages(screenshotFiles, {
       slides: project.slides,
       sourceLocale: project.sourceLocale,
       targetLocales: project.targetLocales,
@@ -136,7 +204,7 @@ export async function runProjectImport(files: File[]): Promise<ImportRunResult> 
 
   return {
     project,
-    applied: { slides: project.slides.length, screenshots, captions },
+    applied: { slides: project.slides.length, screenshots, externalImages, captions },
     addedLocales,
     issues,
   }

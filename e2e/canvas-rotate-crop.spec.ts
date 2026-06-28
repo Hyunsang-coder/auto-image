@@ -5,6 +5,7 @@ import {
   createProject,
   drag,
   selectLayer,
+  showDeviceFrame,
   uploadScreenshot,
   type EditorSurface,
 } from './helpers'
@@ -29,6 +30,7 @@ test.beforeEach(async ({ page }) => {
 
 test('mtr 드래그로 기기가 회전하고 회전값이 저장됨', async ({ page }) => {
   await createProject(page, { name: 'Rotate Drag' })
+  await showDeviceFrame(page)
   await selectLayer(page, 'device-frame')
   const mtr = await controlPos(page, 'device-frame', 'mtr')
   await drag(page, mtr, { x: mtr.x + 90, y: mtr.y + 40 })
@@ -43,8 +45,7 @@ test('mtr 드래그로 기기가 회전하고 회전값이 저장됨', async ({ 
 test('플로팅 모드에서 엣지 컨트롤 드래그가 크롭을 만든다', async ({ page }) => {
   await createProject(page, { name: 'Crop Drag' })
   await uploadScreenshot(page, 'iphone_home.png')
-  // 기기 프레임 숨김 → 플로팅 카드 (uploadScreenshot이 디바이스 탭을 연 상태).
-  await page.getByText('기기 프레임 표시').click()
+  // Default: 기기 프레임 숨김 → 플로팅 카드 (uploadScreenshot이 디바이스 탭을 연 상태).
   // 플로팅 핸들이 크롭 상태를 들고 다시 렌더될 때까지 대기.
   await expect
     .poll(() =>

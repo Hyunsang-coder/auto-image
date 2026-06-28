@@ -13,6 +13,7 @@ import type {
   Background,
   Caption,
   DeviceFrame,
+  ExternalImage,
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
@@ -42,6 +43,7 @@ const LAYER_TAB: Record<string, PanelTab> = {
   [LAYER_NAMES.DEVICE_FRAME]: 'screenshot',
   [LAYER_NAMES.BADGE]: 'badge',
   [LAYER_NAMES.ORNAMENT]: 'ornaments',
+  [LAYER_NAMES.EXTERNAL_IMAGE]: 'externalImages',
   [LAYER_NAMES.HIGHLIGHT_SOURCE]: 'highlights',
   [LAYER_NAMES.HIGHLIGHT_POPUP]: 'highlights',
 }
@@ -392,6 +394,11 @@ export function EditorLayout() {
     applyEdit({ screenshotStyle: style })
   }
 
+  function handleExternalImagesChange(externalImages: ExternalImage[]) {
+    applyEdit({ externalImages })
+    gcImages()
+  }
+
   function handleOrnamentsChange(ornaments: Ornament[]) {
     applyEdit({ ornaments })
   }
@@ -654,6 +661,7 @@ export function EditorLayout() {
             onBadgesChange={handleBadgesChange}
             onDeviceFrameChange={handleDeviceFrameChange}
             onScreenshotStyleChange={handleScreenshotStyleChange}
+            onExternalImagesChange={handleExternalImagesChange}
             onOrnamentsChange={handleOrnamentsChange}
             onHighlightsChange={handleHighlightsChange}
             onApplyThemePreset={handleApplyThemePreset}

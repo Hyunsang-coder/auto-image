@@ -7,6 +7,7 @@ import { renderBackground } from './objects/background'
 import { renderBadge } from './objects/badge'
 import { renderCaption, renderCaptionBox } from './objects/caption'
 import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
+import { renderExternalImage } from './objects/externalImage'
 import { renderHighlight, renderHighlightSource } from './objects/highlight'
 import { renderOrnament } from './objects/ornament'
 import { LAYER_NAMES } from './layerNames'
@@ -474,7 +475,15 @@ export async function applyTemplate(
     })
   }
 
-  // 5. Highlights — source selection boxes plus independent magnified cards.
+  // 5. External bitmap images — independent foreground assets.
+  if (slide.externalImages) {
+    for (const image of slide.externalImages) {
+      const obj = await renderExternalImage(image, { canvasWidth: cw, canvasHeight: ch, resolveUrl })
+      if (obj) canvas.add(obj)
+    }
+  }
+
+  // 6. Highlights — source selection boxes plus independent magnified cards.
   // Rendered after the device so they can float above the bezel, but before
   // the badge so the badge stays the top-most attention element.
   if (slide.highlights && slide.highlights.length > 0 && slide.screenshot && screenBounds) {
@@ -495,7 +504,7 @@ export async function applyTemplate(
     }
   }
 
-  // 6. Badges (always on top)
+  // 7. Badges (always on top)
   for (const badge of slide.badges ?? []) {
     const badgeCenterX = cw * (badge.left ?? 0.5)
     canvas.add(renderBadge(badge, { centerX: badgeCenterX, top: ch * badge.top }))

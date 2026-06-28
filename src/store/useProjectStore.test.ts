@@ -122,6 +122,25 @@ describe('span link/unlink — per-slide texts', () => {
     // …while the shared look IS cloned from the leader.
     expect(after.slides[1].template).toBe(after.slides[0].template)
   })
+
+  it('unlink keeps the follower’s own screenshot when it had one before linking', async () => {
+    const { project, updateSlide, linkSpanWithNext } = useProjectStore.getState()
+    const [a, b] = project!.slides
+    updateSlide(a.id, {
+      screenshot: { id: 'shot-a', imageKey: 'img:a', originalWidth: 1320, originalHeight: 2868 },
+    })
+    updateSlide(b.id, {
+      screenshot: { id: 'shot-b', imageKey: 'img:b', originalWidth: 1320, originalHeight: 2868 },
+    })
+
+    expect(linkSpanWithNext(a.id)).toBeNull()
+    const linked = useProjectStore.getState().project!
+    await useProjectStore.getState().unlinkSpan(linked.slides[0].spanGroupId!)
+
+    const after = useProjectStore.getState().project!
+    expect(after.slides[0].screenshot?.imageKey).toBe('img:a')
+    expect(after.slides[1].screenshot?.imageKey).toBe('img:b')
+  })
 })
 
 describe('setDeviceSize', () => {

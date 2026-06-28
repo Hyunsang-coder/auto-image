@@ -552,7 +552,7 @@ export function ProjectSetup() {
             <p className="mt-2 text-sm text-[var(--color-text)]">
               <span className="font-medium">{importResult.project.name}</span>
               <span className="text-[var(--color-text-dim)]">
-                {' '}{t('— 슬라이드 {slides}장 · 스크린샷 {screenshots}개 · 캡션 {captions}개 적용', { slides: importResult.applied.slides, screenshots: importResult.applied.screenshots, captions: importResult.applied.captions })}
+                {' '}{t('— 슬라이드 {slides}장 · 스크린샷 {screenshots}개 · 외부 이미지 {externalImages}개 · 캡션 {captions}개 적용', { slides: importResult.applied.slides, screenshots: importResult.applied.screenshots, externalImages: importResult.applied.externalImages, captions: importResult.applied.captions })}
               </span>
             </p>
           ) : (

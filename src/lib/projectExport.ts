@@ -13,6 +13,7 @@ import type {
   Caption,
   DeviceFrame,
   DeviceType,
+  ExternalImage,
   Highlight,
   Ornament,
   Project,
@@ -32,6 +33,8 @@ export interface ProjectExportResult {
   captions: string
   /** Screenshot filenames to supply alongside on re-import (`{n}.{locale}.png`). */
   screenshotPlan: string[]
+  /** External image filenames to supply alongside on re-import (`{n}-external-{i}.png`). */
+  externalImagePlan: string[]
   /** Everything the manifest can't represent, so the loss is never silent. */
   issues: string[]
 }
@@ -68,6 +71,33 @@ function reverseScreenshotStyle(ss: ScreenshotStyle | undefined): Record<string,
 function reverseOrnaments(orns: Ornament[] | undefined): Record<string, unknown>[] | undefined {
   if (!orns?.length) return undefined
   return orns.map((o) => ({ shape: o.shape, x: o.x, y: o.y, size: o.size, rotation: o.rotation, color: o.color, opacity: o.opacity }))
+}
+
+function externalImageFilename(slideNumber: number, imageIndex: number): string {
+  return `${slideNumber}-external-${imageIndex + 1}.png`
+}
+
+function reverseExternalImages(
+  images: ExternalImage[] | undefined,
+  slideNumber: number,
+  plan: string[],
+): Record<string, unknown>[] | undefined {
+  if (!images?.length) return undefined
+  return images.map((image, imageIndex) => {
+    const file = externalImageFilename(slideNumber, imageIndex)
+    plan.push(file)
+    return {
+      file,
+      x: image.x,
+      y: image.y,
+      width: image.width,
+      rotation: image.rotation,
+      opacity: image.opacity,
+      cornerRadiusRatio: image.cornerRadiusRatio,
+      shadow: image.shadow,
+      ...(image.crop ? { crop: { ...image.crop } } : {}),
+    }
+  })
 }
 
 function reverseHighlights(hls: Highlight[] | undefined): Record<string, unknown>[] | undefined {
@@ -114,7 +144,7 @@ function reverseBadge(b: Badge, where: string, issues: string[]): Record<string,
   }
 }
 
-function reverseSlide(slide: Slide, n: number, issues: string[]): Record<string, unknown> {
+function reverseSlide(slide: Slide, n: number, issues: string[], externalImagePlan: string[]): Record<string, unknown> {
   const where = `slide ${n}`
   // A span follower's shared layers (background, device frame, screenshot,
   // ornaments, highlights, badges, per-locale look) are leader-owned and
@@ -136,6 +166,7 @@ function reverseSlide(slide: Slide, n: number, issues: string[]): Record<string,
   const bg = reverseBackground(slide.background, where, issues)
   const ss = reverseScreenshotStyle(slide.screenshotStyle)
   const orn = reverseOrnaments(slide.ornaments)
+  const ext = reverseExternalImages(slide.externalImages, n, externalImagePlan)
   const hl = reverseHighlights(slide.highlights)
   return {
     layout: slide.template,
@@ -144,6 +175,7 @@ function reverseSlide(slide: Slide, n: number, issues: string[]): Record<string,
     ...(bg ? { background: bg } : {}),
     ...(ss ? { screenshotStyle: ss } : {}),
     ...(orn ? { ornaments: orn } : {}),
+    ...(ext ? { externalImages: ext } : {}),
     ...(slide.texts.length ? { texts: slide.texts.map((c, i) => reverseTextOverride(c, `${where} text:${i}`, issues)) } : {}),
     ...(hl ? { highlights: hl } : {}),
     ...(slide.badges?.length ? { badges: slide.badges.map((b, i) => reverseBadge(b, `${where} badge:${i}`, issues)) } : {}),
@@ -158,6 +190,7 @@ function reverseSlide(slide: Slide, n: number, issues: string[]): Record<string,
  */
 export function exportProject(project: Project): ProjectExportResult {
   const issues: string[] = []
+  const externalImagePlan: string[] = []
 
   // The manifest is single-device. Keep the DOMINANT (majority) type so the
   // fewest slides re-import under the wrong frame; ties keep first-seen order.
@@ -188,7 +221,7 @@ export function exportProject(project: Project): ProjectExportResult {
     sourceLocale: project.sourceLocale,
     targetLocales,
     themeBackground,
-    slides: project.slides.map((s, i) => reverseSlide(s, i + 1, issues)),
+    slides: project.slides.map((s, i) => reverseSlide(s, i + 1, issues, externalImagePlan)),
   }
 
   // One caption row per text:N / badge:N field; every locale is a labeled column.
@@ -217,5 +250,5 @@ export function exportProject(project: Project): ProjectExportResult {
     for (const loc of Object.keys(s.screenshot.localeOverrides ?? {})) screenshotPlan.push(`${i + 1}.${loc}.png`)
   })
 
-  return { manifest, captions, screenshotPlan, issues }
+  return { manifest, captions, screenshotPlan, externalImagePlan, issues }
 }

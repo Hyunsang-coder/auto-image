@@ -10,13 +10,14 @@
 // height} and only mutates the project JSON — the CLI decodes files and places
 // the blobs. Never throws; every rejection/clamp lands in `issues`.
 
-import type { Caption, Project, Slide } from '../types/project'
+import type { Caption, ExternalImage, Project, ScreenshotCrop, Slide } from '../types/project'
 import {
   DEFAULT_SCREENSHOT_STYLE,
   SUPPORTED_LOCALES,
   TEMPLATE_FONT_SIZES,
   makeHighlight,
   makeOrnament,
+  newId,
 } from '../constants/defaults'
 import { DEFAULT_MODEL, MODELS_BY_TYPE, detectTypeFromAspect, typeOfModel } from '../constants/deviceSpecs'
 import { buildImportPatch, type FieldKey } from './localePatch'
@@ -33,7 +34,7 @@ import {
 } from './projectImport'
 
 export interface PatchOp {
-  op: 'setText' | 'setScreenshot' | 'set'
+  op: 'setText' | 'setScreenshot' | 'addExternalImage' | 'setExternalImage' | 'removeExternalImage' | 'set'
   /** 1-based slide index or a slideId. Omitted on a project-scoped `set`. */
   slide?: number | string
   /** Explicit slideId (alternative to a string `slide`). */
@@ -46,10 +47,24 @@ export interface PatchOp {
   path?: string
   /** setScreenshot: decoded blob pointer + dims (the CLI fills these from `file`). */
   imageKey?: string
+  imageWidth?: number
+  imageHeight?: number
+  /** setScreenshot: source pixel width. External image ops: canvas width fraction. */
   width?: number
+  /** setScreenshot: source pixel height. */
   height?: number
   /** setScreenshot base: re-detect device model from the new aspect (default keeps the frame). */
   redetect?: boolean
+  /** add/set/removeExternalImage: 0-based index, or explicit external image id. */
+  index?: number
+  externalImageId?: string
+  x?: number
+  y?: number
+  rotation?: number
+  opacity?: number
+  cornerRadiusRatio?: number
+  shadow?: boolean
+  crop?: Partial<ScreenshotCrop>
 }
 
 export interface ApplyPatchResult {
@@ -61,7 +76,10 @@ const KNOWN_LOCALES = new Set<string>(SUPPORTED_LOCALES.map((l) => l.code))
 
 // Shared layers are leader-owned in a span pair; only `texts` are per-slide, so
 // these paths are rejected when addressed to a follower (edit the leader).
-const FOLLOWER_SHARED_PREFIXES = ['background', 'template', 'deviceFrame', 'screenshotStyle', 'ornaments', 'highlights', 'badges']
+const FOLLOWER_SHARED_PREFIXES = ['background', 'template', 'deviceFrame', 'screenshotStyle', 'ornaments', 'externalImages', 'highlights', 'badges']
+const MAX_EXTERNAL_IMAGES = 3
+const EXTERNAL_IMAGE_WIDTH_MIN = 0.05
+const EXTERNAL_IMAGE_WIDTH_MAX = 1.5
 
 // TextStyle field name → ParsedTextOverride field name, so `texts[i].style.*`
 // rides the same coercion/apply path as the manifest's per-block overrides.
@@ -78,6 +96,33 @@ const STYLE_TO_OVERRIDE: Record<string, keyof ParsedTextOverride> = {
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function clampNumber(
+  value: unknown,
+  min: number,
+  max: number,
+  where: string,
+  issues: string[],
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    issues.push(`${where}: value must be a finite number`)
+    return undefined
+  }
+  if (value < min || value > max) {
+    const clamped = Math.max(min, Math.min(max, value))
+    issues.push(`${where}: clamped ${value} to ${clamped}`)
+    return clamped
+  }
+  return value
+}
+
+function normalizePatchRotation(value: unknown, where: string, issues: string[]): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    issues.push(`${where}: value must be a finite number`)
+    return undefined
+  }
+  return ((((value + 180) % 360) + 360) % 360) - 180
 }
 
 /** headline/subheadline aliases → text:N; passes text:N / badge:N through. */
@@ -226,6 +271,144 @@ function applySetScreenshot(project: Project, op: PatchOp, issues: string[]): vo
     },
   }
   addTargetLocale(project, op.locale)
+}
+
+function externalImageIndex(slide: Slide, op: PatchOp, issues: string[]): number | null {
+  const images = slide.externalImages ?? []
+  if (op.externalImageId) {
+    const index = images.findIndex((img) => img.id === op.externalImageId)
+    if (index < 0) issues.push(`external image "${op.externalImageId}" not found`)
+    return index < 0 ? null : index
+  }
+  if (typeof op.index === 'number' && Number.isInteger(op.index)) {
+    if (op.index < 0 || op.index >= images.length) {
+      issues.push(`external image index ${op.index} out of range (0..${Math.max(0, images.length - 1)})`)
+      return null
+    }
+    return op.index
+  }
+  issues.push('external image index or externalImageId is required')
+  return null
+}
+
+function applyExternalImageFields(image: ExternalImage, input: Record<string, unknown>, where: string, issues: string[]): ExternalImage {
+  const next: ExternalImage = { ...image }
+  if (input.x !== undefined) {
+    const x = clampNumber(input.x, -0.5, 1.5, `${where}.x`, issues)
+    if (x !== undefined) next.x = x
+  }
+  if (input.y !== undefined) {
+    const y = clampNumber(input.y, -0.5, 1.5, `${where}.y`, issues)
+    if (y !== undefined) next.y = y
+  }
+  if (input.width !== undefined) {
+    const width = clampNumber(input.width, EXTERNAL_IMAGE_WIDTH_MIN, EXTERNAL_IMAGE_WIDTH_MAX, `${where}.width`, issues)
+    if (width !== undefined) next.width = width
+  }
+  if (input.rotation !== undefined) {
+    const rotation = normalizePatchRotation(input.rotation, `${where}.rotation`, issues)
+    if (rotation !== undefined) next.rotation = rotation
+  }
+  if (input.opacity !== undefined) {
+    const opacity = clampNumber(input.opacity, 0, 1, `${where}.opacity`, issues)
+    if (opacity !== undefined) next.opacity = opacity
+  }
+  if (input.cornerRadiusRatio !== undefined || input.shadow !== undefined || input.crop !== undefined) {
+    const parsed = coerceScreenshotStyle(
+      {
+        ...(input.cornerRadiusRatio !== undefined ? { cornerRadiusRatio: input.cornerRadiusRatio } : {}),
+        ...(input.shadow !== undefined ? { shadow: input.shadow } : {}),
+        ...(input.crop !== undefined ? { crop: input.crop } : {}),
+      },
+      where,
+      issues,
+    )
+    if (parsed?.cornerRadiusRatio !== undefined) next.cornerRadiusRatio = parsed.cornerRadiusRatio
+    if (parsed?.shadow !== undefined) next.shadow = parsed.shadow
+    if (parsed?.crop !== undefined) next.crop = parsed.crop
+  }
+  return next
+}
+
+function applyAddExternalImage(project: Project, op: PatchOp, issues: string[]): void {
+  const resolved = resolveSlide(project, op, issues)
+  if (!resolved) return
+  const { slide, index } = resolved
+  if (slide.spanRole === 'follower') {
+    issues.push(`addExternalImage rejected: external images are leader-owned on a span pair — address the leader (slide ${index + 1})`)
+    return
+  }
+  if (op.imageKey === undefined || op.imageWidth === undefined || op.imageHeight === undefined) {
+    issues.push('addExternalImage: imageKey/imageWidth/imageHeight are required (the CLI decodes them from `file`)')
+    return
+  }
+  const current = slide.externalImages ?? []
+  if (current.length >= MAX_EXTERNAL_IMAGES) {
+    issues.push(`addExternalImage: slide already has ${MAX_EXTERNAL_IMAGES} external images`)
+    return
+  }
+  const offset = current.length * 0.04
+  const image = applyExternalImageFields(
+    {
+      id: newId('ext'),
+      imageKey: op.imageKey,
+      originalWidth: op.imageWidth,
+      originalHeight: op.imageHeight,
+      x: Math.min(0.62, 0.5 + offset),
+      y: Math.min(0.62, 0.5 + offset),
+      width: 0.32,
+      rotation: 0,
+      opacity: 1,
+      cornerRadiusRatio: DEFAULT_SCREENSHOT_STYLE.cornerRadiusRatio,
+      shadow: DEFAULT_SCREENSHOT_STYLE.shadow,
+    },
+    op as unknown as Record<string, unknown>,
+    `slide ${index + 1} externalImages[${current.length}]`,
+    issues,
+  )
+  project.slides[index] = { ...slide, externalImages: [...current, image] }
+}
+
+function applySetExternalImage(project: Project, op: PatchOp, issues: string[]): void {
+  const resolved = resolveSlide(project, op, issues)
+  if (!resolved) return
+  const { slide, index: slideIndex } = resolved
+  if (slide.spanRole === 'follower') {
+    issues.push(`setExternalImage rejected: external images are leader-owned on a span pair — address the leader (slide ${slideIndex + 1})`)
+    return
+  }
+  const imageIndex = externalImageIndex(slide, op, issues)
+  if (imageIndex === null) return
+  const images = (slide.externalImages ?? []).slice()
+  let next = applyExternalImageFields(
+    images[imageIndex],
+    op as unknown as Record<string, unknown>,
+    `slide ${slideIndex + 1} externalImages[${imageIndex}]`,
+    issues,
+  )
+  if (op.imageKey !== undefined || op.imageWidth !== undefined || op.imageHeight !== undefined) {
+    if (op.imageKey === undefined || op.imageWidth === undefined || op.imageHeight === undefined) {
+      issues.push('setExternalImage: imageKey/imageWidth/imageHeight must be provided together')
+    } else {
+      next = { ...next, imageKey: op.imageKey, originalWidth: op.imageWidth, originalHeight: op.imageHeight }
+    }
+  }
+  images[imageIndex] = next
+  project.slides[slideIndex] = { ...slide, externalImages: images }
+}
+
+function applyRemoveExternalImage(project: Project, op: PatchOp, issues: string[]): void {
+  const resolved = resolveSlide(project, op, issues)
+  if (!resolved) return
+  const { slide, index: slideIndex } = resolved
+  if (slide.spanRole === 'follower') {
+    issues.push(`removeExternalImage rejected: external images are leader-owned on a span pair — address the leader (slide ${slideIndex + 1})`)
+    return
+  }
+  const imageIndex = externalImageIndex(slide, op, issues)
+  if (imageIndex === null) return
+  const images = (slide.externalImages ?? []).filter((_, i) => i !== imageIndex)
+  project.slides[slideIndex] = { ...slide, externalImages: images }
 }
 
 function applyProjectSet(project: Project, path: string, value: unknown, issues: string[]): void {
@@ -378,6 +561,53 @@ function applySlideSet(project: Project, slide: Slide, index: number, path: stri
     if (parsed) next.highlights = parsed.map((h) => makeHighlight(h))
     return
   }
+  const externalImageMatch = path.match(/^externalImages\[(\d+)\](?:\.(.+))?$/)
+  if (externalImageMatch) {
+    const imageIndex = Number(externalImageMatch[1])
+    const rest = externalImageMatch[2]
+    if (!next.externalImages?.[imageIndex]) {
+      issues.push(`set: slide ${index + 1} has no externalImages[${imageIndex}]`)
+      return
+    }
+    if (!rest) {
+      if (!isObj(value)) {
+        issues.push(`set: externalImages[${imageIndex}] value must be an object`)
+        return
+      }
+      if ('imageKey' in value || 'originalWidth' in value || 'originalHeight' in value) {
+        issues.push('set: external image file fields are only patchable through setExternalImage')
+        return
+      }
+      const images = next.externalImages.slice()
+      images[imageIndex] = applyExternalImageFields(images[imageIndex], value, `slide ${index + 1} externalImages[${imageIndex}]`, issues)
+      next.externalImages = images
+      return
+    }
+    if (rest.startsWith('crop.')) {
+      const edge = rest.slice('crop.'.length)
+      if (!['top', 'right', 'bottom', 'left'].includes(edge)) {
+        issues.push(`set: unsupported externalImages crop field "${edge}"`)
+        return
+      }
+      const images = next.externalImages.slice()
+      images[imageIndex] = applyExternalImageFields(
+        images[imageIndex],
+        { crop: { top: 0, right: 0, bottom: 0, left: 0, ...images[imageIndex].crop, [edge]: value } },
+        `slide ${index + 1} externalImages[${imageIndex}]`,
+        issues,
+      )
+      next.externalImages = images
+      return
+    }
+    if (!['x', 'y', 'width', 'rotation', 'opacity', 'cornerRadiusRatio', 'shadow', 'crop'].includes(rest)) {
+      issues.push(`set: unsupported externalImages field "${rest}"`)
+      return
+    }
+    const images = next.externalImages.slice()
+    images[imageIndex] = applyExternalImageFields(images[imageIndex], { [rest]: value }, `slide ${index + 1} externalImages[${imageIndex}]`, issues)
+    next.externalImages = images
+    return
+  }
   const textMatch = path.match(/^texts\[(\d+)\](?:\.(.+))?$/)
   if (textMatch) {
     const ti = Number(textMatch[1])
@@ -472,6 +702,15 @@ export function applyPatch(project: Project, ops: PatchOp[]): ApplyPatchResult {
         return
       case 'setScreenshot':
         applySetScreenshot(out, op, issues)
+        return
+      case 'addExternalImage':
+        applyAddExternalImage(out, op, issues)
+        return
+      case 'setExternalImage':
+        applySetExternalImage(out, op, issues)
+        return
+      case 'removeExternalImage':
+        applyRemoveExternalImage(out, op, issues)
         return
       case 'set':
         applySet(out, op, issues)
