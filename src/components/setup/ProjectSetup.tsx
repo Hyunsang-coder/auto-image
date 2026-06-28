@@ -117,11 +117,16 @@ export function ProjectSetup() {
     try {
       const result = await runProjectImport(files)
       setImportResult(result)
-      // Headless validate/dry-run channel: when the harness arms
-      // __validateEnabled, publish the structured import result (still
-      // uncommitted — no loadProject, no render) for it to read and exit.
-      const w = window as Window & { __validateEnabled?: boolean; __importResult?: string }
-      if (w.__validateEnabled) {
+      // Headless channel: publish the structured import result so the harness
+      // can detect completion (and read applied/issues) without scraping the
+      // localized summary text. __validateEnabled stops before commit; __headless
+      // keeps going (read result, then click confirm to render).
+      const w = window as Window & {
+        __validateEnabled?: boolean
+        __headless?: boolean
+        __importResult?: string
+      }
+      if (w.__validateEnabled || w.__headless) {
         w.__importResult = JSON.stringify({
           ok: !!result.project,
           applied: result.applied,

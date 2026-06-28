@@ -169,6 +169,10 @@ try {
   if (exportManifest) {
     await page.addInitScript(() => { window.__exportManifestEnabled = true })
   }
+  // Always arm the structured import channel so the render path detects import
+  // completion via window.__importResult instead of scraping localized summary
+  // text (which broke silently when the summary line gained a new segment).
+  await page.addInitScript(() => { window.__headless = true })
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
@@ -226,15 +230,17 @@ try {
       }
       validated = true
     } else {
-      const summary = page.locator('p', { hasText: /슬라이드 \d+장 · 스크린샷 \d+개 · (?:외부 이미지 \d+개 · )?캡션 \d+개 적용/ })
-      await summary.waitFor({ timeout: 30_000 })
-      log('import:', (await summary.textContent()).trim())
-      const warnToggle = page.getByText(/경고 \d+건 보기/)
-      if (await warnToggle.isVisible()) {
-        await warnToggle.click()
-        const issues = (await page.locator('details ul').innerText()).trim()
-        log('import warnings:\n:: ' + issues.replace(/\n/g, '\n:: '))
+      // Detect import completion via the structured result the app publishes
+      // (window.__headless), not the localized summary text.
+      await page.waitForFunction(() => window.__importResult != null, { timeout: 30_000 })
+      const imp = JSON.parse(await page.evaluate(() => window.__importResult))
+      if (!imp.ok || !imp.project) {
+        console.error(':: import FAILED' + (imp.issues?.length ? ':\n:: ' + imp.issues.join('\n:: ') : ''))
+        throw new Error('import failed')
       }
+      const a = imp.applied
+      log('import:', `${imp.project.name} — slides ${a.slides}, screenshots ${a.screenshots}, external ${a.externalImages}, captions ${a.captions}`)
+      if (imp.issues?.length) log('import warnings:\n:: ' + imp.issues.join('\n:: '))
       await page.getByRole('button', { name: '에디터에서 검수 →' }).click()
     }
   }
