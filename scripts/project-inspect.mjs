@@ -130,6 +130,21 @@ function inspectBundle(bundle) {
         externalImages: slide.externalImages?.length ?? 0,
         highlights: slide.highlights?.length ?? 0,
       },
+      // Caption/badge content so an agent can see what a setText op would
+      // replace. `field` is the setText address; text is base, translations the
+      // per-locale overrides.
+      texts: (slide.texts ?? []).map((caption, index) => ({
+        index,
+        field: index === 0 ? 'headline' : index === 1 ? 'subheadline' : `text:${index}`,
+        text: caption.text ?? '',
+        translations: caption.translations ?? {},
+      })),
+      badges: (slide.badges ?? []).map((badge, index) => ({
+        index,
+        field: `badge:${index}`,
+        text: badge.text ?? '',
+        translations: badge.translations ?? {},
+      })),
       externalImages: (slide.externalImages ?? []).map((image, index) => ({
         index,
         id: image.id,

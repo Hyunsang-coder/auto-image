@@ -165,6 +165,7 @@ npm run project:patch -- in.studio.zip patch.json out.studio.zip
 npm run project:patch -- in.studio.zip patch.json --in-place
 npm run project:inspect -- in.studio.zip inspect.json
 npm run project:inspect -- in.studio.zip inspect.json --extract-images extracted-assets
+# inspect의 slides[].texts/badges는 setText `field` 주소 + 현재 base 텍스트 + locale별 translations를 담아, 패치 전 무엇을 바꾸는지 보여준다.
 # 합성: 패치 → 렌더(#1) / 패치 → GUI 열기로 검수
 npm run headless:export -- out.studio.zip render-out --report
 ```
