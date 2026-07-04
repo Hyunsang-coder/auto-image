@@ -39,6 +39,14 @@ cwd=리포 루트로 spawn하면 된다. 서버는 `tsx`로 실행된다 — 디
 | `fix_layout` | `layout:fix` | layout-summary 기반 manifest 자동 수정 (기본 dry-run) |
 | `layout_loop` | `layout:loop` | 렌더→수정→재렌더 수렴 루프 |
 
+시각 피드백 + 에셋 도구 (에이전트가 디자인을 **보면서** 고치게 한다):
+
+| 도구 | 역할 |
+|---|---|
+| `view_output` | PNG(렌더 슬라이드·아이콘·원본 스크린샷)를 인라인 이미지로 반환. macOS `sips`로 다운스케일(없으면 2MB 이하 원본 폴백). 디자인 변경 전후로 반드시 볼 것 |
+| `search_icons` | Lucide(ISC, ~2,000종) 아이콘 이름 검색 |
+| `make_icon` | Lucide 아이콘 → 투명 PNG 래스터라이즈(Playwright chromium). `background` 지정 시 앱아이콘 스타일 라운드 타일. 산출 PNG는 `addExternalImage` 패치나 manifest `externalImages`로 슬라이드에 올린다 |
+
 ## 동작 특성
 
 - **진행 알림**: 렌더 계열 도구는 자식 프로세스의 stdout/stderr 라인을 MCP
@@ -59,7 +67,9 @@ get_import_spec + get_design_reference          # 어휘 학습
 → validate_import                               # 빠른 구조 검증
 → create_bundle                                 # 무손실 기판 확보
 → render (slides/locales 필터로 부분 렌더)       # 눈으로 확인할 PNG + layout issues
-→ inspect_bundle → patch_bundle → render …      # 수렴할 때까지 수술적 수정
+→ view_output                                   # 렌더를 눈으로 확인
+→ search_icons → make_icon → patch_bundle       # 아이콘/에셋 합성
+→ inspect_bundle → patch_bundle → render → view_output …  # 수렴할 때까지
 → render (전체) 또는 layout_loop                # 최종 산출
 ```
 

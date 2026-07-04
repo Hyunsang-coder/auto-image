@@ -22,6 +22,9 @@ const EXPECTED_TOOLS = [
   'export_manifest',
   'fix_layout',
   'layout_loop',
+  'view_output',
+  'search_icons',
+  'make_icon',
 ]
 
 const client = new Client({ name: 'mcp-smoke', version: '1.0.0' })
@@ -52,6 +55,10 @@ try {
   check(Object.keys(data.ornamentShapes).includes('sparkles'), 'design reference lists ornament shapes')
   check(data.deviceModels.some((m) => m.model === 'iphone-16-pro' && m.exportWidth === 1320), 'design reference lists device models')
   check(data.locales.some((l) => l.code === 'pt-BR'), 'design reference lists locales')
+
+  const icons = await client.callTool({ name: 'search_icons', arguments: { query: 'sparkle' } })
+  const iconData = JSON.parse(icons.content[0].text)
+  check(iconData.icons.includes('sparkles'), 'search_icons finds lucide icons')
 } catch (err) {
   console.error(`FAIL — ${err instanceof Error ? err.message : String(err)}`)
   failed = true

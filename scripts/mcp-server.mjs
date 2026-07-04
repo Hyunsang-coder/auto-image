@@ -481,4 +481,135 @@ server.registerTool(
   },
 )
 
+// ---------------------------------------------------------------------------
+// Seeing the output — an agent iterates on design only as well as it can see it.
+// ---------------------------------------------------------------------------
+
+// Downscale a PNG for inline viewing. sips ships with macOS and is instant;
+// elsewhere fall back to the original bytes when they're small enough.
+async function pngForViewing(path, maxDim) {
+  const dest = join(await tmp(), 'view.png')
+  const { code } = await run('sips', ['-Z', String(maxDim), path, '--out', dest])
+  const src = code === 0 ? dest : path
+  const buf = await readFile(src)
+  if (code !== 0 && buf.length > 2_000_000) {
+    throw new Error(`${path} is ${(buf.length / 1e6).toFixed(1)}MB and sips is unavailable to downscale it`)
+  }
+  return buf
+}
+
+server.registerTool(
+  'view_output',
+  {
+    title: 'View rendered PNGs',
+    description:
+      'Return one or more PNG files (rendered slides, generated icons, source screenshots) as inline images so ' +
+      'you can SEE the design you are iterating on. Files are downscaled for viewing; the originals on disk stay ' +
+      'full resolution. Always look at renders before and after a design change.',
+    inputSchema: {
+      paths: z.array(z.string()).min(1).max(6).describe('Absolute paths of PNG files to view (max 6 per call).'),
+      maxDim: z.number().int().min(200).max(1600).optional().describe('Max width/height in px (default 800).'),
+    },
+  },
+  async ({ paths, maxDim = 800 }) => {
+    const content = []
+    for (const p of paths) {
+      try {
+        const buf = await pngForViewing(abs(p), maxDim)
+        content.push({ type: 'text', text: p }, { type: 'image', data: buf.toString('base64'), mimeType: 'image/png' })
+      } catch (e) {
+        return fail({ error: e instanceof Error ? e.message : String(e), path: p })
+      }
+    }
+    return { content }
+  },
+)
+
+// ---------------------------------------------------------------------------
+// Icons — Lucide (ISC, ~2000 icons) rasterized to PNG for use as external
+// images. Prettier and more on-brand than the emoji ornament set.
+// ---------------------------------------------------------------------------
+
+const LUCIDE_DIR = join(ROOT, 'node_modules', 'lucide-static', 'icons')
+
+server.registerTool(
+  'search_icons',
+  {
+    title: 'Search the Lucide icon set',
+    description:
+      'Search the ~2000-icon Lucide set by name substring (e.g. "arrow", "chart", "heart"). Returns matching icon ' +
+      'names for make_icon. Icons are stroke-based line icons — clean, consistent, App-Store-friendly.',
+    inputSchema: {
+      query: z.string().optional().describe('Substring to match icon names against. Omit to sample the full list.'),
+      limit: z.number().int().min(1).max(300).optional().describe('Max results (default 100).'),
+    },
+  },
+  async ({ query, limit = 100 }) => {
+    const names = (await readdir(LUCIDE_DIR))
+      .filter((f) => f.endsWith('.svg'))
+      .map((f) => f.slice(0, -4))
+    const matches = query ? names.filter((n) => n.includes(query.toLowerCase())) : names
+    return ok({ total: matches.length, icons: matches.slice(0, limit) })
+  },
+)
+
+server.registerTool(
+  'make_icon',
+  {
+    title: 'Rasterize a Lucide icon to PNG',
+    description:
+      'Render a Lucide icon to a transparent PNG (optionally on a rounded color tile, app-icon style) for use as ' +
+      'an external image on a slide: patch_bundle addExternalImage with the written file, or reference it from a ' +
+      'manifest externalImages entry. Returns a small preview inline.',
+    inputSchema: {
+      name: z.string().describe('Lucide icon name from search_icons (e.g. "sparkles", "chart-line").'),
+      outPath: z.string().describe('Absolute path of the PNG to write.'),
+      size: z.number().int().min(32).max(1024).optional().describe('Output size in px (default 256, square).'),
+      color: z.string().optional().describe('Stroke color, CSS hex (default #111111).'),
+      strokeWidth: z.number().min(0.5).max(4).optional().describe('Stroke width in the 24px grid (default 2).'),
+      background: z
+        .string()
+        .optional()
+        .describe('Optional tile background color (hex). Adds a rounded app-icon-style tile behind the glyph.'),
+    },
+  },
+  async ({ name, outPath, size = 256, color = '#111111', strokeWidth = 2, background }) => {
+    let svg
+    try {
+      svg = await readFile(join(LUCIDE_DIR, `${name}.svg`), 'utf8')
+    } catch {
+      return fail({ error: `unknown icon "${name}" — use search_icons to find valid names` })
+    }
+    const glyphSize = background ? Math.round(size * 0.6) : size
+    svg = svg
+      .replace('width="24"', `width="${glyphSize}"`)
+      .replace('height="24"', `height="${glyphSize}"`)
+      .replace('stroke="currentColor"', `stroke="${color}"`)
+      .replace('stroke-width="2"', `stroke-width="${strokeWidth}"`)
+    const html =
+      `<body style="margin:0"><div style="width:${size}px;height:${size}px;display:flex;` +
+      `align-items:center;justify-content:center;` +
+      (background ? `background:${background};border-radius:${Math.round(size * 0.22)}px;` : '') +
+      `">${svg}</div></body>`
+    const { chromium } = await import('@playwright/test')
+    const browser = await chromium.launch()
+    let buf
+    try {
+      const page = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: 1 })
+      await page.setContent(html)
+      buf = await page.screenshot({ omitBackground: true })
+    } finally {
+      await browser.close()
+    }
+    await writeFile(abs(outPath), buf)
+    const preview = await pngForViewing(abs(outPath), 200).catch(() => buf)
+    return {
+      content: [
+        { type: 'text', text: JSON.stringify({ outPath: abs(outPath), size, icon: name }) },
+        { type: 'image', data: preview.toString('base64'), mimeType: 'image/png' },
+      ],
+    }
+  },
+)
+
 await server.connect(new StdioServerTransport())
