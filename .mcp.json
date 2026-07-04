@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "screenshot-studio": {
+      "command": "npx",
+      "args": ["tsx", "scripts/mcp-server.mjs"]
+    }
+  }
+}

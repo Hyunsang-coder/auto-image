@@ -25,6 +25,8 @@ npm run headless:export -- <input-dir> <out-dir> --validate  # dry-run import �
 npm run project:patch -- <in.studio.zip> <patch.json> <out.studio.zip>  # surgical lossless edit of a bundle (--in-place)
 npm run project:inspect -- <project.studio.zip> <out.json>  # read a bundle into agent-friendly slide/image JSON (incl. caption/badge text + translations)
 npm run test:headless  # smoke: render a committed fixture and assert PNGs + 0 layout issues (CI regression guard)
+npm run mcp          # MCP stdio server exposing the headless pipeline to AI agents (registered via .mcp.json)
+npm run test:mcp     # smoke: MCP tool registration + knowledge tools (no browser)
 npm run test:e2e     # playwright e2e (chromium, against the Vite dev server)
 npm run test:e2e:ui  # playwright UI mode
 ```
@@ -69,6 +71,10 @@ The agent loop has these headless extensions (design + status: `docs/agent-cli.m
 - **Reverse export**: `headless:export <input> <out> --export-manifest` writes `<out>/manifest.json` + `captions.csv` + `image-plan.json` — the loaded project reversed into a **re-importable** manifest + caption template — and skips render. **Lossy** (use surgical patch for lossless edits): the manifest can't carry per-locale look (`localeOverrides`), image backgrounds, `localeSource`, non-default `fontFamily`, caption box `border`/`shadow`, badge `icon`/`iconPosition`, `frameModel`, or mixed device types — each is reported in `issues`. Pure lib `src/lib/projectExport.ts` `exportProject(project) → { manifest, captions, screenshotPlan, externalImagePlan, issues }` is the inverse of `projectImport` (caption side reuses `localeIO`'s `serializeTemplate`; external image manifest rows point at `{n}-external-{i}.png`). The reversal runs **in-browser** via `window.__exportManifest` (gated by `__exportManifestEnabled`, published from `App.tsx`) because the bare-`node` harness can't import the TS lib graph — so the app, which already bundles the lib, does it and hands the harness the finished JSON.
 
 `scripts/project-patch.mjs` imports the TS lib graph directly, so it runs under `tsx` (not bare `node`); the graph is now node-loadable because `src/i18n/index.ts` guards its `document` side-effect with `typeof document !== 'undefined'`.
+
+### MCP server
+
+`scripts/mcp-server.mjs` (run via `tsx`, registered for Claude Code in root `.mcp.json` as `screenshot-studio`) exposes the whole agent CLI surface as MCP tools over stdio — a thin orchestrator that spawns the existing scripts, no new pipeline logic (design + tool table: `docs/mcp-server.md`). Knowledge tools `get_import_spec` / `get_patch_spec` / `get_design_reference` give an agent the authoring vocabulary (the design reference imports `THEME_PRESETS`/`DEVICE_SPECS`/`ORNAMENT_DEFAULTS` from the TS graph — the only machine-readable list of theme preset ids); pipeline tools `validate_import` / `render` / `create_bundle` / `inspect_bundle` / `patch_bundle` (inline ops array; relative image `file` paths resolve against `filesDir`, default = the bundle's directory) / `export_manifest` / `fix_layout` / `layout_loop` wrap the CLIs 1:1. Long renders stream child stdout lines as MCP progress notifications so clients that reset timeouts on progress survive multi-minute renders. CLI exit ≠ 0 → `isError` + log tail; patch clamps/rejections stay in `issues[]`. Smoke: `npm run test:mcp` (`scripts/mcp-smoke.mjs`, no browser — render regressions are `test:headless`'s job).
 
 ### State management
 
