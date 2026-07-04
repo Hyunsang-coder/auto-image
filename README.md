@@ -26,6 +26,8 @@ Open this repo in Claude Code (or any AI coding agent), point it at your raw sim
 
 No terminal, no config — you describe the result and review what comes back. The agent already knows the format from [docs/project-import.md](./docs/project-import.md); it just reads that file and runs the commands for you.
 
+An **MCP server** ships with the repo ([docs/mcp-server.md](./docs/mcp-server.md)) so the agent drives the whole loop as tool calls instead of shell commands — author → validate → render → *see the result inline* → surgically patch one field → re-render, plus a searchable [Lucide](https://lucide.dev/) icon set it can drop onto slides. Claude Code auto-registers it from the repo's `.mcp.json`; other MCP clients run `npm run mcp`.
+
 <details>
 <summary>The commands the agent runs (in case you want to run them yourself)</summary>
 
@@ -34,7 +36,7 @@ npm run headless:export -- ./my-screenshots ./out --report   # folder → final 
 npm run layout:loop      -- ./my-screenshots ./out --write    # auto-fix layout issues and re-render
 ```
 
-The folder holds a `manifest.json`, screenshots named `{number}-{description}.{locale}.png` (e.g. `01-home.en.png`), and a captions CSV/JSON. Full reference: [docs/agent-cli.md](./docs/agent-cli.md).
+The folder holds a `manifest.json`, screenshots named `{number}-{description}.{locale}.png` (e.g. `01-home.en.png`), and a captions CSV/JSON. Full reference: [docs/agent-cli.md](./docs/agent-cli.md); the MCP wrapper around these: [docs/mcp-server.md](./docs/mcp-server.md).
 
 </details>
 
@@ -112,6 +114,7 @@ React + TypeScript, Vite, Tailwind v4, Fabric.js, Zustand, IndexedDB (`idb-keyva
 npm run lint
 npm run test:unit
 npm run test:headless  # smoke-renders a fixture through the headless pipeline
+npm run test:mcp       # smoke-checks the MCP server's tool wiring
 npm run test:e2e
 ```
 
