@@ -2,6 +2,8 @@
 
 > 상태: **전 단계 구현·검증 완료.** Phase 1(#1 번들 렌더 입력, #3 validate) + Surgical Patch + Phase 2((B) 마이그레이션 하드닝, #4 타겟 렌더, #2 역방향 내보내기) 모두 머지됨.
 > 구현 산출물: 순수 lib `src/lib/projectPatch.ts`·`projectMigrate.ts`·`projectExport.ts`(+각 `.test.ts`), CLI `scripts/project-patch.mjs`(tsx 실행), 하니스 `scripts/headless-export.mjs`(번들 입력 + `--validate`/`--slides`/`--locale`/`--export-manifest` 분기), 앱 hook `ProjectSetup.handleImportFiles`(`window.__importResult`)·`App.tsx`(`window.__exportManifest`)·`ExportPanel`(`window.__renderFilter`), `projectImport.ts` coercer export, `i18n/index.ts` `document` 가드, devDep `image-size`/`tsx`.
+>
+> 이 CLI 표면 전체는 이제 **MCP 서버**([docs/mcp-server.md](./mcp-server.md), `scripts/mcp-server.mjs`)가 도구로 1:1 래핑한다 — 에이전트는 셸 대신 `validate_import`/`render`/`patch_bundle` 등의 MCP 도구로 같은 루프를 돌리고, `view_output`으로 렌더 결과를 인라인으로 보며 Lucide 아이콘(`search_icons`/`make_icon`)을 합성할 수 있다.
 
 AI 에이전트가 에디터를 **더 자유롭고 surgical하게** 활용하게 하는 CLI/헤들리스 확장.
 기존 에이전트 루프(manifest 폴더 → 렌더 → `layout-report` 확인 → manifest 수정 → 재렌더)를
