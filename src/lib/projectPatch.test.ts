@@ -213,6 +213,13 @@ describe('set (whitelisted paths)', () => {
     expect(p.slides[0].texts[0].style.color).toBe('#ffffff')
   })
 
+  it('applies texts[i].style.gradient', () => {
+    const { project: p } = applyPatch(project(), [
+      { op: 'set', slide: 1, path: 'texts[0].style.gradient', value: { from: '#ff0000', to: '#0000ff', angle: 45 } },
+    ])
+    expect(p.slides[0].texts[0].style.gradient).toEqual({ from: '#ff0000', to: '#0000ff', angle: 45 })
+  })
+
   it('applies texts[i].style.fontFamily and rejects unknown families', () => {
     const { project: p, issues } = applyPatch(project(), [
       { op: 'set', slide: 1, path: 'texts[0].style.fontFamily', value: 'Fraunces' },

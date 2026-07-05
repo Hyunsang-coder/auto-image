@@ -158,6 +158,7 @@ export interface ParsedTextOverride {
   box?: { fill: string; opacity: number; paddingX: number; paddingY: number; borderRadius: number }
   outline?: { color: string; width: number }
   shadow?: { color: string; opacity: number; offsetX: number; offsetY: number; blur: number }
+  gradient?: { from: string; to: string; angle: number }
 }
 
 export interface ParsedBadge {
@@ -600,6 +601,23 @@ function coerceCaptionBox(
   }
 }
 
+function coerceTextGradient(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedTextOverride['gradient'] | undefined {
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: gradient 형식이 올바르지 않음 — 무시', { where }))
+    return undefined
+  }
+  const g = value as Record<string, unknown>
+  if (typeof g.from !== 'string' || typeof g.to !== 'string') {
+    issues.push(t('{where}: gradient.from/to(문자열)가 필요 — gradient 무시', { where }))
+    return undefined
+  }
+  return { from: g.from, to: g.to, angle: coerceNumber(g.angle, 0, 360, where, 'gradient.angle', issues) ?? 0 }
+}
+
 function coerceOutline(
   value: unknown,
   where: string,
@@ -715,6 +733,10 @@ export function coerceTextOverrides(
     if (r.shadow !== undefined) {
       const shadow = coerceTextShadow(r.shadow, tw, issues)
       if (shadow) out.shadow = shadow
+    }
+    if (r.gradient !== undefined) {
+      const gradient = coerceTextGradient(r.gradient, tw, issues)
+      if (gradient) out.gradient = gradient
     }
     return out
   })
@@ -968,6 +990,7 @@ export function applyTextOverride(block: Caption, ov: ParsedTextOverride | undef
   if (ov.box !== undefined) block.style.box = { ...ov.box }
   if (ov.outline !== undefined) block.style.outline = { ...ov.outline }
   if (ov.shadow !== undefined) block.style.shadow = { ...ov.shadow }
+  if (ov.gradient !== undefined) block.style.gradient = { ...ov.gradient }
 }
 
 /**

@@ -267,6 +267,8 @@ export interface TextStyle {
   fontSize: number
   fontWeight: number
   color: string
+  /** Linear gradient fill; overrides `color` when present. */
+  gradient?: TextGradient
   textAlign: 'left' | 'center' | 'right'
   letterSpacing?: number
   lineHeight?: number
@@ -296,6 +298,13 @@ export interface TextOutline {
   color: string
   /** Stroke width in editor px — scaled with fontSize at export. */
   width: number
+}
+
+export interface TextGradient {
+  from: string
+  to: string
+  /** Degrees; 0 = left→right, 90 = top→bottom. */
+  angle: number
 }
 
 export interface TextShadow {

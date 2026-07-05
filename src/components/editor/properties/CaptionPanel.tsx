@@ -223,6 +223,45 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       </div>
 
       <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+        <span>{t('그라데이션')}</span>
+        <input
+          type="checkbox"
+          checked={!!value.style.gradient}
+          onChange={(e) =>
+            updateStyle({
+              gradient: e.target.checked
+                ? { from: value.style.color, to: '#6366F1', angle: 0 }
+                : undefined,
+            })
+          }
+          className="accent-[var(--color-accent)]"
+        />
+      </label>
+      {value.style.gradient && (
+        <div className="flex flex-col gap-2 rounded-lg bg-[var(--color-surface-2)] p-2">
+          <ColorPickerPopover
+            color={value.style.gradient.from}
+            onChange={(c) => updateStyle({ gradient: { ...value.style.gradient!, from: c } })}
+            label={t('시작 색상')}
+          />
+          <ColorPickerPopover
+            color={value.style.gradient.to}
+            onChange={(c) => updateStyle({ gradient: { ...value.style.gradient!, to: c } })}
+            label={t('끝 색상')}
+          />
+          <SliderRow
+            label={t('방향')}
+            value={value.style.gradient.angle}
+            min={0}
+            max={360}
+            step={15}
+            format={(v) => `${v}°`}
+            onChange={(v) => updateStyle({ gradient: { ...value.style.gradient!, angle: v } })}
+          />
+        </div>
+      )}
+
+      <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
         <span>{t('외곽선')}</span>
         <input
           type="checkbox"

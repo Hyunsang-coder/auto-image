@@ -270,6 +270,18 @@ describe('parseManifest normalization', () => {
     expect(issues.some((i) => i.includes('fontSize'))).toBe(true)
   })
 
+  it('parses a text gradient and rejects one without from/to', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        { texts: [{ gradient: { from: '#FF0000', to: '#0000FF', angle: 90 } }, { gradient: { from: '#FF0000' } }], textBlocks: 2 },
+      ]),
+    )
+    const tx = manifest?.slides[0].texts
+    expect(tx?.[0]).toEqual({ gradient: { from: '#FF0000', to: '#0000FF', angle: 90 } })
+    expect(tx?.[1]).toEqual({})
+    expect(issues.some((i) => i.includes('gradient'))).toBe(true)
+  })
+
   it('accepts a FONT_OPTIONS fontFamily and rejects unknown families', () => {
     const { manifest, issues } = parseManifest(
       minimal({}, [{ texts: [{ fontFamily: 'Fraunces' }, { fontFamily: 'Comic Sans MS' }], textBlocks: 2 }]),

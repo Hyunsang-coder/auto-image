@@ -123,6 +123,7 @@ function reverseTextOverride(c: Caption, where: string, issues: string[]): Recor
     ...(s.box ? { box: { fill: s.box.fill, opacity: s.box.opacity, paddingX: s.box.paddingX, paddingY: s.box.paddingY, borderRadius: s.box.borderRadius } } : {}),
     ...(s.outline ? { outline: { color: s.outline.color, width: s.outline.width } } : {}),
     ...(s.shadow ? { shadow: { ...s.shadow } } : {}),
+    ...(s.gradient ? { gradient: { ...s.gradient } } : {}),
   }
 }
 

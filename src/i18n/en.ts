@@ -66,6 +66,8 @@ export const en: Record<string, string> = {
   '텍스트 색상': 'Text color',
   외곽선: 'Outline',
   '외곽선 색상': 'Outline color',
+  '시작 색상': 'Start color',
+  '끝 색상': 'End color',
   그림자: 'Shadow',
   '박스 배경': 'Box background',
   '박스 색상': 'Box color',
@@ -251,6 +253,10 @@ export const en: Record<string, string> = {
     '{where}: invalid shadow format — ignored',
   '{where}: shadow.color(문자열)이 필요 — shadow 무시':
     '{where}: shadow.color (string) is required — shadow ignored',
+  '{where}: gradient 형식이 올바르지 않음 — 무시':
+    '{where}: invalid gradient format — ignored',
+  '{where}: gradient.from/to(문자열)가 필요 — gradient 무시':
+    '{where}: gradient.from/to (strings) are required — gradient ignored',
   '{where}: highlights는 배열이어야 함 — 무시':
     '{where}: highlights must be an array — ignored',
   '{where}: highlights는 최대 {max}개 — 처음 {max}개만 사용':

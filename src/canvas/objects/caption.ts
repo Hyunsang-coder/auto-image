@@ -1,9 +1,26 @@
-import { Rect, Shadow, Text, Textbox } from 'fabric'
-import type { Caption, TextShadow } from '../../types/project'
+import { Gradient, Rect, Shadow, Text, Textbox } from 'fabric'
+import type { Caption, TextGradient, TextShadow } from '../../types/project'
 import type { LayerName } from '../layerNames'
 import { LAYER_NAMES } from '../layerNames'
 import { scriptFallback } from '../../lib/fonts'
 import { hexToRgb } from '../../constants/defaults'
+
+// Percentage units so the same gradient re-projects onto the textbox as it
+// rewraps/refits; the line runs through the box center at the given angle.
+function captionGradient(g: TextGradient): Gradient<'linear'> {
+  const rad = (g.angle * Math.PI) / 180
+  const dx = Math.cos(rad) / 2
+  const dy = Math.sin(rad) / 2
+  return new Gradient({
+    type: 'linear',
+    gradientUnits: 'percentage',
+    coords: { x1: 0.5 - dx, y1: 0.5 - dy, x2: 0.5 + dx, y2: 0.5 + dy },
+    colorStops: [
+      { offset: 0, color: g.from },
+      { offset: 1, color: g.to },
+    ],
+  })
+}
 
 function captionShadow(s: TextShadow): Shadow {
   const { r, g, b } = hexToRgb(s.color)
@@ -116,7 +133,7 @@ export function renderCaption(
     fontFamily,
     fontSize,
     fontWeight: String(style.fontWeight),
-    fill: style.color,
+    fill: style.gradient ? captionGradient(style.gradient) : style.color,
     textAlign,
     charSpacing,
     lineHeight: style.lineHeight ?? 1.2,

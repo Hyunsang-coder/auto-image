@@ -154,7 +154,8 @@
       "boxWidth": 0.7,         // 줄바꿈 폭(캔버스 너비 비율, 0.1–2)
       "box": { "fill": "#000000", "opacity": 0.5, "paddingX": 16, "paddingY": 10, "borderRadius": 12 }, // 캡션 뒤 필 박스. fill만 필수
       "outline": { "color": "#000000", "width": 2 },                       // 글리프 외곽선
-      "shadow": { "color": "#000000", "opacity": 0.4, "offsetX": 0, "offsetY": 2, "blur": 6 } // 드롭 섀도
+      "shadow": { "color": "#000000", "opacity": 0.4, "offsetX": 0, "offsetY": 2, "blur": 6 }, // 드롭 섀도
+      "gradient": { "from": "#FF3B30", "to": "#5856D6", "angle": 0 }       // 텍스트 그라디언트 필 — 있으면 color 대신 적용. angle 0=가로(좌→우), 90=세로(상→하)
     },
     {}                         // 블록 1 (서브헤드) — 오버라이드 없음, 레이아웃 기본 유지
   ]
