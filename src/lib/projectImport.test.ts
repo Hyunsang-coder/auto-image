@@ -116,8 +116,8 @@ describe('parseManifest normalization', () => {
           type: 'solid',
           color: '#112233',
           blobs: [
-            { color: '#C9B8EC', x: 0.2, y: 0.1, radius: 0.5, opacity: 0.7 },
-            { color: '#F2C4C0', x: 9, y: -9, radius: 3 },
+            { color: '#C9B8EC', x: 0.2, y: 0.1, radius: 0.5, opacity: 0.7, blendMode: 'overlay' },
+            { color: '#F2C4C0', x: 9, y: -9, radius: 3, blendMode: 'hue' },
           ],
           noise: 1.4,
         },
@@ -127,13 +127,13 @@ describe('parseManifest normalization', () => {
       type: 'solid',
       color: '#112233',
       blobs: [
-        { color: '#C9B8EC', x: 0.2, y: 0.1, radius: 0.5, opacity: 0.7 },
+        { color: '#C9B8EC', x: 0.2, y: 0.1, radius: 0.5, opacity: 0.7, blendMode: 'overlay' },
         { color: '#F2C4C0', x: 1.5, y: -0.5, radius: 1.5 },
       ],
       noise: 1,
     })
-    // x, y, radius, noise each clamped with a warning
-    expect(r.issues).toHaveLength(4)
+    // x, y, radius, noise clamped + unsupported blendMode, each with a warning
+    expect(r.issues).toHaveLength(5)
   })
 
   it('drops malformed blobs and caps the count at 6', () => {

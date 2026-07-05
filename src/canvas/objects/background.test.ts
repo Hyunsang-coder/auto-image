@@ -34,6 +34,16 @@ describe('renderBackground overlays', () => {
     expect(fill.colorStops.at(-1)?.color).toBe('rgba(255,0,0,0)')
   })
 
+  it('sets the blob blend mode as the composite operation', async () => {
+    const objs = await renderBackground(
+      1000,
+      1000,
+      { ...solid, blobs: [{ color: '#FF0000', x: 0.5, y: 0.5, radius: 0.3, blendMode: 'overlay' }] },
+      resolveNone,
+    )
+    expect((objs[1] as Circle).globalCompositeOperation).toBe('overlay')
+  })
+
   it('honors a custom blob opacity and caps the blob count at 6', async () => {
     const blob = { color: '#00FF00', x: 0.5, y: 0.5, radius: 0.3 }
     const objs = await renderBackground(

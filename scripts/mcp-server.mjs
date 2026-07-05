@@ -148,8 +148,9 @@ locale override (new locales are auto-added to targetLocales).
 
 "set" path whitelist: deviceFrame.* (show/offsetX/offsetY/scale/rotation/color),
 screenshotStyle.* (cornerRadiusRatio/shadow/crop), background (solid/gradient;
-optional blobs: [{color,x,y,radius,opacity?}] soft radial mesh spots — max 6,
-x/y/radius are canvas fractions — plus noise: 0–1 film grain),
+optional blobs: [{color,x,y,radius,opacity?,blendMode?}] soft radial mesh
+spots — max 6, x/y/radius are canvas fractions, blendMode one of
+multiply/screen/overlay/soft-light — plus noise: 0–1 film grain),
 template, texts[i] / texts[i].pos / texts[i].boxWidth / texts[i].style.*
 (incl. fontFamily from get_design_reference.fontFamilies,
 gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→bottom,

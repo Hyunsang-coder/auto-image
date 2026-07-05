@@ -2,6 +2,7 @@ import type {
   Badge,
   BadgeStyle,
   Background,
+  BlobBlendMode,
   Caption,
   DeviceFrame,
   DeviceType,
@@ -524,6 +525,8 @@ export const MAX_TEXTS = 4
 
 /** Max soft color blobs per background. */
 export const MAX_BACKGROUND_BLOBS = 6
+
+export const BLOB_BLEND_MODES: BlobBlendMode[] = ['multiply', 'screen', 'overlay', 'soft-light']
 
 /**
  * Build a text block for a given index + template. Block 0 uses the headline

@@ -10,6 +10,7 @@ import type {
   Background,
   BackgroundBlob,
   BadgeStyle,
+  BlobBlendMode,
   Caption,
   DeviceColor,
   DeviceModel,
@@ -26,6 +27,7 @@ import {
   DEFAULT_SOURCE_LOCALE,
   accentFromBackground,
   badgePlaceholder,
+  BLOB_BLEND_MODES,
   FONT_OPTIONS,
   MAX_BACKGROUND_BLOBS,
   MAX_TEXTS,
@@ -262,12 +264,18 @@ function coerceBackgroundOverlays(
           continue
         }
         const opacity = coerceNumber(b.opacity, 0, 1, where, `${field}.opacity`, issues)
+        let blendMode: BlobBlendMode | undefined
+        if (b.blendMode !== undefined) {
+          if (BLOB_BLEND_MODES.includes(b.blendMode as BlobBlendMode)) blendMode = b.blendMode as BlobBlendMode
+          else issues.push(t('{where}: {field}.blendMode "{value}"는 지원 안 함 — 무시', { where, field, value: String(b.blendMode) }))
+        }
         blobs.push({
           color: b.color as string,
           x,
           y,
           radius,
           ...(opacity !== undefined ? { opacity } : {}),
+          ...(blendMode ? { blendMode } : {}),
         })
       }
       if (blobs.length) out.blobs = blobs

@@ -163,6 +163,8 @@ export const en: Record<string, string> = {
     '{where}: {field} needs a color (string) — entry ignored',
   '{where}: {field}에 x/y/radius(숫자)가 필요 — 해당 항목 무시':
     '{where}: {field} needs numeric x/y/radius — entry ignored',
+  '{where}: {field}.blendMode "{value}"는 지원 안 함 — 무시':
+    '{where}: {field}.blendMode "{value}" is not supported — ignored',
   '매니페스트 JSON을 파싱할 수 없습니다': 'Cannot parse manifest JSON',
   '매니페스트는 JSON 객체여야 합니다': 'Manifest must be a JSON object',
   '지원하지 않는 매니페스트 버전: {ver} (version: 1 만 지원)':
@@ -559,6 +561,8 @@ export const en: Record<string, string> = {
   '블롭 {n} 색상': 'Blob {n} color',
   '블롭 {n} 삭제': 'Remove blob {n}',
   '+ 블롭 추가': '+ Add blob',
+  블렌드: 'Blend',
+  표준: 'Normal',
   '이미지를 읽을 수 없습니다. 다른 파일(PNG/JPG)을 올려주세요.':
     'Could not read the image. Please try a different file (PNG/JPG).',
 

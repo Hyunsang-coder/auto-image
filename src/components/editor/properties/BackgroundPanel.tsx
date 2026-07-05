@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
-import type { Background, BackgroundBlob } from '../../../types/project'
-import { THEME_PRESETS, DEFAULT_BACKGROUND, MAX_BACKGROUND_BLOBS, type ThemePreset } from '../../../constants/defaults'
+import type { Background, BackgroundBlob, BlobBlendMode } from '../../../types/project'
+import { THEME_PRESETS, DEFAULT_BACKGROUND, MAX_BACKGROUND_BLOBS, BLOB_BLEND_MODES, type ThemePreset } from '../../../constants/defaults'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 import { useCustomStore } from '../../../store/useCustomStore'
 import { useT } from '../../../i18n'
@@ -643,6 +643,26 @@ export function BackgroundPanel({
                   </span>
                 </div>
               ))}
+              <div className="flex items-center gap-2">
+                <span className="w-20 shrink-0 text-xs text-[var(--color-text-dim)]">{t('블렌드')}</span>
+                <select
+                  value={b.blendMode ?? 'normal'}
+                  onChange={(e) => {
+                    const next = { ...b }
+                    if (e.target.value === 'normal') delete next.blendMode
+                    else next.blendMode = e.target.value as BlobBlendMode
+                    setBlobs((value.blobs ?? []).map((bb, idx) => (idx === i ? next : bb)))
+                  }}
+                  className="min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1 text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+                >
+                  <option value="normal">{t('표준')}</option>
+                  {BLOB_BLEND_MODES.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           ))}
           {(value.blobs?.length ?? 0) < MAX_BACKGROUND_BLOBS && (

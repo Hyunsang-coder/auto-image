@@ -181,6 +181,8 @@ export interface ExternalImage {
   crop?: ScreenshotCrop
 }
 
+export type BlobBlendMode = 'multiply' | 'screen' | 'overlay' | 'soft-light'
+
 export interface BackgroundBlob {
   color: string
   /** Center as fractions of canvas width/height. May leave [0,1] to bleed off-canvas. */
@@ -190,6 +192,8 @@ export interface BackgroundBlob {
   radius: number
   /** Peak opacity at the blob center. Default 0.55. */
   opacity?: number
+  /** Composite against the base fill. Absent = normal alpha blend. */
+  blendMode?: BlobBlendMode
 }
 
 export interface Background {

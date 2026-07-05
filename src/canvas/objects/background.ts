@@ -80,6 +80,7 @@ function blobCircle(canvasWidth: number, canvasHeight: number, blob: BackgroundB
     originX: 'left',
     originY: 'top',
     opacity: blob.opacity ?? 0.55,
+    ...(blob.blendMode ? { globalCompositeOperation: blob.blendMode } : {}),
     selectable: false,
     evented: false,
     hoverCursor: 'default',
