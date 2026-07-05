@@ -113,7 +113,9 @@ export async function showDeviceFrame(page: Page) {
  */
 export async function uploadBackgroundImage(page: Page, name: string) {
   await page.getByRole('button', { name: '배경', exact: true }).click()
-  await page.getByRole('button', { name: '이미지', exact: true }).click()
+  // The properties panel also has an '이미지' (external images) tab — the
+  // background panel's fill-type tab is the later one in the DOM.
+  await page.getByRole('button', { name: '이미지', exact: true }).last().click()
   await page.locator('input[type="file"]').setInputFiles(`${fixturesDir}/${name}`)
 }
 

@@ -50,7 +50,7 @@ test('프로젝트 가져오기: manifest + 이미지 + CSV가 한 번에 프로
 
   // Result modal: 4 slides, 3 screenshots (base+override+base), 6 caption cells.
   await expect(
-    page.getByText('슬라이드 4장 · 스크린샷 3개 · 캡션 6개 적용'),
+    page.getByText('슬라이드 4장 · 스크린샷 3개 · 외부 이미지 0개 · 캡션 6개 적용'),
   ).toBeVisible()
   await expect(page.getByText(/경고 \d+건 보기/)).not.toBeVisible()
 
@@ -80,7 +80,7 @@ test('프로젝트 가져오기: 없는 슬라이드의 이미지는 경고로 �
   ])
 
   await expect(
-    page.getByText('슬라이드 1장 · 스크린샷 1개 · 캡션 0개 적용'),
+    page.getByText('슬라이드 1장 · 스크린샷 1개 · 외부 이미지 0개 · 캡션 0개 적용'),
   ).toBeVisible()
   await page.getByText(/경고 1건 보기/).click()
   await expect(page.getByText(/슬라이드 9/)).toBeVisible()
