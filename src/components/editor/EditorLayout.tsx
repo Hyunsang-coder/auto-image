@@ -17,6 +17,7 @@ import type {
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
+  Shape,
 } from '../../types/project'
 import {
   type ThemePreset,
@@ -43,6 +44,7 @@ const LAYER_TAB: Record<string, PanelTab> = {
   [LAYER_NAMES.DEVICE_FRAME]: 'screenshot',
   [LAYER_NAMES.BADGE]: 'badge',
   [LAYER_NAMES.ORNAMENT]: 'ornaments',
+  [LAYER_NAMES.SHAPE]: 'shapes',
   [LAYER_NAMES.EXTERNAL_IMAGE]: 'externalImages',
   [LAYER_NAMES.HIGHLIGHT_SOURCE]: 'highlights',
   [LAYER_NAMES.HIGHLIGHT_POPUP]: 'highlights',
@@ -403,6 +405,10 @@ export function EditorLayout() {
     applyEdit({ ornaments })
   }
 
+  function handleShapesChange(shapes: Shape[]) {
+    applyEdit({ shapes })
+  }
+
   function handleHighlightsChange(highlights: Highlight[]) {
     applyEdit({ highlights })
   }
@@ -663,6 +669,7 @@ export function EditorLayout() {
             onScreenshotStyleChange={handleScreenshotStyleChange}
             onExternalImagesChange={handleExternalImagesChange}
             onOrnamentsChange={handleOrnamentsChange}
+            onShapesChange={handleShapesChange}
             onHighlightsChange={handleHighlightsChange}
             onApplyThemePreset={handleApplyThemePreset}
             onSavePreset={handleSavePreset}

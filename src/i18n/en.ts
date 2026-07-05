@@ -214,6 +214,19 @@ export const en: Record<string, string> = {
     '{where}: unknown shape "{shape}" — excluded',
   '{where}: color는 문자열 — 무시':
     '{where}: color must be a string — ignored',
+  '{where}: shapes는 배열이어야 함 — 무시':
+    '{where}: shapes must be an array — ignored',
+  '{where}: shapes는 최대 {max}개 — 처음 {max}개만 사용':
+    '{where}: maximum {max} shapes — using first {max}',
+  '{where} shape {n}': '{where} shape {n}',
+  '{where}: 알 수 없는 kind "{kind}" — 제외':
+    '{where}: unknown kind "{kind}" — excluded',
+  '{where}: fill은 문자열 — 무시':
+    '{where}: fill must be a string — ignored',
+  '{where}: stroke는 color/width 객체여야 함 — 무시':
+    '{where}: stroke must be a color/width object — ignored',
+  '{where}: layer는 back|front — 무시':
+    '{where}: layer must be back|front — ignored',
   '{where}: externalImages는 배열이어야 함 — 무시':
     '{where}: externalImages must be an array — ignored',
   '{where}: externalImages는 최대 {max}개 — 처음 {max}개만 사용':
@@ -613,6 +626,22 @@ export const en: Record<string, string> = {
   백점: '100',
   회전: 'Rotation',
   투명도: 'Opacity',
+
+  // ShapePanel.tsx (도형/사각형 etc. come in through non-literal t(k.label) calls)
+  도형: 'Shapes',
+  사각형: 'Rectangle',
+  원: 'Ellipse',
+  선: 'Line',
+  화살표: 'Arrow',
+  '추가된 도형 ({n})': 'Shapes ({n})',
+  '채우기 색': 'Fill',
+  없음: 'None',
+  레이어: 'Layer',
+  '디바이스 뒤': 'Behind device',
+  '디바이스 앞': 'In front of device',
+  너비: 'Width',
+  높이: 'Height',
+  두께: 'Thickness',
 
   // HighlightPanel.tsx
   '하이라이트 추가': 'Add highlight',

@@ -6,7 +6,7 @@ import type { Caption, CaptionOverride, LocaleOverride, Slide, TextStyle } from 
 // changed for this locale is stored. resolveSlideForLocale flattens it back.
 //
 // Per-locale: template, background, device transform, screenshot style,
-// ornaments, and caption text/style/placement. Shared (passed straight to the
+// ornaments, shapes, and caption text/style/placement. Shared (passed straight to the
 // base): badges, highlights, and the base screenshot image — badge text stays
 // per-locale via translations.
 
@@ -84,6 +84,7 @@ export function routeLocalePatch(base: Slide, locale: string, patch: Partial<Sli
   if (patch.background) { next.background = patch.background; ovChanged = true }
   if (patch.screenshotStyle) { next.screenshotStyle = patch.screenshotStyle; ovChanged = true }
   if (patch.ornaments) { next.ornaments = patch.ornaments; ovChanged = true }
+  if (patch.shapes) { next.shapes = patch.shapes; ovChanged = true }
   if (patch.deviceFrame) {
     const df: Record<string, unknown> = { ...prev.deviceFrame }
     const pd = patch.deviceFrame as unknown as Record<string, unknown>

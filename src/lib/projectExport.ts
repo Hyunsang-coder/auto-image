@@ -18,6 +18,7 @@ import type {
   Ornament,
   Project,
   ScreenshotStyle,
+  Shape,
   Slide,
 } from '../types/project'
 import { DEFAULT_BACKGROUND } from '../constants/defaults'
@@ -71,6 +72,23 @@ function reverseScreenshotStyle(ss: ScreenshotStyle | undefined): Record<string,
 function reverseOrnaments(orns: Ornament[] | undefined): Record<string, unknown>[] | undefined {
   if (!orns?.length) return undefined
   return orns.map((o) => ({ shape: o.shape, x: o.x, y: o.y, size: o.size, rotation: o.rotation, color: o.color, opacity: o.opacity }))
+}
+
+function reverseShapes(shapes: Shape[] | undefined): Record<string, unknown>[] | undefined {
+  if (!shapes?.length) return undefined
+  return shapes.map((s) => ({
+    kind: s.kind,
+    x: s.x,
+    y: s.y,
+    width: s.width,
+    height: s.height,
+    rotation: s.rotation,
+    fill: s.fill,
+    opacity: s.opacity,
+    ...(s.cornerRadiusRatio !== undefined ? { cornerRadiusRatio: s.cornerRadiusRatio } : {}),
+    ...(s.stroke ? { stroke: { ...s.stroke } } : {}),
+    ...(s.layer !== undefined ? { layer: s.layer } : {}),
+  }))
 }
 
 function externalImageFilename(slideNumber: number, imageIndex: number): string {
@@ -167,6 +185,7 @@ function reverseSlide(slide: Slide, n: number, issues: string[], externalImagePl
   const bg = reverseBackground(slide.background, where, issues)
   const ss = reverseScreenshotStyle(slide.screenshotStyle)
   const orn = reverseOrnaments(slide.ornaments)
+  const shp = reverseShapes(slide.shapes)
   const ext = reverseExternalImages(slide.externalImages, n, externalImagePlan)
   const hl = reverseHighlights(slide.highlights)
   return {
@@ -176,6 +195,7 @@ function reverseSlide(slide: Slide, n: number, issues: string[], externalImagePl
     ...(bg ? { background: bg } : {}),
     ...(ss ? { screenshotStyle: ss } : {}),
     ...(orn ? { ornaments: orn } : {}),
+    ...(shp ? { shapes: shp } : {}),
     ...(ext ? { externalImages: ext } : {}),
     ...(slide.texts.length ? { texts: slide.texts.map((c, i) => reverseTextOverride(c, `${where} text:${i}`, issues)) } : {}),
     ...(hl ? { highlights: hl } : {}),

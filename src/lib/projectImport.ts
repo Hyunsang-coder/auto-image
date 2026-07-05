@@ -18,6 +18,7 @@ import type {
   OrnamentShape,
   Project,
   ScreenshotCrop,
+  ShapeKind,
   TemplateType,
 } from '../types/project'
 import { t } from '../i18n'
@@ -30,8 +31,10 @@ import {
   BLOB_BLEND_MODES,
   FONT_OPTIONS,
   MAX_BACKGROUND_BLOBS,
+  MAX_SHAPES,
   MAX_TEXTS,
   ORNAMENT_DEFAULTS,
+  SHAPE_DEFAULTS,
   SUPPORTED_LOCALES,
   TEMPLATE_FONT_SIZES,
   findThemePreset,
@@ -40,6 +43,7 @@ import {
   makeHighlight,
   makeOrnament,
   makeProject,
+  makeShape,
   makeTextBlock,
   newId,
 } from '../constants/defaults'
@@ -110,6 +114,7 @@ export interface ParsedSlide {
   deviceFrame: ParsedDeviceFrame
   screenshotStyle?: ParsedScreenshotStyle
   ornaments?: ParsedOrnament[]
+  shapes?: ParsedShape[]
   /** External bitmap assets. `file` is resolved by runProjectImport from the
    *  selected image files; geometry is preserved in manifest round-trips. */
   externalImages?: ParsedExternalImage[]
@@ -196,6 +201,21 @@ export interface ParsedScreenshotStyle {
   cornerRadiusRatio?: number
   shadow?: boolean
   crop?: ScreenshotCrop
+}
+
+/** Generic vector shape. Absent fields fall back to SHAPE_DEFAULTS per kind. */
+export interface ParsedShape {
+  kind: ShapeKind
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  rotation?: number
+  fill?: string
+  opacity?: number
+  cornerRadiusRatio?: number
+  stroke?: { color: string; width: number }
+  layer?: 'back' | 'front'
 }
 
 /** Emoji decoration. `color` is kept for model compat but emoji ignore it. */
@@ -493,6 +513,73 @@ export function coerceOrnaments(
     const opacity = coerceNumber(o.opacity, 0, 1, ow, 'opacity', issues)
     if (opacity !== undefined) orn.opacity = opacity
     out.push(orn)
+  })
+  return out
+}
+
+export function coerceShapes(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedShape[] | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    issues.push(t('{where}: shapes는 배열이어야 함 — 무시', { where }))
+    return undefined
+  }
+  let items = value
+  if (items.length > MAX_SHAPES) {
+    issues.push(t('{where}: shapes는 최대 {max}개 — 처음 {max}개만 사용', { where, max: MAX_SHAPES }))
+    items = items.slice(0, MAX_SHAPES)
+  }
+  const out: ParsedShape[] = []
+  items.forEach((rawShape, j) => {
+    const sw = t('{where} shape {n}', { where, n: j + 1 })
+    if (typeof rawShape !== 'object' || rawShape === null) {
+      issues.push(t('{where}: 항목이 객체가 아님 — 제외', { where: sw }))
+      return
+    }
+    const s = rawShape as Record<string, unknown>
+    if (typeof s.kind !== 'string' || !(s.kind in SHAPE_DEFAULTS)) {
+      issues.push(t('{where}: 알 수 없는 kind "{kind}" — 제외', { where: sw, kind: String(s.kind) }))
+      return
+    }
+    const shape: ParsedShape = { kind: s.kind as ShapeKind }
+    const x = coerceNumber(s.x, -0.5, 1.5, sw, 'x', issues)
+    if (x !== undefined) shape.x = x
+    const y = coerceNumber(s.y, -0.5, 1.5, sw, 'y', issues)
+    if (y !== undefined) shape.y = y
+    const width = coerceNumber(s.width, 0.005, 1.5, sw, 'width', issues)
+    if (width !== undefined) shape.width = width
+    const height = coerceNumber(s.height, 0.002, 1.5, sw, 'height', issues)
+    if (height !== undefined) shape.height = height
+    const rotation = coerceRotation(s.rotation, sw, 'rotation', issues)
+    if (rotation !== undefined) shape.rotation = rotation
+    if (s.fill !== undefined) {
+      if (typeof s.fill === 'string') shape.fill = s.fill
+      else issues.push(t('{where}: fill은 문자열 — 무시', { where: sw }))
+    }
+    const opacity = coerceNumber(s.opacity, 0, 1, sw, 'opacity', issues)
+    if (opacity !== undefined) shape.opacity = opacity
+    const cornerRadiusRatio = coerceNumber(s.cornerRadiusRatio, 0, 0.5, sw, 'cornerRadiusRatio', issues)
+    if (cornerRadiusRatio !== undefined) shape.cornerRadiusRatio = cornerRadiusRatio
+    if (s.stroke !== undefined) {
+      const st = s.stroke as { color?: unknown; width?: unknown } | null
+      const strokeWidth =
+        typeof st === 'object' && st !== null
+          ? coerceNumber(st.width, 0.0005, 0.1, sw, 'stroke.width', issues)
+          : undefined
+      if (typeof st === 'object' && st !== null && typeof st.color === 'string' && strokeWidth !== undefined) {
+        shape.stroke = { color: st.color, width: strokeWidth }
+      } else {
+        issues.push(t('{where}: stroke는 color/width 객체여야 함 — 무시', { where: sw }))
+      }
+    }
+    if (s.layer !== undefined) {
+      if (s.layer === 'back' || s.layer === 'front') shape.layer = s.layer
+      else issues.push(t('{where}: layer는 back|front — 무시', { where: sw }))
+    }
+    out.push(shape)
   })
   return out
 }
@@ -1003,6 +1090,7 @@ export function parseManifest(text: string): ManifestParseResult {
 
     const screenshotStyle = coerceScreenshotStyle(s.screenshotStyle, where, issues)
     const ornaments = coerceOrnaments(s.ornaments, where, issues)
+    const shapes = coerceShapes(s.shapes, where, issues)
     const externalImages = coerceExternalImages(s.externalImages, where, issues)
     const textX = coerceNumber(s.textX, 0, 1, where, 'textX', issues)
     const textY = coerceNumber(s.textY, 0, 1, where, 'textY', issues)
@@ -1018,6 +1106,7 @@ export function parseManifest(text: string): ManifestParseResult {
       deviceFrame: coerceDeviceFrame(s.deviceFrame, where, issues),
       ...(screenshotStyle ? { screenshotStyle } : {}),
       ...(ornaments ? { ornaments } : {}),
+      ...(shapes ? { shapes } : {}),
       ...(externalImages ? { externalImages } : {}),
       ...(textX !== undefined ? { textX } : {}),
       ...(textY !== undefined ? { textY } : {}),
@@ -1156,6 +1245,9 @@ export function buildProjectFromManifest(manifest: ParsedManifest): Project {
         : {}),
       ...(spec.ornaments !== undefined
         ? { ornaments: spec.ornaments.map((o) => makeOrnament(o.shape, o)) }
+        : {}),
+      ...(spec.shapes !== undefined
+        ? { shapes: spec.shapes.map((s) => makeShape(s.kind, s)) }
         : {}),
       ...(spec.highlights !== undefined
         ? { highlights: spec.highlights.map((h) => makeHighlight(h)) }

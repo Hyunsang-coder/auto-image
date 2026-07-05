@@ -53,6 +53,7 @@
 | `slides[].deviceFrame` | boolean \| object | `false` | 기본은 베젤 숨김(스크린샷만 플로팅). `true` = 기기 베젤 표시. 객체형은 `show: true`를 명시해야 베젤이 나오며 아래 [기기 transform](#기기-transform--플로팅-카드--장식-디자인-노브) 적용 |
 | `slides[].screenshotStyle` | object | — | 플로팅 카드 룩(베젤 숨김일 때 적용) — 아래 참조 |
 | `slides[].ornaments` | array | — | 이모지 장식, 슬라이드당 최대 5개 — 아래 참조 |
+| `slides[].shapes` | array | — | 벡터 도형(rect/ellipse/line/arrow), 슬라이드당 최대 8개 — 아래 참조 |
 | `slides[].externalImages` | array | — | 기기 스크린샷과 독립된 bitmap 이미지, 슬라이드당 최대 3개. 각 항목의 `file`은 같이 선택한 이미지 파일명. 렌더 스타일은 `screenshotStyle`과 같은 `cornerRadiusRatio`/`shadow`/`crop`을 사용 |
 | `slides[].texts` | array | — | **블록별 텍스트 스타일/위치 오버라이드**(폰트·색·정렬·박스 등) — 아래 참조 |
 | `slides[].highlights` | array | — | **루페(돋보기)** — 스크린샷 특정 영역 확대 카드, 슬라이드당 최대 3개 — 아래 참조 |
@@ -93,6 +94,15 @@
   "ornaments": [             // 이모지 장식, 최대 5개. 미지원 shape는 경고 후 제외
     { "shape": "sparkles", "x": 0.88, "y": 0.12, "size": 0.10, "rotation": 0, "opacity": 0.85 }
   ],
+  "shapes": [                // 벡터 도형, 최대 8개. 미지원 kind는 경고 후 제외
+    { "kind": "rect", "x": 0.5, "y": 0.3, "width": 0.5, "height": 0.2,
+      "rotation": 0, "fill": "#FFFFFF", "opacity": 0.25,
+      "cornerRadiusRatio": 0.12, "layer": "back" },
+    { "kind": "arrow", "x": 0.62, "y": 0.48, "width": 0.25, "height": 0.03,
+      "rotation": -30, "fill": "#FFD54A", "opacity": 1, "layer": "front" },
+    { "kind": "ellipse", "x": 0.5, "y": 0.55, "width": 0.2, "height": 0.09,
+      "fill": "none", "stroke": { "color": "#FF5A5F", "width": 0.006 }, "layer": "front" }
+  ],
   "externalImages": [        // bitmap 이미지, 최대 3개. file은 선택 파일명과 일치해야 함
     {
       "file": "1-external-1.png",
@@ -114,6 +124,14 @@
 - ornament `shape` 18종: `star sparkles heart flower leaf paw fire party rocket
   bulb bolt check thumbsup trophy gem target bell hundred`. 이모지로 렌더되므로
   `color`는 받아두지만 적용되지 않는다. `x`/`y`/`size`는 캔버스 비율(0–1).
+- shape `kind` 4종: `rect`(둥근 모서리 `cornerRadiusRatio` 0–0.5, 짧은 변 기준
+  비율) · `ellipse` · `line`(끝이 둥근 선) · `arrow`(오른쪽 화살촉 — `rotation`
+  으로 방향을 잡는다). `x`/`y`는 도형 중심(-0.5~1.5, 캔버스 밖 블리드 허용),
+  `width`는 캔버스 폭 비율, `height`는 캔버스 높이 비율 — line/arrow는
+  `width`=길이, `height`=두께/화살촉 크기. `fill`은 hex 또는 `"none"`(테두리만),
+  `stroke`는 `{ "color": "#…", "width": 0.006 }`(캔버스 폭 비율). `layer`는
+  `back`(기본 — 배경 위·기기 아래, 장식 컬러 블록용) 또는 `front`(기기·텍스트
+  위·하이라이트/배지 아래, 화살표·링 주석용).
 - external image는 `x`/`y`(중심), `width`(캔버스 폭 비율), `rotation`,
   `opacity`, `cornerRadiusRatio`, `shadow`, `crop`을 저장한다. `x`/`y`는
   -0.5~1.5까지 허용해 캔버스 밖 블리드를 만들 수 있고, `width`는

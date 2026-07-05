@@ -60,6 +60,7 @@ function cloneSlideStandalone(src: Slide): Slide {
   c.badges = c.badges.map((b) => ({ ...b, id: newId('badge') }))
   c.highlights = c.highlights.map((h) => ({ ...h, id: newId('hl') }))
   c.ornaments = c.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
+  c.shapes = c.shapes?.map((s) => ({ ...s, id: newId('shape') }))
   c.externalImages = c.externalImages?.map((img) => ({ ...img, id: newId('ext') }))
   c.spanGroupId = undefined
   c.spanRole = undefined
@@ -97,6 +98,7 @@ async function buildIndependentFromLeader(
     : await duplicateScreenshot(leader.screenshot)
   const highlights = leader.highlights.map((h) => ({ ...h, id: newId('hl') }))
   const ornaments = leader.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
+  const shapes = leader.shapes?.map((s) => ({ ...s, id: newId('shape') }))
   const externalImages = leader.externalImages?.map((img) => ({ ...img, id: newId('ext') }))
   const badges = leader.badges.map((b) => ({ ...b, id: newId('badge') }))
   // Look overrides referenced the follower's pre-link look, which the leader
@@ -118,6 +120,7 @@ async function buildIndependentFromLeader(
     badges,
     highlights,
     ornaments,
+    shapes,
     externalImages,
     screenshotStyle: leader.screenshotStyle ? { ...leader.screenshotStyle } : undefined,
     spanGroupId: undefined,

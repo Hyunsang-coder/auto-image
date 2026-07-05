@@ -1,5 +1,7 @@
 export const LAYER_NAMES = {
   BACKGROUND: 'background',
+  /** Generic vector shapes; band (back/front) is insertion order, not the name. */
+  SHAPE: 'shape',
   ORNAMENT: 'ornament',
   EXTERNAL_IMAGE: 'external-image',
   /** Shadow-only proxy rects under the floating screenshot card (ambient/contact layers). */

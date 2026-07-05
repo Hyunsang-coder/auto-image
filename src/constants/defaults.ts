@@ -11,6 +11,8 @@ import type {
   OrnamentShape,
   Project,
   ScreenshotStyle,
+  Shape,
+  ShapeKind,
   Slide,
   TemplateType,
   TextStyle,
@@ -512,6 +514,38 @@ export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>
     rotation: base.rotation ?? 0,
     color: base.color ?? '#FFFFFF',
     opacity: base.opacity ?? 1,
+    ...overrides,
+  }
+}
+
+/** Max generic shapes per slide. */
+export const MAX_SHAPES = 8
+
+// Per-kind defaults chosen so a freshly added shape reads immediately: rect/
+// ellipse are translucent color blocks behind the device (layer 'back'),
+// line/arrow are solid annotation marks above it (layer 'front'). Module-scope
+// so manifest import can validate kind names against the keys.
+export const SHAPE_DEFAULTS: Record<ShapeKind, Partial<Shape>> = {
+  rect:    { x: 0.5, y: 0.32, width: 0.5,  height: 0.2,   fill: '#FFFFFF', opacity: 0.25, cornerRadiusRatio: 0.12, layer: 'back' },
+  ellipse: { x: 0.5, y: 0.32, width: 0.38, height: 0.175, fill: '#FFFFFF', opacity: 0.25, layer: 'back' },
+  line:    { x: 0.5, y: 0.5,  width: 0.3,  height: 0.005, fill: '#FFFFFF', opacity: 1, layer: 'front' },
+  arrow:   { x: 0.5, y: 0.5,  width: 0.28, height: 0.03,  fill: '#FFFFFF', opacity: 1, layer: 'front' },
+}
+
+export function makeShape(kind: ShapeKind, overrides?: Partial<Shape>): Shape {
+  const base = SHAPE_DEFAULTS[kind]
+  return {
+    id: newId('shape'),
+    kind,
+    x: base.x ?? 0.5,
+    y: base.y ?? 0.5,
+    width: base.width ?? 0.3,
+    height: base.height ?? 0.1,
+    rotation: 0,
+    fill: base.fill ?? '#FFFFFF',
+    opacity: base.opacity ?? 1,
+    ...(base.cornerRadiusRatio !== undefined ? { cornerRadiusRatio: base.cornerRadiusRatio } : {}),
+    ...(base.layer !== undefined ? { layer: base.layer } : {}),
     ...overrides,
   }
 }

@@ -13,6 +13,7 @@ export type DeviceModel =
 export type DeviceColor = 'black' | 'silver'
 export type BackgroundType = 'solid' | 'gradient' | 'image'
 export type TranslationAPI = 'claude' | 'openai' | 'gemini'
+export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'arrow'
 export type OrnamentShape =
   | 'star'
   | 'sparkles'
@@ -76,6 +77,8 @@ export interface Slide {
   highlights: Highlight[]
   /** Decorative SVG ornaments rendered above background, below screenshot. */
   ornaments?: Ornament[]
+  /** Generic vector shapes (rect/ellipse/line/arrow), per-shape back/front band. */
+  shapes?: Shape[]
   /** User-added bitmap images, independent of the device screenshot. */
   externalImages?: ExternalImage[]
   /** When deviceFrame.show is false, controls how the screenshot floats. */
@@ -129,6 +132,8 @@ export interface LocaleOverride {
   /** Whole-array copy-on-write: a locale that touches any ornament owns the
    * full set from then on (base ornament edits stop showing through). */
   ornaments?: Ornament[]
+  /** Same whole-array copy-on-write as ornaments. */
+  shapes?: Shape[]
 }
 
 export interface ScreenshotStyle {
@@ -148,6 +153,29 @@ export interface ScreenshotCrop {
   right: number
   bottom: number
   left: number
+}
+
+export interface Shape {
+  id: string
+  kind: ShapeKind
+  /** Canvas-relative center, 0..1 each axis. May leave [0,1] to bleed off-canvas. */
+  x: number
+  y: number
+  /** Width as fraction of canvas width. Line/arrow: length. */
+  width: number
+  /** Height as fraction of canvas height. Line/arrow: shaft/head thickness. */
+  height: number
+  rotation: number
+  /** Hex fill; 'none' = no fill (outline-only shapes). */
+  fill: string
+  opacity: number
+  /** rect only: corner radius as a fraction of the shorter side (0–0.5). */
+  cornerRadiusRatio?: number
+  /** Outline stroke; width as a fraction of canvas width. */
+  stroke?: { color: string; width: number }
+  /** Render band: 'back' = above background, below screenshot (default);
+   *  'front' = above device + text, below highlights/badges. */
+  layer?: 'back' | 'front'
 }
 
 export interface Ornament {

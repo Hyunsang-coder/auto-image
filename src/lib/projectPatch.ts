@@ -17,6 +17,7 @@ import {
   TEMPLATE_FONT_SIZES,
   makeHighlight,
   makeOrnament,
+  makeShape,
   newId,
 } from '../constants/defaults'
 import { DEFAULT_MODEL, MODELS_BY_TYPE, detectTypeFromAspect, typeOfModel } from '../constants/deviceSpecs'
@@ -29,6 +30,7 @@ import {
   coerceHighlights,
   coerceOrnaments,
   coerceScreenshotStyle,
+  coerceShapes,
   coerceTextOverrides,
   type ParsedTextOverride,
 } from './projectImport'
@@ -76,7 +78,7 @@ const KNOWN_LOCALES = new Set<string>(SUPPORTED_LOCALES.map((l) => l.code))
 
 // Shared layers are leader-owned in a span pair; only `texts` are per-slide, so
 // these paths are rejected when addressed to a follower (edit the leader).
-const FOLLOWER_SHARED_PREFIXES = ['background', 'template', 'deviceFrame', 'screenshotStyle', 'ornaments', 'externalImages', 'highlights', 'badges']
+const FOLLOWER_SHARED_PREFIXES = ['background', 'template', 'deviceFrame', 'screenshotStyle', 'ornaments', 'shapes', 'externalImages', 'highlights', 'badges']
 const MAX_EXTERNAL_IMAGES = 3
 const EXTERNAL_IMAGE_WIDTH_MIN = 0.05
 const EXTERNAL_IMAGE_WIDTH_MAX = 1.5
@@ -557,6 +559,11 @@ function applySlideSet(project: Project, slide: Slide, index: number, path: stri
   if (path === 'ornaments') {
     const parsed = coerceOrnaments(value, `slide ${index + 1}`, issues)
     if (parsed) next.ornaments = parsed.map((o) => makeOrnament(o.shape, o))
+    return
+  }
+  if (path === 'shapes') {
+    const parsed = coerceShapes(value, `slide ${index + 1}`, issues)
+    if (parsed) next.shapes = parsed.map((s) => makeShape(s.kind, s))
     return
   }
   if (path === 'highlights') {

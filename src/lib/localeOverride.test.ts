@@ -107,6 +107,16 @@ describe('routeLocalePatch', () => {
     expect(out.localeOverrides?.fr.ornaments).toBe(ornaments)
   })
 
+  it('routes shapes to the override, not the base', () => {
+    const base = baseSlide()
+    const shapes = [
+      { id: 's1', kind: 'rect' as const, x: 0.5, y: 0.3, width: 0.5, height: 0.2, rotation: 0, fill: '#fff', opacity: 0.25 },
+    ]
+    const out = routeLocalePatch(base, 'fr', { shapes })
+    expect(out.shapes).toBeUndefined()
+    expect(out.localeOverrides?.fr.shapes).toBe(shapes)
+  })
+
   it('merges onto an existing override and preserves other locales', () => {
     const base = baseSlide({
       localeOverrides: { fr: { texts: { 0: { boxWidth: 0.6 } } }, de: { template: 'hero' } },

@@ -103,6 +103,14 @@ describe('resolveSlideForLocale', () => {
     expect(resolveSlideForLocale(s, 'de').ornaments).toBe(baseOrn)
   })
 
+  it('applies per-locale shapes, falling back to base when absent', () => {
+    const baseShapes = [{ id: 's1', kind: 'rect' as const, x: 0.5, y: 0.3, width: 0.5, height: 0.2, rotation: 0, fill: '#fff', opacity: 0.25 }]
+    const frShapes = [{ ...baseShapes[0], x: 0.2 }]
+    const s = baseSlide({ shapes: baseShapes, localeOverrides: { fr: { shapes: frShapes } } })
+    expect(resolveSlideForLocale(s, 'fr').shapes).toBe(frShapes)
+    expect(resolveSlideForLocale(s, 'de').shapes).toBe(baseShapes)
+  })
+
   it('borrows a donor locale screenshot via localeSource when set', () => {
     const s = baseSlide({
       screenshot: {

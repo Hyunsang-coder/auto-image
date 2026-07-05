@@ -74,6 +74,23 @@ describe('exportProject round-trip', () => {
     expect(out.screenshotPlan).toContain('1.en.png')
   })
 
+  it('round-trips shapes losslessly (geometry, stroke, layer)', () => {
+    const p = coreProject()
+    p.slides[0].shapes = [
+      { id: 'shp1', kind: 'rect', x: 0.5, y: 0.3, width: 0.5, height: 0.2, rotation: 0, fill: '#FFFFFF', opacity: 0.25, cornerRadiusRatio: 0.12, layer: 'back' },
+      { id: 'shp2', kind: 'ellipse', x: 0.5, y: 0.55, width: 0.2, height: 0.09, rotation: 0, fill: 'none', opacity: 1, stroke: { color: '#FF5A5F', width: 0.006 }, layer: 'front' },
+      { id: 'shp3', kind: 'arrow', x: 0.6, y: 0.45, width: 0.25, height: 0.03, rotation: -30, fill: '#FFD54A', opacity: 1, layer: 'front' },
+    ]
+    const out = exportProject(p)
+    expect(out.issues).toEqual([])
+    const p2 = reimport(out)
+    const shapes = p2.slides[0].shapes!
+    expect(shapes).toHaveLength(3)
+    expect(shapes.map((s) => ({ ...s, id: undefined }))).toEqual(
+      p.slides[0].shapes!.map((s) => ({ ...s, id: undefined })),
+    )
+  })
+
   it('exports external image geometry and filename plan', () => {
     const p = coreProject()
     p.slides[0].externalImages = [

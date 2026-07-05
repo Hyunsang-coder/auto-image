@@ -89,6 +89,9 @@ function inspectBundle(bundle) {
     if (slide.spanRole === 'follower' && (slide.externalImages ?? []).length) {
       slideIssues.push('externalImages on a span follower are ignored while grouped')
     }
+    if (slide.spanRole === 'follower' && (slide.shapes ?? []).length) {
+      slideIssues.push('shapes on a span follower are ignored while grouped')
+    }
     if (slide.background?.type === 'image' && !bgImageKey(slide.background)) slideIssues.push('image background missing imageKey')
 
     const refs = [
@@ -127,6 +130,7 @@ function inspectBundle(bundle) {
         texts: slide.texts?.length ?? 0,
         badges: slide.badges?.length ?? 0,
         ornaments: slide.ornaments?.length ?? 0,
+        shapes: slide.shapes?.length ?? 0,
         externalImages: slide.externalImages?.length ?? 0,
         highlights: slide.highlights?.length ?? 0,
       },
@@ -144,6 +148,21 @@ function inspectBundle(bundle) {
         field: `badge:${index}`,
         text: badge.text ?? '',
         translations: badge.translations ?? {},
+      })),
+      shapes: (slide.shapes ?? []).map((shape, index) => ({
+        index,
+        id: shape.id,
+        kind: shape.kind,
+        x: shape.x,
+        y: shape.y,
+        width: shape.width,
+        height: shape.height,
+        rotation: shape.rotation,
+        fill: shape.fill,
+        opacity: shape.opacity,
+        cornerRadiusRatio: shape.cornerRadiusRatio ?? null,
+        stroke: shape.stroke ?? null,
+        layer: shape.layer ?? 'back',
       })),
       externalImages: (slide.externalImages ?? []).map((image, index) => ({
         index,

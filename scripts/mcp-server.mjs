@@ -16,7 +16,7 @@ import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { FONT_OPTIONS, MAX_TEXTS, ORNAMENT_DEFAULTS, SUPPORTED_LOCALES, THEME_PRESETS } from '../src/constants/defaults.ts'
+import { FONT_OPTIONS, MAX_TEXTS, ORNAMENT_DEFAULTS, SHAPE_DEFAULTS, SUPPORTED_LOCALES, THEME_PRESETS } from '../src/constants/defaults.ts'
 import { DEFAULT_MODEL, DEVICE_SPECS, EDITOR_CANVAS_WIDTH } from '../src/constants/deviceSpecs.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -114,7 +114,7 @@ server.registerTool(
     title: 'Import manifest spec',
     description:
       'The full authoring spec (Korean) for the project-import format: manifest schema (layouts, ' +
-      'deviceFrame transform, screenshotStyle, texts styling, badges, ornaments, external images, ' +
+      'deviceFrame transform, screenshotStyle, texts styling, badges, ornaments, shapes, external images, ' +
       'highlights/loupe, 2-page spans, textY), screenshot filename rules, caption CSV/JSON format, ' +
       'and the layout report/issue codes. Read this before authoring a manifest.',
   },
@@ -157,6 +157,12 @@ gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→b
 and emphasis {color?,fontWeight?} — painted onto ==word== marker ranges written
 inside caption text/translation strings via setText),
 badges[i].style.*, ornaments, highlights,
+shapes (whole-array; items {kind: rect|ellipse|line|arrow, x, y, width, height,
+rotation, fill (hex or "none"), opacity, cornerRadiusRatio (rect),
+stroke {color,width}, layer: back|front} — x/y = center fractions, width of
+canvas width, height of canvas height; line/arrow: width=length,
+height=thickness/head size; "back" renders behind the device, "front" above
+device + text),
 externalImages[i].x/y/width/rotation/opacity/cornerRadiusRatio/shadow/crop
 (+ externalImages[i].crop.top/right/bottom/left), and project-level
 name/sourceLocale/targetLocales/deviceModels.
@@ -186,7 +192,7 @@ server.registerTool(
     title: 'Design reference data',
     description:
       'Machine-readable design vocabulary for authoring manifests and patches: theme preset ids (with their ' +
-      'actual gradients/colors), font families, layouts, ornament shapes, supported locales, device models with ' +
+      'actual gradients/colors), font families, layouts, ornament shapes, generic shape kinds, supported locales, device models with ' +
       'export resolutions, and per-slide limits. Use the preset ids for manifest themeBackground.',
   },
   async () =>
@@ -204,6 +210,9 @@ server.registerTool(
       // fall back to Pretendard automatically.
       fontFamilies: FONT_OPTIONS.map((f) => f.family),
       ornamentShapes: ORNAMENT_DEFAULTS,
+      // slides[].shapes kinds with their add-defaults; geometry fields are
+      // canvas fractions (x/y center, width of canvas W, height of canvas H).
+      shapeKinds: SHAPE_DEFAULTS,
       locales: SUPPORTED_LOCALES.map(({ code, name }) => ({ code, name })),
       deviceModels: Object.values(DEVICE_SPECS).map(({ model, type, label, exportWidth, exportHeight }) => ({
         model,
@@ -218,6 +227,7 @@ server.registerTool(
         textBlocksPerSlide: MAX_TEXTS,
         badgesPerSlide: 5,
         ornamentsPerSlide: 5,
+        shapesPerSlide: 8,
         externalImagesPerSlide: 3,
         highlightsPerSlide: 3,
       },

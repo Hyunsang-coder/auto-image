@@ -274,6 +274,30 @@ describe('parseManifest normalization', () => {
     expect(issues.some((i) => i.includes('"unicorn"'))).toBe(true)
   })
 
+  it('parses shapes, skips unknown kinds, and caps the count', () => {
+    const nine = Array.from({ length: 9 }, () => ({ kind: 'rect' }))
+    const capped = parseManifest(minimal({}, [{ shapes: nine }]))
+    expect(capped.manifest?.slides[0].shapes).toHaveLength(8)
+    expect(capped.issues.some((i) => i.includes('최대 8개'))).toBe(true)
+
+    const { manifest, issues } = parseManifest(
+      minimal({}, [
+        {
+          shapes: [
+            { kind: 'arrow', x: 0.6, y: 0.4, width: 0.25, height: 0.03, rotation: -30, fill: '#FFD54A', layer: 'front' },
+            { kind: 'ellipse', fill: 'none', stroke: { color: '#FF5A5F', width: 0.006 } },
+            { kind: 'blob' },
+          ],
+        },
+      ]),
+    )
+    expect(manifest?.slides[0].shapes).toEqual([
+      { kind: 'arrow', x: 0.6, y: 0.4, width: 0.25, height: 0.03, rotation: -30, fill: '#FFD54A', layer: 'front' },
+      { kind: 'ellipse', fill: 'none', stroke: { color: '#FF5A5F', width: 0.006 } },
+    ])
+    expect(issues.some((i) => i.includes('"blob"'))).toBe(true)
+  })
+
   it('parses per-block text overrides with clamps and sub-objects', () => {
     const { manifest, issues } = parseManifest(
       minimal({}, [
@@ -671,6 +695,21 @@ describe('buildProjectFromManifest', () => {
     // untouched slide keeps the factory defaults
     expect(p.slides[1].screenshotStyle).toEqual({ cornerRadiusRatio: 0.06, shadow: true })
     expect(p.slides[1].ornaments).toEqual([])
+  })
+
+  it('materializes shapes via makeShape with per-kind defaults', () => {
+    const m = parseManifest(
+      minimal({}, [{ shapes: [{ kind: 'rect', x: 0.3 }, { kind: 'arrow' }] }, {}]),
+    ).manifest!
+    const p = buildProjectFromManifest(m)
+    const [rect, arrow] = p.slides[0].shapes!
+    expect(rect.kind).toBe('rect')
+    expect(rect.x).toBe(0.3) // manifest override
+    expect(rect.layer).toBe('back') // kind default
+    expect(rect.cornerRadiusRatio).toBe(0.12)
+    expect(rect.id).toBeTruthy()
+    expect(arrow.layer).toBe('front')
+    expect(p.slides[1].shapes).toBeUndefined()
   })
 
   it('shrinks the device on text-bottom slides so it clears the text band', () => {

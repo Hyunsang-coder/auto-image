@@ -245,6 +245,28 @@ describe('set (whitelisted paths)', () => {
     expect(p.slides[0].badges[0].style.backgroundColor).toBe('#ff0000')
   })
 
+  it('replaces shapes whole-array with clamps; rejects a follower write', () => {
+    const { project: p, issues } = applyPatch(project(), [
+      {
+        op: 'set',
+        slide: 1,
+        path: 'shapes',
+        value: [
+          { kind: 'rect', x: 0.5, y: 0.3, width: 0.5, height: 0.2, fill: '#101015', cornerRadiusRatio: 0.9 },
+          { kind: 'arrow', layer: 'front' },
+        ],
+      },
+      { op: 'set', slide: 4, path: 'shapes', value: [{ kind: 'rect' }] },
+    ])
+    expect(p.slides[0].shapes).toHaveLength(2)
+    expect(p.slides[0].shapes?.[0].fill).toBe('#101015')
+    expect(p.slides[0].shapes?.[0].cornerRadiusRatio).toBe(0.5) // clamped
+    expect(p.slides[0].shapes?.[0].id).toBeTruthy()
+    expect(p.slides[0].shapes?.[1].layer).toBe('front')
+    expect(issues.join()).toMatch(/leader-owned/)
+    expect(p.slides[3].shapes).toBeUndefined()
+  })
+
   it('sets project-scoped fields', () => {
     const { project: p } = applyPatch(project(), [
       { op: 'set', path: 'name', value: 'Renamed' },

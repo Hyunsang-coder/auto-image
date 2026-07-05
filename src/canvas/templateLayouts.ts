@@ -10,6 +10,7 @@ import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
 import { renderExternalImage } from './objects/externalImage'
 import { renderHighlight, renderHighlightSource } from './objects/highlight'
 import { renderOrnament } from './objects/ornament'
+import { renderShape } from './objects/shape'
 import { LAYER_NAMES } from './layerNames'
 import { loadImageObjectUrl, type ImageUrlResolver } from '../lib/imageStore'
 
@@ -478,6 +479,14 @@ export async function applyTemplate(
     canvas.add(obj)
   }
 
+  // 1.5 Back-band shapes (above bg, below ornaments/content) — decorative
+  // color blocks behind the device. Front-band shapes are added after text.
+  for (const shape of slide.shapes ?? []) {
+    if ((shape.layer ?? 'back') === 'back') {
+      canvas.add(renderShape(shape, { canvasWidth: cw, canvasHeight: ch }))
+    }
+  }
+
   // 2. Ornaments (above bg, below content). 우리가 화면 어디서든 dragging 할 수 있도록 selectable로 둔다.
   if (slide.ornaments) {
     for (const orn of slide.ornaments) {
@@ -532,6 +541,14 @@ export async function applyTemplate(
       offsetX: cw / 2,
       owner: 'follower',
     })
+  }
+
+  // 4.5 Front-band shapes — annotation marks (arrows/rings) above the device
+  // and text, below highlights/badges.
+  for (const shape of slide.shapes ?? []) {
+    if (shape.layer === 'front') {
+      canvas.add(renderShape(shape, { canvasWidth: cw, canvasHeight: ch }))
+    }
   }
 
   // 5. External bitmap images — independent foreground assets.

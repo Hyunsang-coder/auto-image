@@ -145,7 +145,7 @@ RFC6902 JSON Patch는 내부 경로 노출 + clamping/불변식 보호 없음 �
 | `set screenshotStyle.*` | `coerceScreenshotStyle` (corner 0–0.2, crop 0–0.5) |
 | `set` texts[i] 스타일 | `applyTextOverride`/`coerceTextOverrides` |
 | `set background` | manifest 배경 파서(solid/gradient; image 거부) |
-| `set` ornaments/highlights/badges 구조 | `makeOrnament`/`makeHighlight`/`makeBadge` |
+| `set` ornaments/shapes/highlights/badges 구조 | `makeOrnament`/`makeShape`/`makeHighlight`/`makeBadge` |
 | `setScreenshot` | `bulkImageImport` 라우팅(base vs override, 교차타입 aspect) + dims |
 | `add/set/removeExternalImage` | bundle image blob + `externalImages[]` geometry/render style(max 3; corner/crop ranges mirror `screenshotStyle`) |
 
@@ -174,7 +174,7 @@ npm run headless:export -- out.studio.zip render-out --report
 ```
 
 ### 안전장치
-- `set path` **whitelist**: `deviceFrame.*`, `screenshotStyle.*`, `background`, `template`, `texts[i].style.*`, `texts[i].pos/boxWidth`, `badges[i].style.*`, `ornaments`, `highlights`, `externalImages[i].x/y/width/rotation/opacity/cornerRadiusRatio/shadow/crop` 및 `externalImages[i].crop.top/right/bottom/left`, 프로젝트 `name/sourceLocale/targetLocales/deviceModels`. **금지**: `id`/`imageKey` 직접, `spanGroupId`, `index`(불변식 보호; 이미지는 전용 image op로만).
+- `set path` **whitelist**: `deviceFrame.*`, `screenshotStyle.*`, `background`, `template`, `texts[i].style.*`, `texts[i].pos/boxWidth`, `badges[i].style.*`, `ornaments`, `shapes`, `highlights`, `externalImages[i].x/y/width/rotation/opacity/cornerRadiusRatio/shadow/crop` 및 `externalImages[i].crop.top/right/bottom/left`, 프로젝트 `name/sourceLocale/targetLocales/deviceModels`. **금지**: `id`/`imageKey` 직접, `spanGroupId`, `index`(불변식 보호; 이미지는 전용 image op로만).
 - span 불변식: leader가 공유 레이어 소유 → follower에 `deviceFrame/background/externalImages` 패치 시 거부+경고(텍스트는 follower 소유라 허용).
 - 모든 거부/보정은 `issues[]` 보고.
 

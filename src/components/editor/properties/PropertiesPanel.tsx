@@ -9,6 +9,7 @@ import type {
   Ornament,
   ScreenshotImage,
   ScreenshotStyle,
+  Shape,
   TextStyle,
 } from '../../../types/project'
 import type { ThemePreset } from '../../../constants/defaults'
@@ -18,6 +19,7 @@ import { CaptionPanel } from './CaptionPanel'
 import { ScreenshotPanel } from './ScreenshotPanel'
 import { ExternalImagePanel } from './ExternalImagePanel'
 import { OrnamentPanel } from './OrnamentPanel'
+import { ShapePanel } from './ShapePanel'
 import { HighlightPanel } from './HighlightPanel'
 import { useT } from '../../../i18n'
 
@@ -28,6 +30,7 @@ export type PanelTab =
   | 'externalImages'
   | 'badge'
   | 'ornaments'
+  | 'shapes'
   | 'highlights'
 
 const TABS: { id: PanelTab; label: string }[] = [
@@ -36,6 +39,7 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: 'screenshot',  label: '디바이스' },
   { id: 'externalImages', label: '이미지' },
   { id: 'highlights',  label: '하이라이트' },
+  { id: 'shapes',      label: '도형' },
   { id: 'ornaments',   label: '장식' },
   { id: 'badge',       label: '배지' },
 ]
@@ -58,6 +62,7 @@ interface Props {
   onScreenshotStyleChange: (style: ScreenshotStyle) => void
   onExternalImagesChange: (next: ExternalImage[]) => void
   onOrnamentsChange: (next: Ornament[]) => void
+  onShapesChange: (next: Shape[]) => void
   onHighlightsChange: (next: Highlight[]) => void
   onApplyThemePreset: (preset: ThemePreset) => void
   onSavePreset: (name: string) => void
@@ -84,6 +89,7 @@ export function PropertiesPanel({
   onScreenshotStyleChange,
   onExternalImagesChange,
   onOrnamentsChange,
+  onShapesChange,
   onHighlightsChange,
   onApplyThemePreset,
   onSavePreset,
@@ -163,6 +169,12 @@ export function PropertiesPanel({
             value={slide.highlights ?? []}
             hasScreenshot={!!slide.screenshot}
             onChange={onHighlightsChange}
+          />
+        )}
+        {tab === 'shapes' && (
+          <ShapePanel
+            value={slide.shapes ?? []}
+            onChange={onShapesChange}
           />
         )}
         {tab === 'ornaments' && (
