@@ -98,7 +98,9 @@ function applySnapGuides(canvas: Canvas, target: FabricObject, ln: string | unde
     const oln = (o as FabricObject & { layerName?: string }).layerName
     // TEXT_BOX rides its caption one tick behind — letting the caption snap to
     // its own box edges would make the drag sticky at ±padding offsets.
-    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND || oln === LAYER_NAMES.TEXT_BOX) continue
+    // SCREENSHOT_SHADOW duplicates the screenshot's box and rides the device —
+    // as a snap candidate it would make the drag self-sticky.
+    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND || oln === LAYER_NAMES.TEXT_BOX || oln === LAYER_NAMES.SCREENSHOT_SHADOW) continue
     // The screenshot moves with the device — don't let the device snap to it.
     if (isDevice && oln === LAYER_NAMES.SCREENSHOT) continue
     const b = boxOf(o)
@@ -801,7 +803,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       for (const obj of canvas.getObjects()) {
         if (obj === body) continue
         const ln = (obj as FabricObject & { layerName?: string }).layerName
-        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.HIGHLIGHT_SOURCE) continue
+        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.SCREENSHOT_SHADOW && ln !== LAYER_NAMES.HIGHLIGHT_SOURCE) continue
         obj.set({ left: (obj.left ?? 0) + dx, top: (obj.top ?? 0) + dy })
         const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
         if (clip) {
@@ -835,7 +837,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       for (const obj of canvas.getObjects()) {
         if (obj === body) continue
         const ln = (obj as FabricObject & { layerName?: string }).layerName
-        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.HIGHLIGHT_SOURCE) continue
+        if (ln !== LAYER_NAMES.DEVICE_FRAME && ln !== LAYER_NAMES.SCREENSHOT && ln !== LAYER_NAMES.SCREENSHOT_SHADOW && ln !== LAYER_NAMES.HIGHLIGHT_SOURCE) continue
         const p = rotateAround(obj.left ?? 0, obj.top ?? 0, pivot.x, pivot.y, delta)
         obj.set({ left: p.x, top: p.y, angle: (obj.angle ?? 0) + delta })
         const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath

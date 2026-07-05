@@ -172,13 +172,18 @@ function cropEdgeAction(edge: CropEdge, target: FabricObject, px: number, py: nu
   const canvas = target.canvas
   if (canvas) {
     for (const obj of canvas.getObjects()) {
-      if ((obj as FabricObject & { layerName?: string }).layerName !== LAYER_NAMES.SCREENSHOT) continue
-      const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
-      if (clip) clip.set(geo)
-      // The clip isn't part of the object's transform, so the image's cache
-      // doesn't know it changed — invalidate it explicitly.
-      obj.dirty = true
-      break
+      const ln = (obj as FabricObject & { layerName?: string }).layerName
+      if (ln === LAYER_NAMES.SCREENSHOT) {
+        const clip = (obj as FabricObject & { clipPath?: FabricObject }).clipPath
+        if (clip) clip.set(geo)
+        // The clip isn't part of the object's transform, so the image's cache
+        // doesn't know it changed — invalidate it explicitly.
+        obj.dirty = true
+      } else if (ln === LAYER_NAMES.SCREENSHOT_SHADOW) {
+        // Shadow proxies trace the visible card — follow the trim mid-drag.
+        obj.set({ left: geo.left + 1, top: geo.top + 1, width: geo.width - 2, height: geo.height - 2 })
+        obj.setCoords()
+      }
     }
   }
   return true
@@ -253,12 +258,12 @@ async function renderScreenshotLayer(
   })
 
   if (opts?.withShadow) {
-    // 캔버스 폭에 비례한 부드러운 그림자 — 떠 있는 카드 느낌.
+    // Key(주광) 그림자 — ambient/contact 레이어는 아래 프록시 rect가 담당.
     img.shadow = new Shadow({
-      color: 'rgba(15, 23, 42, 0.28)',
-      blur: Math.max(12, bounds.width * 0.05),
+      color: 'rgba(15, 23, 42, 0.24)',
+      blur: Math.max(10, bounds.width * 0.04),
       offsetX: 0,
-      offsetY: Math.max(8, bounds.width * 0.03),
+      offsetY: Math.max(6, bounds.width * 0.018),
       affectStroke: false,
       nonScaling: true,
     })
@@ -280,7 +285,61 @@ async function renderScreenshotLayer(
     width: bounds.width,
     height: bounds.height,
   }
+
+  if (opts?.withShadow) {
+    // Fabric은 객체당 그림자 하나 — 넓은 ambient와 바닥 contact는 카드 뒤에
+    // 깔리는 그림자 전용 프록시 rect가 하나씩 캐스팅한다.
+    for (const layer of [
+      {
+        color: 'rgba(15, 23, 42, 0.16)',
+        blur: Math.max(24, bounds.width * 0.11),
+        offsetY: Math.max(14, bounds.width * 0.055),
+      },
+      {
+        color: 'rgba(15, 23, 42, 0.3)',
+        blur: Math.max(4, bounds.width * 0.015),
+        offsetY: Math.max(2, bounds.width * 0.006),
+      },
+    ]) {
+      const proxy = shadowProxyRect(clip, layer)
+      if (opts?.rotation && opts.pivot) {
+        rotateObjectAround(proxy, opts.pivot.x, opts.pivot.y, opts.rotation)
+      }
+      canvas.add(proxy)
+    }
+  }
   canvas.add(img)
+}
+
+function shadowProxyRect(
+  card: ScreenBounds,
+  layer: { color: string; blur: number; offsetY: number },
+): Rect {
+  return Object.assign(
+    new Rect({
+      // 1px 안쪽 — 불투명 fill이 카드의 안티앨리어스 가장자리 밖으로 비치지 않게.
+      left: card.left + 1,
+      top: card.top + 1,
+      width: card.width - 2,
+      height: card.height - 2,
+      rx: card.rx,
+      ry: card.rx,
+      fill: '#0F172A',
+      originX: 'left',
+      originY: 'top',
+      selectable: false,
+      evented: false,
+      hoverCursor: 'default',
+      shadow: new Shadow({
+        color: layer.color,
+        blur: layer.blur,
+        offsetX: 0,
+        offsetY: layer.offsetY,
+        nonScaling: true,
+      }),
+    }),
+    { layerName: LAYER_NAMES.SCREENSHOT_SHADOW },
+  )
 }
 
 interface DeviceLayout {

@@ -2,6 +2,8 @@ export const LAYER_NAMES = {
   BACKGROUND: 'background',
   ORNAMENT: 'ornament',
   EXTERNAL_IMAGE: 'external-image',
+  /** Shadow-only proxy rects under the floating screenshot card (ambient/contact layers). */
+  SCREENSHOT_SHADOW: 'screenshot-shadow',
   SCREENSHOT: 'screenshot',
   DEVICE_FRAME: 'device-frame',
   HIGHLIGHT_SOURCE: 'highlight-source',
