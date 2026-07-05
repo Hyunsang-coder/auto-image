@@ -8,6 +8,7 @@
 
 import type {
   Background,
+  BackgroundBlob,
   BadgeStyle,
   Caption,
   DeviceColor,
@@ -26,6 +27,7 @@ import {
   accentFromBackground,
   badgePlaceholder,
   FONT_OPTIONS,
+  MAX_BACKGROUND_BLOBS,
   MAX_TEXTS,
   ORNAMENT_DEFAULTS,
   SUPPORTED_LOCALES,
@@ -227,6 +229,57 @@ export { isManifestShaped } from './manifestShape'
 
 const KNOWN_LOCALES = new Set<string>(SUPPORTED_LOCALES.map((l) => l.code))
 
+/** Optional `blobs` (soft radial color spots) + `noise` (grain, 0–1) on a
+ *  solid/gradient background. Malformed entries warn + drop; ranges clamp. */
+function coerceBackgroundOverlays(
+  bg: Record<string, unknown>,
+  where: string,
+  issues: string[],
+): Pick<Background, 'blobs' | 'noise'> {
+  const out: Pick<Background, 'blobs' | 'noise'> = {}
+  if (bg.blobs !== undefined) {
+    if (!Array.isArray(bg.blobs)) {
+      issues.push(t('{where}: blobs는 배열이어야 함 — 무시', { where }))
+    } else {
+      if (bg.blobs.length > MAX_BACKGROUND_BLOBS) {
+        issues.push(
+          t('{where}: blobs는 최대 {max}개 — 초과분 무시', { where, max: MAX_BACKGROUND_BLOBS }),
+        )
+      }
+      const blobs: BackgroundBlob[] = []
+      for (const [i, raw] of bg.blobs.slice(0, MAX_BACKGROUND_BLOBS).entries()) {
+        const field = `blobs[${i}]`
+        if (typeof raw !== 'object' || raw === null || typeof (raw as { color?: unknown }).color !== 'string') {
+          issues.push(t('{where}: {field}에 color(문자열)가 필요 — 해당 항목 무시', { where, field }))
+          continue
+        }
+        const b = raw as Record<string, unknown>
+        const x = coerceNumber(b.x, -0.5, 1.5, where, `${field}.x`, issues)
+        const y = coerceNumber(b.y, -0.5, 1.5, where, `${field}.y`, issues)
+        const radius = coerceNumber(b.radius, 0.05, 1.5, where, `${field}.radius`, issues)
+        if (x === undefined || y === undefined || radius === undefined) {
+          issues.push(t('{where}: {field}에 x/y/radius(숫자)가 필요 — 해당 항목 무시', { where, field }))
+          continue
+        }
+        const opacity = coerceNumber(b.opacity, 0, 1, where, `${field}.opacity`, issues)
+        blobs.push({
+          color: b.color as string,
+          x,
+          y,
+          radius,
+          ...(opacity !== undefined ? { opacity } : {}),
+        })
+      }
+      if (blobs.length) out.blobs = blobs
+    }
+  }
+  if (bg.noise !== undefined) {
+    const noise = coerceNumber(bg.noise, 0, 1, where, 'noise', issues)
+    if (noise) out.noise = noise
+  }
+  return out
+}
+
 /** Accepts a THEME_PRESETS id or an inline solid/gradient background.
  *  `image` is rejected — an imageKey can't exist before the import runs. */
 export function coerceBackground(
@@ -248,7 +301,7 @@ export function coerceBackground(
   }
   const bg = value as Record<string, unknown>
   if (bg.type === 'solid' && typeof bg.color === 'string') {
-    return { type: 'solid', color: bg.color }
+    return { type: 'solid', color: bg.color, ...coerceBackgroundOverlays(bg, where, issues) }
   }
   if (bg.type === 'gradient') {
     const g = bg.gradient as
@@ -274,6 +327,7 @@ export function coerceBackground(
         direction: typeof g?.direction === 'number' ? g.direction : 145,
         stops,
       },
+      ...coerceBackgroundOverlays(bg, where, issues),
     }
   }
   issues.push(

@@ -384,6 +384,52 @@ export const THEME_PRESETS: ThemePreset[] = [
     subheadlineColor: '#5A5278',
     accentColor: '#7757DB',
   },
+  {
+    id: 'aura',
+    label: 'Aura',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 145,
+        stops: [
+          { color: '#EFEBF4', position: 0 },
+          { color: '#F6F1EC', position: 1 },
+        ],
+      },
+      blobs: [
+        { color: '#C9B8EC', x: 0.18, y: 0.16, radius: 0.55 },
+        { color: '#F2C4C0', x: 0.85, y: 0.42, radius: 0.5 },
+        { color: '#BCD4EE', x: 0.35, y: 0.9, radius: 0.6 },
+      ],
+      noise: 0.14,
+    },
+    headlineColor: '#241E33',
+    subheadlineColor: '#5B5370',
+    accentColor: '#8B6BD8',
+  },
+  {
+    id: 'haze',
+    label: 'Haze',
+    background: {
+      type: 'gradient',
+      gradient: {
+        direction: 145,
+        stops: [
+          { color: '#E3EDF2', position: 0 },
+          { color: '#F0F4F1', position: 1 },
+        ],
+      },
+      blobs: [
+        { color: '#AFD3D8', x: 0.8, y: 0.14, radius: 0.55 },
+        { color: '#C6E0C9', x: 0.12, y: 0.55, radius: 0.5 },
+        { color: '#B9C8EA', x: 0.7, y: 0.92, radius: 0.55 },
+      ],
+      noise: 0.14,
+    },
+    headlineColor: '#182B30',
+    subheadlineColor: '#4E6469',
+    accentColor: '#2E8FA3',
+  },
 ]
 
 export function findThemePreset(id: string): ThemePreset | undefined {
@@ -475,6 +521,9 @@ export function defaultCaption(text: string, style: TextStyle): Caption {
 
 /** Max number of text blocks per slide. */
 export const MAX_TEXTS = 4
+
+/** Max soft color blobs per background. */
+export const MAX_BACKGROUND_BLOBS = 6
 
 /**
  * Build a text block for a given index + template. Block 0 uses the headline

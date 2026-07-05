@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
-import type { Background } from '../../../types/project'
-import { THEME_PRESETS, DEFAULT_BACKGROUND, type ThemePreset } from '../../../constants/defaults'
+import type { Background, BackgroundBlob } from '../../../types/project'
+import { THEME_PRESETS, DEFAULT_BACKGROUND, MAX_BACKGROUND_BLOBS, type ThemePreset } from '../../../constants/defaults'
 import { fileToImageKey, loadImageObjectUrl } from '../../../lib/imageStore'
 import { useCustomStore } from '../../../store/useCustomStore'
 import { useT } from '../../../i18n'
@@ -29,6 +29,32 @@ const FIT_OPTIONS: { id: NonNullable<Background['imageObjectFit']>; label: strin
   { id: 'contain', label: '맞춤' },
   { id: 'fill', label: '늘이기' },
 ]
+
+// Pastel cycle for newly added blobs — visible on the muted preset bases.
+const BLOB_COLORS = ['#C9B8EC', '#F2C4C0', '#BCD4EE', '#C6E0C9', '#F5D9A8', '#AFD3D8']
+const BLOB_SEATS: Array<[number, number]> = [
+  [0.2, 0.2],
+  [0.8, 0.35],
+  [0.3, 0.85],
+  [0.75, 0.8],
+  [0.5, 0.5],
+  [0.15, 0.6],
+]
+
+function hexAlpha(color: string, alpha: number): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return color
+  return `${color}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`
+}
+
+function blobLayersCss(blobs: BackgroundBlob[]): string[] {
+  return blobs.map(
+    (b) =>
+      `radial-gradient(circle at ${Math.round(b.x * 100)}% ${Math.round(b.y * 100)}%, ${hexAlpha(
+        b.color,
+        b.opacity ?? 0.55,
+      )} 0%, ${hexAlpha(b.color, 0)} ${Math.round(b.radius * 100)}%)`,
+  )
+}
 
 export function BackgroundPanel({
   value,
@@ -120,14 +146,50 @@ export function BackgroundPanel({
 
   function previewStyle(preset: ThemePreset): React.CSSProperties {
     const bg = preset.background
-    if (bg.type === 'gradient' && bg.gradient) return gradientCss(bg.gradient)
-    return { background: bg.color ?? '#888' }
+    const base =
+      bg.type === 'gradient' && bg.gradient
+        ? (gradientCss(bg.gradient).background as string)
+        : bg.color ?? '#888'
+    const blobs = blobLayersCss(bg.blobs ?? [])
+    return { background: blobs.length ? [...blobs, base].join(', ') : base }
+  }
+
+  // Blobs/noise ride on top of any base — keep them when the base is rebuilt
+  // (tab switches and solid/gradient edits construct a fresh Background).
+  const overlays: Pick<Background, 'blobs' | 'noise'> = {
+    ...(value.blobs?.length ? { blobs: value.blobs } : {}),
+    ...(value.noise ? { noise: value.noise } : {}),
+  }
+
+  function setNoise(noise: number) {
+    const next = { ...value }
+    if (noise > 0) next.noise = noise
+    else delete next.noise
+    onChange(next)
+  }
+
+  function setBlobs(blobs: BackgroundBlob[]) {
+    const next = { ...value }
+    if (blobs.length) next.blobs = blobs
+    else delete next.blobs
+    onChange(next)
+  }
+
+  function updateBlob(i: number, patch: Partial<BackgroundBlob>) {
+    setBlobs((value.blobs ?? []).map((b, idx) => (idx === i ? { ...b, ...patch } : b)))
+  }
+
+  function addBlob() {
+    const blobs = value.blobs ?? []
+    if (blobs.length >= MAX_BACKGROUND_BLOBS) return
+    const [x, y] = BLOB_SEATS[blobs.length % BLOB_SEATS.length]
+    setBlobs([...blobs, { color: BLOB_COLORS[blobs.length % BLOB_COLORS.length], x, y, radius: 0.5 }])
   }
 
   const g = value.gradient
   function updateGradient(patch: Partial<NonNullable<Background['gradient']>>) {
     if (!g) return
-    onChange({ type: 'gradient', gradient: { ...g, ...patch } })
+    onChange({ type: 'gradient', gradient: { ...g, ...patch }, ...overlays })
   }
   function updateStop(i: number, patch: Partial<{ color: string; position: number }>) {
     if (!g) return
@@ -158,7 +220,7 @@ export function BackgroundPanel({
     setActiveTab(tab)
     if (tab === 'solid') {
       const color = value.color ?? value.gradient?.stops[0]?.color ?? '#6366F1'
-      onChange({ type: 'solid', color })
+      onChange({ type: 'solid', color, ...overlays })
     } else if (tab === 'gradient') {
       // Fall back to the recommended preset's gradient so re-entering the tab
       // (which dropped the gradient when leaving for solid/image) restores the
@@ -175,6 +237,7 @@ export function BackgroundPanel({
             { color: color2, position: 1 },
           ],
         },
+        ...overlays,
       })
     } else {
       onChange({
@@ -182,6 +245,7 @@ export function BackgroundPanel({
         imageKey: value.imageKey,
         imageObjectFit: value.imageObjectFit ?? 'cover',
         color: value.color,
+        ...overlays,
       })
     }
   }
@@ -200,6 +264,7 @@ export function BackgroundPanel({
       imageKey: result.key,
       imageObjectFit: value.imageObjectFit ?? 'cover',
       color: value.color,
+      ...overlays,
     })
   }
 
@@ -360,7 +425,7 @@ export function BackgroundPanel({
           <label className="mb-2 block text-xs text-[var(--color-text-dim)]">{t('배경색')}</label>
           <ColorPickerPopover
             color={value.color ?? '#6366F1'}
-            onChange={(c) => onChange({ type: 'solid', color: c })}
+            onChange={(c) => onChange({ type: 'solid', color: c, ...overlays })}
             label={t('배경색 선택')}
           />
         </div>
@@ -511,6 +576,86 @@ export function BackgroundPanel({
           />
         </div>
       )}
+
+      {/* Texture overlays — blobs + noise ride on top of any base */}
+      <div className="flex flex-col gap-3 border-t border-[var(--color-border)] pt-3">
+        <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+          {t('질감')}
+        </label>
+
+        <div>
+          <label className="mb-1 block text-xs text-[var(--color-text-dim)]">
+            {t('노이즈')}: {Math.round((value.noise ?? 0) * 100)}%
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round((value.noise ?? 0) * 100)}
+            onChange={(e) => setNoise(Number(e.target.value) / 100)}
+            className="w-full accent-[var(--color-accent)]"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="block text-xs text-[var(--color-text-dim)]">{t('컬러 블롭')}</label>
+          {(value.blobs ?? []).map((b, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-1.5 rounded-lg border border-[var(--color-border)] p-2"
+            >
+              <div className="flex items-center gap-2">
+                <ColorPickerPopover
+                  color={b.color}
+                  onChange={(c) => updateBlob(i, { color: c })}
+                  label={t('블롭 {n} 색상', { n: i + 1 })}
+                />
+                <div className="min-w-0 flex-1" />
+                <button
+                  type="button"
+                  onClick={() => setBlobs((value.blobs ?? []).filter((_, idx) => idx !== i))}
+                  className="shrink-0 px-1 text-sm text-[var(--color-text-dim)] transition hover:text-[var(--color-text)]"
+                  aria-label={t('블롭 {n} 삭제', { n: i + 1 })}
+                >
+                  ×
+                </button>
+              </div>
+              {(
+                [
+                  [t('크기'), b.radius, 5, 150, (v: number) => updateBlob(i, { radius: v })],
+                  [t('가로 위치 (X)'), b.x, -50, 150, (v: number) => updateBlob(i, { x: v })],
+                  [t('세로 위치 (Y)'), b.y, -50, 150, (v: number) => updateBlob(i, { y: v })],
+                  [t('불투명도'), b.opacity ?? 0.55, 5, 100, (v: number) => updateBlob(i, { opacity: v })],
+                ] as const
+              ).map(([label, frac, min, max, set]) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="w-20 shrink-0 text-xs text-[var(--color-text-dim)]">{label}</span>
+                  <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    value={Math.round(frac * 100)}
+                    onChange={(e) => set(Number(e.target.value) / 100)}
+                    className="min-w-0 flex-1 accent-[var(--color-accent)]"
+                  />
+                  <span className="w-9 shrink-0 text-right text-xs tabular-nums text-[var(--color-text-dim)]">
+                    {Math.round(frac * 100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+          {(value.blobs?.length ?? 0) < MAX_BACKGROUND_BLOBS && (
+            <button
+              type="button"
+              onClick={addBlob}
+              className="w-full rounded-lg border border-dashed border-[var(--color-border)] py-1.5 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+            >
+              {t('+ 블롭 추가')}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

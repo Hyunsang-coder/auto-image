@@ -109,6 +109,50 @@ describe('parseManifest normalization', () => {
     expect(img.issues.some((i) => i.includes('image 배경'))).toBe(true)
   })
 
+  it('accepts background blobs + noise with clamping', () => {
+    const r = parseManifest(
+      minimal({
+        themeBackground: {
+          type: 'solid',
+          color: '#112233',
+          blobs: [
+            { color: '#C9B8EC', x: 0.2, y: 0.1, radius: 0.5, opacity: 0.7 },
+            { color: '#F2C4C0', x: 9, y: -9, radius: 3 },
+          ],
+          noise: 1.4,
+        },
+      }),
+    )
+    expect(r.manifest?.themeBackground).toEqual({
+      type: 'solid',
+      color: '#112233',
+      blobs: [
+        { color: '#C9B8EC', x: 0.2, y: 0.1, radius: 0.5, opacity: 0.7 },
+        { color: '#F2C4C0', x: 1.5, y: -0.5, radius: 1.5 },
+      ],
+      noise: 1,
+    })
+    // x, y, radius, noise each clamped with a warning
+    expect(r.issues).toHaveLength(4)
+  })
+
+  it('drops malformed blobs and caps the count at 6', () => {
+    const blob = { color: '#fff', x: 0.5, y: 0.5, radius: 0.3 }
+    const r = parseManifest(
+      minimal({
+        themeBackground: {
+          type: 'solid',
+          color: '#112233',
+          blobs: [{ x: 0.5, y: 0.5, radius: 0.3 }, { color: '#fff', y: 0.5, radius: 0.3 }, 'nope', ...Array(7).fill(blob)],
+        },
+      }),
+    )
+    const bg = r.manifest?.themeBackground
+    // 10 entries → cap to 6 → first three malformed dropped → 3 valid remain
+    expect(bg?.blobs).toEqual([blob, blob, blob])
+    expect(r.issues.length).toBeGreaterThanOrEqual(4)
+  })
+
   it('normalizes per-slide fields with warnings', () => {
     const { manifest, issues } = parseManifest(
       minimal({}, [

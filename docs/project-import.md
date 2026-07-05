@@ -46,7 +46,7 @@
 | `deviceModel` | string | 타입별 최대 | iPhone: `iphone-16-pro`(1320×2868)·`iphone-6-5`(1242×2688), iPad: `ipad-pro-13`(2064×2752)·`ipad-11`(1668×2388) |
 | `sourceLocale` | string | `ko` | 지원: `en ko ja de fr es it pt-BR es-MX vi id th` |
 | `targetLocales` | string[] | `[]` | 같은 지원 목록. 미지원 코드는 경고 후 제외 |
-| `themeBackground` | string \| object | 레퍼런스 그라디언트 | 문자열 = 테마 프리셋 id. 객체 = `{"type":"solid","color":"#…"}` 또는 `{"type":"gradient","gradient":{"direction":145,"stops":[{"color":"#…","position":0},…]}}`. `image` 불가 |
+| `themeBackground` | string \| object | 레퍼런스 그라디언트 | 문자열 = 테마 프리셋 id. 객체 = `{"type":"solid","color":"#…"}` 또는 `{"type":"gradient","gradient":{"direction":145,"stops":[{"color":"#…","position":0},…]}}`. `image` 불가. 옵션 오버레이(베이스 위에 겹침): `blobs` — 부드러운 방사형 컬러 스팟(mesh 그라디언트 룩) 배열 `[{"color":"#…","x":0.2,"y":0.15,"radius":0.5,"opacity":0.55}]`, 최대 6개, `x`/`y`/`radius`는 캔버스 비율(범위 밖 보정) — 와 `noise` — 필름 그레인 강도 0~1 |
 | `slides[].layout` | string | `text-top` | `hero` \| `hero-bleed` \| `text-top` \| `text-bottom` \| `split` |
 | `slides[].textBlocks` | 1–4 | `1` | **캡션 슬롯 수.** 텍스트 블록 0 = 헤드라인 |
 | `slides[].background` | string \| object | 테마 배경 | 슬라이드별 오버라이드 |

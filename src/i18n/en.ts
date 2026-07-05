@@ -156,6 +156,13 @@ export const en: Record<string, string> = {
     '{where}: gradient requires at least 2 stops — using default background',
   '{where}: image 배경은 manifest에서 지원하지 않음 — 기본 배경 사용':
     '{where}: image backgrounds are not supported in manifests — using default background',
+  '{where}: blobs는 배열이어야 함 — 무시': '{where}: blobs must be an array — ignored',
+  '{where}: blobs는 최대 {max}개 — 초과분 무시':
+    '{where}: at most {max} blobs — extras ignored',
+  '{where}: {field}에 color(문자열)가 필요 — 해당 항목 무시':
+    '{where}: {field} needs a color (string) — entry ignored',
+  '{where}: {field}에 x/y/radius(숫자)가 필요 — 해당 항목 무시':
+    '{where}: {field} needs numeric x/y/radius — entry ignored',
   '매니페스트 JSON을 파싱할 수 없습니다': 'Cannot parse manifest JSON',
   '매니페스트는 JSON 객체여야 합니다': 'Manifest must be a JSON object',
   '지원하지 않는 매니페스트 버전: {ver} (version: 1 만 지원)':
@@ -546,6 +553,12 @@ export const en: Record<string, string> = {
   채우기: 'Cover',
   맞춤: 'Contain',
   늘이기: 'Fill',
+  질감: 'Texture',
+  노이즈: 'Noise',
+  '컬러 블롭': 'Color blobs',
+  '블롭 {n} 색상': 'Blob {n} color',
+  '블롭 {n} 삭제': 'Remove blob {n}',
+  '+ 블롭 추가': '+ Add blob',
   '이미지를 읽을 수 없습니다. 다른 파일(PNG/JPG)을 올려주세요.':
     'Could not read the image. Please try a different file (PNG/JPG).',
 

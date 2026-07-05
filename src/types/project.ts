@@ -181,6 +181,17 @@ export interface ExternalImage {
   crop?: ScreenshotCrop
 }
 
+export interface BackgroundBlob {
+  color: string
+  /** Center as fractions of canvas width/height. May leave [0,1] to bleed off-canvas. */
+  x: number
+  y: number
+  /** Radius as a fraction of the canvas' shorter side. */
+  radius: number
+  /** Peak opacity at the blob center. Default 0.55. */
+  opacity?: number
+}
+
 export interface Background {
   type: BackgroundType
   color?: string
@@ -191,6 +202,10 @@ export interface Background {
   }
   imageKey?: string
   imageObjectFit?: 'cover' | 'contain' | 'fill'
+  /** Soft radial color blobs painted above the base fill (mesh-gradient look). Max 6. */
+  blobs?: BackgroundBlob[]
+  /** Film-grain overlay intensity, 0–1. Absent/0 = no grain. */
+  noise?: number
 }
 
 export interface DeviceFrame {
