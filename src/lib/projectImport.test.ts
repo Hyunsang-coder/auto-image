@@ -282,6 +282,16 @@ describe('parseManifest normalization', () => {
     expect(issues.some((i) => i.includes('gradient'))).toBe(true)
   })
 
+  it('parses emphasis and rejects one with neither color nor fontWeight', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [{ texts: [{ emphasis: { color: '#FF0000', fontWeight: 900 } }, { emphasis: {} }], textBlocks: 2 }]),
+    )
+    const tx = manifest?.slides[0].texts
+    expect(tx?.[0]).toEqual({ emphasis: { color: '#FF0000', fontWeight: 900 } })
+    expect(tx?.[1]).toEqual({})
+    expect(issues.some((i) => i.includes('emphasis'))).toBe(true)
+  })
+
   it('accepts a FONT_OPTIONS fontFamily and rejects unknown families', () => {
     const { manifest, issues } = parseManifest(
       minimal({}, [{ texts: [{ fontFamily: 'Fraunces' }, { fontFamily: 'Comic Sans MS' }], textBlocks: 2 }]),

@@ -159,6 +159,7 @@ export interface ParsedTextOverride {
   outline?: { color: string; width: number }
   shadow?: { color: string; opacity: number; offsetX: number; offsetY: number; blur: number }
   gradient?: { from: string; to: string; angle: number }
+  emphasis?: { color?: string; fontWeight?: number }
 }
 
 export interface ParsedBadge {
@@ -618,6 +619,26 @@ function coerceTextGradient(
   return { from: g.from, to: g.to, angle: coerceNumber(g.angle, 0, 360, where, 'gradient.angle', issues) ?? 0 }
 }
 
+/** Emphasis paints `==word==`-marked text ranges; needs a color or a weight. */
+function coerceTextEmphasis(
+  value: unknown,
+  where: string,
+  issues: string[],
+): ParsedTextOverride['emphasis'] | undefined {
+  if (typeof value !== 'object' || value === null) {
+    issues.push(t('{where}: emphasis 형식이 올바르지 않음 — 무시', { where }))
+    return undefined
+  }
+  const e = value as Record<string, unknown>
+  const color = typeof e.color === 'string' ? e.color : undefined
+  const fontWeight = coerceNumber(e.fontWeight, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, where, 'emphasis.fontWeight', issues)
+  if (color === undefined && fontWeight === undefined) {
+    issues.push(t('{where}: emphasis는 color 또는 fontWeight가 필요 — 무시', { where }))
+    return undefined
+  }
+  return { ...(color !== undefined ? { color } : {}), ...(fontWeight !== undefined ? { fontWeight } : {}) }
+}
+
 function coerceOutline(
   value: unknown,
   where: string,
@@ -737,6 +758,10 @@ export function coerceTextOverrides(
     if (r.gradient !== undefined) {
       const gradient = coerceTextGradient(r.gradient, tw, issues)
       if (gradient) out.gradient = gradient
+    }
+    if (r.emphasis !== undefined) {
+      const emphasis = coerceTextEmphasis(r.emphasis, tw, issues)
+      if (emphasis) out.emphasis = emphasis
     }
     return out
   })
@@ -991,6 +1016,7 @@ export function applyTextOverride(block: Caption, ov: ParsedTextOverride | undef
   if (ov.outline !== undefined) block.style.outline = { ...ov.outline }
   if (ov.shadow !== undefined) block.style.shadow = { ...ov.shadow }
   if (ov.gradient !== undefined) block.style.gradient = { ...ov.gradient }
+  if (ov.emphasis !== undefined) block.style.emphasis = { ...ov.emphasis }
 }
 
 /**

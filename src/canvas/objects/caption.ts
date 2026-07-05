@@ -1,8 +1,9 @@
 import { Gradient, Rect, Shadow, Text, Textbox } from 'fabric'
-import type { Caption, TextGradient, TextShadow } from '../../types/project'
+import type { Caption, TextEmphasis, TextGradient, TextShadow } from '../../types/project'
 import type { LayerName } from '../layerNames'
 import { LAYER_NAMES } from '../layerNames'
 import { scriptFallback } from '../../lib/fonts'
+import { parseEmphasis } from '../../lib/emphasis'
 import { hexToRgb } from '../../constants/defaults'
 
 // Percentage units so the same gradient re-projects onto the textbox as it
@@ -20,6 +21,37 @@ function captionGradient(g: TextGradient): Gradient<'linear'> {
       { offset: 1, color: g.to },
     ],
   })
+}
+
+// Fabric per-char styles are keyed styles[lineIndex][charIndex] with lines
+// split on '\n' — map the parse's global [start, end) ranges onto that grid.
+function emphasisStyles(
+  plain: string,
+  ranges: { start: number; end: number }[],
+  emphasis: TextEmphasis,
+): Record<number, Record<number, Record<string, unknown>>> {
+  const charStyle: Record<string, unknown> = {
+    ...(emphasis.color ? { fill: emphasis.color } : {}),
+    ...(emphasis.fontWeight ? { fontWeight: String(emphasis.fontWeight) } : {}),
+  }
+  const styles: Record<number, Record<number, Record<string, unknown>>> = {}
+  const lines = plain.split('\n')
+  const lineStarts: number[] = []
+  let acc = 0
+  for (const line of lines) {
+    lineStarts.push(acc)
+    acc += line.length + 1
+  }
+  for (const { start, end } of ranges) {
+    for (let pos = start; pos < end; pos++) {
+      let li = 0
+      while (li + 1 < lineStarts.length && lineStarts[li + 1] <= pos) li++
+      const ci = pos - lineStarts[li]
+      if (ci >= lines[li].length) continue // the '\n' itself
+      ;(styles[li] ??= {})[ci] = charStyle
+    }
+  }
+  return styles
 }
 
 function captionShadow(s: TextShadow): Shadow {
@@ -101,13 +133,16 @@ export function fitCaption(
   scale = 1,
 ): { fontSize: number; splitByGrapheme: boolean; fontFamily: string; charSpacing: number } {
   const { style } = caption
+  // Measure what will actually render: emphasis markers are stripped before
+  // the Textbox is built, so fit math must not count the `==` glyphs.
+  const text = style.emphasis ? parseEmphasis(caption.text).plain : caption.text
   // Lead the fallback with the font matching this caption's script so non-Latin
   // text (Japanese/Chinese/Thai) renders the right glyphs instead of tofu.
-  const fontFamily = `${style.fontFamily}, ${scriptFallback(caption.text)}`
+  const fontFamily = `${style.fontFamily}, ${scriptFallback(text)}`
   const charSpacing = (style.letterSpacing ?? 0) * 10
-  const cjk = containsCJK(caption.text)
+  const cjk = containsCJK(text)
   const widest = (cjk || style.fitToBox)
-    ? widestTokenWidth(caption.text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing)
+    ? widestTokenWidth(text, style.fontSize, fontFamily, String(style.fontWeight), charSpacing)
     : 0
   // CJK with an over-wide token breaks per-grapheme at the design size; word
   // wrapping (and the fit-to-box word shrink) stays in effect otherwise.
@@ -125,8 +160,9 @@ export function renderCaption(
   const { style } = caption
   const textAlign = style.textAlign ?? 'center'
   const { fontSize, splitByGrapheme, fontFamily, charSpacing } = fitCaption(caption, opts.width, opts.scale ?? 1)
+  const parsed = style.emphasis ? parseEmphasis(caption.text) : null
 
-  const obj = new Textbox(caption.text, {
+  const obj = new Textbox(parsed ? parsed.plain : caption.text, {
     left: opts.left,
     top: opts.top,
     width: opts.width,
@@ -153,6 +189,9 @@ export function renderCaption(
     editable: true,
     selectable: true,
     hasControls: true,
+    ...(parsed && parsed.ranges.length
+      ? { styles: emphasisStyles(parsed.plain, parsed.ranges, style.emphasis!) }
+      : {}),
   })
   ;(obj as Textbox & { layerName: string }).layerName = opts.layerName
   ;(obj as Textbox & { textIndex?: number }).textIndex = opts.textIndex

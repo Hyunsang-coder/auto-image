@@ -262,6 +262,28 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
       )}
 
       <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
+        <span>{t('부분 강조')}</span>
+        <input
+          type="checkbox"
+          checked={!!value.style.emphasis}
+          onChange={(e) => updateStyle({ emphasis: e.target.checked ? { color: '#6366F1' } : undefined })}
+          className="accent-[var(--color-accent)]"
+        />
+      </label>
+      {value.style.emphasis && (
+        <div className="flex flex-col gap-2 rounded-lg bg-[var(--color-surface-2)] p-2">
+          <p className="text-[11px] leading-snug text-[var(--color-text-dim)]">
+            {t('텍스트에서 ==단어==처럼 감싸면 그 부분만 강조 색으로 칠해집니다')}
+          </p>
+          <ColorPickerPopover
+            color={value.style.emphasis.color ?? '#6366F1'}
+            onChange={(c) => updateStyle({ emphasis: { ...value.style.emphasis!, color: c } })}
+            label={t('강조 색상')}
+          />
+        </div>
+      )}
+
+      <label className="flex cursor-pointer items-center justify-between text-xs text-[var(--color-text)]">
         <span>{t('외곽선')}</span>
         <input
           type="checkbox"

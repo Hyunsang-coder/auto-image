@@ -68,6 +68,10 @@ export const en: Record<string, string> = {
   '외곽선 색상': 'Outline color',
   '시작 색상': 'Start color',
   '끝 색상': 'End color',
+  '부분 강조': 'Word emphasis',
+  '강조 색상': 'Emphasis color',
+  '텍스트에서 ==단어==처럼 감싸면 그 부분만 강조 색으로 칠해집니다':
+    'Wrap words like ==this== in the text to paint just that part in the emphasis color',
   그림자: 'Shadow',
   '박스 배경': 'Box background',
   '박스 색상': 'Box color',
@@ -257,6 +261,10 @@ export const en: Record<string, string> = {
     '{where}: invalid gradient format — ignored',
   '{where}: gradient.from/to(문자열)가 필요 — gradient 무시':
     '{where}: gradient.from/to (strings) are required — gradient ignored',
+  '{where}: emphasis 형식이 올바르지 않음 — 무시':
+    '{where}: invalid emphasis format — ignored',
+  '{where}: emphasis는 color 또는 fontWeight가 필요 — 무시':
+    '{where}: emphasis needs a color or fontWeight — ignored',
   '{where}: highlights는 배열이어야 함 — 무시':
     '{where}: highlights must be an array — ignored',
   '{where}: highlights는 최대 {max}개 — 처음 {max}개만 사용':

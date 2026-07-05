@@ -8,6 +8,7 @@ import { normalizeAngle, rotateAround } from '../../canvas/geometry'
 import { canvasPointToRegionOrigin } from '../../canvas/objects/highlight'
 import { updateExternalImageClip } from '../../canvas/objects/externalImage'
 import { awaitSlideFonts } from '../../lib/fonts'
+import { parseEmphasis } from '../../lib/emphasis'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
@@ -432,9 +433,14 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           // carries the *fitted* (shrunk) size — persisting it would ratchet
           // the stored design size down and the text could never grow back
           // when the box widens. Only an explicit scale gesture bakes it (below).
+          // With emphasis active the canvas holds the marker-stripped text —
+          // an unchanged read-back must keep the stored markers; only a real
+          // canvas edit (text differs from the stripped form) replaces them.
+          const keepMarkers =
+            existing.style.emphasis && parseEmphasis(existing.text).plain === itext.text
           let next: typeof existing = {
             ...existing,
-            text: itext.text ?? existing.text,
+            text: keepMarkers ? existing.text : itext.text ?? existing.text,
             style: {
               ...existing.style,
               color: typeof itext.fill === 'string' ? itext.fill : existing.style.color,

@@ -94,6 +94,7 @@ const STYLE_TO_OVERRIDE: Record<string, keyof ParsedTextOverride> = {
   outline: 'outline',
   shadow: 'shadow',
   gradient: 'gradient',
+  emphasis: 'emphasis',
 }
 
 function isObj(v: unknown): v is Record<string, unknown> {

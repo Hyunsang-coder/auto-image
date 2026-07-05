@@ -135,6 +135,14 @@ describe('exportProject round-trip', () => {
     expect(p2.slides[0].texts[0].style.gradient).toEqual({ from: '#FF0000', to: '#0000FF', angle: 90 })
   })
 
+  it('round-trips caption emphasis (no silent loss)', () => {
+    const p = coreProject()
+    p.slides[0].texts[0].style = { ...p.slides[0].texts[0].style, emphasis: { color: '#FF2D55' } }
+    const out = exportProject(p)
+    expect(out.issues).toEqual([])
+    expect(reimport(out).slides[0].texts[0].style.emphasis).toEqual({ color: '#FF2D55' })
+  })
+
   it('keeps the dominant device type when slide 0 is the odd one out', () => {
     const p = makeProject({ name: 'Mixed', devices: ['iphone'], screenshotCount: 3, themeBackground: SOLID })
     // Slide 0 iPad, slides 1-2 iPhone → majority is iPhone.

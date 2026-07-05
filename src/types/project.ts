@@ -269,6 +269,12 @@ export interface TextStyle {
   color: string
   /** Linear gradient fill; overrides `color` when present. */
   gradient?: TextGradient
+  /**
+   * Style painted onto `==word==`-marked ranges of the text (base or any
+   * translation — markers ride inside the strings, so they survive the
+   * localize round-trip). When set, markers are stripped at render time.
+   */
+  emphasis?: TextEmphasis
   textAlign: 'left' | 'center' | 'right'
   letterSpacing?: number
   lineHeight?: number
@@ -305,6 +311,11 @@ export interface TextGradient {
   to: string
   /** Degrees; 0 = left→right, 90 = top→bottom. */
   angle: number
+}
+
+export interface TextEmphasis {
+  color?: string
+  fontWeight?: number
 }
 
 export interface TextShadow {

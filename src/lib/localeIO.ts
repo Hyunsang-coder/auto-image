@@ -108,6 +108,7 @@ export function buildTranslationPrompt(
     `- Fill ONLY the empty target-language columns. Leave the ${source.code} column (the source) unchanged.`,
     '- Keep the slide, slideId, and field columns exactly as they are.',
     '- Translate for meaning and tone — natural, benefit-driven copy in each language, not word-for-word.',
+    '- Some texts wrap words in == markers (e.g. ==word==). Keep the markers in every translation, around the corresponding word(s).',
     '- Keep each translation about as short as the source so it still fits the screenshot layout.',
     '- Return the COMPLETE file in the same format and structure, nothing else (no explanations, no code fences).',
   ].join('\n')

@@ -149,8 +149,10 @@ locale override (new locales are auto-added to targetLocales).
 "set" path whitelist: deviceFrame.* (show/offsetX/offsetY/scale/rotation/color),
 screenshotStyle.* (cornerRadiusRatio/shadow/crop), background (solid/gradient),
 template, texts[i] / texts[i].pos / texts[i].boxWidth / texts[i].style.*
-(incl. fontFamily from get_design_reference.fontFamilies and
-gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→bottom),
+(incl. fontFamily from get_design_reference.fontFamilies,
+gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→bottom,
+and emphasis {color?,fontWeight?} — painted onto ==word== marker ranges written
+inside caption text/translation strings via setText),
 badges[i].style.*, ornaments, highlights,
 externalImages[i].x/y/width/rotation/opacity/cornerRadiusRatio/shadow/crop
 (+ externalImages[i].crop.top/right/bottom/left), and project-level

@@ -155,7 +155,8 @@
       "box": { "fill": "#000000", "opacity": 0.5, "paddingX": 16, "paddingY": 10, "borderRadius": 12 }, // 캡션 뒤 필 박스. fill만 필수
       "outline": { "color": "#000000", "width": 2 },                       // 글리프 외곽선
       "shadow": { "color": "#000000", "opacity": 0.4, "offsetX": 0, "offsetY": 2, "blur": 6 }, // 드롭 섀도
-      "gradient": { "from": "#FF3B30", "to": "#5856D6", "angle": 0 }       // 텍스트 그라디언트 필 — 있으면 color 대신 적용. angle 0=가로(좌→우), 90=세로(상→하)
+      "gradient": { "from": "#FF3B30", "to": "#5856D6", "angle": 0 },      // 텍스트 그라디언트 필 — 있으면 color 대신 적용. angle 0=가로(좌→우), 90=세로(상→하)
+      "emphasis": { "color": "#FF2D55", "fontWeight": 900 }                // ==단어== 마커 범위에 칠할 스타일(색/굵기 중 하나 이상). 마커는 캡션 텍스트·번역 문자열 안에 쓴다
     },
     {}                         // 블록 1 (서브헤드) — 오버라이드 없음, 레이아웃 기본 유지
   ]

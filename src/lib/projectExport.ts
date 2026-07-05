@@ -124,6 +124,7 @@ function reverseTextOverride(c: Caption, where: string, issues: string[]): Recor
     ...(s.outline ? { outline: { color: s.outline.color, width: s.outline.width } } : {}),
     ...(s.shadow ? { shadow: { ...s.shadow } } : {}),
     ...(s.gradient ? { gradient: { ...s.gradient } } : {}),
+    ...(s.emphasis ? { emphasis: { ...s.emphasis } } : {}),
   }
 }
 
