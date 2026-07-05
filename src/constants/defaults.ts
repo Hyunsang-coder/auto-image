@@ -110,13 +110,29 @@ export function ascExportCode(code: string): string {
   return ASC_LOCALE_OVERRIDES[code] ?? code
 }
 
-/** Free font families offered for headline/subheadline. Loaded in index.html.
- * Pretendard leads because it covers Korean + Latin cleanly. */
-export const FONT_OPTIONS: { label: string; family: string }[] = [
+/** Free font families offered for headline/subheadline. The first four load
+ * eagerly in app/index.html; entries with a `google` css2 param are injected
+ * on demand (font dropdown open or slide render — see lib/fonts.ts).
+ * Pretendard leads because it covers Korean + Latin cleanly; the rest are
+ * Latin display faces whose Korean glyphs fall back to Pretendard via
+ * scriptFallback. */
+export const FONT_OPTIONS: { label: string; family: string; google?: string }[] = [
   { label: 'Pretendard', family: 'Pretendard' },
   { label: 'Inter', family: 'Inter' },
   { label: 'Montserrat', family: 'Montserrat' },
   { label: 'Poppins', family: 'Poppins' },
+  { label: 'Outfit', family: 'Outfit', google: 'Outfit:wght@400;500;600;700;800;900' },
+  { label: 'Space Grotesk', family: 'Space Grotesk', google: 'Space+Grotesk:wght@400;500;600;700' },
+  { label: 'Manrope', family: 'Manrope', google: 'Manrope:wght@400;500;600;700;800' },
+  { label: 'DM Sans', family: 'DM Sans', google: 'DM+Sans:wght@400;500;600;700;800;900' },
+  { label: 'Playfair Display', family: 'Playfair Display', google: 'Playfair+Display:wght@400;500;600;700;800;900' },
+  { label: 'Fraunces', family: 'Fraunces', google: 'Fraunces:wght@400;500;600;700;800;900' },
+  { label: 'Nunito', family: 'Nunito', google: 'Nunito:wght@400;500;600;700;800;900' },
+  { label: 'Quicksand', family: 'Quicksand', google: 'Quicksand:wght@400;500;600;700' },
+  { label: 'Baloo 2', family: 'Baloo 2', google: 'Baloo+2:wght@400;500;600;700;800' },
+  { label: 'Oswald', family: 'Oswald', google: 'Oswald:wght@400;500;600;700' },
+  { label: 'Bebas Neue', family: 'Bebas Neue', google: 'Bebas+Neue' },
+  { label: 'JetBrains Mono', family: 'JetBrains Mono', google: 'JetBrains+Mono:wght@400;500;600;700;800' },
 ]
 
 export const HEADLINE_STYLE: TextStyle = {

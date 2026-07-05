@@ -16,7 +16,7 @@ import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { MAX_TEXTS, ORNAMENT_DEFAULTS, SUPPORTED_LOCALES, THEME_PRESETS } from '../src/constants/defaults.ts'
+import { FONT_OPTIONS, MAX_TEXTS, ORNAMENT_DEFAULTS, SUPPORTED_LOCALES, THEME_PRESETS } from '../src/constants/defaults.ts'
 import { DEFAULT_MODEL, DEVICE_SPECS, EDITOR_CANVAS_WIDTH } from '../src/constants/deviceSpecs.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -179,8 +179,8 @@ server.registerTool(
     title: 'Design reference data',
     description:
       'Machine-readable design vocabulary for authoring manifests and patches: theme preset ids (with their ' +
-      'actual gradients/colors), layouts, ornament shapes, supported locales, device models with export ' +
-      'resolutions, and per-slide limits. Use the preset ids for manifest themeBackground.',
+      'actual gradients/colors), font families, layouts, ornament shapes, supported locales, device models with ' +
+      'export resolutions, and per-slide limits. Use the preset ids for manifest themeBackground.',
   },
   async () =>
     ok({
@@ -192,6 +192,10 @@ server.registerTool(
         split: 'left text column (left-aligned), device vertically centered in the right half',
       },
       themePresets: THEME_PRESETS,
+      // Families usable as texts[i].fontFamily (manifest) / texts[i].style.fontFamily
+      // (patch). Non-Pretendard families are Latin display faces; Korean glyphs
+      // fall back to Pretendard automatically.
+      fontFamilies: FONT_OPTIONS.map((f) => f.family),
       ornamentShapes: ORNAMENT_DEFAULTS,
       locales: SUPPORTED_LOCALES.map(({ code, name }) => ({ code, name })),
       deviceModels: Object.values(DEVICE_SPECS).map(({ model, type, label, exportWidth, exportHeight }) => ({

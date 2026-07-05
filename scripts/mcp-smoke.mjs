@@ -55,6 +55,7 @@ try {
   check(Object.keys(data.ornamentShapes).includes('sparkles'), 'design reference lists ornament shapes')
   check(data.deviceModels.some((m) => m.model === 'iphone-16-pro' && m.exportWidth === 1320), 'design reference lists device models')
   check(data.locales.some((l) => l.code === 'pt-BR'), 'design reference lists locales')
+  check(data.fontFamilies.includes('Fraunces'), 'design reference lists font families')
 
   const icons = await client.callTool({ name: 'search_icons', arguments: { query: 'sparkle' } })
   const iconData = JSON.parse(icons.content[0].text)

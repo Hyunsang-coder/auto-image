@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Caption, CaptionBox, TemplateType, TextShadow, TextStyle } from '../../../types/project'
 import { CAPTION_FONT_SIZE_MAX, CAPTION_FONT_SIZE_MIN, FONT_OPTIONS, MAX_TEXTS, makeTextBlock } from '../../../constants/defaults'
+import { preloadFontOptions } from '../../../lib/fonts'
 import { useT } from '../../../i18n'
 
 interface CaptionFieldProps {
@@ -138,6 +139,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
         <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('폰트')}</label>
         <select
           value={value.style.fontFamily}
+          onPointerDown={preloadFontOptions}
           onChange={(e) => updateStyle({ fontFamily: e.target.value })}
           className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
           style={{ fontFamily: value.style.fontFamily }}
@@ -444,6 +446,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
             <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('폰트')}</label>
             <select
               value={bulkStyle.fontFamily ?? ''}
+              onPointerDown={preloadFontOptions}
               onChange={(e) => setBulkStyle((s) => ({ ...s, fontFamily: e.target.value || undefined }))}
               className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm text-[var(--color-text)] focus:border-[var(--color-accent)] outline-none"
               style={bulkStyle.fontFamily ? { fontFamily: bulkStyle.fontFamily } : undefined}

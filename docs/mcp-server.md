@@ -24,7 +24,7 @@ cwd=리포 루트로 spawn하면 된다. 서버는 `tsx`로 실행된다 — 디
 |---|---|
 | `get_import_spec` | `docs/project-import.md` 전문 — manifest 스키마·파일명 규칙·캡션 형식·layout report |
 | `get_patch_spec` | `patch_bundle` op 어휘(setText / setScreenshot / external image ops / `set` whitelist) |
-| `get_design_reference` | 테마 프리셋(id+실제 그라디언트), 레이아웃, 장식 shape 18종, 로케일, 디바이스 모델·해상도, 슬라이드당 한도 — 문서에 없는 프리셋 id 목록의 유일한 소스 |
+| `get_design_reference` | 테마 프리셋(id+실제 그라디언트), 폰트 패밀리(`texts[i].fontFamily`용), 레이아웃, 장식 shape 18종, 로케일, 디바이스 모델·해상도, 슬라이드당 한도 — 문서에 없는 프리셋 id·폰트 목록의 유일한 소스 |
 
 파이프라인 도구 (기존 CLI를 spawn — 렌더 계열은 dev 서버 + Playwright를 쓰므로 느림):
 

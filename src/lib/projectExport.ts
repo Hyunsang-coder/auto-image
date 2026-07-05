@@ -107,11 +107,10 @@ function reverseHighlights(hls: Highlight[] | undefined): Record<string, unknown
 
 function reverseTextOverride(c: Caption, where: string, issues: string[]): Record<string, unknown> {
   const s = c.style
-  if (s.fontFamily && s.fontFamily !== DEFAULT_FONT_FAMILY)
-    issues.push(`${where}: fontFamily "${s.fontFamily}" can't be expressed — falls back to ${DEFAULT_FONT_FAMILY}`)
   if (s.box?.border) issues.push(`${where}: caption box border can't be expressed — dropped`)
   if (s.box?.shadow) issues.push(`${where}: caption box shadow can't be expressed — dropped`)
   return {
+    ...(s.fontFamily && s.fontFamily !== DEFAULT_FONT_FAMILY ? { fontFamily: s.fontFamily } : {}),
     fontSize: s.fontSize,
     color: s.color,
     weight: s.fontWeight,

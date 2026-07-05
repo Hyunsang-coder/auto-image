@@ -1,9 +1,10 @@
 import type { Slide } from '../types/project'
+import { FONT_OPTIONS } from '../constants/defaults'
 
 // Load script-specific Noto fonts on demand. Pretendard covers Korean + Latin;
 // Japanese and Thai need explicit canvas font requests for consistent export.
-const NOTO_JP = { family: 'Noto Sans JP', param: 'Noto+Sans+JP' }
-const NOTO_THAI = { family: 'Noto Sans Thai', param: 'Noto+Sans+Thai' }
+const NOTO_JP = { family: 'Noto Sans JP', param: 'Noto+Sans+JP:wght@400;500;700;900' }
+const NOTO_THAI = { family: 'Noto Sans Thai', param: 'Noto+Sans+Thai:wght@400;500;700;900' }
 const KANA = /[぀-ヿ]/ // Hiragana + Katakana ⇒ Japanese
 const THAI = /[\u0E00-\u0E7F]/
 
@@ -18,34 +19,36 @@ export function scriptFallback(text: string): string {
   return `${lead.length ? `${lead.join(', ')}, ` : ''}'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans JP', 'Noto Sans Thai', sans-serif`
 }
 
-let jpLink: Promise<void> | null = null
-let thaiLink: Promise<void> | null = null
+const sheets = new Map<string, Promise<void>>()
 
-function loadNotoJp(): Promise<void> {
-  if (jpLink) return jpLink
+// Inject a Google css2 stylesheet once per family param. Resolve on error too —
+// a font-CDN hiccup must not stall an export.
+function loadSheet(param: string): Promise<void> {
+  const existing = sheets.get(param)
+  if (existing) return existing
   const link = document.createElement('link')
   link.rel = 'stylesheet'
-  link.href = `https://fonts.googleapis.com/css2?family=${NOTO_JP.param}:wght@400;500;700;900&display=swap`
-  // Resolve on error too — a font-CDN hiccup must not stall an export.
-  jpLink = new Promise<void>((resolve) => {
+  link.href = `https://fonts.googleapis.com/css2?family=${param}&display=swap`
+  const p = new Promise<void>((resolve) => {
     link.onload = () => resolve()
     link.onerror = () => resolve()
   })
   document.head.appendChild(link)
-  return jpLink
+  sheets.set(param, p)
+  return p
 }
 
-function loadNotoThai(): Promise<void> {
-  if (thaiLink) return thaiLink
-  const link = document.createElement('link')
-  link.rel = 'stylesheet'
-  link.href = `https://fonts.googleapis.com/css2?family=${NOTO_THAI.param}:wght@400;500;700;900&display=swap`
-  thaiLink = new Promise<void>((resolve) => {
-    link.onload = () => resolve()
-    link.onerror = () => resolve()
-  })
-  document.head.appendChild(link)
-  return thaiLink
+// Inject the stylesheet for an on-demand FONT_OPTIONS family. Eagerly-loaded
+// families (no `google` param) resolve immediately.
+export function ensureFontFamily(family: string): Promise<void> {
+  const google = FONT_OPTIONS.find((f) => f.family === family)?.google
+  return google ? loadSheet(google) : Promise.resolve()
+}
+
+/** Inject every on-demand font stylesheet so the font dropdown previews render
+ * in their own faces. Binaries still download lazily per glyph use. */
+export function preloadFontOptions(): void {
+  for (const f of FONT_OPTIONS) if (f.google) void loadSheet(f.google)
 }
 
 // Every text a slide renders, paired with the exact CSS font shorthand it will
@@ -69,12 +72,15 @@ function slideFontRequests(slide: Slide): { text: string; font: string }[] {
 // `document.fonts.ready` alone is insufficient: a font referenced only from
 // canvas (never the DOM) isn't lazily requested, so the promise can resolve
 // before it loads and fillText silently falls back to a system font — making
-// non-Latin exports look different per machine. We inject the needed Noto
-// stylesheets, then explicitly load each (weight, family-chain, glyphs).
+// non-Latin exports look different per machine. We inject the needed Noto +
+// on-demand family stylesheets, then explicitly load each (weight,
+// family-chain, glyphs).
 export async function awaitSlideFonts(slide: Slide): Promise<void> {
   const reqs = slideFontRequests(slide)
-  if (reqs.some((r) => KANA.test(r.text))) await loadNotoJp()
-  if (reqs.some((r) => THAI.test(r.text))) await loadNotoThai()
+  const families = new Set(slide.texts.map((c) => c.style.fontFamily))
+  await Promise.all([...families].map(ensureFontFamily))
+  if (reqs.some((r) => KANA.test(r.text))) await loadSheet(NOTO_JP.param)
+  if (reqs.some((r) => THAI.test(r.text))) await loadSheet(NOTO_THAI.param)
   await document.fonts.ready
   await Promise.all(reqs.map((r) => document.fonts.load(r.font, r.text).catch(() => {})))
 }

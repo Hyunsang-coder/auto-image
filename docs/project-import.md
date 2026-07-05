@@ -143,6 +143,7 @@
   "textBlocks": 2,
   "texts": [
     {                          // 블록 0 (헤드라인)
+      "fontFamily": "Fraunces", // FONT_OPTIONS 패밀리명 (get_design_reference/defaults.ts 참고). 미지원 패밀리는 무시+issue
       "fontScale": 1.3,        // 레이아웃 기본 크기 ×배수 (0.3–4). 여백 채우기용
       "fontSize": 52,          // 또는 절대 에디터 px(8–200). 있으면 fontScale보다 우선
       "fitToBox": true,        // 긴 문구는 박스 폭에 맞춰 자동 축소. fontSize/fontScale은 최대 크기 역할

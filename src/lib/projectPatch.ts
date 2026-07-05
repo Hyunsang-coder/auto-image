@@ -84,6 +84,7 @@ const EXTERNAL_IMAGE_WIDTH_MAX = 1.5
 // TextStyle field name → ParsedTextOverride field name, so `texts[i].style.*`
 // rides the same coercion/apply path as the manifest's per-block overrides.
 const STYLE_TO_OVERRIDE: Record<string, keyof ParsedTextOverride> = {
+  fontFamily: 'fontFamily',
   color: 'color',
   fontSize: 'fontSize',
   fontWeight: 'weight',

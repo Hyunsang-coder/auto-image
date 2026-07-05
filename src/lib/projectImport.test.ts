@@ -270,6 +270,16 @@ describe('parseManifest normalization', () => {
     expect(issues.some((i) => i.includes('fontSize'))).toBe(true)
   })
 
+  it('accepts a FONT_OPTIONS fontFamily and rejects unknown families', () => {
+    const { manifest, issues } = parseManifest(
+      minimal({}, [{ texts: [{ fontFamily: 'Fraunces' }, { fontFamily: 'Comic Sans MS' }], textBlocks: 2 }]),
+    )
+    const tx = manifest?.slides[0].texts
+    expect(tx?.[0]).toEqual({ fontFamily: 'Fraunces' })
+    expect(tx?.[1]).toEqual({})
+    expect(issues.some((i) => i.includes('Comic Sans MS'))).toBe(true)
+  })
+
   it('parses badges with placement/style and caps the count', () => {
     const capped = parseManifest(minimal({}, [{ badges: Array.from({ length: 6 }, () => ({})) }]))
     expect(capped.manifest?.slides[0].badges).toHaveLength(5)

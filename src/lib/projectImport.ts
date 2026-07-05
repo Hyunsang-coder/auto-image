@@ -25,6 +25,7 @@ import {
   DEFAULT_SOURCE_LOCALE,
   accentFromBackground,
   badgePlaceholder,
+  FONT_OPTIONS,
   MAX_TEXTS,
   ORNAMENT_DEFAULTS,
   SUPPORTED_LOCALES,
@@ -139,6 +140,8 @@ export interface ParsedHighlight {
  *  keep the layout's per-block default (makeTextBlock). `pos` generalizes the
  *  headline-only textX/textY to any block. */
 export interface ParsedTextOverride {
+  /** FONT_OPTIONS family name; unknown families are rejected at parse. */
+  fontFamily?: string
   /** Absolute editor px; overrides fontScale when both are set. */
   fontSize?: number
   /** Multiplier on the block's layout-default fontSize. */
@@ -662,6 +665,10 @@ export function coerceTextOverrides(
     }
     const r = raw as Record<string, unknown>
     const out: ParsedTextOverride = {}
+    if (r.fontFamily !== undefined) {
+      if (typeof r.fontFamily === 'string' && FONT_OPTIONS.some((f) => f.family === r.fontFamily)) out.fontFamily = r.fontFamily
+      else issues.push(t('{where}: fontFamily "{name}"은 지원 폰트가 아님 — 무시', { where: tw, name: String(r.fontFamily) }))
+    }
     const fontSize = coerceNumber(r.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, tw, 'fontSize', issues)
     if (fontSize !== undefined) out.fontSize = fontSize
     const fontScale = coerceNumber(r.fontScale, FONT_SCALE_MIN, FONT_SCALE_MAX, tw, 'fontScale', issues)
@@ -947,6 +954,7 @@ function validateSpanPairs(slides: ParsedSlide[], issues: string[]): void {
  *  fontSize wins over fontScale; pos here supersedes the headline textX/textY. */
 export function applyTextOverride(block: Caption, ov: ParsedTextOverride | undefined): void {
   if (!ov) return
+  if (ov.fontFamily !== undefined) block.style.fontFamily = ov.fontFamily
   if (ov.fontSize !== undefined) block.style.fontSize = ov.fontSize
   else if (ov.fontScale !== undefined) block.style.fontSize = Math.round(block.style.fontSize * ov.fontScale)
   if (ov.fitToBox !== undefined) block.style.fitToBox = ov.fitToBox

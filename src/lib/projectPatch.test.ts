@@ -213,6 +213,15 @@ describe('set (whitelisted paths)', () => {
     expect(p.slides[0].texts[0].style.color).toBe('#ffffff')
   })
 
+  it('applies texts[i].style.fontFamily and rejects unknown families', () => {
+    const { project: p, issues } = applyPatch(project(), [
+      { op: 'set', slide: 1, path: 'texts[0].style.fontFamily', value: 'Fraunces' },
+      { op: 'set', slide: 1, path: 'texts[0].style.fontFamily', value: 'Comic Sans MS' },
+    ])
+    expect(p.slides[0].texts[0].style.fontFamily).toBe('Fraunces')
+    expect(issues.join()).toMatch(/Comic Sans MS/)
+  })
+
   it('replaces ornaments and a badge style', () => {
     const { project: p } = applyPatch(project(), [
       { op: 'set', slide: 1, path: 'ornaments', value: [{ shape: 'star', x: 0.2, y: 0.2 }] },

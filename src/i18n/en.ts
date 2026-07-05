@@ -173,6 +173,8 @@ export const en: Record<string, string> = {
     '{where}: unknown layout "{layout}" — using text-top',
   '{where}: textBlocks는 1~{max} — 1 사용':
     '{where}: textBlocks must be 1–{max} — using 1',
+  '{where}: fontFamily "{name}"은 지원 폰트가 아님 — 무시':
+    '{where}: fontFamily "{name}" is not a supported font — ignored',
   '{where}: {field} 값이 숫자가 아님 — 무시':
     '{where}: {field} is not a number — ignored',
   '{where}: {field} {value}는 {min}~{max} 범위 밖 — 경계값으로 보정':

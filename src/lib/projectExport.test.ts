@@ -189,10 +189,14 @@ describe('exportProject lossy reporting', () => {
     // Second slide of a different device type → mixed-device warning.
     p.slides[1] = { ...p.slides[1], deviceFrame: { ...p.slides[1].deviceFrame, model: 'ipad-pro-13' } }
 
-    const joined = exportProject(p).issues.join('\n')
+    const out = exportProject(p)
+    const joined = out.issues.join('\n')
     expect(joined).toContain('image background')
     expect(joined).toContain('frameModel')
-    expect(joined).toContain('fontFamily')
+    // Non-default fontFamily is carried in the manifest, not reported lossy.
+    expect(joined).not.toContain('fontFamily')
+    const texts = (out.manifest.slides as Record<string, unknown>[])[0].texts as Record<string, unknown>[]
+    expect(texts[0].fontFamily).toBe('Inter')
     expect(joined).toContain('caption box border')
     expect(joined).toContain('badge icon')
     expect(joined).toContain('localeSource')

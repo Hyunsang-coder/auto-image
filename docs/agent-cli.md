@@ -217,7 +217,7 @@ npm run headless:export -- out.studio.zip render-out --report
 라이브 프로젝트 → manifest + 캡션(에이전트가 텍스트만 손보고 재import). **lossy** — 무손실 편집은 surgical patch가 커버하므로 이건 "텍스트 일괄 추출/재작성" 용도.
 - 순수 lib `src/lib/projectExport.ts` `exportProject(project) → { manifest, captions, screenshotPlan, externalImagePlan, issues }` = `projectImport.ts`의 역. manifest는 authored 파일 스키마(`parseManifest`가 읽는 형태), 캡션은 `localeIO.ts` `serializeTemplate`(text:N·badge:N × 모든 로케일) 재사용, 스크린샷은 파일명 plan(`{n}.{locale}.png`), 외부 이미지는 plan(`{n}-external-{i}.png`)으로 분리.
 - in-app hook `window.__exportManifest()`(`__exportManifestEnabled` 게이트, `App.tsx`)가 **브라우저에서** 역변환을 돌려 결과 JSON을 반환 — 하니스(bare node)는 TS lib 그래프를 import 못 하므로(그건 `project:patch`=tsx 전용) 앱이 번들한 lib을 쓰는 게 일관됨(설계의 `__getProject`+하니스-측 lib에서 변경된 점). 하니스 `--export-manifest`가 `manifest.json`+`captions.csv`+`image-plan.json`을 쓰고 plan/issues를 로깅, 렌더는 스킵.
-- **lossy는 `issues[]`로 명시**(평문 영어, projectPatch 컨벤션): `localeOverrides`(로케일별 룩)·이미지 배경·`localeSource`·non-default `fontFamily`·caption box `border`/`shadow`·badge `icon`/`iconPosition`·`frameModel`·혼합 디바이스 타입.
+- **lossy는 `issues[]`로 명시**(평문 영어, projectPatch 컨벤션): `localeOverrides`(로케일별 룩)·이미지 배경·`localeSource`·caption box `border`/`shadow`·badge `icon`/`iconPosition`·`frameModel`·혼합 디바이스 타입. (non-default `fontFamily`는 manifest가 `texts[i].fontFamily`로 직접 나르게 되어 lossy 목록에서 제외됨.)
 - 검증: `projectExport.test.ts`가 export → `parseManifest`→`buildProjectFromManifest`→`applyCaptionRows` 왕복으로 핵심 필드(텍스트·레이아웃·deviceFrame·배경 solid/gradient·번역) 일치 + lossy 마커 전부 `issues`에 나열. 헤들리스로 import 폴더·번들 양쪽 입력에서 manifest/captions 생성 + 재import 렌더(6 PNG) 확인.
 
 ---
