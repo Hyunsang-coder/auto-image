@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const invoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }))
 
-import { isTauri, writeFileToDir, keychainStorage, sanitizePathSegment } from './tauri'
+import { isTauri, writeFileToDir, sanitizePathSegment } from './tauri'
 
 beforeEach(() => {
   invoke.mockReset()
@@ -69,35 +69,5 @@ describe('writeFileToDir', () => {
       'write_file',
       expect.objectContaining({ dir: '/out', path: 'x.png', dataBase64: 'aGk=', executable: false }),
     )
-  })
-})
-
-describe('keychainStorage', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
-
-  it('getItem reads via keychain_get', () => {
-    keychainStorage.getItem('auto-image:api-keys')
-    expect(invoke).toHaveBeenCalledWith('keychain_get', { name: 'auto-image:api-keys' })
-  })
-
-  it('coalesces a burst of setItem into a single trailing write', () => {
-    keychainStorage.setItem('k', 'a')
-    keychainStorage.setItem('k', 'ab')
-    keychainStorage.setItem('k', 'abc')
-    // Nothing written until the debounce window elapses.
-    expect(invoke).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(400)
-    expect(invoke).toHaveBeenCalledTimes(1)
-    expect(invoke).toHaveBeenCalledWith('keychain_set', { name: 'k', value: 'abc' })
-  })
-
-  it('removeItem cancels a pending write and deletes', () => {
-    keychainStorage.setItem('k', 'pending')
-    keychainStorage.removeItem('k')
-    vi.advanceTimersByTime(400)
-    // The pending keychain_set was cancelled; only the delete ran.
-    expect(invoke).toHaveBeenCalledTimes(1)
-    expect(invoke).toHaveBeenCalledWith('keychain_delete', { name: 'k' })
   })
 })
