@@ -44,6 +44,7 @@ cwd=리포 루트로 spawn하면 된다. 서버는 `tsx`로 실행된다 — 디
 | 도구 | 역할 |
 |---|---|
 | `live_status` | 앱이 떠 있는지 + 지금 무엇이 열려 있는지(step, 프로젝트명, 슬라이드 수, 로케일). **다른 `live_*` 전에 먼저 호출**하고, 실패하면 파일 도구로 폴백 |
+| `live_focus` | 4-step 화면(1 프로젝트 · 2 에디터 · 3 로컬라이즈 · 4 export) 전환 + 활성 슬라이드 선택. 프로젝트 데이터는 건드리지 않는다 — `live_patch` 전에 에디터로 가거나, 방금 고친 슬라이드를 사용자 앞에 띄울 때 |
 | `live_new_project` | 앱에 빈 프로젝트 생성 후 에디터로 이동. 이미 열린 프로젝트가 있으면 `replace: true` 없이는 거부 |
 | `live_inspect` | 열린 프로젝트를 `inspect_bundle`과 **같은 형태**로 반환(공용 `scripts/lib/inspect.mjs`) |
 | `live_patch` | `patch_bundle`과 **같은 op 어휘**를 라이브 프로젝트에 적용. 캔버스가 즉시 다시 그려지고 사용자가 보던 슬라이드는 유지된다. 이미지 파일을 새로 들여오는 op(`file`)는 미지원 → `patch_bundle` 사용 |

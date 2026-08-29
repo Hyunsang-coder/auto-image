@@ -11,7 +11,7 @@ import { listen } from '@tauri-apps/api/event'
 import { useProjectStore } from '../store/useProjectStore'
 import { DEFAULT_MODEL } from '../constants/deviceSpecs'
 import { THEME_PRESETS, findThemePreset } from '../constants/defaults'
-import type { DeviceType, Project, Slide } from '../types/project'
+import type { DeviceType, Project, Slide, Step } from '../types/project'
 import { projectImageKeys } from './imageRefs'
 import { applyPatch, type PatchOp } from './projectPatch'
 import { renderSlide, renderSpanGroup } from './renderSlide'
@@ -63,6 +63,31 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
         slideCount: project.slides.length,
       },
     }
+  },
+
+  // Navigation. Deliberately outside applyPatch's vocabulary because it changes
+  // no project data — but an agent driving the window the user is watching has
+  // to be able to bring them to the surface it is editing.
+  focus(params) {
+    const store = useProjectStore.getState()
+    if (params.step === undefined && params.slide === undefined) {
+      throw new Error('focus needs a step and/or a slide')
+    }
+
+    if (params.slide !== undefined) {
+      store.setActiveSlide(findSlide(requireProject(), params.slide).id)
+    }
+    const { step } = params
+    if (step !== undefined) {
+      if (typeof step !== 'number' || !Number.isInteger(step) || step < 1 || step > 4) {
+        throw new Error('step must be 1 (project), 2 (editor), 3 (localize) or 4 (export)')
+      }
+      // Steps 2-4 all render a project; sending the user there without one
+      // would land them on a blank surface.
+      if (step !== 1) requireProject()
+      store.setStep(step as Step)
+    }
+    return handlers.status({})
   },
 
   newProject(params) {

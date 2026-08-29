@@ -668,6 +668,25 @@ server.registerTool(
 )
 
 server.registerTool(
+  'live_focus',
+  {
+    title: 'Move the app to a step / slide',
+    description:
+      'Bring the user to the surface you are working on: switch the 4-step flow (1 project, 2 editor, 3 localize, ' +
+      '4 export) and/or select a slide. Changes no project data. Use it to reach the editor before live_patch, ' +
+      'or to put the slide you just patched in front of the user.',
+    inputSchema: {
+      step: z.number().int().min(1).max(4).optional().describe('1 project, 2 editor, 3 localize, 4 export.'),
+      slide: z
+        .union([z.number().int().min(1), z.string()])
+        .optional()
+        .describe('1-based slide number, or a slide id, to make active.'),
+    },
+  },
+  async (params) => liveGuard(async () => ok(await liveCall('focus', params))),
+)
+
+server.registerTool(
   'live_new_project',
   {
     title: 'Start a new project in the app',

@@ -26,6 +26,7 @@ const EXPECTED_TOOLS = [
   'search_icons',
   'make_icon',
   'live_status',
+  'live_focus',
   'live_new_project',
   'live_inspect',
   'live_patch',
