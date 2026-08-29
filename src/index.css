@@ -54,7 +54,11 @@
     --color-text: #ffffff;
     --color-text-dim: #c4c4c4;
     --color-accent: #0d99ff;
-    --color-accent-strong: #0d99ff;
+    /* Not the marker blue. #0d99ff on the dark surface is 4.67:1 — legal for
+       text but it collapses the marker/label split the light palette relies on,
+       and on an accent-tinted ground (accent/5) it measures 4.38:1, under the
+       minimum. #5cb8ff is 6.49:1 on surface and 5.45:1 on surface-3. */
+    --color-accent-strong: #5cb8ff;
     --color-accent-on: #1e1e1e;
     --color-danger: #ff6b60;
     --color-danger-on: #1e1e1e;
@@ -78,7 +82,9 @@
     --color-text-dim: #e6e6e6;
     --color-border: #6b6b6b;
     --color-border-strong: #c4c4c4;
-    --color-accent-strong: #5cb8ff;
+    /* Has to out-run plain dark's #5cb8ff, or the setting stops escalating the
+       one colour it most needs to. 8.20:1 on surface. */
+    --color-accent-strong: #8ecdff;
     --color-accent-on: #1e1e1e;
   }
 }
