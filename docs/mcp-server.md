@@ -39,6 +39,20 @@ cwd=리포 루트로 spawn하면 된다. 서버는 `tsx`로 실행된다 — 디
 | `fix_layout` | `layout:fix` | layout-summary 기반 manifest 자동 수정 (기본 dry-run) |
 | `layout_loop` | `layout:loop` | 렌더→수정→재렌더 수렴 루프 |
 
+라이브 도구 (실행 중인 **macOS 앱**의 열려 있는 프로젝트를 직접 조작 — 파일 왕복 없음):
+
+| 도구 | 역할 |
+|---|---|
+| `live_status` | 앱이 떠 있는지 + 지금 무엇이 열려 있는지(step, 프로젝트명, 슬라이드 수, 로케일). **다른 `live_*` 전에 먼저 호출**하고, 실패하면 파일 도구로 폴백 |
+| `live_new_project` | 앱에 빈 프로젝트 생성 후 에디터로 이동. 이미 열린 프로젝트가 있으면 `replace: true` 없이는 거부 |
+| `live_inspect` | 열린 프로젝트를 `inspect_bundle`과 **같은 형태**로 반환(공용 `scripts/lib/inspect.mjs`) |
+| `live_patch` | `patch_bundle`과 **같은 op 어휘**를 라이브 프로젝트에 적용. 캔버스가 즉시 다시 그려지고 사용자가 보던 슬라이드는 유지된다. 이미지 파일을 새로 들여오는 op(`file`)는 미지원 → `patch_bundle` 사용 |
+| `live_view` | 라이브 슬라이드를 export와 동일한 해상도로 렌더해 인라인 이미지로 반환(전송 시에만 축소) |
+
+앱은 `npm run tauri:dev` 또는 빌드된 `.app`으로 띄운다. 전송은
+`~/Library/Application Support/com.hyunsang.screenshotstudio/agent-bridge.sock`
+위의 개행 구분 JSON이다(0600). 설계 근거는 [docs/adr.md](./adr.md).
+
 시각 피드백 + 에셋 도구 (에이전트가 디자인을 **보면서** 고치게 한다):
 
 | 도구 | 역할 |

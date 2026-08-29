@@ -27,6 +27,8 @@ npm run project:inspect -- <project.studio.zip> <out.json>  # read a bundle into
 npm run test:headless  # smoke: render a committed fixture and assert PNGs + 0 layout issues (CI regression guard)
 npm run mcp          # MCP stdio server exposing the headless pipeline to AI agents (registered via .mcp.json)
 npm run test:mcp     # smoke: MCP tool registration + knowledge tools (no browser)
+npm run tauri:dev    # macOS desktop shell (Tauri v2) wrapping the app + agent bridge
+npm run tauri:build  # bundle the .app (signing/notarization: docs/SIGNING.md)
 npm run test:e2e     # playwright e2e (chromium, against the Vite dev server)
 npm run test:e2e:ui  # playwright UI mode
 ```
@@ -75,6 +77,16 @@ The agent loop has these headless extensions (design + status: `docs/agent-cli.m
 ### MCP server
 
 `scripts/mcp-server.mjs` (run via `tsx`, registered for Claude Code in root `.mcp.json` as `screenshot-studio`) exposes the whole agent CLI surface as MCP tools over stdio — a thin orchestrator that spawns the existing scripts, no new pipeline logic (design + tool table: `docs/mcp-server.md`). Knowledge tools `get_import_spec` / `get_patch_spec` / `get_design_reference` give an agent the authoring vocabulary (the design reference imports `THEME_PRESETS`/`DEVICE_SPECS`/`ORNAMENT_DEFAULTS` from the TS graph — the only machine-readable list of theme preset ids); pipeline tools `validate_import` / `render` / `create_bundle` / `inspect_bundle` / `patch_bundle` (inline ops array; relative image `file` paths resolve against `filesDir`, default = the bundle's directory) / `export_manifest` / `fix_layout` / `layout_loop` wrap the CLIs 1:1. Long renders stream child stdout lines as MCP progress notifications so clients that reset timeouts on progress survive multi-minute renders. CLI exit ≠ 0 → `isError` + log tail; patch clamps/rejections stay in `issues[]`. Visual-feedback tools close the see-edit loop: `view_output` returns PNGs as inline MCP image content (downscaled via macOS `sips`, ≤2MB original fallback), `search_icons`/`make_icon` rasterize the Lucide set (`lucide-static` devDep, ~2000 ISC icons; Playwright chromium renders the SVG, optional rounded tile via `background`) into transparent PNGs meant for `addExternalImage`. Smoke: `npm run test:mcp` (`scripts/mcp-smoke.mjs`, no browser — render regressions are `test:headless`'s job).
+
+### macOS desktop shell + live agent bridge
+
+`src-tauri/` is a Tauri v2 shell around the same web app (`npm run tauri:dev`). It adds native export-to-folder (`write_file`, path-traversal guarded) and the **agent bridge**: an MCP agent drives the project the user has *open* instead of a copy on disk. Design decisions and their trade-offs: [docs/adr.md](docs/adr.md).
+
+Transport is newline-delimited JSON over a unix socket at `app_config_dir()/agent-bridge.sock` (0600) — **not** a loopback HTTP port, because a browser cannot open a unix socket, which removes the localhost-CSRF/DNS-rebinding class against a file-writing desktop app; it also needs no crates beyond tokio features already in the lock. Rust owns the socket but not the data: `src-tauri/src/bridge.rs` forwards each call to the webview as a `bridge:request` event and parks it on a oneshot until `src/lib/agentBridge.ts` answers via the `bridge_respond` command (`bridge_ready` gates calls that arrive before the listener mounts). Methods: `status` / `newProject` / `inspect` / `patch` / `view`, wrapped 1:1 by the MCP `live_*` tools.
+
+Two invariants keep the live path from becoming a second, weaker copy of the file path: patches run through the **same `applyPatch`** as the CLI (one whitelist, one set of `issues`), and `live_inspect` reuses the **same `inspectBundle`** (lifted into `scripts/lib/inspect.mjs`, shared with `project:inspect`). Live patches use `updateProject`, not `loadProject` — the latter resets step and `activeSlideId`, yanking the user off whatever slide they were editing; the canvas repaints anyway because `FabricCanvas`'s seed effect keys on `[activeSlide, …]`. `live_view` renders at full export resolution (preview widths diverge from export because of absolute-pixel constants) and the MCP layer downscales. Ops that introduce a new image from a file are **not** supported live — the webview has no filesystem access; use `patch_bundle`.
+
+The window's `url` is site-root-relative (`app/index.html`), so `devUrl` must be the dev server root — pointing it at `/app/` makes the two join into `/app/app/index.html`, which Vite's SPA fallback answers with the static landing page instead of the editor.
 
 ### State management
 

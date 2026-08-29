@@ -25,6 +25,11 @@ const EXPECTED_TOOLS = [
   'view_output',
   'search_icons',
   'make_icon',
+  'live_status',
+  'live_new_project',
+  'live_inspect',
+  'live_patch',
+  'live_view',
 ]
 
 const client = new Client({ name: 'mcp-smoke', version: '1.0.0' })
