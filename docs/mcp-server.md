@@ -47,6 +47,7 @@ cwd=리포 루트로 spawn하면 된다. 서버는 `tsx`로 실행된다 — 디
 | `live_focus` | 4-step 화면(1 프로젝트 · 2 에디터 · 3 로컬라이즈 · 4 export) 전환 + 활성 슬라이드 선택. 프로젝트 데이터는 건드리지 않는다 — `live_patch` 전에 에디터로 가거나, 방금 고친 슬라이드를 사용자 앞에 띄울 때 |
 | `live_new_project` | 앱에 빈 프로젝트 생성 후 에디터로 이동. 이미 열린 프로젝트가 있으면 `replace: true` 없이는 거부 |
 | `live_inspect` | 열린 프로젝트를 `inspect_bundle`과 **같은 형태**로 반환(공용 `scripts/lib/inspect.mjs`) |
+| `live_list_untranslated` | 로컬라이즈 워크리스트 — 아직 번역이 빠진 문자열 × 로케일을 원문과 `setText` 주소(`text:N` / `badge:N`)로 반환. 번역해서 `live_patch`의 `setText`로 되쓰면 끝 (없는 로케일은 자동 추가). CSV 내보내기 → 외부 번역 → 다시 가져오기 왕복을 대체한다 |
 | `live_patch` | `patch_bundle`과 **같은 op 어휘**를 라이브 프로젝트에 적용. 캔버스가 즉시 다시 그려지고 사용자가 보던 슬라이드는 유지된다. 이미지 파일을 새로 들여오는 op(`file`)는 미지원 → `patch_bundle` 사용 |
 | `live_view` | 라이브 슬라이드를 export와 동일한 해상도로 렌더해 인라인 이미지로 반환(전송 시에만 축소) |
 
@@ -86,6 +87,15 @@ get_import_spec + get_design_reference          # 어휘 학습
 → search_icons → make_icon → patch_bundle       # 아이콘/에셋 합성
 → inspect_bundle → patch_bundle → render → view_output …  # 수렴할 때까지
 → render (전체) 또는 layout_loop                # 최종 산출
+```
+
+로컬라이즈는 별도 루프다 — 파일 왕복이 없다:
+
+```text
+live_status → live_list_untranslated            # 남은 문자열 × 로케일 + setText 주소
+→ (에이전트가 직접 번역)
+→ live_patch (setText ops, 문자열×로케일당 1개)  # 사용자가 보는 창에 즉시 반영
+→ live_focus { step: 3 }                        # 채워진 표를 사용자 앞에 띄운다
 ```
 
 스모크(`scripts/mcp-smoke.mjs`)는 지식 도구와 도구 등록만 검증한다 — 렌더

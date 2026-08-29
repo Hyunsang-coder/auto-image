@@ -29,6 +29,7 @@ const EXPECTED_TOOLS = [
   'live_focus',
   'live_new_project',
   'live_inspect',
+  'live_list_untranslated',
   'live_patch',
   'live_view',
 ]

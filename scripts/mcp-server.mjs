@@ -722,6 +722,21 @@ server.registerTool(
 )
 
 server.registerTool(
+  'live_list_untranslated',
+  {
+    title: 'What still needs translating in the app',
+    description:
+      'Read the localize worklist from the LIVE project: every translatable string that is still missing at least ' +
+      'one target locale, with its source text and the setText field address (text:N / badge:N). Translate the ' +
+      'strings yourself, then write them back with live_patch using setText ops — one op per string per locale, ' +
+      '{ op: "setText", slide, field, locale, value }. A locale not yet in the project is added automatically. ' +
+      'This replaces exporting a CSV, translating it elsewhere, and re-importing it.',
+    inputSchema: {},
+  },
+  async () => liveGuard(async () => ok(await liveCall('untranslated'))),
+)
+
+server.registerTool(
   'live_patch',
   {
     title: 'Patch the project open in the app',

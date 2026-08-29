@@ -13,6 +13,7 @@ import { DEFAULT_MODEL } from '../constants/deviceSpecs'
 import { THEME_PRESETS, findThemePreset } from '../constants/defaults'
 import type { DeviceType, Project, Slide, Step } from '../types/project'
 import { projectImageKeys } from './imageRefs'
+import { getPendingTranslations } from './readiness'
 import { applyPatch, type PatchOp } from './projectPatch'
 import { renderSlide, renderSpanGroup } from './renderSlide'
 import { blobToBase64, isTauri } from './tauri'
@@ -130,6 +131,20 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
     return {
       project,
       images: Object.fromEntries(projectImageKeys(project).map((key) => [key, `idb:${key}`])),
+    }
+  },
+
+  // The localize worklist, addressed the way `patch` accepts it. Without this an
+  // agent has to reconstruct "what still needs translating" out of the whole
+  // project JSON — the reason translation stayed a CSV round-trip.
+  untranslated() {
+    const project = requireProject()
+    const pending = getPendingTranslations(project)
+    return {
+      sourceLocale: project.sourceLocale,
+      targetLocales: project.targetLocales ?? [],
+      pending,
+      missingCells: pending.reduce((n, p) => n + p.missing.length, 0),
     }
   },
 
