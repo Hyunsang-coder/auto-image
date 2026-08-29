@@ -332,7 +332,10 @@ export function ProjectSetup() {
         title={t('기기')}
         hint={t('한 종류만 선택합니다. 사이즈는 App Store에 등록 가능한 해상도입니다.')}
       >
-        <div className="flex flex-wrap gap-3">
+        {/* Real radios, not a clickable div: the card is the whole hit target,
+            but the input is what carries focus, arrow-key movement between the
+            two types, and the checked state a screen reader reads. */}
+        <div className="flex flex-wrap gap-3" role="radiogroup" aria-label={t('기기')}>
           {(['iphone', 'ipad'] as DeviceType[]).map((d) => {
             const active = device === d
             const model = deviceModel[d]
@@ -348,9 +351,18 @@ export function ProjectSetup() {
                     : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
                 ].join(' ')}
               >
-                <span className="text-base font-medium text-[var(--color-text)]">
-                  {d === 'iphone' ? 'iPhone' : 'iPad'}
-                </span>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="radio"
+                    name="device-type"
+                    value={d}
+                    checked={active}
+                    onChange={() => setDevice(d)}
+                  />
+                  <span className="text-base font-medium text-[var(--color-text)]">
+                    {d === 'iphone' ? 'iPhone' : 'iPad'}
+                  </span>
+                </label>
                 {active ? (
                   <select
                     value={model}
