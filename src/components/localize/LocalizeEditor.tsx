@@ -11,7 +11,7 @@ import { applyCaptionRows, buildTranslationPatch, type FieldKey } from '../../li
 import { buildImageNamingGuide } from '../../lib/imageImport'
 import { importBulkImages } from '../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
-import { getPendingTranslations, type PendingTranslation } from '../../lib/readiness'
+import { getPendingTranslations } from '../../lib/readiness'
 import { useT, t as i18nT } from '../../i18n'
 import type { Slide } from '../../types/project'
 
@@ -152,41 +152,22 @@ function OverrideCell({
 }
 
 /**
- * The primary localize path: hand the job to the MCP agent already connected to
- * this window. It reads the worklist with `live_list_untranslated` and writes
- * back with `live_patch`, so cells fill in here as it works — no export,
- * translate-elsewhere, re-import round trip. The bridge is desktop-only, so the
- * web build is pointed at the template flow below instead.
+ * Progress for the localize step, not a prompt to copy. The connected MCP agent
+ * reads the worklist and writes translations straight into this project, so the
+ * app's job here is to say how much is left and let the user watch the cells
+ * fill — handing them a prompt to paste elsewhere would just rebuild the round
+ * trip this replaced. The bridge is desktop-only, so the web build is pointed
+ * at the template flow below instead.
  */
 function AgentTranslateCard({
-  pending,
-  sourceLabel,
-  targetLabels,
+  cells,
+  targetCount,
 }: {
-  pending: PendingTranslation[]
-  sourceLabel: string
-  targetLabels: string[]
+  cells: number
+  targetCount: number
 }) {
   const t = useT()
-  const [copied, setCopied] = useState(false)
-  const cells = pending.reduce((n, p) => n + p.missing.length, 0)
-
-  if (!targetLabels.length) return null
-
-  const instruction = i18nT(
-    '열려 있는 스크린샷 프로젝트를 {targets}(으)로 번역해줘. live_list_untranslated 로 남은 문자열을 읽고, 번역한 뒤 live_patch 의 setText 로 써줘.',
-    { targets: targetLabels.join(', ') },
-  )
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(instruction)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1600)
-    } catch {
-      /* clipboard permission denied — the text stays selectable on screen */
-    }
-  }
+  if (!targetCount) return null
 
   return (
     <div className="flex-shrink-0 border-b border-[var(--color-border)] bg-[var(--color-accent-soft)] px-6 py-3">
@@ -194,38 +175,18 @@ function AgentTranslateCard({
         <span className="text-[length:var(--text-ui)] font-semibold text-[var(--color-text)]">
           {t('AI 에이전트로 번역')}
         </span>
-        <span className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
+        <span role="status" className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
           {cells === 0
-            ? t('{n}개 언어 모두 번역됨', { n: targetLabels.length })
-            : t('{lang}개 언어 · 남은 칸 {n}개', { lang: targetLabels.length, n: cells })}
+            ? t('{n}개 언어 모두 번역됨', { n: targetCount })
+            : t('{lang}개 언어 · 남은 칸 {n}개', { lang: targetCount, n: cells })}
         </span>
       </div>
 
-      {cells > 0 &&
-        (isTauri() ? (
-          <div className="mt-2 flex items-start gap-2">
-            <code className="min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[length:var(--text-ui-sm)] leading-snug text-[var(--color-text)]">
-              {instruction}
-            </code>
-            <button
-              type="button"
-              onClick={copy}
-              className="h-[var(--control-h)] shrink-0 rounded-md border border-[var(--color-border-strong)] px-3 text-[length:var(--text-ui-sm)] text-[var(--color-text)] transition hover:bg-[var(--color-surface-3)]"
-            >
-              {copied ? t('복사됨 ✓') : t('복사')}
-            </button>
-          </div>
-        ) : (
-          <p className="mt-1.5 max-w-3xl text-[length:var(--text-ui-sm)] leading-snug text-[var(--color-text-dim)]">
-            {t(
-              '에이전트가 이 창에 직접 쓰려면 데스크톱 앱이 필요합니다. 웹에서는 아래 번역 양식을 내보내 번역한 뒤 다시 가져오세요.',
-            )}
-          </p>
-        ))}
-
       {cells > 0 && (
-        <p className="mt-1.5 text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
-          {t('기준 언어: {source} · 직접 입력하려면 아래 표에서 셀을 수정하세요.', { source: sourceLabel })}
+        <p className="mt-1.5 max-w-3xl text-[length:var(--text-ui-sm)] leading-snug text-[var(--color-text-dim)]">
+          {isTauri()
+            ? t('연결된 에이전트에게 번역을 요청하면 이 표에 바로 채워집니다. 직접 입력하려면 아래 셀을 수정하세요.')
+            : t('에이전트가 이 창에 직접 쓰려면 데스크톱 앱이 필요합니다. 웹에서는 아래 번역 양식을 내보내 번역한 뒤 다시 가져오세요.')}
         </p>
       )}
     </div>
@@ -457,9 +418,8 @@ export function LocalizeEditor() {
       </div>
 
       <AgentTranslateCard
-        pending={pending}
-        sourceLabel={t(localeLabel(sourceLocale))}
-        targetLabels={targetLocales.map((c) => t(localeLabel(c)))}
+        cells={pending.reduce((n, p) => n + p.missing.length, 0)}
+        targetCount={targetLocales.length}
       />
 
       {/* Config row */}

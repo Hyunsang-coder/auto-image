@@ -474,15 +474,12 @@ export const en: Record<string, string> = {
   '전체 선택': 'Select all',
   '번역 양식 (수동)': 'Translation form (manual)',
   'AI 에이전트로 번역': 'Translate with an AI agent',
+  '연결된 에이전트에게 번역을 요청하면 이 표에 바로 채워집니다. 직접 입력하려면 아래 셀을 수정하세요.':
+    'Ask the connected agent to translate and it fills this table in place. To type translations yourself, edit the cells below.',
   '{n}개 언어 모두 번역됨': 'All {n} language(s) translated',
   '{lang}개 언어 · 남은 칸 {n}개': '{lang} language(s) · {n} cell(s) left',
-  '복사됨 ✓': 'Copied ✓',
-  '열려 있는 스크린샷 프로젝트를 {targets}(으)로 번역해줘. live_list_untranslated 로 남은 문자열을 읽고, 번역한 뒤 live_patch 의 setText 로 써줘.':
-    'Translate the screenshot project I have open into {targets}. Read the remaining strings with live_list_untranslated, translate them, then write them back with live_patch setText ops.',
   '에이전트가 이 창에 직접 쓰려면 데스크톱 앱이 필요합니다. 웹에서는 아래 번역 양식을 내보내 번역한 뒤 다시 가져오세요.':
     'Writing straight into this window needs the desktop app. On the web, export the form below, translate it, and import it back.',
-  '기준 언어: {source} · 직접 입력하려면 아래 표에서 셀을 수정하세요.':
-    'Source language: {source} · to type translations yourself, edit the cells in the table below.',
   'CSV 내보내기': 'Export CSV',
   'JSON 내보내기': 'Export JSON',
   '번역 프롬프트': 'Translation Prompt',
