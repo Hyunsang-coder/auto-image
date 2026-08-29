@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { migrateProject } from './projectMigrate'
+import { migrateLibraryProjects, migrateProject } from './projectMigrate'
 import type { Caption, Project, Slide } from '../types/project'
 
 const STYLE = {
@@ -52,5 +52,30 @@ describe('migrateProject', () => {
   it('returns a current-schema project unchanged (same reference)', () => {
     const p = v4Pair()
     expect(migrateProject(p, 5)).toBe(p)
+  })
+})
+
+describe('migrateLibraryProjects', () => {
+  it('runs the v4→v5 span split on snapshots that recorded their version', () => {
+    const [p] = migrateLibraryProjects([v4Pair()], 4)
+    expect(p.slides[0].texts.map((c) => c.text)).toEqual(['left'])
+    expect(p.slides[1].texts.map((c) => c.text)).toEqual(['right'])
+  })
+
+  it('passes unversioned snapshots through — v4→v5 would re-home their captions', () => {
+    // Snapshots saved before the store recorded a version report 0. Running the
+    // non-idempotent span split on already-current data would move a leader's
+    // legitimate right-of-page caption onto the follower.
+    const current = project([
+      slide({ id: 'lead', index: 0, spanGroupId: 'g1', spanRole: 'leader', texts: [cap({ text: 'right-of-page', pos: { x: 0.75, y: 0.2 } })] }),
+      slide({ id: 'foll', index: 1, spanGroupId: 'g1', spanRole: 'follower', texts: [cap({ text: 'own' })] }),
+    ])
+    const [p] = migrateLibraryProjects([current], 0)
+    expect(p.slides[0].texts.map((c) => c.text)).toEqual(['right-of-page'])
+    expect(p.slides[1].texts.map((c) => c.text)).toEqual(['own'])
+  })
+
+  it('drops unrecoverable snapshots instead of failing the whole library', () => {
+    expect(migrateLibraryProjects([v4Pair(), v4Pair()], 3)).toEqual([])
   })
 })

@@ -22,3 +22,18 @@ export function migrateProject(project: Project, fromVersion: number): Project |
   if (fromVersion < 5) return { ...project, slides: migrateSpanSlides(project.slides) }
   return project
 }
+
+/**
+ * Library snapshots are whole Projects, so they need the same transforms as
+ * rehydration and bundle-open. Snapshots written before the library store
+ * recorded a version report `fromVersion === 0`; their real schema is
+ * unknowable, and v4→v5 is not idempotent (it re-homes right-half span captions
+ * by position), so re-running it on already-current data would move captions to
+ * the wrong slide. Those are passed through and stamped instead.
+ */
+export function migrateLibraryProjects(projects: Project[], fromVersion: number): Project[] {
+  const from = fromVersion === 0 ? PROJECT_SCHEMA_VERSION : fromVersion
+  return projects
+    .map((p) => migrateProject(p, from))
+    .filter((p): p is Project => p !== null)
+}

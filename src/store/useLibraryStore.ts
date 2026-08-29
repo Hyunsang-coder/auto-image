@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Project } from '../types/project'
 import { safeLocalStorage } from '../lib/safeStorage'
+import { PROJECT_SCHEMA_VERSION, migrateLibraryProjects } from '../lib/projectMigrate'
 
 interface LibraryState {
   projects: Project[]
@@ -34,6 +35,14 @@ export const useLibraryStore = create<LibraryState>()(
     {
       name: 'auto-image:library',
       storage: createJSONStorage(() => safeLocalStorage),
+      // Library snapshots are full Projects, so they need the same schema
+      // transforms rehydration and bundle-open already run — without this they
+      // were the one path that revived a project from JSON unmigrated.
+      version: PROJECT_SCHEMA_VERSION,
+      migrate: (persisted, version) => {
+        const state = persisted as { projects?: Project[] } | undefined
+        return { projects: migrateLibraryProjects(state?.projects ?? [], version) }
+      },
     },
   ),
 )
