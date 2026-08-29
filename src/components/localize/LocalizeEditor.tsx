@@ -11,7 +11,6 @@ import { applyCaptionRows, buildTranslationPatch, type FieldKey } from '../../li
 import { buildImageNamingGuide } from '../../lib/imageImport'
 import { importBulkImages } from '../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
-import { getPendingTranslations } from '../../lib/readiness'
 import { useT, t as i18nT } from '../../i18n'
 import type { Slide } from '../../types/project'
 
@@ -151,48 +150,6 @@ function OverrideCell({
   )
 }
 
-/**
- * Progress for the localize step, not a prompt to copy. The connected MCP agent
- * reads the worklist and writes translations straight into this project, so the
- * app's job here is to say how much is left and let the user watch the cells
- * fill — handing them a prompt to paste elsewhere would just rebuild the round
- * trip this replaced. The bridge is desktop-only, so the web build is pointed
- * at the template flow below instead.
- */
-function AgentTranslateCard({
-  cells,
-  targetCount,
-}: {
-  cells: number
-  targetCount: number
-}) {
-  const t = useT()
-  if (!targetCount) return null
-
-  return (
-    <div className="flex-shrink-0 border-b border-[var(--color-border)] bg-[var(--color-accent-soft)] px-6 py-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="text-[length:var(--text-ui)] font-semibold text-[var(--color-text)]">
-          {t('AI 에이전트로 번역')}
-        </span>
-        <span role="status" className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
-          {cells === 0
-            ? t('{n}개 언어 모두 번역됨', { n: targetCount })
-            : t('{lang}개 언어 · 남은 칸 {n}개', { lang: targetCount, n: cells })}
-        </span>
-      </div>
-
-      {cells > 0 && (
-        <p className="mt-1.5 max-w-3xl text-[length:var(--text-ui-sm)] leading-snug text-[var(--color-text-dim)]">
-          {isTauri()
-            ? t('연결된 에이전트에게 번역을 요청하면 이 표에 바로 채워집니다. 직접 입력하려면 아래 셀을 수정하세요.')
-            : t('에이전트가 이 창에 직접 쓰려면 데스크톱 앱이 필요합니다. 웹에서는 아래 번역 양식을 내보내 번역한 뒤 다시 가져오세요.')}
-        </p>
-      )}
-    </div>
-  )
-}
-
 export function LocalizeEditor() {
   const t = useT()
   const project = useProjectStore(s => s.project)
@@ -218,7 +175,6 @@ export function LocalizeEditor() {
   const rows = buildRows(slides)
   // Image-override rows carry no text — text-only rows drive the CSV/JSON template.
   const textRows = rows.filter(r => r.field !== 'image')
-  const pending = getPendingTranslations(project)
   const localeLabel = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
 
   function handleCellChange(slideId: string, field: FieldKey, locale: string, value: string) {
@@ -416,11 +372,6 @@ export function LocalizeEditor() {
           </button>
         </div>
       </div>
-
-      <AgentTranslateCard
-        cells={pending.reduce((n, p) => n + p.missing.length, 0)}
-        targetCount={targetLocales.length}
-      />
 
       {/* Config row */}
       <div className="flex flex-shrink-0 flex-wrap items-start gap-6 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4">
