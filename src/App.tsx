@@ -16,6 +16,7 @@ import { allReferencedImageKeys } from './lib/imageRefs'
 import { exportProjectBundle } from './lib/projectBundle'
 import { exportProject } from './lib/projectExport'
 import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
+import { startAgentBridge } from './lib/agentBridge'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
 import { useI18nStore, useT } from './i18n'
 
@@ -61,6 +62,11 @@ function App() {
     prunedRef.current = true
     pruneOrphanImages(allReferencedImageKeys())
   }, [project])
+
+  // Desktop shell only: lets an MCP agent drive this window. No-op on the web.
+  useEffect(() => {
+    startAgentBridge()
+  }, [])
 
   useEffect(() => {
     const onError = () => setStorageError(true)

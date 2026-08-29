@@ -1,5 +1,7 @@
 use base64::Engine;
 
+mod bridge;
+
 // Write one file under a user-chosen export directory. Custom command (not the
 // fs plugin) so it can write into any folder the dialog returned without
 // declaring an fs scope — fine for a local BYO-key desktop tool. Called once
@@ -62,7 +64,12 @@ mod tests {
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![write_file])
+    .manage(bridge::BridgeState::default())
+    .invoke_handler(tauri::generate_handler![
+      write_file,
+      bridge::bridge_respond,
+      bridge::bridge_ready
+    ])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -71,6 +78,13 @@ pub fn run() {
             .build(),
         )?;
       }
+      // The agent bridge is best-effort: a desktop app that cannot open its
+      // socket should still work as a plain editor.
+      match bridge::start(app.handle()) {
+        Ok(path) => log::info!("agent bridge listening on {}", path.display()),
+        Err(e) => log::warn!("agent bridge unavailable: {e}"),
+      }
+
       Ok(())
     })
     .run(tauri::generate_context!())
