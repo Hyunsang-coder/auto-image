@@ -458,8 +458,8 @@ export function LocalizeEditor() {
 
       <AgentTranslateCard
         pending={pending}
-        sourceLabel={localeLabel(sourceLocale)}
-        targetLabels={targetLocales.map(localeLabel)}
+        sourceLabel={t(localeLabel(sourceLocale))}
+        targetLabels={targetLocales.map((c) => t(localeLabel(c)))}
       />
 
       {/* Config row */}
