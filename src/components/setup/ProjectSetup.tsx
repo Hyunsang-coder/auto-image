@@ -204,7 +204,7 @@ export function ProjectSetup() {
                 <button
                   type="button"
                   onClick={() => startFromTemplate(tpl)}
-                  className="shrink-0 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                  className="shrink-0 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
                 >
                   {t('이 템플릿으로 시작 →')}
                 </button>
@@ -227,7 +227,7 @@ export function ProjectSetup() {
                   <button
                     type="button"
                     onClick={() => startFromTemplate(tpl)}
-                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
                   >
                     {t('시작 →')}
                   </button>
@@ -239,7 +239,7 @@ export function ProjectSetup() {
                           removeProjectTemplate(tpl.id)
                           setPendingTplDelete(null)
                         }}
-                        className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                        className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-on)] hover:brightness-110"
                       >
                         {t('삭제 확인')}
                       </button>
@@ -255,7 +255,7 @@ export function ProjectSetup() {
                     <button
                       type="button"
                       onClick={() => setPendingTplDelete(tpl.id)}
-                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-red-400 hover:text-red-400"
+                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
                     >
                       {t('삭제')}
                     </button>
@@ -287,7 +287,7 @@ export function ProjectSetup() {
           type="button"
           disabled={importBusy}
           onClick={() => importInputRef.current?.click()}
-          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {importBusy ? t('가져오는 중…') : t('파일 선택')}
         </button>
@@ -312,7 +312,7 @@ export function ProjectSetup() {
           type="button"
           disabled={importBusy}
           onClick={() => bundleInputRef.current?.click()}
-          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {importBusy ? t('가져오는 중…') : t('파일 선택')}
         </button>
@@ -424,7 +424,7 @@ export function ProjectSetup() {
           type="button"
           disabled={!canSubmit}
           onClick={submit}
-          className="rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[var(--color-accent)]/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-[var(--color-accent-strong)] px-5 py-2.5 text-sm font-semibold text-[var(--color-accent-on)] shadow-lg shadow-[var(--color-accent-strong)]/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {hasExisting ? t('새로 만들기 →') : t('다음 →')}
         </button>
@@ -480,7 +480,7 @@ export function ProjectSetup() {
                       <button
                         type="button"
                         onClick={() => handleDelete(p.id)}
-                        className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                        className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-on)] hover:brightness-110"
                       >
                         {t('삭제 확인')}
                       </button>
@@ -496,7 +496,7 @@ export function ProjectSetup() {
                     <button
                       type="button"
                       onClick={() => setPendingDelete(p.id)}
-                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-red-400 hover:text-red-400"
+                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
                     >
                       {t('삭제')}
                     </button>
@@ -526,7 +526,7 @@ export function ProjectSetup() {
               <button
                 type="button"
                 onClick={() => doLoad(confirmLoad)}
-                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+                className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
               >
                 {t('불러오기')}
               </button>
@@ -536,7 +536,7 @@ export function ProjectSetup() {
 
       {bundleError && (
         <Modal title={t('프로젝트 파일 열기')} onClose={() => setBundleError(false)}>
-            <p className="mt-2 text-sm text-red-600">
+            <p className="mt-2 text-sm text-[var(--color-danger)]">
               {t('프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.')}
             </p>
             <div className="mt-5 flex justify-end">
@@ -561,11 +561,11 @@ export function ProjectSetup() {
               </span>
             </p>
           ) : (
-            <p className="mt-2 text-sm text-red-600">{t('가져올 수 없습니다.')}</p>
+            <p className="mt-2 text-sm text-[var(--color-danger)]">{t('가져올 수 없습니다.')}</p>
           )}
           {importResult.issues.length > 0 && (
             <details className="mt-2" open={!importResult.project}>
-              <summary className="cursor-pointer text-xs text-red-600">
+              <summary className="cursor-pointer text-xs text-[var(--color-danger)]">
                 {t('경고 {n}건 보기', { n: importResult.issues.length })}
               </summary>
               <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] text-[var(--color-text-dim)]">
@@ -592,7 +592,7 @@ export function ProjectSetup() {
               <button
                 type="button"
                 onClick={confirmImport}
-                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+                className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
               >
                 {t('에디터에서 검수 →')}
               </button>
@@ -617,7 +617,7 @@ export function ProjectSetup() {
               <button
                 type="button"
                 onClick={doCreate}
-                className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
+                className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-sm font-semibold text-[var(--color-danger-on)] hover:brightness-110"
               >
                 {t('새로 만들기')}
               </button>
@@ -642,7 +642,7 @@ function FirstRunIntro() {
       <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {steps.map((s) => (
           <li key={s.n} className="flex flex-col gap-1">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-xs font-semibold text-[var(--color-accent)]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-xs font-semibold text-[var(--color-accent-strong)]">
               {s.n}
             </span>
             <span className="text-sm font-medium text-[var(--color-text)]">{t(s.label)}</span>

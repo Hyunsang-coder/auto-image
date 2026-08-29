@@ -54,7 +54,7 @@ test('프로젝트 생성 후 Step 2(에디터)로 이동', async ({ page }) => 
 
   // Step 2 에디터 헤더의 에디터 스텝이 활성화됨
   const stepBtn = page.getByRole('button', { name: /에디터/ })
-  await expect(stepBtn).toHaveClass(/bg-\[var\(--color-accent\)\]/)
+  await expect(stepBtn).toHaveAttribute('aria-current', 'step')
 })
 
 test('기기 카드 클릭으로 선택 전환', async ({ page }) => {

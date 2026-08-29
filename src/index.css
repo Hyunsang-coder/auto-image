@@ -1,16 +1,88 @@
 @import 'tailwindcss';
 
+/*
+ * Palette is HIG-measured, not eyeballed. Every foreground/background pair used
+ * for text clears 4.5:1 (HIG minimum up to 17pt); control outlines clear 3:1
+ * (WCAG 1.4.11 non-text). Figma's #0d99ff carries only 2.99:1 under white text,
+ * so it stays a *marker* colour (focus ring, active underline) and filled
+ * controls use `accent-strong` + `accent-on` instead — 5.03:1 light, 5.57:1 dark.
+ */
 @theme {
   --color-bg: #f5f5f5;
   --color-surface: #ffffff;
   --color-surface-2: #f5f5f5;
+  --color-surface-3: #ebebeb;
   --color-border: #e6e6e6;
+  --color-border-strong: #8c8c8c;
   --color-text: #1e1e1e;
-  --color-text-dim: #8c8c8c;
+  --color-text-dim: #666666;
   --color-accent: #0d99ff;
+  --color-accent-strong: #0a72bf;
+  --color-accent-on: #ffffff;
+  --color-accent-soft: #eef7fe;
+  --color-danger: #b42318;
+  --color-danger-on: #ffffff;
+  --color-warning: #9a4507;
+
+  /* macOS text: 13pt default, 10pt minimum. Figma's inspector density lands at
+     11-12px, which is legal but never below --text-ui-xs. */
+  --text-ui: 0.8125rem; /* 13px — controls, buttons, tabs, body */
+  --text-ui-sm: 0.75rem; /* 12px — secondary metadata */
+  --text-ui-xs: 0.6875rem; /* 11px — dense numeric fields */
+  --text-title: 0.9375rem; /* 15px — panel + dialog titles */
+
+  /* macOS control target: 28×28pt default, 20×20pt minimum. */
+  --control-h: 1.75rem; /* 28px */
+  --control-h-sm: 1.5rem; /* 24px */
+  --control-h-lg: 2rem; /* 32px */
+
   --font-sans:
-    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, 'Inter', system-ui, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+}
+
+/* macOS Auto appearance flips during the day, so both appearances ship. Dark is
+   a dimmer ground with brighter foregrounds, not an inversion; small text clears
+   the 7:1 the HIG asks of custom dark-mode colours. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1e1e1e;
+    --color-surface: #2c2c2c;
+    --color-surface-2: #252525;
+    --color-surface-3: #383838;
+    --color-border: #3d3d3d;
+    --color-border-strong: #7a7a7a;
+    --color-text: #ffffff;
+    --color-text-dim: #c4c4c4;
+    --color-accent: #0d99ff;
+    --color-accent-strong: #0d99ff;
+    --color-accent-on: #1e1e1e;
+    --color-accent-soft: #0c2537;
+    --color-danger: #ff6b60;
+    --color-danger-on: #1e1e1e;
+    --color-warning: #f5a524;
+  }
+}
+
+/* Increase Contrast. Without this the system setting only darkens the stock
+   controls, which inverts our hierarchy against the custom greys. */
+@media (prefers-contrast: more) {
+  :root {
+    --color-text-dim: #4a4a4a;
+    --color-border: #8c8c8c;
+    --color-border-strong: #4a4a4a;
+    --color-accent-strong: #005bbb;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --color-text-dim: #e6e6e6;
+    --color-border: #6b6b6b;
+    --color-border-strong: #c4c4c4;
+    --color-accent-strong: #5cb8ff;
+    --color-accent-on: #1e1e1e;
+  }
 }
 
 html,
@@ -22,17 +94,50 @@ body,
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-size: var(--text-ui);
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* Lets the platform draw scrollbars, form controls and the window ground in the
+   right appearance instead of a light-only default behind a dark page. */
+:root {
+  color-scheme: light dark;
+}
+
 button {
   font-family: inherit;
+}
+
+/* Browser-default checkboxes/radios draw at 13x13 — under the 20x20pt macOS
+   minimum. accent-color also makes them follow the appearance automatically. */
+input[type='checkbox'],
+input[type='radio'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent-strong);
+}
+
+/* A native slider's box is 16px tall — under the 20x20pt minimum for the drag
+   target, even though the thumb itself is user-agent drawn. */
+input[type='range'] {
+  height: 1.25rem;
+  accent-color: var(--color-accent-strong);
 }
 
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { StepIndicator } from './components/common/StepIndicator'
+import { MenuButton } from './components/common/MenuButton'
 import { Modal } from './components/common/Modal'
 import { ProjectSetup } from './components/setup/ProjectSetup'
 import { EditorLayout } from './components/editor/EditorLayout'
@@ -10,6 +11,7 @@ import { useLibraryStore } from './store/useLibraryStore'
 import { useCustomStore } from './store/useCustomStore'
 import { projectTemplateFromProject } from './constants/projectTemplates'
 import { newId } from './constants/defaults'
+import { APP_NAME, APP_SHORT_NAME } from './constants/branding'
 import { saveAs } from 'file-saver'
 import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
@@ -52,6 +54,10 @@ function App() {
   useEffect(() => {
     if (!project && step !== 1) setStep(1)
   }, [project, step, setStep])
+
+  useEffect(() => {
+    document.title = project ? `${project.name} — ${APP_NAME}` : APP_NAME
+  }, [project])
 
   // Sweep image blobs left orphaned by interrupted sessions, once on startup.
   // Skip when there's no project so we never wipe blobs before hydration.
@@ -157,15 +163,32 @@ function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3">
-        <div className="flex items-center gap-3">
-          <span className="text-base font-semibold tracking-tight text-[var(--color-text)]">
-            auto-image
+      {/*
+        Three toolbar zones (HIG: leading / center / trailing). Both flanks are
+        1fr so the step nav sits at the true centre and stops drifting as the
+        trailing group changes width between steps. Trailing keeps to the ~3
+        groups the HIG allows — primary action, More menu, appearance-independent
+        language control — with everything else folded into the menu.
+      */}
+      <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            title={APP_NAME}
+            className="shrink-0 rounded-md bg-[var(--color-text)] px-1.5 py-0.5 text-[length:var(--text-ui-sm)] font-bold tracking-tight text-[var(--color-surface)]"
+          >
+            {APP_SHORT_NAME}
           </span>
-          <span className="text-xs text-[var(--color-text-dim)]">
-            App Store Screenshot Studio
+          {/* The window title is the document, not the app name (HIG). */}
+          <span className="truncate text-[length:var(--text-ui)] font-medium text-[var(--color-text)]">
+            {project ? project.name : APP_NAME}
           </span>
+          {project && (
+            <span className="shrink-0 text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
+              {t('{n}장', { n: project.slides.length })}
+            </span>
+          )}
         </div>
+
         <StepIndicator
           current={step}
           hasProject={!!project}
@@ -183,61 +206,74 @@ function App() {
               : undefined
           }
         />
-        <div className="flex items-center gap-3">
-          {project && step !== 1 && (
-            <span className="text-xs text-[var(--color-text-dim)]">
-              {t('{name} · {n}장', { name: project.name, n: project.slides.length })}
+
+        <div className="flex items-center justify-end gap-2">
+          {/* The template confirmation can't live on its menu item — the menu is
+              closed by the time it fires, so nobody would ever see it. */}
+          {justSavedTemplate && (
+            <span
+              role="status"
+              className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]"
+            >
+              {t('템플릿 저장됨 ✓')}
             </span>
           )}
           {project && step !== 1 && (
             <button
               type="button"
               onClick={openSaveModal}
-              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+              className="h-[var(--control-h)] rounded-md border border-[var(--color-border-strong)] px-3 text-[length:var(--text-ui)] text-[var(--color-text)] transition hover:bg-[var(--color-surface-3)]"
             >
               {justSaved ? t('저장됨 ✓') : t('저장')}
             </button>
           )}
-          {project && step !== 1 && (
-            <button
-              type="button"
-              onClick={openTemplateModal}
-              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
-            >
-              {justSavedTemplate ? t('템플릿 저장됨 ✓') : t('템플릿으로 저장')}
-            </button>
-          )}
-          {project && step !== 1 && (
-            <button
-              type="button"
-              onClick={handleExportBundle}
-              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
-            >
-              {t('프로젝트 파일 저장')}
-            </button>
-          )}
           {project && (
-            <button
-              type="button"
-              onClick={() => setShowResetConfirm(true)}
-              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
-            >
-              {t('초기화')}
-            </button>
+            <MenuButton
+              label={t('더 보기')}
+              items={[
+                ...(step !== 1
+                  ? [
+                      { label: t('템플릿으로 저장'), onSelect: openTemplateModal },
+                      { label: t('프로젝트 파일 저장'), onSelect: handleExportBundle },
+                    ]
+                  : []),
+                { label: t('초기화'), onSelect: () => setShowResetConfirm(true), destructive: true },
+              ]}
+            />
           )}
-          <button
-            type="button"
-            onClick={() => setUiLocale(uiLocale === 'ko' ? 'en' : 'ko')}
-            title={uiLocale === 'ko' ? 'Switch to English' : '한국어로 전환'}
-            className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+          {/* Two segments rather than a toggle labelled with the *other* state:
+              the current language stays readable without decoding the control. */}
+          <div
+            role="group"
+            aria-label={t('표시 언어')}
+            className="flex h-[var(--control-h)] overflow-hidden rounded-md border border-[var(--color-border-strong)]"
           >
-            {uiLocale === 'ko' ? 'EN' : '한국어'}
-          </button>
+            {(['ko', 'en'] as const).map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setUiLocale(code)}
+                aria-pressed={uiLocale === code}
+                // Visible label is abbreviated to fit the toolbar; the
+                // accessible name stays the language itself.
+                aria-label={code === 'ko' ? '한국어' : 'English'}
+                title={code === 'ko' ? '한국어로 전환' : 'Switch to English'}
+                className={[
+                  'px-2 text-[length:var(--text-ui-sm)] font-medium transition',
+                  uiLocale === code
+                    ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
+                    : 'text-[var(--color-text-dim)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)]',
+                ].join(' ')}
+              >
+                {code === 'ko' ? '한' : 'EN'}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
       {storageError && (
-        <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/15 px-6 py-2 text-xs text-amber-700">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-warning)]/40 bg-[var(--color-warning)]/15 px-6 py-2 text-xs text-[var(--color-warning)]">
           <span>
             {t(
               '저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다. 슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.',
@@ -246,7 +282,7 @@ function App() {
           <button
             type="button"
             onClick={() => setStorageError(false)}
-            className="shrink-0 rounded border border-amber-500/40 px-2 py-0.5 hover:bg-amber-500/20"
+            className="shrink-0 rounded border border-[var(--color-warning)]/40 px-2 py-0.5 hover:bg-[var(--color-warning)]/20"
           >
             {t('닫기')}
           </button>
@@ -298,7 +334,7 @@ function App() {
               <button
                 type="button"
                 onClick={() => handleSaveProject()}
-                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+                className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
               >
                 {existsInLibrary ? t('덮어쓰기') : t('저장')}
               </button>
@@ -335,7 +371,7 @@ function App() {
               <button
                 type="button"
                 onClick={handleSaveTemplate}
-                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+                className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
               >
                 {t('저장')}
               </button>
@@ -359,7 +395,7 @@ function App() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
+                className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-sm font-semibold text-[var(--color-danger-on)] hover:brightness-110"
               >
                 {t('초기화')}
               </button>

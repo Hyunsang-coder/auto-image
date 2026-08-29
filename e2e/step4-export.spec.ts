@@ -23,7 +23,7 @@ test('렌더링 범위 요약이 올바르게 표시됨', async ({ page }) => {
 
 test('← 로컬라이즈 버튼으로 Step 3으로 이동', async ({ page }) => {
   await page.getByRole('button', { name: '← 로컬라이즈' }).click()
-  await expect(page.getByRole('button', { name: /로컬라이즈/ })).toHaveClass(/bg-\[var\(--color-accent\)\]/)
+  await expect(page.getByRole('button', { name: /로컬라이즈/ })).toHaveAttribute('aria-current', 'step')
 })
 
 test('미리보기가 자동 렌더되어 이미지가 표시됨', async ({ page }) => {

@@ -527,7 +527,7 @@ export function EditorLayout() {
                 type="button"
                 title={t('축소 (Cmd −)')}
                 onClick={() => setZoom((z) => clampZoom(z - 0.1))}
-                className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                className="flex h-[var(--control-h-sm)] w-[var(--control-h-sm)] items-center justify-center rounded leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
                 −
               </button>
@@ -535,7 +535,7 @@ export function EditorLayout() {
                 type="button"
                 title={t('100%로 맞춤 (Cmd 0)')}
                 onClick={() => setZoom(1)}
-                className="w-12 text-center tabular-nums transition hover:text-[var(--color-text)]"
+                className="h-[var(--control-h-sm)] w-12 text-center tabular-nums transition hover:text-[var(--color-text)]"
               >
                 {Math.round(zoom * 100)}%
               </button>
@@ -543,7 +543,7 @@ export function EditorLayout() {
                 type="button"
                 title={t('확대 (Cmd +)')}
                 onClick={() => setZoom((z) => clampZoom(z + 0.1))}
-                className="rounded px-1.5 leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
+                className="flex h-[var(--control-h-sm)] w-[var(--control-h-sm)] items-center justify-center rounded leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
                 +
               </button>
@@ -555,7 +555,7 @@ export function EditorLayout() {
                 title={t('편집 언어 — 원본({locale})은 전체 공통 레이아웃이며 여기 입력한 텍스트가 번역 원본이 됩니다. 특정 언어를 고르면 그 언어용 위치/크기/텍스트만 조정합니다. 원본 언어 변경은 3. 로컬라이즈에서.', { locale: localeLabel(project.sourceLocale) })}
                 className={`rounded-lg border bg-[var(--color-surface)] px-2 py-1 text-xs ${
                   isLocaleMode
-                    ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                    ? 'border-[var(--color-accent)] text-[var(--color-accent-strong)]'
                     : 'border-[var(--color-border)] text-[var(--color-text-dim)]'
                 }`}
               >
@@ -573,7 +573,7 @@ export function EditorLayout() {
                 onClick={() => slide && editTargetId && updateSlide(editTargetId, clearLocaleOverride(slide, editLocale))}
                 disabled={!slide?.localeOverrides?.[editLocale]}
                 title={t('이 언어의 레이아웃 override(위치·크기·템플릿·배경·디바이스)를 지웁니다. 번역 텍스트와 스크린샷은 유지됩니다.')}
-                className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {t('레이아웃 리셋')}
               </button>
@@ -597,7 +597,7 @@ export function EditorLayout() {
               type="button"
               onClick={() => setStep(3)}
               title={t('다음 단계: 로컬라이즈')}
-              className="whitespace-nowrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              className="whitespace-nowrap rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
             >
               {t('다음 →')}
             </button>

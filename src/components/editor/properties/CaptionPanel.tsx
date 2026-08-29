@@ -461,7 +461,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
               className={[
                 'flex-1 rounded py-1 text-xs transition',
                 value.style.textAlign === align
-                  ? 'bg-[var(--color-accent)] text-white'
+                  ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
                   : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)] border border-[var(--color-border)]',
               ].join(' ')}
             >
@@ -502,7 +502,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
     <div className="flex flex-col gap-3">
       {showBulk && (
         <div className="rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-3 flex flex-col gap-3">
-          <p className="text-xs font-semibold text-[var(--color-accent)]">{t('여러 슬라이드 일괄 스타일')}</p>
+          <p className="text-xs font-semibold text-[var(--color-accent-strong)]">{t('여러 슬라이드 일괄 스타일')}</p>
           <div>
             <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('폰트')}</label>
             <select
@@ -554,7 +554,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
                 type="button"
                 disabled={Object.keys(bulkStyle).filter((k) => bulkStyle[k as keyof TextStyle] !== undefined).length === 0}
                 onClick={() => { onApplyTextStyleToSlides(bulkStyle, 'selected'); setBulkStyle({}) }}
-                className="flex-1 rounded-lg bg-[var(--color-accent)] px-2 py-1.5 text-xs text-white disabled:opacity-40 hover:opacity-90"
+                className="flex-1 rounded-lg bg-[var(--color-accent-strong)] px-2 py-1.5 text-xs text-[var(--color-accent-on)] disabled:opacity-40 hover:opacity-90"
               >
                 {t('선택 {n}개에 적용', { n: selectedCount })}
               </button>
@@ -563,7 +563,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
               type="button"
               disabled={Object.keys(bulkStyle).filter((k) => bulkStyle[k as keyof TextStyle] !== undefined).length === 0}
               onClick={() => { onApplyTextStyleToSlides(bulkStyle, 'all'); setBulkStyle({}) }}
-              className="flex-1 rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-xs text-[var(--color-text-dim)] disabled:opacity-40 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              className="flex-1 rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-xs text-[var(--color-text-dim)] disabled:opacity-40 hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
             >
               {t('전체 {n}개에 적용', { n: slideCount })}
             </button>
@@ -582,7 +582,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
               type="button"
               onClick={() => removeBlock(i)}
               title={t('이 텍스트 블록 삭제')}
-              className="absolute right-2 top-2 rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] transition hover:border-red-500 hover:text-red-500"
+              className="absolute right-2 top-2 rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
             >
               {t('삭제')}
             </button>
@@ -593,7 +593,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
         type="button"
         onClick={addBlock}
         disabled={texts.length >= MAX_TEXTS}
-        className="rounded-lg border border-dashed border-[var(--color-border)] py-2 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
+        className="rounded-lg border border-dashed border-[var(--color-border)] py-2 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[var(--color-border)] disabled:hover:text-[var(--color-text-dim)]"
       >
         {t('텍스트 블록 추가 ({n}/{max})', { n: texts.length, max: MAX_TEXTS })}
       </button>

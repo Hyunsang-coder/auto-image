@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { createProject, slideTray, uploadScreenshot } from './helpers'
+import { createProject, openMoreMenu, slideTray, uploadScreenshot } from './helpers'
 
 function hasScreenshotOnCanvas(page: import('@playwright/test').Page) {
   return page.waitForFunction(() => {
@@ -108,13 +108,14 @@ test('초기화 후 새로고침하면 프로젝트가 사라진 채 유지됨',
   await page.reload()
   await expect(page.getByText('Persist Reset')).toBeVisible()
 
-  await page.getByRole('button', { name: '초기화' }).click()
-  await page.locator('.fixed').getByRole('button', { name: '초기화' }).click()
+  await openMoreMenu(page)
+  await page.getByRole('menuitem', { name: '초기화' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: '초기화' }).click()
 
   await page.reload()
 
   // Back at Step 1 with no project — the setup form is shown and the header
   // reset button is gone.
   await expect(page.locator('input[placeholder="예: Dogo, Claude, ADHD"]')).toBeVisible()
-  await expect(page.getByRole('button', { name: '초기화' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '더 보기' })).toHaveCount(0)
 })

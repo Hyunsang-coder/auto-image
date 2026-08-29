@@ -105,17 +105,33 @@ export function PropertiesPanel({
 
   return (
     <aside className="flex min-h-0 flex-1 flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="flex flex-wrap border-b border-[var(--color-border)]">
+      {/*
+        Natural widths in a scroller, not `flex-1`: eight equal shares of a
+        resizable ~340px panel collapse below the label width and the tab names
+        run together. The strip scrolls instead, and the active tab is scrolled
+        back into view so it can never end up off-screen.
+      */}
+      <div
+        aria-label={t('속성')}
+        className="flex shrink-0 overflow-x-auto border-b border-[var(--color-border)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {TABS.map((tab_) => (
           <button
             key={tab_.id}
             type="button"
+            // Plain buttons, not role="tab": the full tab pattern also owes a
+            // tabpanel and arrow-key roving focus, and half of it announces
+            // "3 of 8" to a screen reader while the arrows do nothing.
+            aria-current={tab === tab_.id ? 'true' : undefined}
+            ref={(el) => {
+              if (el && tab === tab_.id) el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+            }}
             onClick={() => onTabChange(tab_.id)}
             className={[
-              'flex-1 py-2.5 text-xs font-medium transition',
+              'shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-[length:var(--text-ui-sm)] font-medium transition',
               tab === tab_.id
-                ? 'border-b-2 border-[var(--color-accent)] text-[var(--color-accent)]'
-                : 'text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
+                ? 'border-[var(--color-accent)] text-[var(--color-accent-strong)]'
+                : 'border-transparent text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
             ].join(' ')}
           >
             {t(tab_.label)}

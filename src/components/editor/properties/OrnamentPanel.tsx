@@ -80,7 +80,7 @@ export function OrnamentPanel({ value, onChange }: Props) {
                 <button
                   type="button"
                   onClick={() => remove(orn.id)}
-                  className="text-xs text-red-600 hover:text-red-700"
+                  className="text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]"
                 >
                   {t('삭제')}
                 </button>

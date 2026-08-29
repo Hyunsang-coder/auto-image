@@ -66,7 +66,7 @@ export function BadgePanel({ value, onChange }: Props) {
             <button
               type="button"
               onClick={() => remove(badge.id)}
-              className="shrink-0 text-xs text-red-600 hover:text-red-700"
+              className="shrink-0 text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]"
             >
               {t('삭제')}
             </button>

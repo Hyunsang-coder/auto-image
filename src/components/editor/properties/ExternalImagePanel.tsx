@@ -88,7 +88,7 @@ export function ExternalImagePanel({ value, onChange }: Props) {
             e.target.value = ''
           }}
         />
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-xs text-[var(--color-danger)]">{error}</p>}
       </div>
 
       {images.length > 0 && (
@@ -115,7 +115,7 @@ export function ExternalImagePanel({ value, onChange }: Props) {
                     <button
                       type="button"
                       onClick={() => remove(image.id)}
-                      className="text-xs text-red-600 hover:text-red-700"
+                      className="text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]"
                     >
                       {t('삭제')}
                     </button>

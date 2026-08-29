@@ -445,13 +445,13 @@ export function ExportPanel() {
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-6">
         {untranslated.length > 0 && (
-          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700">
+          <div className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/12 p-3 text-xs text-[var(--color-warning)]">
             {t('번역 미완료 로케일 {n}개: {locales} — 소스 텍스트로 내보내집니다.', { n: untranslated.length, locales: untranslated.join(', ') })}
           </div>
         )}
 
         {missingScreenshots.length > 0 && (
-          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700">
+          <div className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/12 p-3 text-xs text-[var(--color-warning)]">
             {t('스크린샷 없는 슬라이드: {slides} — 기기 프레임만 내보내집니다.', { slides: missingScreenshots.join(', ') })}
           </div>
         )}
@@ -546,7 +546,7 @@ export function ExportPanel() {
                       }}
                       className={`rounded border px-2 py-0.5 text-xs transition-colors ${
                         on
-                          ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                          ? 'border-[var(--color-accent)] text-[var(--color-accent-strong)]'
                           : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)]'
                       }`}
                     >
@@ -585,7 +585,7 @@ export function ExportPanel() {
         )}
 
         {failures.length > 0 && (
-          <div className="space-y-1.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600">
+          <div className="space-y-1.5 rounded-lg border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 p-3 text-xs text-[var(--color-danger)]">
             <p className="font-semibold">
               {status === 'error'
                 ? t('렌더링 실패: {n}개 슬라이드 — 내보낸 파일이 없습니다.', { n: failures.length })
@@ -605,7 +605,7 @@ export function ExportPanel() {
             failure is already explained by the per-slide failures list above,
             so don't double-report it here. */}
         {error && failures.length === 0 && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600">
+          <p className="rounded-lg border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 p-3 text-xs text-[var(--color-danger)]">
             {error}
           </p>
         )}
@@ -622,7 +622,7 @@ export function ExportPanel() {
           <button
             onClick={() => handleExport('default')}
             disabled={status === 'running' || exportLocales.length === 0}
-            className="flex-1 rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex-1 rounded-lg bg-[var(--color-accent-strong)] px-4 py-3 text-sm font-semibold text-[var(--color-accent-on)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {status === 'running'
               ? t('렌더링 중… ({done}/{total})', { done, total })

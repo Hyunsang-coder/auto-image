@@ -141,14 +141,14 @@ export function ScreenshotPanel({
         <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-dim)]">
           {t('스크린샷')}
         </p>
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-700">
+        <div className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-xs leading-relaxed text-[var(--color-warning)]">
           {t('Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 「레이아웃」 탭에서 Hero Bleed · Text Top · Text Bottom · Split 중 하나를 먼저 선택하세요.')}
         </div>
         {value && (
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="text-xs text-red-600 hover:text-red-700"
+            className="text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]"
           >
             {t('남아있는 스크린샷 삭제')}
           </button>
@@ -190,7 +190,7 @@ export function ScreenshotPanel({
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="text-xs text-red-600 hover:text-red-700"
+              className="text-xs text-[var(--color-danger)] hover:text-[var(--color-danger)]"
             >
               {t('삭제')}
             </button>
@@ -207,7 +207,7 @@ export function ScreenshotPanel({
       )}
 
       {uploadError && (
-        <p className="text-xs text-red-600">{uploadError}</p>
+        <p className="text-xs text-[var(--color-danger)]">{uploadError}</p>
       )}
 
       <input
@@ -248,13 +248,13 @@ export function ScreenshotPanel({
           }}
         />
         {bulkMsg && (
-          <p className={`text-xs ${bulkMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`}>
+          <p className={`text-xs ${bulkMsg.kind === 'ok' ? 'text-[var(--color-accent-strong)]' : 'text-[var(--color-danger)]'}`}>
             {bulkMsg.text}
           </p>
         )}
         {bulkIssues.length > 0 && (
           <details>
-            <summary className="cursor-pointer text-xs text-red-600">{t('경고 {n}건 보기', { n: bulkIssues.length })}</summary>
+            <summary className="cursor-pointer text-xs text-[var(--color-danger)]">{t('경고 {n}건 보기', { n: bulkIssues.length })}</summary>
             <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] leading-snug text-[var(--color-text-dim)]">
               {bulkIssues.map((issue, i) => (
                 <li key={i}>{issue}</li>

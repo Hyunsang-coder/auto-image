@@ -162,3 +162,11 @@ export async function createProject(
 
   await page.getByRole('button', { name: '다음 →' }).click()
 }
+
+/**
+ * Secondary header actions (템플릿으로 저장 / 프로젝트 파일 저장 / 초기화) live in
+ * the toolbar's More menu, so a spec has to open it before clicking one.
+ */
+export async function openMoreMenu(page: Page) {
+  await page.getByRole('button', { name: '더 보기' }).click()
+}

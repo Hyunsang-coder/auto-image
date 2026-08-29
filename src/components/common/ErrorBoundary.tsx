@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="flex gap-2">
           <button
             onClick={() => this.setState({ error: null })}
-            className="rounded bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded bg-[var(--color-accent-strong)] px-4 py-1.5 text-sm font-medium text-[var(--color-accent-on)] hover:opacity-90"
           >
             {t('다시 시도')}
           </button>

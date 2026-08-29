@@ -162,7 +162,7 @@ export function SlideList({
   return (
     <nav className="relative flex flex-row items-center gap-2 overflow-x-auto border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       {linkError && (
-        <p className="absolute left-3 top-1 z-10 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-700">
+        <p className="absolute left-3 top-1 z-10 rounded border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/12 px-2 py-0.5 text-xs text-[var(--color-warning)]">
           {linkError}
         </p>
       )}
@@ -210,7 +210,7 @@ export function SlideList({
               type="button"
               onClick={() => tryLink(row.slides[0].id)}
               style={{ height: thumbHeight }}
-              className="group/link -mx-1 flex w-5 shrink-0 items-center justify-center text-[var(--color-text-dim)] transition hover:text-[var(--color-accent)]"
+              className="group/link -mx-1 flex w-5 shrink-0 items-center justify-center text-[var(--color-text-dim)] transition hover:text-[var(--color-accent-strong)]"
               title={t('옆 슬라이드와 한 장으로 묶기')}
             >
               <span className="opacity-0 transition group-hover/link:opacity-100">🔗</span>
@@ -249,7 +249,7 @@ export function SlideList({
                   onRemoveSlides(pendingDelete.ids)
                   setPendingDelete(null)
                 }}
-                className="rounded-md bg-red-500/90 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500"
+                className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-sm font-semibold text-[var(--color-danger-on)] hover:brightness-110"
               >
                 {t('삭제')}
               </button>
@@ -291,7 +291,7 @@ function ThumbImage({
         {slide.index + 1}
       </span>
       {selected && (
-        <span className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-bold text-white shadow">
+        <span className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent-strong)] text-[10px] font-bold text-[var(--color-accent-on)] shadow">
           ✓
         </span>
       )}
@@ -401,7 +401,7 @@ function SingleRow({
           onClick={onDelete}
           disabled={!canDelete}
           title={canDelete ? t('슬라이드 삭제') : t('마지막 슬라이드는 삭제할 수 없습니다')}
-          className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-[var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           🗑
         </button>

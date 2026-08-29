@@ -24,6 +24,6 @@ test('토글로 한국어 전환 후 새로고침해도 유지됨', async ({ pag
   await expect(page.getByText('새 스크린샷 프로젝트')).toBeVisible()
 
   // And back to English via the toggle.
-  await page.getByRole('button', { name: 'EN' }).click()
+  await page.getByRole('button', { name: 'English' }).click()
   await expect(page.getByText('New Screenshot Project')).toBeVisible()
 })

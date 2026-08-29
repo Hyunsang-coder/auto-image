@@ -290,7 +290,7 @@ export function BackgroundPanel({
                   className={[
                     'flex-1 py-1.5 text-xs font-medium transition',
                     scope === id
-                      ? 'bg-[var(--color-accent)] text-white'
+                      ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
                       : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
                   ].join(' ')}
                 >
@@ -309,7 +309,7 @@ export function BackgroundPanel({
                 <button
                   type="button"
                   onClick={confirmBulk}
-                  className="flex-1 rounded-md bg-[var(--color-accent)] py-1 font-semibold text-white hover:brightness-110"
+                  className="flex-1 rounded-md bg-[var(--color-accent-strong)] py-1 font-semibold text-[var(--color-accent-on)] hover:brightness-110"
                 >
                   {t('적용')}
                 </button>
@@ -358,7 +358,7 @@ export function BackgroundPanel({
                   type="button"
                   onClick={() => removePreset(p.id)}
                   title={t('프리셋 삭제')}
-                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-black/50 text-xs text-white group-hover:flex hover:bg-red-500"
+                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-black/50 text-xs text-white group-hover:flex hover:bg-[var(--color-danger)]"
                 >
                   ×
                 </button>
@@ -384,7 +384,7 @@ export function BackgroundPanel({
                 <button
                   type="button"
                   onClick={commitPreset}
-                  className="shrink-0 rounded-md bg-[var(--color-accent)] px-2.5 py-1.5 text-xs font-semibold text-white hover:brightness-110"
+                  className="shrink-0 rounded-md bg-[var(--color-accent-strong)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-accent-on)] hover:brightness-110"
                 >
                   {t('저장')}
                 </button>
@@ -411,7 +411,7 @@ export function BackgroundPanel({
             className={[
               'flex-1 py-1.5 text-xs font-medium transition',
               activeTab === tab
-                ? 'bg-[var(--color-accent)] text-white'
+                ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
                 : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
             ].join(' ')}
           >
@@ -450,7 +450,7 @@ export function BackgroundPanel({
                   className={[
                     'flex-1 py-1.5 text-xs font-medium transition',
                     active
-                      ? 'bg-[var(--color-accent)] text-white'
+                      ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
                       : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
                   ].join(' ')}
                 >
@@ -485,7 +485,7 @@ export function BackgroundPanel({
                   type="button"
                   onClick={() => removeStop(i)}
                   disabled={g.stops.length <= 2}
-                  className="shrink-0 px-1 text-sm text-[var(--color-text-dim)] transition enabled:hover:text-[var(--color-text)] disabled:opacity-30"
+                  className="flex h-[var(--control-h-sm)] w-[var(--control-h-sm)] shrink-0 items-center justify-center rounded text-sm text-[var(--color-text-dim)] transition enabled:hover:bg-[var(--color-surface-3)] enabled:hover:text-[var(--color-text)] disabled:opacity-30"
                   aria-label={t('스톱 {n} 삭제', { n: i + 1 })}
                 >
                   ×
@@ -535,7 +535,7 @@ export function BackgroundPanel({
           >
             {value.imageKey ? t('이미지 교체') : t('클릭하여 배경 이미지 업로드')}
           </button>
-          {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
+          {uploadError && <p className="text-xs text-[var(--color-danger)]">{uploadError}</p>}
 
           {value.imageKey && (
             <div>
@@ -551,7 +551,7 @@ export function BackgroundPanel({
                       className={[
                         'flex-1 py-1.5 text-xs font-medium transition',
                         active
-                          ? 'bg-[var(--color-accent)] text-white'
+                          ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
                           : 'bg-[var(--color-surface-2)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
                       ].join(' ')}
                     >
@@ -614,7 +614,7 @@ export function BackgroundPanel({
                 <button
                   type="button"
                   onClick={() => setBlobs((value.blobs ?? []).filter((_, idx) => idx !== i))}
-                  className="shrink-0 px-1 text-sm text-[var(--color-text-dim)] transition hover:text-[var(--color-text)]"
+                  className="flex h-[var(--control-h-sm)] w-[var(--control-h-sm)] shrink-0 items-center justify-center rounded text-sm text-[var(--color-text-dim)] transition hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)]"
                   aria-label={t('블롭 {n} 삭제', { n: i + 1 })}
                 >
                   ×

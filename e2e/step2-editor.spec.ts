@@ -413,5 +413,5 @@ test('Undo가 텍스트 드래그를 되돌리고, 되돌림이 슬라이드 전
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
   // 로컬라이즈 에디터 헤더 확인
-  await expect(page.getByRole('button', { name: /로컬라이즈/ })).toHaveClass(/bg-\[var\(--color-accent\)\]/)
+  await expect(page.getByRole('button', { name: /로컬라이즈/ })).toHaveAttribute('aria-current', 'step')
 })

@@ -41,7 +41,7 @@ reserved for local runtime state and is not the canonical skill source.
 
 ## Architecture
 
-**App Store Screenshot Studio** — fully client-side React/TypeScript app. No backend, no API keys (translation is import-only — see Translation). Vite MPA: static landing at `/` (root `index.html`), the React app at `/app/`, plus static guide/blog pages under `public/` (see Static pages).
+**App Store Screenshot Studio** — fully client-side React/TypeScript app. No backend, no API keys (translation is done by the connected MCP agent or by file round-trip — see Translation). Vite MPA: static landing at `/` (root `index.html`), the React app at `/app/`, plus static guide/blog pages under `public/` (see Static pages).
 
 ### UI i18n
 
@@ -52,7 +52,7 @@ The UI is bilingual (ko/en) via `src/i18n/` — **the Korean source string is th
 `App.tsx` routes between steps via `useProjectStore.step`:
 1. **ProjectSetup** — device, slide count, theme color
 2. **EditorLayout** — Fabric.js canvas editor + properties panel
-3. **LocalizeEditor** — translation table (template export/import + copyable translation prompt)
+3. **LocalizeEditor** — translation table; the MCP agent writes into it live, with template export/import as the manual fallback
 4. **ExportPanel** — renders slides to PNG and packages as ZIP
 
 ### Project import (step 1)
@@ -76,7 +76,7 @@ The agent loop has these headless extensions (design + status: `docs/agent-cli.m
 
 ### MCP server
 
-`scripts/mcp-server.mjs` (run via `tsx`, registered for Claude Code in root `.mcp.json` as `screenshot-studio`) exposes the whole agent CLI surface as MCP tools over stdio — a thin orchestrator that spawns the existing scripts, no new pipeline logic (design + tool table: `docs/mcp-server.md`). Knowledge tools `get_import_spec` / `get_patch_spec` / `get_design_reference` give an agent the authoring vocabulary (the design reference imports `THEME_PRESETS`/`DEVICE_SPECS`/`ORNAMENT_DEFAULTS` from the TS graph — the only machine-readable list of theme preset ids); pipeline tools `validate_import` / `render` / `create_bundle` / `inspect_bundle` / `patch_bundle` (inline ops array; relative image `file` paths resolve against `filesDir`, default = the bundle's directory) / `export_manifest` / `fix_layout` / `layout_loop` wrap the CLIs 1:1. Long renders stream child stdout lines as MCP progress notifications so clients that reset timeouts on progress survive multi-minute renders. CLI exit ≠ 0 → `isError` + log tail; patch clamps/rejections stay in `issues[]`. Visual-feedback tools close the see-edit loop: `view_output` returns PNGs as inline MCP image content (downscaled via macOS `sips`, ≤2MB original fallback), `search_icons`/`make_icon` rasterize the Lucide set (`lucide-static` devDep, ~2000 ISC icons; Playwright chromium renders the SVG, optional rounded tile via `background`) into transparent PNGs meant for `addExternalImage`. Smoke: `npm run test:mcp` (`scripts/mcp-smoke.mjs`, no browser — render regressions are `test:headless`'s job).
+`scripts/mcp-server.mjs` (run via `tsx`, registered for Claude Code in root `.mcp.json` as `screenshot-studio`) exposes the whole agent CLI surface as MCP tools over stdio — a thin orchestrator that spawns the existing scripts, no new pipeline logic (design + tool table: `docs/mcp-server.md`). Knowledge tools `get_import_spec` / `get_patch_spec` / `get_design_reference` give an agent the authoring vocabulary (the design reference imports `THEME_PRESETS`/`DEVICE_SPECS`/`ORNAMENT_DEFAULTS` from the TS graph — the only machine-readable list of theme preset ids); `live_list_untranslated` hands an agent the localize worklist (see Translation); pipeline tools `validate_import` / `render` / `create_bundle` / `inspect_bundle` / `patch_bundle` (inline ops array; relative image `file` paths resolve against `filesDir`, default = the bundle's directory) / `export_manifest` / `fix_layout` / `layout_loop` wrap the CLIs 1:1. Long renders stream child stdout lines as MCP progress notifications so clients that reset timeouts on progress survive multi-minute renders. CLI exit ≠ 0 → `isError` + log tail; patch clamps/rejections stay in `issues[]`. Visual-feedback tools close the see-edit loop: `view_output` returns PNGs as inline MCP image content (downscaled via macOS `sips`, ≤2MB original fallback), `search_icons`/`make_icon` rasterize the Lucide set (`lucide-static` devDep, ~2000 ISC icons; Playwright chromium renders the SVG, optional rounded tile via `background`) into transparent PNGs meant for `addExternalImage`. Smoke: `npm run test:mcp` (`scripts/mcp-smoke.mjs`, no browser — render regressions are `test:headless`'s job).
 
 ### macOS desktop shell + live agent bridge
 
@@ -92,7 +92,7 @@ The window's `url` is site-root-relative (`app/index.html`), so `devUrl` must be
 
 Three Zustand stores (all with `localStorage` persist):
 - `useProjectStore` — the active project + slides data. Images are **not** stored here.
-- `useLibraryStore` — multi-project library (deep-cloned snapshots, upsert by id).
+- `useLibraryStore` — multi-project library (deep-cloned snapshots, upsert by id). Snapshots are whole Projects, so the store carries `PROJECT_SCHEMA_VERSION` + a `migrate` through `migrateLibraryProjects`; it used to be the one path that revived a project from JSON unmigrated. Snapshots written before the stamp report version 0 and are passed through rather than transformed — v4→v5 re-homes span captions by position and is not idempotent.
 - `useCustomStore` — user-saved theme presets + project templates.
 
 Images (screenshots) are stored in **IndexedDB** via `src/lib/imageStore.ts` using `idb-keyval`. `ScreenshotImage.imageKey` is the pointer (prefixed `img:`); never a dataUrl in the store.
@@ -127,13 +127,23 @@ All Apple export dimensions and frame specs are in `src/constants/deviceSpecs.ts
 
 ### Translation
 
-Translation is **import-only by design** — there are no in-app LLM API calls and no API keys anywhere. The Localize page exports a CSV or JSON template and provides a copyable translation prompt; the user pastes both into any AI chat (or hands the file to a translator/spreadsheet) and re-imports the filled file. The template carries **every language as a labeled column** — `[sourceLocale, ...targetLocales]` — with no special "source" column. CSV header is `slide, slideId, field, <locale1>, <locale2>, …`; JSON rows carry a `texts` map of `locale → text`. The source-locale column holds the slide's base `.text`; the rest hold `translations`. Pure serialization/parse lives in `src/lib/localeIO.ts` (no store/React deps).
+Translation still makes no in-app LLM API calls and holds no API keys. The **primary path is the connected MCP agent**: `live_list_untranslated` returns every string still missing a locale with its source text and `setText` address, the agent translates and writes back with `live_patch` setText ops, and the Localize table fills in live (`addTargetLocale` picks up locales the project hadn't selected). That path needs the desktop shell's bridge, so the **web build keeps the file round-trip**, and so does anyone who prefers it: the Localize page exports a CSV or JSON template plus a copyable translation prompt, and re-imports the filled file. `getPendingTranslations` (`src/lib/readiness.ts`) is the one predicate behind the agent worklist, the Localize card's counts, and the step-nav readiness dot — do not duplicate it. The template carries **every language as a labeled column** — `[sourceLocale, ...targetLocales]` — with no special "source" column. CSV header is `slide, slideId, field, <locale1>, <locale2>, …`; JSON rows carry a `texts` map of `locale → text`. The source-locale column holds the slide's base `.text`; the rest hold `translations`. Pure serialization/parse lives in `src/lib/localeIO.ts` (no store/React deps).
 
 Import routing is keyed off the app's `project.sourceLocale` setting, **not** baked into the file — so flipping the source language and re-importing the *same* file moves the base column without regenerating. For each non-empty cell: `locale === sourceLocale` → slide base text (`headline.text` / `subheadline.text` / `badges[i].text`), otherwise → `translations[locale]` (and that locale is auto-added to `targetLocales` if not yet selected). The pure routing builders live in `src/lib/localePatch.ts` (`buildBasePatch` / `buildTranslationPatch`, dispatched by `buildImportPatch`); the grid's cell-edit path uses `buildTranslationPatch` directly. Rows match on `slideId` first, falling back to the 1-based `slide` index. Writing the source column overwrites base text the user typed in the editor (empty cells are skipped; the import summary notes how many base texts were updated). Back-compat: a legacy `source` column is ignored, and a JSON file with only the old `translations` key is read as the language map (`texts` wins when both are present).
 
-### CSS
+### CSS / design tokens
 
-Tailwind v4 (via `@tailwindcss/vite`). Design tokens are CSS variables (`--color-border`, `--color-surface`, `--color-text-dim`, etc.) defined in `src/index.css`.
+Tailwind v4 (via `@tailwindcss/vite`). Every colour, text size and control height is a CSS variable in `src/index.css` — **never reach for a raw Tailwind palette class** (`text-red-600`, `bg-amber-500/15`, `text-white`): those have no dark-mode variant and silently break the appearance. Use `--color-danger` / `--color-warning` / `--color-accent-on` instead.
+
+The palette is HIG-measured, not eyeballed, and every pair actually used clears its threshold (4.5:1 for text up to 17pt, 3:1 for control outlines per WCAG 1.4.11, ≥7:1 targeted for small dark-mode text). Two facts drive the shape:
+- **Figma's `#0d99ff` carries only 2.99:1 under white text.** It stays a *marker* colour (focus ring, active underline, selection border); anything filled that carries a label uses `--color-accent-strong` + `--color-accent-on` (5.03:1 light, 5.57:1 dark).
+- Tailwind's `/opacity` modifiers composite in **oklab**, so a `text-[var(--color-text)]/60` is not the ratio you assumed — don't tint text, pick a token.
+
+Three appearances ship: light (`@theme`), dark (`prefers-color-scheme: dark`), and Increase Contrast (`prefers-contrast: more`, both schemes). A custom colour that only exists in the `@theme` block is a bug — macOS Auto appearance flips during the day.
+
+Type/target scale (macOS: 13pt default text, 10pt minimum; 28×28pt default control, 20×20pt minimum): `--text-ui` 13px · `--text-ui-sm` 12px · `--text-ui-xs` 11px · `--text-title` 15px; `--control-h` 28px · `--control-h-sm` 24px · `--control-h-lg` 32px. Checkboxes/radios/ranges get their floor from a global rule (browser defaults draw at 13×13 / 16px tall).
+
+The header is a three-zone toolbar (`grid-cols-[1fr_auto_1fr]`) so the step nav is centred on the *window*, not on whatever the flanks happen to weigh; secondary actions live in the `MenuButton` overflow rather than as more text buttons in a row. Product name comes from `src/constants/branding.ts` (`APP_NAME` / `APP_SHORT_NAME` — the repo is called auto-image, the app is not).
 
 ### Static pages (SEO)
 

@@ -11,6 +11,7 @@ import { applyCaptionRows, buildTranslationPatch, type FieldKey } from '../../li
 import { buildImageNamingGuide } from '../../lib/imageImport'
 import { importBulkImages } from '../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
+import { getPendingTranslations, type PendingTranslation } from '../../lib/readiness'
 import { useT, t as i18nT } from '../../i18n'
 import type { Slide } from '../../types/project'
 
@@ -122,14 +123,14 @@ function OverrideCell({
       <div className="flex flex-col gap-1">
         <button
           onClick={() => inputRef.current?.click()}
-          className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+          className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
         >
           {imageKey ? t('변경') : t('업로드')}
         </button>
         {imageKey && (
           <button
             onClick={onClear}
-            className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-red-500 hover:text-red-500"
+            className="rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
           >
             {t('지우기')}
           </button>
@@ -146,6 +147,87 @@ function OverrideCell({
           e.target.value = ''
         }}
       />
+    </div>
+  )
+}
+
+/**
+ * The primary localize path: hand the job to the MCP agent already connected to
+ * this window. It reads the worklist with `live_list_untranslated` and writes
+ * back with `live_patch`, so cells fill in here as it works — no export,
+ * translate-elsewhere, re-import round trip. The bridge is desktop-only, so the
+ * web build is pointed at the template flow below instead.
+ */
+function AgentTranslateCard({
+  pending,
+  sourceLabel,
+  targetLabels,
+}: {
+  pending: PendingTranslation[]
+  sourceLabel: string
+  targetLabels: string[]
+}) {
+  const t = useT()
+  const [copied, setCopied] = useState(false)
+  const cells = pending.reduce((n, p) => n + p.missing.length, 0)
+
+  if (!targetLabels.length) return null
+
+  const instruction = i18nT(
+    '열려 있는 스크린샷 프로젝트를 {targets}(으)로 번역해줘. live_list_untranslated 로 남은 문자열을 읽고, 번역한 뒤 live_patch 의 setText 로 써줘.',
+    { targets: targetLabels.join(', ') },
+  )
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(instruction)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1600)
+    } catch {
+      /* clipboard permission denied — the text stays selectable on screen */
+    }
+  }
+
+  return (
+    <div className="flex-shrink-0 border-b border-[var(--color-border)] bg-[var(--color-accent-soft)] px-6 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-[length:var(--text-ui)] font-semibold text-[var(--color-text)]">
+          {t('AI 에이전트로 번역')}
+        </span>
+        <span className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
+          {cells === 0
+            ? t('{n}개 언어 모두 번역됨', { n: targetLabels.length })
+            : t('{lang}개 언어 · 남은 칸 {n}개', { lang: targetLabels.length, n: cells })}
+        </span>
+      </div>
+
+      {cells > 0 &&
+        (isTauri() ? (
+          <div className="mt-2 flex items-start gap-2">
+            <code className="min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[length:var(--text-ui-sm)] leading-snug text-[var(--color-text)]">
+              {instruction}
+            </code>
+            <button
+              type="button"
+              onClick={copy}
+              className="h-[var(--control-h)] shrink-0 rounded-md border border-[var(--color-border-strong)] px-3 text-[length:var(--text-ui-sm)] text-[var(--color-text)] transition hover:bg-[var(--color-surface-3)]"
+            >
+              {copied ? t('복사됨 ✓') : t('복사')}
+            </button>
+          </div>
+        ) : (
+          <p className="mt-1.5 max-w-3xl text-[length:var(--text-ui-sm)] leading-snug text-[var(--color-text-dim)]">
+            {t(
+              '에이전트가 이 창에 직접 쓰려면 데스크톱 앱이 필요합니다. 웹에서는 아래 번역 양식을 내보내 번역한 뒤 다시 가져오세요.',
+            )}
+          </p>
+        ))}
+
+      {cells > 0 && (
+        <p className="mt-1.5 text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
+          {t('기준 언어: {source} · 직접 입력하려면 아래 표에서 셀을 수정하세요.', { source: sourceLabel })}
+        </p>
+      )}
     </div>
   )
 }
@@ -175,6 +257,7 @@ export function LocalizeEditor() {
   const rows = buildRows(slides)
   // Image-override rows carry no text — text-only rows drive the CSV/JSON template.
   const textRows = rows.filter(r => r.field !== 'image')
+  const pending = getPendingTranslations(project)
   const localeLabel = (code: string) => SUPPORTED_LOCALES.find(l => l.code === code)?.label ?? code
 
   function handleCellChange(slideId: string, field: FieldKey, locale: string, value: string) {
@@ -373,6 +456,12 @@ export function LocalizeEditor() {
         </div>
       </div>
 
+      <AgentTranslateCard
+        pending={pending}
+        sourceLabel={localeLabel(sourceLocale)}
+        targetLabels={targetLocales.map(localeLabel)}
+      />
+
       {/* Config row */}
       <div className="flex flex-shrink-0 flex-wrap items-start gap-6 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4">
         {/* Source locale */}
@@ -409,9 +498,9 @@ export function LocalizeEditor() {
               return (
                 <label
                   key={locale.code}
-                  className={`flex cursor-pointer items-center gap-1.5 rounded border px-2 py-0.5 text-xs transition-colors ${
+                  className={`flex h-[var(--control-h-sm)] cursor-pointer items-center gap-1.5 rounded border px-2 text-xs transition-colors ${
                     checked
-                      ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                      ? 'border-[var(--color-accent)] text-[var(--color-accent-strong)]'
                       : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-text-dim)]'
                   }`}
                 >
@@ -428,34 +517,34 @@ export function LocalizeEditor() {
           </div>
         </div>
 
-        {/* Template import/export — translation happens externally */}
+        {/* Manual fallback: the agent path above is the primary one. */}
         <div>
-          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">{t('번역 양식 (외부 번역용)')}</div>
+          <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">{t('번역 양식 (수동)')}</div>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => exportTemplate('csv')}
               disabled={textRows.length === 0 || targetLocales.length === 0}
-              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:opacity-40"
             >
               {t('CSV 내보내기')}
             </button>
             <button
               onClick={() => exportTemplate('json')}
               disabled={textRows.length === 0 || targetLocales.length === 0}
-              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:opacity-40"
             >
               {t('JSON 내보내기')}
             </button>
             <button
               onClick={openTranslationPrompt}
               disabled={textRows.length === 0 || targetLocales.length === 0}
-              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-40"
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:opacity-40"
             >
               {t('번역 프롬프트')}
             </button>
             <button
               onClick={() => importInputRef.current?.click()}
-              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
             >
               {t('가져오기')}
             </button>
@@ -472,13 +561,13 @@ export function LocalizeEditor() {
             />
           </div>
           {ioMsg && (
-            <p className={`mt-1 max-w-72 truncate text-xs ${ioMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`} title={ioMsg.text}>
+            <p className={`mt-1 max-w-72 truncate text-xs ${ioMsg.kind === 'ok' ? 'text-[var(--color-accent-strong)]' : 'text-[var(--color-danger)]'}`} title={ioMsg.text}>
               {ioMsg.text}
             </p>
           )}
           {ioIssues.length > 0 && (
             <details className="mt-1 max-w-72">
-              <summary className="cursor-pointer text-xs text-red-600">{t('경고 {n}건 보기', { n: ioIssues.length })}</summary>
+              <summary className="cursor-pointer text-xs text-[var(--color-danger)]">{t('경고 {n}건 보기', { n: ioIssues.length })}</summary>
               <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] leading-snug text-[var(--color-text-dim)]">
                 {ioIssues.map((issue, i) => (
                   <li key={i}>{issue}</li>
@@ -494,13 +583,13 @@ export function LocalizeEditor() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => imageInputRef.current?.click()}
-              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
             >
               {t('이미지 가져오기')}
             </button>
             <button
               onClick={copyImageNamingGuide}
-              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
             >
               {t('규칙 복사')}
             </button>
@@ -521,13 +610,13 @@ export function LocalizeEditor() {
             }}
           />
           {imgMsg && (
-            <p className={`mt-1 max-w-72 truncate text-xs ${imgMsg.kind === 'ok' ? 'text-[var(--color-accent)]' : 'text-red-600'}`} title={imgMsg.text}>
+            <p className={`mt-1 max-w-72 truncate text-xs ${imgMsg.kind === 'ok' ? 'text-[var(--color-accent-strong)]' : 'text-[var(--color-danger)]'}`} title={imgMsg.text}>
               {imgMsg.text}
             </p>
           )}
           {imgIssues.length > 0 && (
             <details className="mt-1 max-w-72">
-              <summary className="cursor-pointer text-xs text-red-600">{t('경고 {n}건 보기', { n: imgIssues.length })}</summary>
+              <summary className="cursor-pointer text-xs text-[var(--color-danger)]">{t('경고 {n}건 보기', { n: imgIssues.length })}</summary>
               <ul className="mt-1 max-h-40 list-disc overflow-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 pl-5 pr-2 text-[11px] leading-snug text-[var(--color-text-dim)]">
                 {imgIssues.map((issue, i) => (
                   <li key={i}>{issue}</li>
@@ -570,7 +659,7 @@ export function LocalizeEditor() {
                       {t(localeLabel(locale))}
                     </span>
                     {errors[locale] && (
-                      <p className="mt-1 truncate text-xs text-red-600" title={errors[locale]}>
+                      <p className="mt-1 truncate text-xs text-[var(--color-danger)]" title={errors[locale]}>
                         {errors[locale]}
                       </p>
                     )}
@@ -598,7 +687,7 @@ export function LocalizeEditor() {
                   <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)]">
                     {row.label}
                   </td>
-                  <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text)]/60">
+                  <td className="border-r border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-text-dim)]">
                     {row.field === 'image'
                       ? baseImageKey && <ImageThumb imageKey={baseImageKey} />
                       : row.sourceText}
@@ -649,7 +738,7 @@ export function LocalizeEditor() {
               <button
                 type="button"
                 onClick={copyTranslationPrompt}
-                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
+                className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
               >
                 {t('복사')}
               </button>

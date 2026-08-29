@@ -46,35 +46,44 @@ export function StepIndicator({
               onClick={() => reachable && onJump(s.id)}
               disabled={!reachable}
               title={hint}
+              aria-current={active ? 'step' : undefined}
               className={[
-                'flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition',
+                'flex h-[var(--control-h-lg)] items-center gap-2 rounded-full px-3 text-[length:var(--text-ui)] transition',
                 active
-                  ? 'bg-[var(--color-accent)] text-white'
+                  ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
                   : reachable
-                    ? 'bg-[var(--color-surface-2)] text-[var(--color-text)] hover:bg-[var(--color-border)]'
+                    ? 'bg-[var(--color-surface-2)] text-[var(--color-text)] hover:bg-[var(--color-surface-3)]'
                     : 'cursor-not-allowed bg-[var(--color-surface)] text-[var(--color-text-dim)] opacity-50',
               ].join(' ')}
             >
               <span
+                aria-hidden
                 className={[
-                  'inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold',
+                  'inline-flex h-5 w-5 items-center justify-center rounded-full text-[length:var(--text-ui-xs)] font-semibold',
+                  // Solid inverse, not a tint: a 25% wash over the accent fill
+                  // measured 3.34:1 in dark mode. Inverting clears 5.03:1 light
+                  // and 5.57:1 dark.
                   active
-                    ? 'bg-white/20'
+                    ? 'bg-[var(--color-accent-on)] text-[var(--color-accent-strong)]'
                     : 'bg-[var(--color-bg)] text-[var(--color-text-dim)]',
                 ].join(' ')}
               >
                 {s.id}
               </span>
               {t(s.label)}
+              {/* Dual-coded: the dot repeats what `title` states in words, so the
+                  warning never rests on colour alone. */}
               {incomplete && (
                 <span
                   aria-hidden
-                  className="h-1.5 w-1.5 rounded-full bg-amber-500"
+                  className="h-1.5 w-1.5 rounded-full bg-[var(--color-warning)]"
                 />
               )}
             </button>
             {idx < STEPS.length - 1 && (
-              <span className="text-[var(--color-text-dim)]">›</span>
+              <span aria-hidden className="text-[var(--color-text-dim)]">
+                ›
+              </span>
             )}
           </div>
         )
