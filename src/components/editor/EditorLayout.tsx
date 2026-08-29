@@ -18,10 +18,12 @@ import type {
   ScreenshotImage,
   ScreenshotStyle,
   Shape,
+  TemplateType,
 } from '../../types/project'
 import {
   type ThemePreset,
   presetFromSlide,
+  templateSwitchPatch,
   themePresetPatch,
 } from '../../constants/defaults'
 import { useCustomStore } from '../../store/useCustomStore'
@@ -396,6 +398,13 @@ export function EditorLayout() {
     applyEdit({ screenshotStyle: style })
   }
 
+  // The only way off a text-only `hero` slide — the layout selector is gone, so
+  // without this a hero slide can never be given a screenshot from the GUI.
+  function handleTemplateChange(next: TemplateType) {
+    if (!editingSlide) return
+    applyEdit(templateSwitchPatch(editingSlide, next))
+  }
+
   function handleExternalImagesChange(externalImages: ExternalImage[]) {
     applyEdit({ externalImages })
     gcImages()
@@ -667,6 +676,7 @@ export function EditorLayout() {
             onBadgesChange={handleBadgesChange}
             onDeviceFrameChange={handleDeviceFrameChange}
             onScreenshotStyleChange={handleScreenshotStyleChange}
+            onTemplateChange={handleTemplateChange}
             onExternalImagesChange={handleExternalImagesChange}
             onOrnamentsChange={handleOrnamentsChange}
             onShapesChange={handleShapesChange}

@@ -583,8 +583,8 @@ export const en: Record<string, string> = {
 
   // ScreenshotPanel.tsx
   스크린샷: 'Screenshot',
-  'Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 「레이아웃」 탭에서 Hero Bleed · Text Top · Text Bottom · Split 중 하나를 먼저 선택하세요.':
-    'Hero layout shows text only. To add a screenshot, first choose Hero Bleed, Text Top, Text Bottom, or Split from the Layout tab.',
+  'Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 기기가 있는 레이아웃으로 바꾸세요.':
+    'Hero layout shows text only. Switch to a layout that places a device to add a screenshot.',
   '남아있는 스크린샷 삭제': 'Delete remaining screenshot',
   교체: 'Replace',
   '클릭하여 이미지 업로드': 'Click to upload an image',

@@ -181,6 +181,33 @@ export const TEMPLATE_TEXT_ALIGN: Record<TemplateType, 'left' | 'center' | 'righ
   split:         'left',
 }
 
+// text-bottom anchors its caption at 74% of the canvas height, but a
+// default-scale device spans 5%→83% and runs under the text. Seed a scale that
+// keeps the default device above the text band (0.05 + 0.78·s ≤ ~0.72).
+export const TEXT_BOTTOM_DEVICE_SCALE = 0.85
+
+/**
+ * Patch for moving a slide to another layout. Captions re-seed their alignment
+ * and drop any dragged `pos`: those fractions were authored against the old
+ * layout's anchors, and keeping them strands the text over the device the new
+ * layout places. Everything else on the slide is left alone.
+ */
+export function templateSwitchPatch(slide: Slide, next: TemplateType): Partial<Slide> {
+  const textAlign = TEMPLATE_TEXT_ALIGN[next]
+  const seedScale = next === 'text-bottom' && (slide.deviceFrame.scale ?? 1) === 1
+  return {
+    template: next,
+    texts: slide.texts.map((c) => {
+      const next = { ...c, style: { ...c.style, textAlign } }
+      delete next.pos
+      return next
+    }),
+    deviceFrame: seedScale
+      ? { ...slide.deviceFrame, scale: TEXT_BOTTOM_DEVICE_SCALE }
+      : slide.deviceFrame,
+  }
+}
+
 export const DEFAULT_SCREENSHOT_STYLE: ScreenshotStyle = {
   cornerRadiusRatio: 0.06,
   shadow: true,

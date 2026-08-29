@@ -10,6 +10,15 @@ import { SUPPORTED_LOCALES } from '../../../constants/defaults'
 import { normalizeAngle } from '../../../canvas/geometry'
 import { EMPTY_CROP } from '../../../canvas/templateLayouts'
 
+/** The layouts that place a device — the escape hatch off a text-only `hero`
+ *  slide, which has no other way back now that the layout selector is gone. */
+const SHOT_TEMPLATES: [TemplateType, string][] = [
+  ['hero-bleed', 'Hero Bleed'],
+  ['text-top', 'Text Top'],
+  ['text-bottom', 'Text Bottom'],
+  ['split', 'Split'],
+]
+
 const CROP_EDGES = [
   ['top', '위'],
   ['bottom', '아래'],
@@ -25,6 +34,7 @@ interface Props {
   screenshotStyle: ScreenshotStyle
   onScreenshotStyleChange: (next: ScreenshotStyle) => void
   template: TemplateType
+  onTemplateChange: (next: TemplateType) => void
 }
 
 export function ScreenshotPanel({
@@ -35,6 +45,7 @@ export function ScreenshotPanel({
   screenshotStyle,
   onScreenshotStyleChange,
   template,
+  onTemplateChange,
 }: Props) {
   const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -142,7 +153,19 @@ export function ScreenshotPanel({
           {t('스크린샷')}
         </p>
         <div className="rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-xs leading-relaxed text-[var(--color-warning)]">
-          {t('Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 「레이아웃」 탭에서 Hero Bleed · Text Top · Text Bottom · Split 중 하나를 먼저 선택하세요.')}
+          {t('Hero 레이아웃은 텍스트만 표시합니다. 스크린샷을 넣으려면 기기가 있는 레이아웃으로 바꾸세요.')}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {SHOT_TEMPLATES.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onTemplateChange(id)}
+              className="rounded border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
+            >
+              {t(label)}
+            </button>
+          ))}
         </div>
         {value && (
           <button

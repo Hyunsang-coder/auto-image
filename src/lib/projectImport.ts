@@ -37,6 +37,7 @@ import {
   SHAPE_DEFAULTS,
   SUPPORTED_LOCALES,
   TEMPLATE_FONT_SIZES,
+  TEXT_BOTTOM_DEVICE_SCALE,
   findThemePreset,
   headlinePlaceholder,
   makeBadge,
@@ -89,12 +90,6 @@ const PAD_MAX = 200
 const OUTLINE_WIDTH_MAX = 40
 const SHADOW_OFFSET_MAX = 100
 const SHADOW_BLUR_MAX = 100
-
-// text-bottom anchors its caption at 74% of the canvas height, but a
-// default-scale device spans 5%→83% and runs under the text. Editor-authored
-// text-bottom slides tune scale/offset per slide; the import seeds a scale
-// that keeps the default device above the text band (0.05 + 0.78·s ≤ ~0.72).
-const TEXT_BOTTOM_DEVICE_SCALE = 0.85
 
 /** Normalized manifest: defaults resolved, invalid values replaced + warned. */
 export interface ParsedManifest {

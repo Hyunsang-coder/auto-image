@@ -10,6 +10,7 @@ import type {
   ScreenshotImage,
   ScreenshotStyle,
   Shape,
+  TemplateType,
   TextStyle,
 } from '../../../types/project'
 import type { ThemePreset } from '../../../constants/defaults'
@@ -60,6 +61,7 @@ interface Props {
   onBadgesChange: (badges: Badge[]) => void
   onDeviceFrameChange: (df: DeviceFrame) => void
   onScreenshotStyleChange: (style: ScreenshotStyle) => void
+  onTemplateChange: (next: TemplateType) => void
   onExternalImagesChange: (next: ExternalImage[]) => void
   onOrnamentsChange: (next: Ornament[]) => void
   onShapesChange: (next: Shape[]) => void
@@ -87,6 +89,7 @@ export function PropertiesPanel({
   onBadgesChange,
   onDeviceFrameChange,
   onScreenshotStyleChange,
+  onTemplateChange,
   onExternalImagesChange,
   onOrnamentsChange,
   onShapesChange,
@@ -172,6 +175,7 @@ export function PropertiesPanel({
             screenshotStyle={screenshotStyle}
             onScreenshotStyleChange={onScreenshotStyleChange}
             template={slide.template}
+            onTemplateChange={onTemplateChange}
           />
         )}
         {tab === 'externalImages' && (
