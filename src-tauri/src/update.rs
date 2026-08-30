@@ -82,6 +82,8 @@ pub async fn check_for_update(app: AppHandle) -> Result<Value, String> {
                 .to_string()
         })?;
 
+    log::info!("update check: latest {latest}, running {current}");
+
     Ok(json!({
         "current": current,
         "latest": latest.trim_start_matches('v'),
