@@ -42,6 +42,8 @@ export const en: Record<string, string> = {
   '프로젝트 파일 저장': 'Export Project File (.zip)',
   '.zip 파일로 내보내기 — 「프로젝트 열기」로 그대로 이어서 편집': 'Exports a .zip — reopen it with Open Project to carry on editing',
   초기화: 'Reset',
+  '이 브라우저의 저장 공간을 {pct}% 사용 중입니다. 가득 차면 변경 사항이 저장되지 않습니다 — 라이브러리에서 오래된 프로젝트를 지우거나, 「프로젝트 파일 저장」으로 내보낸 뒤 정리하세요.':
+    'This browser\u2019s storage is {pct}% full. Once it fills up, changes stop being saved — delete old projects from the library, or export them with Export Project File and clear them out.',
   '저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다. 슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.':
     'Storage is full — your latest changes may not have been saved. Reduce the number of slides or highlights, or export and reset the project.',
   닫기: 'Close',

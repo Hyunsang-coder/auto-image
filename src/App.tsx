@@ -21,7 +21,7 @@ import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys } from './lib/imageRefs'
 import { exportProjectBundle } from './lib/projectBundle'
 import { exportProject } from './lib/projectExport'
-import { STORAGE_ERROR_EVENT } from './lib/safeStorage'
+import { STORAGE_ERROR_EVENT, STORAGE_PRESSURE_EVENT, storageUsage } from './lib/safeStorage'
 import { startAgentBridge } from './lib/agentBridge'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
 import { useI18nStore, useT } from './i18n'
@@ -54,6 +54,13 @@ function App() {
   const [templateName, setTemplateName] = useState('')
   const [justSavedTemplate, setJustSavedTemplate] = useState(false)
   const [storageError, setStorageError] = useState(false)
+  // Fraction of the localStorage budget in use, once it is high enough to be
+  // worth saying. Seeded from what is already on disk so a session that opens
+  // an already-full store hears about it before its first write fails.
+  const [storagePressure, setStoragePressure] = useState(() => {
+    const ratio = storageUsage()
+    return ratio >= 0.8 ? ratio : 0
+  })
   const prunedRef = useRef(false)
 
   useEffect(() => {
@@ -81,8 +88,16 @@ function App() {
 
   useEffect(() => {
     const onError = () => setStorageError(true)
+    const onPressure = (e: Event) => {
+      const { over, ratio } = (e as CustomEvent<{ over: boolean; ratio: number }>).detail
+      setStoragePressure(over ? ratio : 0)
+    }
     window.addEventListener(STORAGE_ERROR_EVENT, onError)
-    return () => window.removeEventListener(STORAGE_ERROR_EVENT, onError)
+    window.addEventListener(STORAGE_PRESSURE_EVENT, onPressure)
+    return () => {
+      window.removeEventListener(STORAGE_ERROR_EVENT, onError)
+      window.removeEventListener(STORAGE_PRESSURE_EVENT, onPressure)
+    }
   }, [])
 
   // Headless bundle hook: the CLI `--bundle` flag drives this to download an
@@ -334,6 +349,26 @@ function App() {
           <button
             type="button"
             onClick={() => setStorageError(false)}
+            className="shrink-0 rounded border border-[var(--color-warning)]/40 px-2 py-0.5 hover:bg-[var(--color-warning)]/20"
+          >
+            {t('닫기')}
+          </button>
+        </div>
+      )}
+
+      {/* The error banner above only ever arrives after a write was already
+          lost. This one arrives while there is still room to act. */}
+      {!storageError && storagePressure > 0 && (
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-warning)]/40 bg-[var(--color-warning)]/15 px-6 py-2 text-xs text-[var(--color-warning)]">
+          <span>
+            {t(
+              '이 브라우저의 저장 공간을 {pct}% 사용 중입니다. 가득 차면 변경 사항이 저장되지 않습니다 — 라이브러리에서 오래된 프로젝트를 지우거나, 「프로젝트 파일 저장」으로 내보낸 뒤 정리하세요.',
+              { pct: Math.round(storagePressure * 100) },
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => setStoragePressure(0)}
             className="shrink-0 rounded border border-[var(--color-warning)]/40 px-2 py-0.5 hover:bg-[var(--color-warning)]/20"
           >
             {t('닫기')}
