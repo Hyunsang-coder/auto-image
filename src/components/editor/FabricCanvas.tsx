@@ -1475,6 +1475,13 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       })
 
       return () => {
+        // fabric's dispose() clears the text-editing manager without exiting the
+        // editor, so an in-progress caption edit never fires
+        // `text:editing:exited` and the typed text is dropped. Unmount is the
+        // one exit route EditorLayout's flushCanvasEdits can't cover (a step
+        // change tears this component down), so commit it here first.
+        const editing = canvas.getActiveObject() as Textbox | undefined
+        if (editing?.isEditing) editing.exitEditing()
         canvas.dispose()
         urlCache.revokeAll()
         fabricRef.current = null
