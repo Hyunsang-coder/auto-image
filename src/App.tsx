@@ -218,14 +218,21 @@ function App() {
               {t('템플릿 저장됨 ✓')}
             </span>
           )}
+          {/*
+            Every edit already persists (the project store is wrapped in
+            `persist`), so a Save button would claim work is at risk that is
+            not — and anyone who never pressed it would believe they had lost
+            their project. State the truth instead; the thing the old button
+            actually did (upsert a library snapshot) is a named menu command.
+          */}
           {project && step !== 1 && (
-            <button
-              type="button"
-              onClick={openSaveModal}
-              className="h-[var(--control-h)] rounded-md border border-[var(--color-border-strong)] px-3 text-[length:var(--text-ui)] text-[var(--color-text)] transition hover:bg-[var(--color-surface-3)]"
+            <span
+              role="status"
+              title={t('모든 변경 사항은 자동으로 저장됩니다')}
+              className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]"
             >
-              {justSaved ? t('저장됨 ✓') : t('저장')}
-            </button>
+              {justSaved ? t('라이브러리에 저장됨 ✓') : t('저장됨')}
+            </span>
           )}
           {project && (
             <MenuButton
@@ -233,6 +240,7 @@ function App() {
               items={[
                 ...(step !== 1
                   ? [
+                      { label: t('라이브러리에 저장'), onSelect: openSaveModal },
                       { label: t('템플릿으로 저장'), onSelect: openTemplateModal },
                       { label: t('프로젝트 파일 저장'), onSelect: handleExportBundle },
                     ]

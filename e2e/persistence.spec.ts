@@ -69,12 +69,14 @@ test('새 프로젝트로 저장 — 원본 항목은 그대로, 사본이 별�
   const modal = page.locator('.fixed')
 
   // First save: not in the library yet → single 저장 action, no save-as choice.
-  await page.getByRole('button', { name: '저장', exact: true }).click()
+  await openMoreMenu(page)
+  await page.getByRole('menuitem', { name: '라이브러리에 저장' }).click()
   await expect(modal.getByRole('button', { name: '새 프로젝트로 저장' })).toHaveCount(0)
   await modal.getByRole('button', { name: '저장', exact: true }).click()
 
   // Second save: entry exists → 덮어쓰기 / 새 프로젝트로 저장 choice.
-  await page.getByRole('button', { name: '저장', exact: true }).click()
+  await openMoreMenu(page)
+  await page.getByRole('menuitem', { name: '라이브러리에 저장' }).click()
   await modal.locator('input').fill('Save Test Copy')
   await modal.getByRole('button', { name: '새 프로젝트로 저장' }).click()
 
@@ -89,7 +91,8 @@ test('새 프로젝트로 저장 — 원본 항목은 그대로, 사본이 별�
   expect(new Set(library.map((p) => p.id)).size).toBe(2)
 
   // The active project became the copy — overwriting now updates the copy only.
-  await page.getByRole('button', { name: '저장', exact: true }).click()
+  await openMoreMenu(page)
+  await page.getByRole('menuitem', { name: '라이브러리에 저장' }).click()
   await modal.locator('input').fill('Copy Renamed')
   await modal.getByRole('button', { name: '덮어쓰기' }).click()
   const after = await page.evaluate(
