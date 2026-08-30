@@ -1503,6 +1503,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         canvas.dispose()
         urlCache.revokeAll()
         fabricRef.current = null
+        // The inspection surface below points at this canvas; leaving it up
+        // after dispose hands automation a disposed canvas and makes "are we in
+        // the editor?" answer yes on every later step.
+        delete (window as unknown as { __editor?: object }).__editor
         // Reset render-state refs so a fresh canvas (e.g. StrictMode remount)
         // doesn't bail out of the apply effect because the refs still match.
         prevSlideId.current = null

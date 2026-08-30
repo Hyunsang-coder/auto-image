@@ -102,6 +102,10 @@ const bundleMode = inputStat.isFile() && extname(inDir).toLowerCase() === '.zip'
 // Step 1 has one "프로젝트 열기" input for both paths: a .zip is a saved
 // project bundle, anything else an agent-authored file set.
 const OPEN_INPUT = 'input[accept=".zip,.json,.csv,image/*"]'
+// "We reached the editor" — `window.__editor` is published by FabricCanvas when
+// the step-2 canvas mounts and dropped when it unmounts. The signal used to be
+// a header button that has since moved into the overflow menu, where it only
+// exists while the menu is open, so it could never match.
 
 const IMPORT_EXTS = new Set(['.json', '.csv', '.png', '.jpg', '.jpeg', '.webp'])
 let files = []
@@ -188,14 +192,12 @@ try {
 
   if (bundleMode) {
     // Lossless bundle path: open the .studio.zip directly. Fresh profile → the
-    // load commits immediately (no overwrite confirm). Success lands on step 2
-    // (the header "프로젝트 파일 저장" button only shows there); failure shows
-    // the bundle-error modal.
+    // load commits immediately (no overwrite confirm). Success lands on step 2;
+    // failure shows the bundle-error modal.
     await page.getByText('프로젝트 열기').first().waitFor()
     await page.locator(OPEN_INPUT).setInputFiles(inDir)
     const ready = page
-      .getByRole('button', { name: '프로젝트 파일 저장' })
-      .waitFor({ timeout: 30_000 })
+      .waitForFunction(() => !!window.__editor, null, { timeout: 30_000 })
       .then(() => 'ok', () => null)
     const failed = page
       .getByText('프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.')
@@ -252,9 +254,9 @@ try {
     // nothing more to do — the dry run already wrote import-result.json
   } else if (exportManifest) {
     // Reverse the loaded project back to a manifest + caption template. Both the
-    // bundle and import paths land on step 2 first (the header "프로젝트 파일
-    // 저장" button only shows there), so the store has a committed project.
-    await page.getByRole('button', { name: '프로젝트 파일 저장' }).first().waitFor({ timeout: 30_000 })
+    // bundle and import paths land on step 2 first, so the store has a
+    // committed project.
+    await page.waitForFunction(() => !!window.__editor, null, { timeout: 30_000 })
     await mkdir(outDir, { recursive: true })
     const raw = await page.evaluate(() => window.__exportManifest?.() ?? null)
     if (!raw) {

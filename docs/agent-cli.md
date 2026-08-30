@@ -61,7 +61,7 @@ npm run headless:export -- project.studio.zip <out-dir> --report   # + layout �
 2. 번들 분기(현 import 드라이브 구간 대체):
    - `page.getByText('프로젝트 열기').first().waitFor()`
    - `page.locator('input[accept=".zip"]').setInputFiles(bundlePath)`
-   - 에디터 진입 대기(요약 모달/"에디터에서 검수 →" 없음): step-2 신호(예: `getByRole('button', { name: '프로젝트 파일 저장' })` — step≠1에서만 노출) 또는 캔버스 가시성.
+   - 에디터 진입 대기(요약 모달/"에디터에서 검수 →" 없음): step-2 신호는 `window.__editor` — FabricCanvas 가 step-2 캔버스를 마운트할 때 올리고 언마운트할 때 내린다. UI 문구가 아니라서 카피 변경에 안 깨진다.
    - 실패 가드: `bundleError` 모달 보이면 즉시 exit 1.
 3. 이후 Export 경로(Export 탭 → ZIP → extract → report) 그대로 재사용.
 
