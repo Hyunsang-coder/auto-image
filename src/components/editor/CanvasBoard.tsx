@@ -98,8 +98,16 @@ export function CanvasBoard({ rows, activeSlideId, thumbs, zoom, onSelect, onVie
           if (isActive) {
             return (
               <div key={first.id} ref={activeRef} className="flex flex-col gap-2">
-                <FrameLabel row={row} />
-                {children}
+                <FrameLabel row={row} active />
+                {/*
+                  The emphasis sits entirely OUTSIDE the canvas box — a ring
+                  drawn past its edge and a lift — so nothing is laid over the
+                  pixels being edited and no pointer target moves. Fabric owns
+                  everything inside.
+                */}
+                <div className="rounded-lg shadow-[0_0_0_2px_var(--color-accent),0_12px_32px_-8px_rgb(0_0_0/0.45)]">
+                  {children}
+                </div>
               </div>
             )
           }
@@ -111,7 +119,10 @@ export function CanvasBoard({ rows, activeSlideId, thumbs, zoom, onSelect, onVie
                 type="button"
                 onClick={() => onSelect(first.id)}
                 title={t('이 슬라이드 편집')}
-                className="flex overflow-hidden rounded-lg border border-[var(--color-border)] transition hover:border-[var(--color-accent)]"
+                // Held back rather than the active one shouted at: the
+                // neighbours are context, and lowering them keeps the edited
+                // slide the brightest thing on the board at any zoom.
+                className="flex overflow-hidden rounded-lg border border-[var(--color-border)] opacity-55 saturate-[0.75] transition hover:border-[var(--color-accent)] hover:opacity-100 hover:saturate-100"
               >
                 {row.slides.map((s) => (
                   <ThumbFrame key={s.id} thumb={thumbs[s.id]} zoom={zoom} height={height} />
@@ -125,11 +136,17 @@ export function CanvasBoard({ rows, activeSlideId, thumbs, zoom, onSelect, onVie
   )
 }
 
-function FrameLabel({ row }: { row: RowItem }) {
+function FrameLabel({ row, active = false }: { row: RowItem; active?: boolean }) {
   const t = useT()
   const n = row.slides.map((s) => s.index + 1).join('–')
   return (
-    <div className="flex items-center gap-1.5 text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
+    <div
+      className={`flex items-center gap-1.5 text-[length:var(--text-ui-xs)] ${
+        active
+          ? 'font-semibold text-[var(--color-text)]'
+          : 'text-[var(--color-text-dim)]'
+      }`}
+    >
       <span className="tabular-nums">{n}</span>
       {row.kind === 'span' && (
         <span className="text-[var(--color-accent-strong)]">{t('2페이지')}</span>
