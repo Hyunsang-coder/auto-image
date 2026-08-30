@@ -3,9 +3,11 @@
 # → tag → GitHub release. Every step that can silently produce a broken download
 # is checked, because the failure mode is a user seeing Gatekeeper block the app.
 #
-#   ./scripts/release.sh 0.1.2                    # full release
-#   ./scripts/release.sh 0.1.2 --notes notes.md   # hand-written release notes
-#   ./scripts/release.sh 0.1.2 --dry-run          # build + verify, no tag/push/publish
+#   ./scripts/release.sh                          # next patch after the shipped version
+#   ./scripts/release.sh minor                    # or major — bumps from the current version
+#   ./scripts/release.sh 0.2.0                    # or name it outright
+#   ./scripts/release.sh --notes notes.md         # hand-written release notes
+#   ./scripts/release.sh --dry-run                # build + verify, no tag/push/publish
 #
 # Signing credentials come from .env.signing (see docs/SIGNING.md).
 set -euo pipefail
@@ -13,29 +15,56 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${1:-}"
+BUMP=""
 NOTES_FILE=""
 DRY_RUN=0
 
-shift || true
+# A bare first argument is the version (or the part to bump); flags may come first.
+case "${1:-}" in
+  -*|"") ;;
+  *) BUMP="$1"; shift ;;
+esac
 while [ $# -gt 0 ]; do
   case "$1" in
     --notes) NOTES_FILE="${2:?--notes needs a file}"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
-    *) echo "unknown flag: $1" >&2; exit 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
-if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "usage: ./scripts/release.sh <major.minor.patch> [--notes FILE] [--dry-run]" >&2
-  exit 2
-fi
+CURRENT="$(sed -nE 's/^  "version": "([0-9]+\.[0-9]+\.[0-9]+)",$/\1/p' src-tauri/tauri.conf.json)"
+[ -n "$CURRENT" ] || { echo "could not read the current version from tauri.conf.json" >&2; exit 1; }
+
+# The default is the next patch: the common case is shipping what has landed
+# since the last release, and naming the number by hand is how a release ends up
+# tagged one version behind what the app reports.
+next() {
+  IFS=. read -r major minor patch <<EOF
+$CURRENT
+EOF
+  case "$1" in
+    major) printf '%s.0.0' "$((major + 1))" ;;
+    minor) printf '%s.%s.0' "$major" "$((minor + 1))" ;;
+    patch) printf '%s.%s.%s' "$major" "$minor" "$((patch + 1))" ;;
+  esac
+}
+
+case "$BUMP" in
+  "" | patch | minor | major) VERSION="$(next "${BUMP:-patch}")" ;;
+  *)
+    VERSION="$BUMP"
+    printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+      echo "usage: ./scripts/release.sh [major|minor|patch|X.Y.Z] [--notes FILE] [--dry-run]" >&2
+      exit 2
+    }
+    ;;
+esac
 
 TAG="v$VERSION"
 say() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 
 # ---------------------------------------------------------------------------
-say "Preflight"
+say "Preflight — $CURRENT → $VERSION"
 # ---------------------------------------------------------------------------
 [ -f .env.signing ] || { echo ".env.signing missing — see docs/SIGNING.md" >&2; exit 1; }
 [ -z "$(git status --porcelain)" ] || { echo "working tree is dirty — commit or stash first" >&2; exit 1; }

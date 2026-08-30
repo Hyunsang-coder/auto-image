@@ -13,8 +13,9 @@ Read what has landed since the last tag:
 git fetch --tags && git log "$(git describe --tags --abbrev=0)"..main --oneline
 ```
 
-Patch for fixes only, minor when a user-visible feature landed. If the user named a version
-in their message, use theirs. State the number and why in one line before running anything.
+The script defaults to the next patch, so pass nothing for a fix-only release. Pass `minor`
+when a user-visible feature landed, `major` for a breaking one, or an explicit `X.Y.Z` if the
+user named a number. Say which you picked and why in one line before running anything.
 
 ## 2. Draft the notes
 
@@ -26,7 +27,7 @@ flag only for a release with nothing worth narrating — `--generate-notes` then
 ## 3. Run it
 
 ```
-./scripts/release.sh <version> --notes <file>
+./scripts/release.sh [minor|major|X.Y.Z] --notes <file>
 ```
 
 It refuses to start on a dirty tree, off main, with unpushed commits, on an existing tag, or
@@ -52,7 +53,14 @@ spctl -a -t open --context context:primary-signature -vv /tmp/dl.dmg
 `accepted / source=Notarized Developer ID` is the pass. Anything else: say so plainly and do
 not tell the user the release is out.
 
-## 5. Tell them what shipped
+## 5. Offer to replace their own copy
+
+If `/Applications/Screenshot Studio.app` exists it is probably older than what you just
+built — check `plutil -extract CFBundleShortVersionString raw "/Applications/Screenshot Studio.app/Contents/Info.plist"`.
+Quitting and replacing it is the difference between "released" and "they are running it".
+Quit the app first, then `ditto` the freshly built bundle over it.
+
+## 6. Tell them what shipped
 
 The tag, the download link, and — if the site's copy describes anything you just changed (the
 install steps, a version number, a "not notarized yet" caveat) — say that the site needs a
