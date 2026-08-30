@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Let an AI Agent Edit Your App Store Screenshots — MCP Setup</title>
+  <meta
+    name="description"
+    content="Connect Claude Code or any MCP client to App Store Screenshot Studio and let an agent read, patch, translate and render the project you have open on your Mac — one npx line, no account, nothing uploaded."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/mcp-agent.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/mcp-agent.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/mcp-agent.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/mcp-agent.html" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Let an AI Agent Edit Your App Store Screenshots — MCP Setup" />
+  <meta
+    property="og:description"
+    content="One npx line connects your MCP client to the Screenshot Studio project open on your Mac: translate every locale, patch layout, and see the rendered slide."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/mcp-agent.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Let an AI Agent Edit Your App Store Screenshots — MCP Setup",
+    "dateModified": "2026-08-30",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    h3 { font-size: 1.05rem; margin-top: 1.8em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../">← App Store Screenshot Studio</a><a href="./ko/mcp-agent.html">한국어로 읽기 →</a></p>
+  <h1>Let an AI agent edit your App Store screenshots</h1>
+  <p class="lead">
+    Screenshot Studio speaks <a href="https://modelcontextprotocol.io">MCP</a>. Connect Claude Code —
+    or any MCP client — and an agent can read the project you have open, translate every caption,
+    move a headline, and look at the rendered slide to check its own work. The app stays in front of
+    you the whole time: the canvas repaints as the agent edits, and you keep the slide you were on.
+  </p>
+
+  <h2>What you need</h2>
+  <ul>
+    <li>The Mac app, running — <a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">download it here</a> if you haven't.</li>
+    <li>Node 20 or newer (for <code>npx</code>).</li>
+    <li>An MCP client: Claude Code, Claude Desktop, or anything that speaks the protocol.</li>
+  </ul>
+
+  <h2>Connect</h2>
+  <p>In Claude Code, one command:</p>
+  <pre><code>claude mcp add screenshot-studio -- npx -y screenshot-studio-mcp</code></pre>
+  <p>In a client with a JSON config (Claude Desktop and most others):</p>
+  <pre><code>{
+  "mcpServers": {
+    "screenshot-studio": {
+      "command": "npx",
+      "args": ["-y", "screenshot-studio-mcp"]
+    }
+  }
+}</code></pre>
+  <p>
+    Both are also one click away inside the app: the <strong>MCP</strong> chip in the header opens a
+    card with <em>Copy config</em> and <em>Copy Claude Code command</em>.
+  </p>
+  <p>
+    Then ask your agent to call <code>live_status</code>. It answers with what the app has open — step,
+    project name, slide count, locales. If it says the app is not running, open the app (or check the
+    switch described below) and ask again.
+  </p>
+
+  <h2>What the agent can do</h2>
+  <table>
+    <tr><th>Tool</th><th>What it does</th></tr>
+    <tr><td><code>live_status</code></td><td>Is the app running, and what does it have open?</td></tr>
+    <tr><td><code>live_focus</code></td><td>Move you to a step or slide. Changes no data.</td></tr>
+    <tr><td><code>live_new_project</code></td><td>Start a blank project and jump to the editor.</td></tr>
+    <tr><td><code>live_inspect</code></td><td>Read the open project as compact JSON — per-slide template, device, texts and badges with their field addresses, external images, structural issues.</td></tr>
+    <tr><td><code>live_list_untranslated</code></td><td>The localize worklist: every string still missing a locale, with its source text and address.</td></tr>
+    <tr><td><code>live_patch</code></td><td>Apply surgical edits — text, position, style, background, device frame, external images.</td></tr>
+    <tr><td><code>live_view</code></td><td>Render one slide at export resolution and return it as an image, so the agent can see the result.</td></tr>
+    <tr><td><code>get_design_reference</code></td><td>Theme ids, fonts, layouts, ornaments, locales, device models and export sizes, per-slide limits.</td></tr>
+    <tr><td><code>get_patch_spec</code> / <code>get_import_spec</code></td><td>The op vocabulary and the manifest authoring spec.</td></tr>
+  </table>
+
+  <h2>Three things worth asking for</h2>
+  <h3>1. Translate the whole set</h3>
+  <p>
+    “Translate every missing caption into Japanese and German.” The agent calls
+    <code>live_list_untranslated</code>, writes the translations back with <code>live_patch</code>, and the
+    Localize table fills in as it goes. A language your project hasn't selected yet is added
+    automatically. No CSV export, no re-import.
+  </p>
+  <h3>2. Fix what it can see</h3>
+  <p>
+    “Slide 3's headline is colliding with the device — fix it.” <code>live_view</code> renders the slide at
+    the real export size, so the agent judges the layout that actually ships, patches, and looks
+    again.
+  </p>
+  <h3>3. Draft from scratch</h3>
+  <p>
+    “Make me a 5-slide iPhone project on the porcelain theme with these captions.”
+    <code>live_new_project</code> then a batch of <code>live_patch</code> ops. You still add the screenshots —
+    the agent has no access to your files.
+  </p>
+
+  <h2>The switch</h2>
+  <p>
+    The header card has an on/off switch, and off means off: the socket is unlinked and nothing is
+    listening. The choice persists across launches, so a bridge you turned off stays off from the
+    very first second of the next launch — not "until the window finishes loading". Turn it back on
+    in the same place.
+  </p>
+
+  <h2>How it connects — and why it isn't a port</h2>
+  <p>
+    The app listens on a <strong>unix domain socket</strong> in your own Library folder, mode
+    <code>0600</code>, not on <code>127.0.0.1:&lt;port&gt;</code>. A web page in a browser cannot open a unix
+    socket, which removes the whole class of attacks where a page you happen to be visiting quietly
+    drives a desktop app that writes files. The socket path is in the card if you ever need it for
+    debugging, but nothing you register with it needs to know the path.
+  </p>
+  <p>Nothing leaves your Mac: the agent talks to the app, the app edits your project locally.</p>
+
+  <h2>The file-based half</h2>
+  <p>
+    Driving the open app is one way to work; the other is files. From a checkout of
+    <a href="https://github.com/Hyunsang-coder/auto-image">the repository</a>, the same MCP server also
+    exposes the pipeline tools — render an authored folder to final PNGs, patch a saved
+    <code>.studio.zip</code> losslessly, run the layout autofix loop — which is what you want in CI or for a
+    batch of releases. Same op vocabulary either way.
+  </p>
+
+  <a class="cta" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">
+    <strong>Download App Store Screenshot Studio for macOS</strong> — free, open source,
+    signed and notarized. Your screenshots never leave your Mac. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>Does any of this upload my screenshots?</strong><br />
+  No. The MCP server runs on your machine and talks to the app through a local socket. The app has no
+  backend (see the <a href="../privacy.html">privacy policy</a>).</p>
+  <p><strong>Do I need an API key?</strong><br />
+  No. The intelligence is your own MCP client; the app provides no model and holds no keys.</p>
+  <p><strong>Windows or Linux?</strong><br />
+  The desktop app is macOS-only today, so the live tools are too.</p>
+  <p><strong>Can the agent see my other files?</strong><br />
+  No. The bridge speaks a fixed vocabulary about the open project — there is no "read this file" call,
+  and ops that would pull in an image from disk are rejected on the live path.</p>
+
+  <h2>Related guides</h2>
+  <ul>
+    <li><a href="./how-to-use.html">How to use the studio — the full four-step workflow</a></li>
+    <li><a href="./app-store-screenshot-localization.html">Localizing App Store screenshots — a workflow that scales past 3 languages</a></li>
+    <li><a href="./app-store-screenshot-sizes.html">App Store screenshot sizes 2026 — every required resolution</a></li>
+    <li><a href="./app-store-screenshot-captions.html">App Store screenshot captions that convert</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      Written for <a href="../">App Store Screenshot Studio</a> (open source,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>), August 2026.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

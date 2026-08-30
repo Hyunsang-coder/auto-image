@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 에이전트가 App Store 스크린샷을 편집하게 하기 — MCP 연결</title>
+  <meta
+    name="description"
+    content="Claude Code 등 MCP 클라이언트를 App Store Screenshot Studio에 연결해, 지금 Mac에서 열어 둔 프로젝트를 에이전트가 읽고 수정하고 번역하고 렌더링하게 합니다. npx 한 줄, 계정 없음, 업로드 없음."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/guides/ko/mcp-agent.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/mcp-agent.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/mcp-agent.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/mcp-agent.html" />
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="AI 에이전트가 App Store 스크린샷을 편집하게 하기 — MCP 연결" />
+  <meta
+    property="og:description"
+    content="npx 한 줄이면 MCP 클라이언트가 Mac에 열린 Screenshot Studio 프로젝트에 연결됩니다: 모든 언어 번역, 레이아웃 수정, 렌더링 결과 확인까지."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/guides/ko/mcp-agent.html" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "AI 에이전트가 App Store 스크린샷을 편집하게 하기 — MCP 연결",
+    "dateModified": "2026-08-30",
+    "author": { "@type": "Person", "name": "Hyunsang Joo" }
+  }
+  </script>
+  <style>
+    :root {
+      --border: #e3e1dc;
+      --text: #1f1d1a;
+      --dim: #6f6a62;
+      --accent: #4f46e5;
+      --surface: #faf9f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.65;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
+    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
+    h3 { font-size: 1.05rem; margin-top: 1.8em; letter-spacing: -0.01em; }
+    p.lead { color: var(--dim); font-size: 1.05rem; }
+    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+    pre code { background: none; border: none; padding: 0; }
+    .cta {
+      display: block; margin: 2.5em 0; padding: 18px 22px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); text-decoration: none; color: var(--text);
+    }
+    .cta strong { color: var(--accent); }
+    .cta:hover { border-color: var(--accent); }
+    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
+    a { color: var(--accent); }
+    ul, ol { padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="lang"><a href="../../">← App Store Screenshot Studio</a><a href="../mcp-agent.html">Read in English →</a></p>
+  <h1>AI 에이전트가 App Store 스크린샷을 편집하게 하기</h1>
+  <p class="lead">
+    Screenshot Studio는 <a href="https://modelcontextprotocol.io">MCP</a>를 지원합니다. Claude Code를
+    비롯한 MCP 클라이언트를 연결하면, 지금 열어 둔 프로젝트를 에이전트가 직접 읽고, 모든 캡션을
+    번역하고, 헤드라인을 옮기고, 렌더링된 결과를 눈으로 확인하며 스스로 검토합니다. 그 동안 앱은
+    계속 눈앞에 있습니다 — 에이전트가 수정하는 대로 캔버스가 다시 그려지고, 보고 있던 슬라이드는
+    그대로 유지됩니다.
+  </p>
+
+  <h2>준비물</h2>
+  <ul>
+    <li>실행 중인 Mac 앱 — 아직 없다면 <a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">여기서 내려받으세요</a>.</li>
+    <li>Node 20 이상 (<code>npx</code> 실행용).</li>
+    <li>MCP 클라이언트: Claude Code, Claude Desktop, 그 밖에 프로토콜을 지원하는 도구면 무엇이든.</li>
+  </ul>
+
+  <h2>연결하기</h2>
+  <p>Claude Code라면 명령 한 줄입니다:</p>
+  <pre><code>claude mcp add screenshot-studio -- npx -y screenshot-studio-mcp</code></pre>
+  <p>JSON 설정을 쓰는 클라이언트(Claude Desktop 등)라면:</p>
+  <pre><code>{
+  "mcpServers": {
+    "screenshot-studio": {
+      "command": "npx",
+      "args": ["-y", "screenshot-studio-mcp"]
+    }
+  }
+}</code></pre>
+  <p>
+    둘 다 앱 안에서 한 번의 클릭으로 얻을 수 있습니다. 헤더의 <strong>MCP</strong> 칩을 누르면
+    <em>설정 복사</em>와 <em>Claude Code 명령 복사</em> 버튼이 있는 카드가 열립니다.
+  </p>
+  <p>
+    그다음 에이전트에게 <code>live_status</code>를 호출해 보라고 하세요. 앱이 무엇을 열어 두고 있는지
+    — 단계, 프로젝트 이름, 슬라이드 수, 언어 — 를 답해 줍니다. 앱이 실행 중이 아니라고 하면 앱을
+    켜거나(아래의 스위치도 확인) 다시 물어보세요.
+  </p>
+
+  <h2>에이전트가 할 수 있는 일</h2>
+  <table>
+    <tr><th>도구</th><th>하는 일</th></tr>
+    <tr><td><code>live_status</code></td><td>앱이 실행 중인지, 무엇을 열어 두고 있는지 확인합니다.</td></tr>
+    <tr><td><code>live_focus</code></td><td>특정 단계·슬라이드로 화면을 옮깁니다. 데이터는 바뀌지 않습니다.</td></tr>
+    <tr><td><code>live_new_project</code></td><td>빈 프로젝트를 만들고 에디터로 이동합니다.</td></tr>
+    <tr><td><code>live_inspect</code></td><td>열린 프로젝트를 간결한 JSON으로 읽습니다 — 슬라이드별 템플릿, 기기, 필드 주소가 붙은 텍스트·배지, 외부 이미지, 구조적 문제.</td></tr>
+    <tr><td><code>live_list_untranslated</code></td><td>현지화 작업 목록: 아직 비어 있는 언어가 있는 모든 문자열을 원문·주소와 함께.</td></tr>
+    <tr><td><code>live_patch</code></td><td>문구, 위치, 스타일, 배경, 기기 프레임, 외부 이미지를 국소적으로 수정합니다.</td></tr>
+    <tr><td><code>live_view</code></td><td>슬라이드 하나를 내보내기 해상도로 렌더링해 이미지로 돌려줍니다. 에이전트가 결과를 직접 봅니다.</td></tr>
+    <tr><td><code>get_design_reference</code></td><td>테마 id, 폰트, 레이아웃, 장식, 언어, 기기 모델과 내보내기 규격, 슬라이드별 한도.</td></tr>
+    <tr><td><code>get_patch_spec</code> / <code>get_import_spec</code></td><td>패치 op 어휘와 매니페스트 작성 명세.</td></tr>
+  </table>
+
+  <h2>이렇게 시켜 보세요</h2>
+  <h3>1. 전체 번역</h3>
+  <p>
+    “비어 있는 캡션을 전부 일본어와 독일어로 번역해 줘.” 에이전트가
+    <code>live_list_untranslated</code>로 목록을 받아 번역한 뒤 <code>live_patch</code>로 써 넣고,
+    현지화 표가 그 자리에서 채워집니다. 프로젝트에 아직 선택돼 있지 않은 언어는 자동으로 추가됩니다.
+    CSV를 내보내고 다시 가져올 필요가 없습니다.
+  </p>
+  <h3>2. 보고 고치기</h3>
+  <p>
+    “3번 슬라이드 헤드라인이 기기랑 겹쳐 — 고쳐 줘.” <code>live_view</code>는 실제 내보내기 규격으로
+    렌더링하므로, 에이전트는 실제로 출고될 레이아웃을 보고 판단하고, 수정한 뒤 다시 확인합니다.
+  </p>
+  <h3>3. 처음부터 만들기</h3>
+  <p>
+    “porcelain 테마로 iPhone 5장짜리 프로젝트 만들고 이 문구들 넣어 줘.”
+    <code>live_new_project</code> 다음 <code>live_patch</code>가 이어집니다. 스크린샷은 직접 넣으셔야
+    합니다 — 에이전트에게는 파일 접근 권한이 없습니다.
+  </p>
+
+  <h2>스위치</h2>
+  <p>
+    헤더 카드에는 켜고 끄는 스위치가 있고, 끄면 실제로 꺼집니다. 소켓이 삭제되고 아무것도 대기하지
+    않습니다. 이 선택은 다음 실행에도 유지되므로, 꺼 둔 브릿지는 앱을 켠 첫 순간부터 꺼져 있습니다 —
+    “창이 다 뜰 때까지는 켜져 있다”가 아닙니다. 다시 켜는 것도 같은 자리입니다.
+  </p>
+
+  <h2>포트가 아니라 소켓인 이유</h2>
+  <p>
+    앱은 <code>127.0.0.1:포트</code>가 아니라 사용자 홈의 Library 폴더 안에 있는
+    <strong>유닉스 도메인 소켓</strong>(권한 <code>0600</code>)에서 대기합니다. 브라우저 안의 웹
+    페이지는 유닉스 소켓을 열 수 없습니다. 그래서 어쩌다 방문한 페이지가 파일을 쓰는 데스크톱 앱을
+    조용히 조종하는 부류의 공격이 통째로 사라집니다. 소켓 경로는 디버깅용으로 카드 안에 있지만,
+    연결할 때 그 경로를 알 필요는 없습니다.
+  </p>
+  <p>아무것도 Mac을 떠나지 않습니다. 에이전트는 앱과 이야기하고, 앱은 로컬에서 프로젝트를 고칩니다.</p>
+
+  <h2>파일 기반 방식</h2>
+  <p>
+    열린 앱을 조종하는 것이 한 가지 방법이고, 다른 하나는 파일입니다.
+    <a href="https://github.com/Hyunsang-coder/auto-image">저장소</a>를 체크아웃하면 같은 MCP 서버가
+    파이프라인 도구까지 제공합니다 — 작성한 폴더를 최종 PNG로 렌더링하고, 저장된
+    <code>.studio.zip</code>을 무손실로 수정하고, 레이아웃 자동 교정 루프를 돌립니다. CI나 여러 릴리스를
+    한꺼번에 처리할 때 쓰는 방식입니다. op 어휘는 어느 쪽이든 같습니다.
+  </p>
+
+  <a class="cta" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">
+    <strong>App Store Screenshot Studio macOS용 내려받기</strong> — 무료, 오픈소스,
+    서명·공증 완료. 스크린샷은 절대 내 Mac을 떠나지 않습니다. →
+  </a>
+
+  <h2>FAQ</h2>
+  <p><strong>스크린샷이 어딘가로 업로드되나요?</strong><br />
+  아니요. MCP 서버는 내 컴퓨터에서 실행되고 로컬 소켓으로 앱과 통신합니다. 앱에는 백엔드가 없습니다
+  (<a href="../../privacy.html">개인정보 처리방침</a> 참고).</p>
+  <p><strong>API 키가 필요한가요?</strong><br />
+  아니요. 지능은 사용자의 MCP 클라이언트 쪽에 있고, 앱은 모델도 키도 갖고 있지 않습니다.</p>
+  <p><strong>Windows나 Linux는요?</strong><br />
+  데스크톱 앱이 현재 macOS 전용이라 live 도구도 macOS 전용입니다.</p>
+  <p><strong>에이전트가 제 다른 파일을 볼 수 있나요?</strong><br />
+  아니요. 브릿지는 열린 프로젝트에 대한 정해진 어휘만 주고받습니다. “이 파일을 읽어라” 같은 호출은
+  아예 없고, 디스크의 이미지를 끌어오는 op는 live 경로에서 거부됩니다.</p>
+
+  <h2>관련 가이드</h2>
+  <ul>
+    <li><a href="./how-to-use.html">스튜디오 사용법 — 네 단계 전체 워크플로</a></li>
+    <li><a href="./app-store-screenshot-localization.html">App Store 스크린샷 현지화 — 3개 언어를 넘어가도 감당되는 방식</a></li>
+    <li><a href="./app-store-screenshot-sizes.html">App Store 스크린샷 규격 2026 — 필요한 해상도 전부</a></li>
+    <li><a href="./app-store-screenshot-captions.html">전환되는 App Store 스크린샷 카피</a></li>
+  </ul>
+
+  <footer>
+    <p>
+      <a href="../../">App Store Screenshot Studio</a>를 위해 작성 (오픈소스,
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>), 2026년 8월.
+    </p>
+  </footer>
+</main>
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>
