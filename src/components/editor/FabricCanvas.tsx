@@ -134,19 +134,23 @@ interface DeviceAnchorProps {
 // Identity used to re-find a selected object after undo/redo replaces every
 // object via loadFromJSON. layerName alone identifies the structural singletons;
 // per-instance content layers also need their id.
-type ObjIdentity = {
+export type ObjIdentity = {
   layerName?: string
   badgeId?: string
   ornamentId?: string
   shapeId?: string
   externalImageId?: string
   highlightId?: string
+  /** Captions have no id — index within the owning slide's `texts` is their key. */
+  textIndex?: number
+  /** Span: which half owns this text. Undefined for every non-span object. */
+  owner?: 'leader' | 'follower'
 }
 type IdentifiedObject = FabricObject & ObjIdentity
 
 function objIdentity(o: FabricObject): ObjIdentity {
   const x = o as IdentifiedObject
-  return { layerName: x.layerName, badgeId: x.badgeId, ornamentId: x.ornamentId, shapeId: x.shapeId, externalImageId: x.externalImageId, highlightId: x.highlightId }
+  return { layerName: x.layerName, badgeId: x.badgeId, ornamentId: x.ornamentId, shapeId: x.shapeId, externalImageId: x.externalImageId, highlightId: x.highlightId, textIndex: x.textIndex, owner: x.owner }
 }
 
 function findByIdentity(canvas: Canvas, id: ObjIdentity): FabricObject | null {
@@ -160,7 +164,9 @@ function findByIdentity(canvas: Canvas, id: ObjIdentity): FabricObject | null {
         x.ornamentId === id.ornamentId &&
         x.shapeId === id.shapeId &&
         x.externalImageId === id.externalImageId &&
-        x.highlightId === id.highlightId
+        x.highlightId === id.highlightId &&
+        x.textIndex === id.textIndex &&
+        x.owner === id.owner
       )
     }) ?? null
   )
@@ -188,6 +194,8 @@ export interface FabricCanvasHandle {
   duplicateSelected: () => void
   discardSelection: () => void
   nudgeSelected: (dx: number, dy: number) => void
+  /** Select the object matching this identity (layer panel → canvas). */
+  selectLayer: (id: ObjIdentity) => void
 }
 
 interface Props {
@@ -221,6 +229,8 @@ interface Props {
   /** Double-click on an object surfaces its layer (and, for span texts, its
    * owning half) so the panel can open the right tab on the right slide. */
   onElementActivate?: (layerName: string | null, owner?: 'leader' | 'follower') => void
+  /** Canvas → layer panel: which object is selected now (null = nothing). */
+  onSelectionChange?: (id: ObjIdentity | null) => void
 }
 
 // Elements that belong to the shared base layout (not per-locale). Locked in
@@ -294,7 +304,7 @@ function geometricCenter(obj: FabricObject): { x: number; y: number } {
 }
 
 export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
-  function FabricCanvas({ activeSlide, isGrouped = false, followerSlide = null, lockSharedLayout = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate }, ref) {
+  function FabricCanvas({ activeSlide, isGrouped = false, followerSlide = null, lockSharedLayout = false, zoom = 1, onSlideChange, onHistoryChange, onZoomChange, onElementActivate, onSelectionChange }, ref) {
     const canvasElRef = useRef<HTMLCanvasElement>(null)
     const fabricRef = useRef<Canvas | null>(null)
     // Zoom is a pure view transform: the template always lays out at base dims,
@@ -319,10 +329,28 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const onHistoryChangeRef = useRef(onHistoryChange)
     const onZoomChangeRef = useRef(onZoomChange)
     const onElementActivateRef = useRef(onElementActivate)
+    const onSelectionChangeRef = useRef(onSelectionChange)
 
     useEffect(() => {
       onElementActivateRef.current = onElementActivate
     })
+    useEffect(() => {
+      onSelectionChangeRef.current = onSelectionChange
+    })
+
+    /**
+     * Report the canvas's current selection to the layer panel. Fabric fires
+     * `selection:*` only for user-driven changes, so the programmatic paths
+     * (selectLayer, delete, duplicate, discardSelection) call this too —
+     * otherwise the panel keeps highlighting a row the canvas has already
+     * deselected. ActiveSelection has no single identity and reports null.
+     */
+    function notifySelection(canvas: Canvas) {
+      const active = canvas.getActiveObject()
+      onSelectionChangeRef.current?.(
+        !active || active.type === 'activeselection' ? null : objIdentity(active),
+      )
+    }
     useEffect(() => {
       onSlideChangeRef.current = onSlideChange
     })
@@ -902,6 +930,17 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     }
 
     useImperativeHandle(ref, () => ({
+      selectLayer(id: ObjIdentity) {
+        const canvas = fabricRef.current
+        if (!canvas) return
+        const obj = findByIdentity(canvas, id)
+        // Background and other non-selectable layers have no canvas object to
+        // activate; clearing keeps panel and canvas from disagreeing.
+        if (obj && obj.selectable !== false) canvas.setActiveObject(obj)
+        else canvas.discardActiveObject()
+        canvas.requestRenderAll()
+        notifySelection(canvas)
+      },
       undo() {
         const canvas = fabricRef.current
         if (!canvas || undoStack.current.length === 0) return
@@ -972,6 +1011,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (!patch) return
         canvas.discardActiveObject()
         canvas.renderAll()
+        notifySelection(canvas)
         onSlideChangeRef.current(patch)
       },
       duplicateSelected() {
@@ -1049,6 +1089,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         if (!patch) return
         canvas.discardActiveObject()
         canvas.renderAll()
+        notifySelection(canvas)
         onSlideChangeRef.current(patch)
       },
       discardSelection() {
@@ -1060,6 +1101,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         }
         canvas.discardActiveObject()
         canvas.renderAll()
+        notifySelection(canvas)
       },
       nudgeSelected(dx, dy) {
         const canvas = fabricRef.current
@@ -1177,6 +1219,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           }
         }
       })
+
+      // Keep the layer panel's highlight in step with the canvas selection.
+      canvas.on('selection:created', () => notifySelection(canvas))
+      canvas.on('selection:updated', () => notifySelection(canvas))
+      canvas.on('selection:cleared', () => notifySelection(canvas))
 
       // Double-click surfaces the object's layer so the panel can jump to the
       // matching tab. Background dblclick (no target) reports null.

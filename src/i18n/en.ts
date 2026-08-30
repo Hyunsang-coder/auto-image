@@ -4,6 +4,16 @@
  * are interpolation slots filled by `t()`.
  */
 export const en: Record<string, string> = {
+  '레이어 목록': 'Layers',
+  '기기 프레임': 'Device frame',
+  '원본 영역': 'Source region',
+  '도형 (앞)': 'Shapes (front)',
+  '도형 (뒤)': 'Shapes (back)',
+  '텍스트 — 왼쪽 페이지': 'Text — left page',
+  '텍스트 — 오른쪽 페이지': 'Text — right page',
+  '드래그하여 레이어 패널 너비 조절': 'Drag to resize the layer panel',
+  '배경은 캔버스에서 선택할 수 없습니다 — 속성 패널에서 편집합니다':
+    'The background is not selectable on canvas — edit it in the properties panel.',
   // App.tsx
   '제목 없음': 'Untitled',
   '{name} 템플릿': '{name} Template',

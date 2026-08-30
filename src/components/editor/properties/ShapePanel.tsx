@@ -1,6 +1,6 @@
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Shape, ShapeKind } from '../../../types/project'
-import { MAX_SHAPES, makeShape } from '../../../constants/defaults'
+import { MAX_SHAPES, SHAPE_KINDS, makeShape } from '../../../constants/defaults'
 import { useT } from '../../../i18n'
 
 interface Props {
@@ -8,12 +8,7 @@ interface Props {
   onChange: (next: Shape[]) => void
 }
 
-const KINDS: { id: ShapeKind; glyph: string; label: string }[] = [
-  { id: 'rect',    glyph: '▭', label: '사각형' },
-  { id: 'ellipse', glyph: '◯', label: '원' },
-  { id: 'line',    glyph: '─', label: '선' },
-  { id: 'arrow',   glyph: '→', label: '화살표' },
-]
+const KINDS = SHAPE_KINDS
 
 const DEFAULT_STROKE_WIDTH = 0.006
 

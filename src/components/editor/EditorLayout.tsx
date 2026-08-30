@@ -2,8 +2,9 @@ import { useRef, useEffect, useState } from 'react'
 import { useProjectStore, spanLeaderOf, findSpanPartner } from '../../store/useProjectStore'
 import { SlideList } from './SlideList'
 import { useResizable } from './useResizable'
-import { FabricCanvas, type FabricCanvasHandle } from './FabricCanvas'
+import { FabricCanvas, type FabricCanvasHandle, type ObjIdentity } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
+import { LayerPanel } from './LayerPanel'
 import { PropertiesPanel, type PanelTab } from './properties/PropertiesPanel'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import type {
@@ -78,6 +79,15 @@ export function EditorLayout() {
   // layered on top of the single, persisted activeSlideId. A plain click
   // collapses this back to {activeId}; cmd/shift-click grow it.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Which canvas object the layer panel highlights. The canvas is the source of
+  // truth — clicking a row asks the canvas to select, and what the canvas
+  // reports back is what lights up. Tagged with the slide+locale it was
+  // reported for, so a stale identity can't light up a row on the next slide
+  // (the canvas reseeds on switch without reporting a cleared selection).
+  const [selection, setSelection] = useState<{ key: string; id: ObjIdentity | null }>({
+    key: '',
+    id: null,
+  })
   // onKeyDown is bound once; read live mode through a ref so locale-gated
   // shortcuts don't act on a stale closure.
   const localeModeRef = useRef(false)
@@ -92,6 +102,14 @@ export function EditorLayout() {
     max: 560,
     axis: 'x',
     direction: 'invert',
+  })
+  const layers = useResizable({
+    storageKey: 'editor.layerWidth',
+    defaultSize: 216,
+    min: 170,
+    max: 340,
+    axis: 'x',
+    direction: 'normal',
   })
   const tray = useResizable({
     storageKey: 'editor.trayThumbHeight',
@@ -169,6 +187,9 @@ export function EditorLayout() {
     localeModeRef.current = !!editLocale
   }, [editLocale])
 
+  const selectionKey = `${activeSlideId ?? ''}|${editLocale}`
+  const selectedLayer = selection.key === selectionKey ? selection.id : null
+
   if (!project) return null
   // Derive the selection passed to the tray instead of mutating selectedIds in
   // an effect: prune ids that no longer exist (post-delete) and always include
@@ -211,6 +232,15 @@ export function EditorLayout() {
   // edits ITS texts (the right page); every other tab keeps the leader.
   const isFollowerActive = !!spanFollower && clickedSlide?.spanRole === 'follower'
   const captionSlide = isFollowerActive ? canvasFollower : null
+
+  // Layer row → canvas. The canvas's own selection event sets `selectedLayer`,
+  // so the highlight always reflects what the canvas actually did (a row for a
+  // locked or non-selectable object simply clears the selection).
+  function handleLayerSelect(id: ObjIdentity) {
+    canvasRef.current?.selectLayer(id)
+    const tab = id.layerName ? LAYER_TAB[id.layerName] : undefined
+    setPanelTab(tab ?? 'background')
+  }
 
   function handleElementActivate(layerName: string | null, owner?: 'leader' | 'follower') {
     if (layerName === null) {
@@ -495,8 +525,30 @@ export function EditorLayout() {
   return (
     <div
       className="grid h-full gap-0 border-t border-[var(--color-border)] overflow-hidden"
-      style={{ gridTemplateColumns: `1fr ${panel.size}px` }}
+      style={{ gridTemplateColumns: `${layers.size}px 1fr ${panel.size}px` }}
     >
+      {/* Layer dock. The slide's stack, top first — the data was always in the
+          store; this is the first place it's visible. */}
+      <div className="relative flex min-h-0 flex-col overflow-hidden border-r border-[var(--color-border)] bg-[var(--color-surface)]">
+        {editingSlide ? (
+          <LayerPanel
+            slide={editingSlide}
+            followerSlide={canvasFollower}
+            selected={selectedLayer}
+            onSelect={handleLayerSelect}
+          />
+        ) : null}
+        <div
+          onPointerDown={layers.onPointerDown}
+          role="separator"
+          aria-orientation="vertical"
+          title={t('드래그하여 레이어 패널 너비 조절')}
+          className={`absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize transition-colors ${
+            layers.dragging ? 'bg-[var(--color-accent)]' : 'hover:bg-[var(--color-accent)]/40'
+          }`}
+        />
+      </div>
+
       <div className="flex min-w-0 flex-col overflow-hidden">
         <main className="flex flex-1 flex-col items-center overflow-y-auto bg-[var(--color-bg)]">
         <div className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
@@ -627,6 +679,7 @@ export function EditorLayout() {
             }}
             onZoomChange={(z) => setZoom(clampZoom(z))}
             onElementActivate={handleElementActivate}
+            onSelectionChange={(id) => setSelection({ key: selectionKey, id })}
           />
         </div>
         </main>

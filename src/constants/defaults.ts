@@ -552,6 +552,14 @@ export const MAX_SHAPES = 8
 // ellipse are translucent color blocks behind the device (layer 'back'),
 // line/arrow are solid annotation marks above it (layer 'front'). Module-scope
 // so manifest import can validate kind names against the keys.
+/** Shape kinds as offered in the UI: id, palette glyph, and Korean label. */
+export const SHAPE_KINDS: { id: ShapeKind; glyph: string; label: string }[] = [
+  { id: 'rect',    glyph: '▭', label: '사각형' },
+  { id: 'ellipse', glyph: '◯', label: '원' },
+  { id: 'line',    glyph: '─', label: '선' },
+  { id: 'arrow',   glyph: '→', label: '화살표' },
+]
+
 export const SHAPE_DEFAULTS: Record<ShapeKind, Partial<Shape>> = {
   rect:    { x: 0.5, y: 0.32, width: 0.5,  height: 0.2,   fill: '#FFFFFF', opacity: 0.25, cornerRadiusRatio: 0.12, layer: 'back' },
   ellipse: { x: 0.5, y: 0.32, width: 0.38, height: 0.175, fill: '#FFFFFF', opacity: 0.25, layer: 'back' },
