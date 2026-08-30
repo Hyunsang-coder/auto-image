@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, selectLayer, controlPos, drag } from './helpers'
+import { clearAppState, createProject, selectLayer, controlPos, drag, openSection } from './helpers'
 
 // Caption text behavior on the canvas: CJK grapheme wrapping (a token wider
 // than the box wraps instead of overflowing) and corner-scale persistence
@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
   await clearAppState(page)
   await page.goto('/app/')
   await createProject(page, { name: 'Text Test', slideCount: 1 })
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
 })
 
 test('띄어쓰기 없는 한글은 글자 단위로 줄바꿈 (상자 밖 오버플로 없음)', async ({ page }) => {

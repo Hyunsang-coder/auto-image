@@ -2,6 +2,8 @@ import type { ShapeKind, Slide } from '../../types/project'
 import type { ObjIdentity } from './FabricCanvas'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { SHAPE_KINDS } from '../../constants/defaults'
+import { MenuButton } from '../common/MenuButton'
+import { PANEL_SECTIONS, type PanelTab } from './properties/sections'
 import { useT } from '../../i18n'
 
 // Reuses the shape panel's own labels rather than a second copy — the two
@@ -29,6 +31,9 @@ interface Props {
   followerSlide?: Slide | null
   selected: ObjIdentity | null
   onSelect: (id: ObjIdentity) => void
+  /** Open an inspector section directly — the way to reach a kind of layer
+   *  that has no instance yet (you can't select a badge you haven't added). */
+  onOpenSection: (tab: PanelTab) => void
 }
 
 function sameIdentity(a: ObjIdentity | null, b: ObjIdentity): boolean {
@@ -184,14 +189,26 @@ function buildRows(slide: Slide, follower: Slide | null | undefined, t: (k: stri
  * (`layerNames.ts` plus the per-instance ids); this is the first surface that
  * lets you see the stack and pick an object without hunting on the canvas.
  */
-export function LayerPanel({ slide, followerSlide, selected, onSelect }: Props) {
+export function LayerPanel({ slide, followerSlide, selected, onSelect, onOpenSection }: Props) {
   const t = useT()
   const rows = buildRows(slide, followerSlide, t)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-b border-[var(--color-border)] px-2.5 py-2 text-[length:var(--text-ui-sm)] font-semibold text-[var(--color-text)]">
-        {t('레이어 목록')}
+      <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-2.5 py-1.5">
+        <span className="text-[length:var(--text-ui-sm)] font-semibold text-[var(--color-text)]">
+          {t('레이어 목록')}
+        </span>
+        <div className="ml-auto">
+          <MenuButton
+            label={t('요소 추가')}
+            glyph="+"
+            items={PANEL_SECTIONS.map((sec) => ({
+              label: t(sec.label),
+              onSelect: () => onOpenSection(sec.id),
+            }))}
+          />
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto p-1.5">
         {rows.map((row, i) => {

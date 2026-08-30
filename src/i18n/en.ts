@@ -5,6 +5,7 @@
  */
 export const en: Record<string, string> = {
   '레이어 목록': 'Layers',
+  '요소 추가': 'Add element',
   '기기 프레임': 'Device frame',
   '원본 영역': 'Source region',
   '도형 (앞)': 'Shapes (front)',

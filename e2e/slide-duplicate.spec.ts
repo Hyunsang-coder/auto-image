@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, slideTray } from './helpers'
+import { clearAppState, createProject, slideTray, openSection } from './helpers'
 
 // Duplicating a single slide inserts a standalone copy right after it, carrying
 // the same headline. The copy button is revealed on thumb hover.
@@ -9,7 +9,7 @@ test('슬라이드 복제: 헤드라인까지 그대로 복사된 슬라이드�
   await createProject(page, { name: 'Duplicate', slideCount: 1 })
 
   // Give slide 1 a headline so the copy is identifiable as a thumb label.
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('Dup me')
 
   const tray = slideTray(page)

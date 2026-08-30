@@ -94,7 +94,7 @@ export function slideThumbs(page: Page): Locator {
  * `name` is a file under e2e/fixtures (e.g. 'iphone_home.png').
  */
 export async function uploadScreenshot(page: Page, name: string) {
-  await page.getByRole('button', { name: '디바이스' }).click()
+  await openSection(page, '디바이스')
   // The 스크린샷 tab mounts two file inputs: the single-shot one and a `multiple`
   // bulk-import one. Target the single-shot input explicitly.
   await page
@@ -103,16 +103,26 @@ export async function uploadScreenshot(page: Page, name: string) {
 }
 
 export async function showDeviceFrame(page: Page) {
-  await page.getByRole('button', { name: '디바이스' }).click()
+  await openSection(page, '디바이스')
   await page.getByRole('checkbox', { name: '기기 프레임 표시' }).check()
   await expect.poll(() => findLayer(page, 'device-frame')).toBe(true)
 }
 
 /**
- * Upload a background image fixture via the 배경 → 이미지 tab's file input.
+ * Open an inspector section from the layer panel's add menu. The panel itself
+ * is selection-driven now, so this is how a test reaches a section whose layer
+ * has no instance yet (you cannot select a badge you have not added).
+ */
+export async function openSection(page: Page, label: string) {
+  await page.getByRole('button', { name: '요소 추가', exact: true }).click()
+  await page.getByRole('menuitem', { name: label, exact: true }).click()
+}
+
+/**
+ * Upload a background image fixture via the 배경 → 이미지 section's file input.
  */
 export async function uploadBackgroundImage(page: Page, name: string) {
-  await page.getByRole('button', { name: '배경', exact: true }).click()
+  await openSection(page, '배경')
   // The properties panel also has an '이미지' (external images) tab — the
   // background panel's fill-type tab is the later one in the DOM.
   await page.getByRole('button', { name: '이미지', exact: true }).last().click()

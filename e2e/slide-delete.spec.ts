@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, slideTray, slideThumbs } from './helpers'
+import { clearAppState, createProject, slideTray, slideThumbs, openSection } from './helpers'
 
 // Deleting a slide drops it from the list. The trash button is revealed on thumb
 // hover; the store refuses to remove the last slide, so the button disables.
@@ -9,7 +9,7 @@ test('슬라이드 삭제: 트레이에서 삭제하면 목록에서 빠진다',
   await createProject(page, { name: 'Delete', slideCount: 2 })
 
   // Give slide 1 a headline so it's identifiable as a thumb label.
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('Delete me')
 
   const tray = slideTray(page)

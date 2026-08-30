@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
-import { createProject, showDeviceFrame } from './helpers'
+import { createProject, showDeviceFrame, openSection } from './helpers'
 
 // React maps onChange on a range input to the native 'input' event, so set the
 // value through the prototype setter and dispatch 'input' to drive the store.
@@ -43,7 +43,7 @@ test.describe('Device rotation', () => {
     await expect.poll(() => deviceAngle(page)).toBe(-20)
 
     await page.reload()
-    await page.getByRole('button', { name: '디바이스' }).click()
+    await openSection(page, '디바이스')
     await expect(page.getByRole('slider').first()).toHaveValue('-20')
     await expect.poll(() => deviceAngle(page)).toBe(-20)
     await page.evaluate(() => localStorage.clear())

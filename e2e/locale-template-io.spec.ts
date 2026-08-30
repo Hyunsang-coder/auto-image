@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject } from './helpers'
+import { clearAppState, createProject, openSection } from './helpers'
 
 // The localize page exports a CSV/JSON translation template (one labeled column
 // per language, including the source locale) and re-imports a filled file. The
@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   await createProject(page, { name: 'Template IO', slideCount: 1 })
 
   // Give the slide a headline → one translatable text row in the grid.
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('Track your day')
 
   await page.getByRole('button', { name: /로컬라이즈/ }).click()

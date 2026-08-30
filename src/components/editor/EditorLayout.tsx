@@ -5,7 +5,8 @@ import { useResizable } from './useResizable'
 import { FabricCanvas, type FabricCanvasHandle, type ObjIdentity } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { LayerPanel } from './LayerPanel'
-import { PropertiesPanel, type PanelTab } from './properties/PropertiesPanel'
+import { PropertiesPanel } from './properties/PropertiesPanel'
+import type { PanelTab } from './properties/sections'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import type {
   Badge,
@@ -238,8 +239,19 @@ export function EditorLayout() {
   // locked or non-selectable object simply clears the selection).
   function handleLayerSelect(id: ObjIdentity) {
     canvasRef.current?.selectLayer(id)
+    // Set the section from the row that was clicked rather than waiting for the
+    // canvas: an inert row (background, a hidden device frame) selects nothing,
+    // and its section still has to open.
     const tab = id.layerName ? LAYER_TAB[id.layerName] : undefined
     setPanelTab(tab ?? 'background')
+  }
+
+  function handleSelectionChange(id: ObjIdentity | null) {
+    setSelection({ key: selectionKey, id })
+    // Selecting on the canvas moves the inspector too, so the panel is always
+    // showing the thing you just clicked. Deselecting leaves it where it was.
+    const tab = id?.layerName ? LAYER_TAB[id.layerName] : undefined
+    if (tab) setPanelTab(tab)
   }
 
   function handleElementActivate(layerName: string | null, owner?: 'leader' | 'follower') {
@@ -536,6 +548,7 @@ export function EditorLayout() {
             followerSlide={canvasFollower}
             selected={selectedLayer}
             onSelect={handleLayerSelect}
+            onOpenSection={setPanelTab}
           />
         ) : null}
         <div
@@ -679,7 +692,7 @@ export function EditorLayout() {
             }}
             onZoomChange={(z) => setZoom(clampZoom(z))}
             onElementActivate={handleElementActivate}
-            onSelectionChange={(id) => setSelection({ key: selectionKey, id })}
+            onSelectionChange={handleSelectionChange}
           />
         </div>
         </main>
@@ -722,7 +735,6 @@ export function EditorLayout() {
             slide={editingSlide}
             captionSlide={captionSlide}
             tab={panelTab}
-            onTabChange={setPanelTab}
             onBackgroundChange={handleBackgroundChange}
             onTextsChange={handleTextsChange}
             onScreenshotChange={handleScreenshotChange}

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { createProject, openMoreMenu, slideTray, uploadScreenshot } from './helpers'
+import { createProject, openMoreMenu, slideTray, uploadScreenshot, openSection } from './helpers'
 
 function hasScreenshotOnCanvas(page: import('@playwright/test').Page) {
   return page.waitForFunction(() => {
@@ -25,7 +25,7 @@ test.beforeEach(async ({ page }) => {
 test('헤드라인 편집이 새로고침 후에도 유지됨', async ({ page }) => {
   await createProject(page, { name: 'Persist Test', slideCount: 3 })
 
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('유지되는 헤드라인')
 
   // The tray renders the headline as the thumb's accessible name (aria-label).

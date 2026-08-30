@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, showDeviceFrame } from './helpers'
+import { clearAppState, createProject, showDeviceFrame, openSection } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
@@ -96,7 +96,7 @@ test('Follower 텍스트는 패널에서 편집되고 오른쪽 페이지에 렌
 
   // Click the follower half → the caption tab edits ITS texts.
   await page.locator('button[title="오른쪽 (Follower)"]').click()
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('오른쪽 텍스트')
 
   // The follower-owned text object renders on the right page (x > seam).

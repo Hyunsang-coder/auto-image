@@ -7,8 +7,7 @@ import {
   findLayer,
   selectLayer,
   uploadScreenshot,
-  type EditorSurface,
-} from './helpers'
+  type EditorSurface, openSection } from './helpers'
 
 test.use({ viewport: { width: 1440, height: 1200 } })
 
@@ -17,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/app/')
   await createProject(page, { name: 'Loupe Test' })
   await uploadScreenshot(page, 'iphone_home.png')
-  await page.getByRole('button', { name: '하이라이트' }).click()
+  await openSection(page, '하이라이트')
   await page.getByRole('button', { name: '+ 추가' }).click()
   await expect.poll(() => findLayer(page, 'highlight-source')).toBe(true)
   await expect.poll(() => findLayer(page, 'highlight-popup')).toBe(true)
@@ -262,7 +261,7 @@ test('기기를 회전하면 원본 박스만 원본 지점을 따라가고 확�
       popupState: h.popup,
     }
   })
-  await page.getByRole('button', { name: '디바이스' }).click()
+  await openSection(page, '디바이스')
   await page.getByRole('slider').first().evaluate((el: HTMLInputElement) => {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!
     setter.call(el, '30')

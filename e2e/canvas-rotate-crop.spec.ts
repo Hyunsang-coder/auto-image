@@ -7,8 +7,7 @@ import {
   selectLayer,
   showDeviceFrame,
   uploadScreenshot,
-  type EditorSurface,
-} from './helpers'
+  type EditorSurface, openSection } from './helpers'
 
 // On-canvas direct manipulation: the mtr handle rotates the device, and in
 // floating mode (frame hidden) the edge controls trim the screenshot card.
@@ -37,7 +36,7 @@ test('mtr 드래그로 기기가 회전하고 회전값이 저장됨', async ({ 
   // Sync wrote the angle to the store; the re-render restores it on the body.
   await expect.poll(() => editor(page)).not.toBe(0)
   // The panel slider reflects the same angle (store round-trip, not just canvas).
-  await page.getByRole('button', { name: '디바이스' }).click()
+  await openSection(page, '디바이스')
   const v = Number(await page.getByRole('slider').first().inputValue())
   expect(Math.abs(v)).toBeGreaterThan(1)
 })

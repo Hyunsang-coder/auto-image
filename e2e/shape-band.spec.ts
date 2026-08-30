@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject } from './helpers'
+import { clearAppState, createProject, openSection } from './helpers'
 
 type CanvasObj = { layerName?: string; type?: string }
 
@@ -54,7 +54,7 @@ test.beforeEach(async ({ page }) => {
   await clearAppState(page)
   await page.goto('/app/')
   await createProject(page, { name: 'Shape Test', slideCount: 1 })
-  await page.getByRole('button', { name: '도형', exact: true }).click()
+  await openSection(page, '도형')
 })
 
 test('사각형 추가 → 캔버스 shape 레이어에 rect, back 밴드(텍스트 아래)로 저장', async ({ page }) => {

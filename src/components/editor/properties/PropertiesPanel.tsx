@@ -22,28 +22,9 @@ import { ExternalImagePanel } from './ExternalImagePanel'
 import { OrnamentPanel } from './OrnamentPanel'
 import { ShapePanel } from './ShapePanel'
 import { HighlightPanel } from './HighlightPanel'
+import { sectionLabel, type PanelTab } from './sections'
 import { useT } from '../../../i18n'
 
-export type PanelTab =
-  | 'background'
-  | 'caption'
-  | 'screenshot'
-  | 'externalImages'
-  | 'badge'
-  | 'ornaments'
-  | 'shapes'
-  | 'highlights'
-
-const TABS: { id: PanelTab; label: string }[] = [
-  { id: 'background',  label: '배경' },
-  { id: 'caption',     label: '텍스트' },
-  { id: 'screenshot',  label: '디바이스' },
-  { id: 'externalImages', label: '이미지' },
-  { id: 'highlights',  label: '하이라이트' },
-  { id: 'shapes',      label: '도형' },
-  { id: 'ornaments',   label: '장식' },
-  { id: 'badge',       label: '배지' },
-]
 
 interface Props {
   slide: Slide
@@ -54,7 +35,6 @@ interface Props {
    */
   captionSlide?: Slide | null
   tab: PanelTab
-  onTabChange: (t: PanelTab) => void
   onBackgroundChange: (bg: Background) => void
   onTextsChange: (texts: Caption[]) => void
   onScreenshotChange: (screenshot: ScreenshotImage | null) => void
@@ -82,7 +62,6 @@ export function PropertiesPanel({
   slide,
   captionSlide,
   tab,
-  onTabChange,
   onBackgroundChange,
   onTextsChange,
   onScreenshotChange,
@@ -109,37 +88,14 @@ export function PropertiesPanel({
   return (
     <aside className="flex min-h-0 flex-1 flex-col overflow-hidden border-l border-[var(--color-border)] bg-[var(--color-surface)]">
       {/*
-        Natural widths in a scroller, not `flex-1`: eight equal shares of a
-        resizable ~340px panel collapse below the label width and the tab names
-        run together. The strip scrolls instead, and the active tab is scrolled
-        back into view so it can never end up off-screen.
+        No tab strip: the inspector shows whatever is selected, so the header
+        states the section rather than offering eight of them. Sections with
+        nothing selected yet are reached from the layer panel's add menu.
       */}
-      <div
-        aria-label={t('속성')}
-        className="flex shrink-0 overflow-x-auto border-b border-[var(--color-border)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {TABS.map((tab_) => (
-          <button
-            key={tab_.id}
-            type="button"
-            // Plain buttons, not role="tab": the full tab pattern also owes a
-            // tabpanel and arrow-key roving focus, and half of it announces
-            // "3 of 8" to a screen reader while the arrows do nothing.
-            aria-current={tab === tab_.id ? 'true' : undefined}
-            ref={(el) => {
-              if (el && tab === tab_.id) el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-            }}
-            onClick={() => onTabChange(tab_.id)}
-            className={[
-              'shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-[length:var(--text-ui-sm)] font-medium transition',
-              tab === tab_.id
-                ? 'border-[var(--color-accent)] text-[var(--color-accent-strong)]'
-                : 'border-transparent text-[var(--color-text-dim)] hover:text-[var(--color-text)]',
-            ].join(' ')}
-          >
-            {t(tab_.label)}
-          </button>
-        ))}
+      <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-border)] px-3 py-2">
+        <span className="text-[length:var(--text-ui-sm)] font-semibold text-[var(--color-text)]">
+          {t(sectionLabel(tab))}
+        </span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">

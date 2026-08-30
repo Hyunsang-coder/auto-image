@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, slideTray, slideThumbs } from './helpers'
+import { clearAppState, createProject, slideTray, slideThumbs, openSection } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
@@ -34,7 +34,7 @@ test('슬라이드 클릭으로 활성 슬라이드 변경', async ({ page }) =>
 
 test('헤드라인 텍스트 입력이 슬라이드 트레이 썸네일 라벨에 반영됨', async ({ page }) => {
   // 캡션 탭 클릭 (기본 탭은 '배경'이므로 textarea가 없음)
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
 
   const headlineTextarea = page.locator('textarea').first()
   await headlineTextarea.fill('내 헤드라인')
@@ -69,7 +69,7 @@ test('편집(object:modified) 후 Undo 버튼이 활성화됨', async ({ page })
 })
 
 test('Delete 키로 선택된 배지가 삭제됨', async ({ page }) => {
-  await page.getByRole('button', { name: '배지' }).click()
+  await openSection(page, '배지')
   await page.getByRole('button', { name: '추가', exact: true }).click()
 
   type Ed = { findByLayer: (n: string) => unknown; canvas: { setActiveObject: (o: unknown) => void; requestRenderAll: () => void } }
@@ -92,7 +92,7 @@ test('Delete 키로 선택된 배지가 삭제됨', async ({ page }) => {
 })
 
 test('Cmd+D로 선택된 배지가 복제됨', async ({ page }) => {
-  await page.getByRole('button', { name: '배지' }).click()
+  await openSection(page, '배지')
   await page.getByRole('button', { name: '추가', exact: true }).click()
 
   type Ed = {
@@ -127,7 +127,7 @@ test('Cmd+D로 선택된 배지가 복제됨', async ({ page }) => {
 })
 
 test('화살표 키로 선택된 배지를 미세 이동 (Shift=10px)', async ({ page }) => {
-  await page.getByRole('button', { name: '배지' }).click()
+  await openSection(page, '배지')
   await page.getByRole('button', { name: '추가', exact: true }).click()
 
   type Ed = {
@@ -166,7 +166,7 @@ test('다중선택 드래그가 양쪽 객체를 올바르게 이동 (그룹 상
         .map((o) => ({ left: o.left, top: o.top, height: o.height })),
     )
 
-  await page.getByRole('button', { name: '배지' }).click()
+  await openSection(page, '배지')
   await page.getByRole('button', { name: '추가', exact: true }).click()
   await page.getByRole('button', { name: '추가', exact: true }).click()
   await page.waitForFunction(
@@ -224,7 +224,7 @@ test('Undo가 배지 이동을 되돌리고, 되돌림이 슬라이드 전환 �
       return { left: b.left, top: b.top, height: b.height }
     })
 
-  await page.getByRole('button', { name: '배지' }).click()
+  await openSection(page, '배지')
   await page.getByRole('button', { name: '추가', exact: true }).click()
   await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('badge') != null)
 
@@ -279,7 +279,7 @@ test('드래그한 헤드라인 위치가 슬라이드 전환 후에도 유지�
     })
 
   // Give the headline real text so it has a clickable footprint.
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('내 헤드라인')
   await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.getState().objects.some((o) => o.layerName === 'text'))
 
@@ -327,7 +327,7 @@ test('줄인 텍스트 박스 너비가 슬라이드 전환 후에도 유지됨'
       () => (window as unknown as { __editor: Ed }).__editor.getState().objects.find((o) => o.layerName === 'text')!.width,
     )
 
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('두 줄로 감기는 제법 긴 헤드라인 문구입니다')
   await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('text') != null)
   const before = await hlWidth()
@@ -372,7 +372,7 @@ test('Undo가 텍스트 드래그를 되돌리고, 되돌림이 슬라이드 전
       return { left: t.left, top: t.top, height: t.height }
     })
 
-  await page.getByRole('button', { name: '텍스트', exact: true }).click()
+  await openSection(page, '텍스트')
   await page.locator('textarea').first().fill('언두 검증용 헤드라인')
   await page.waitForFunction(() => (window as unknown as { __editor: Ed }).__editor.findByLayer('text') != null)
 

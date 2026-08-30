@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, selectLayer } from './helpers'
+import { clearAppState, createProject, selectLayer, openSection } from './helpers'
 
 // Per-locale ornaments: in locale edit mode the ornament stays editable and a
 // nudge writes into that locale's override — the base set is untouched.
@@ -22,7 +22,7 @@ test('locale 모드에서 장식 이동은 그 언어의 override로만 기록�
   await createProject(page, { name: 'Orn Locale', slideCount: 1 })
 
   // Base ornament via the 장식 tab.
-  await page.getByRole('button', { name: '장식', exact: true }).click()
+  await openSection(page, '장식')
   await page.getByTitle('별', { exact: true }).click()
   await expect.poll(async () => (await readSlide(page)).ornaments?.length ?? 0).toBe(1)
   const baseX = (await readSlide(page)).ornaments![0].x
