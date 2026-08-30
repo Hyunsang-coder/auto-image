@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>App Store Screenshot Studio — Free Screenshot Generator for iPhone &amp; iPad</title>
+  <title>App Store Screenshot Studio — Free iPhone &amp; iPad Screenshot Generator for Mac</title>
   <meta
     name="description"
-    content="Free, open-source App Store screenshot generator. Let an AI agent draft, localize, and render your screenshots — or design them by hand on a canvas. Exact App Store Connect sizes, all in your browser, no account, no upload."
+    content="Free, open-source App Store screenshot generator for macOS. Download the Mac app and let an AI agent draft, localize, and render your screenshots — or design them by hand on a canvas. Exact App Store Connect sizes, all on your Mac, no account, no upload."
   />
   <link rel="canonical" href="https://screenshotstudio.dev/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="App Store Screenshot Studio — Free Screenshot Generator" />
+  <meta property="og:title" content="App Store Screenshot Studio — Free Screenshot Generator for Mac" />
   <meta
     property="og:description"
-    content="Your AI agent drafts, localizes, and renders App Store screenshots for iPhone and iPad — pixel-exact and client-side. Open source, no account, no upload."
+    content="Your AI agent drafts, localizes, and renders App Store screenshots for iPhone and iPad — pixel-exact, on your Mac. A free, open-source Mac app: no account, no upload."
   />
   <meta property="og:url" content="https://screenshotstudio.dev/" />
   <meta property="og:image" content="https://screenshotstudio.dev/landing/editor.png" />
@@ -26,10 +26,11 @@
     "@type": "SoftwareApplication",
     "name": "App Store Screenshot Studio",
     "applicationCategory": "DesignApplication",
-    "operatingSystem": "Web",
+    "operatingSystem": "macOS",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "url": "https://screenshotstudio.dev/",
-    "description": "Free, open-source App Store screenshot generator: design, localize and export App Store Connect-ready screenshots for iPhone and iPad in the browser."
+    "downloadUrl": "https://github.com/Hyunsang-coder/auto-image/releases/latest",
+    "description": "Free, open-source App Store screenshot generator for macOS: design, localize and export App Store Connect-ready screenshots for iPhone and iPad on your own Mac."
   }
   </script>
   <style>
@@ -69,6 +70,7 @@
     .btn-primary:hover { opacity: 0.92; }
     .btn-ghost { border: 1px solid var(--border); color: var(--text); }
     .btn-ghost:hover { border-color: var(--accent); }
+    .dl-note { color: var(--dim); font-size: 0.85rem; margin: 14px 0 0; }
     .trust { display: flex; gap: 8px 22px; justify-content: center; flex-wrap: wrap; margin: 1.6em 0 0; padding: 0; list-style: none; color: var(--dim); font-size: 0.9rem; }
     .trust li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
     .shot { margin: 44px 0 0; position: relative; }
@@ -131,6 +133,7 @@
 <header class="top">
   <a class="brand" href="./">App Store Screenshot Studio</a>
   <nav>
+    <a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download</a>
     <a href="guides/how-to-use.html">How to use</a>
     <a href="guides/app-store-screenshot-sizes.html">Guides</a>
     <a href="about.html">About</a>
@@ -143,12 +146,13 @@
     <p class="lead">
       An open-source studio your AI agent drives end to end — it drafts every slide and
       caption, renders App Store-ready PNGs, then checks and fixes its own layout.
-      All in your browser. Open the editor only when you want to tweak by hand.
+      All on your Mac. Open the editor only when you want to tweak by hand.
     </p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="app/">Open the studio →</a>
+      <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download for macOS →</a>
       <a class="btn btn-ghost" href="guides/how-to-use.html">See how it works</a>
     </div>
+    <p class="dl-note">Free · Apple Silicon Mac · macOS 11 or later · MIT-licensed source on <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a></p>
     <ul class="trust">
       <li>Free &amp; open source</li>
       <li>No account, no upload</li>
@@ -196,6 +200,13 @@
     <li><strong>Import</strong> — one file selection assembles the whole project.</li>
     <li><strong>Render</strong> — the headless pipeline exports and self-corrects every language at exact store sizes.</li>
     <li><strong>Tweak, optionally</strong> — open the editor for any polish, then export the ZIP.</li>
+  </ol>
+
+  <h2>Installing</h2>
+  <ol class="steps">
+    <li><strong>Open the .dmg</strong> and drag Screenshot Studio into your Applications folder.</li>
+    <li><strong>First launch</strong> — this build isn't notarized by Apple yet, so macOS blocks it once. Open <em>System Settings → Privacy &amp; Security</em>, scroll to Security, and click <em>Open Anyway</em>.</li>
+    <li><strong>That's all</strong> — no account, no sign-in. Projects and screenshots stay on your Mac.</li>
   </ol>
 
   <h2>Guides</h2>

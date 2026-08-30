@@ -76,21 +76,23 @@
   <h1>App Store Screenshot Studio 사용법</h1>
   <p class="lead">
     시뮬레이터 스크린샷 원본에서 다국어 App Store Connect 제출용 PNG 세트까지,
-    네 단계면 끝납니다 — 전부 브라우저 안에서, 계정도 업로드도 없이.
+    네 단계면 끝납니다 — 전부 내 Mac 안에서, 계정도 업로드도 없이.
     AI 어시스턴트가 대부분을 대신해 주는 파일 기반 파이프라인까지 포함한 전체 안내입니다.
   </p>
 
   <h2>1단계 — 프로젝트 설정</h2>
   <p>
-    <a href="../../app/">스튜디오를 열고</a> 디바이스 종류(iPhone 또는 iPad — 어차피 각
+    <a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">스튜디오를 macOS용으로 내려받아</a> 실행한 뒤 디바이스 종류(iPhone 또는 iPad — 어차피 각
     슬라이드의 종류는 나중에 스크린샷에서 자동 감지됩니다), 슬라이드 수, 테마를 고릅니다.
+    아직 공증(notarize)된 빌드가 아니라 처음 실행할 때 macOS가 한 번 막습니다 —
+    <em>시스템 설정 → 개인정보 보호 및 보안</em>에서 <em>확인 없이 열기</em>를 누르세요.
     빈 화면에서 시작하지 않아도 됩니다:
   </p>
   <ul>
     <li><strong>템플릿에서 시작</strong> — 디자인된 멀티 슬라이드 스타터 세트로 바로 에디터에 진입합니다.</li>
     <li><strong>프로젝트 가져오기</strong> — AI가 작성한 파일 세트(매니페스트 + 캡션 + 스크린샷, 아래 참고)를 선택하면 한 번에 검토만 하면 되는 프로젝트가 만들어집니다.</li>
   </ul>
-  <p>모든 데이터는 브라우저에 저장됩니다(localStorage + IndexedDB). 어디로도 전송되지 않습니다.</p>
+  <p>모든 데이터는 내 Mac 안에 저장됩니다(앱 내부의 localStorage + IndexedDB). 어디로도 전송되지 않습니다.</p>
 
   <h2>2단계 — 에디터에서 디자인</h2>
   <ul>
@@ -160,17 +162,17 @@ npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3
     그리고 로컬 체크아웃 또는 호스팅된 스튜디오를 가리키는 <code>BASE_URL</code>.
   </p>
 
-  <a class="cta" href="../../app/">
-    <strong>App Store Screenshot Studio 열기</strong> — 무료, 오픈소스, 완전 클라이언트사이드.
-    스크린샷은 절대 내 컴퓨터를 떠나지 않습니다. →
+  <a class="cta" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">
+    <strong>App Store Screenshot Studio macOS용 내려받기</strong> — 무료, 오픈소스, 완전
+    클라이언트사이드. 스크린샷은 절대 내 Mac을 떠나지 않습니다. →
   </a>
 
   <h2>FAQ</h2>
   <p><strong>프로젝트는 어디에 저장되나요?</strong><br />
-  브라우저 안입니다: 프로젝트 데이터는 localStorage, 이미지는 IndexedDB.
-  사이트 데이터를 지우면 함께 삭제되니, 작업이 끝나면 세트를 내보내거나 템플릿으로 저장해 두세요.</p>
+  내 Mac 안, 앱의 로컬 저장소입니다: 프로젝트 데이터는 localStorage, 이미지는 IndexedDB.
+  앱 데이터를 지우면 함께 삭제되니, 작업이 끝나면 세트를 내보내거나 템플릿으로 저장해 두세요.</p>
   <p><strong>비용이 들거나 계정이 필요한가요?</strong><br />
-  아니요. GitHub Pages에 호스팅된 MIT 라이선스 오픈소스이고, 백엔드가 아예 없습니다.</p>
+  아니요. GitHub에 공개된 MIT 라이선스 오픈소스이고, 백엔드가 아예 없습니다.</p>
   <p><strong>어떤 규격으로 내보내나요?</strong><br />
   App Store Connect 업로드 슬롯 규격입니다: iPhone 6.9″ (1320×2868), iPhone 6.5″ (1242×2688),
   iPad 13″ (2064×2752), iPad 11″ (1668×2388) — 실제로 필요한 규격은
