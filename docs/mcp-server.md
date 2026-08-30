@@ -116,6 +116,19 @@ node -p "require('./packages/mcp/package.json').version"
 import spec)를 다시 굽기 때문에, 발행 전에 따로 빌드할 필요는 없다. 무엇이
 나가는지는 `npm publish --dry-run`으로 먼저 본다.
 
+### 자동 발행 (기본 경로)
+
+`.github/workflows/publish-mcp.yml`이 `v*` 태그 푸시에 걸려 있다. 릴리즈
+스크립트가 태그를 밀면 알아서 발행되고, `package.json`의 버전이 이미 npm에
+있으면 건너뛴다 — 태그마다 버전이 오르는 게 아니고, 워크플로 재실행도 안전해야
+하기 때문이다.
+
+리포 시크릿 **`NPM_TOKEN`**이 필요하며, npm의 **Automation** 토큰이어야 한다.
+계정이 `auth-and-writes`라 일반 토큰은 쓰기마다 챌린지에 걸리는데, Automation
+타입만 그 예외다(CI에는 승인해 줄 사람이 없으니 당연하다).
+
+### 손으로 발행 (폴백)
+
 계정 2FA가 `auth-and-writes`라 **쓰기마다** 챌린지가 걸린다. `auth-type`이 `web`이면
 브라우저로 답할 수 있지만, 그 흐름을 시작하려면 TTY가 필요하다 — TTY 없는
 셸에서는 브라우저를 못 띄우고 곧장 `EOTP`로 떨어진다. 의사 TTY를 붙이면 된다:

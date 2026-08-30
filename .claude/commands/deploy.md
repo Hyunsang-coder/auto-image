@@ -75,7 +75,11 @@ matching edit, or make it.
   a vocabulary the published agent half does not have yet. Check
   `npm view screenshot-studio-mcp version` against `packages/mcp/package.json` before you write
   the notes, and say so in them if they differ.
-- Publishing it needs 2FA, but **not** the user typing a code to you. The account is
+- Publishing normally happens on its own: `.github/workflows/publish-mcp.yml` fires on the
+  `v*` tag this script pushes, and skips when the version is already on npm. Check the run
+  before reaching for the manual path below — that one is the fallback for when the
+  `NPM_TOKEN` secret is missing or the workflow failed.
+- Publishing by hand needs 2FA, but **not** the user typing a code to you. The account is
   `auth-and-writes`, so npm challenges every write; with `auth-type=web` it answers that in a
   browser — it just needs a TTY to start the flow, which a plain tool call does not have (you
   get a bare `EOTP` instead). Give it one:

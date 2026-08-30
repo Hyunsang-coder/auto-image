@@ -1,0 +1,54 @@
+name: Publish MCP package
+
+# The app and packages/mcp version independently, and the easy failure is
+# shipping a release whose agent half is still a version behind on npm. Tie the
+# publish to the release tag so it cannot be forgotten.
+#
+# Needs an NPM_TOKEN repository secret holding an npm **Automation** token —
+# that type is the one npm exempts from the account's 2FA-on-write setting, so
+# no interactive approval is possible (or needed) here.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # Root deps, not packages/mcp's: the package's `prepack` runs
+      # `npm run --prefix ../.. mcp:package`, which needs tsx and the TS
+      # constants to regenerate data/design-reference.json.
+      - run: npm ci
+
+      # A tag can be pushed without the package version having moved, and a
+      # re-run of this workflow must not fail on an already-published version.
+      - id: check
+        run: |
+          local_version="$(node -p "require('./packages/mcp/package.json').version")"
+          name="$(node -p "require('./packages/mcp/package.json').name")"
+          echo "version=$local_version" >> "$GITHUB_OUTPUT"
+          # `npm view` exits non-zero when the version does not exist, which is
+          # exactly the case we want to publish in — so don't let -e kill it.
+          if npm view "$name@$local_version" version >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$name@$local_version is already on npm — nothing to publish"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.publish == 'true'
+        run: npm publish
+        working-directory: packages/mcp
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - if: steps.check.outputs.publish == 'true'
+        run: echo "::notice::published ${{ steps.check.outputs.version }}"
