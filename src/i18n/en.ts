@@ -702,6 +702,12 @@ export const en: Record<string, string> = {
   배율: 'Zoom',
   '카드 크기는 배율에서 나옵니다. 영역을 다시 잡아도 배율은 그대로예요.':
     'The zoom sizes the card, so reframing the region keeps the magnification.',
+  배치: 'Placement',
+  '자동 배치': 'Auto placement',
+  연결선: 'Leader line',
+  '원본을 가리지 않는 자리에 알아서 놓입니다. 카드를 끌면 그 자리에 고정돼요.':
+    'The card lands where it does not cover the region. Drag it to pin it there.',
+  '카드 위치를 직접 잡은 상태입니다.': 'You have placed this card yourself.',
   '카드 테두리': 'Card border',
   '테두리 색': 'Border color',
   '세부 조정': 'Fine-tune',

@@ -8,7 +8,17 @@ import { renderBadge } from './objects/badge'
 import { renderCaption, renderCaptionBox } from './objects/caption'
 import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
 import { renderExternalImage } from './objects/externalImage'
-import { renderHighlight, renderHighlightRim, renderHighlightSource } from './objects/highlight'
+import {
+  connectorSegment,
+  popupPixelSize,
+  regionCenterOnCanvas,
+  renderHighlight,
+  renderHighlightConnector,
+  renderHighlightRim,
+  renderHighlightSource,
+  rotatedExtent,
+} from './objects/highlight'
+import { placeHighlightCards, type Box } from '../lib/highlightPlacement'
 import { renderOrnament } from './objects/ornament'
 import { renderShape } from './objects/shape'
 import { LAYER_NAMES } from './layerNames'
@@ -27,6 +37,9 @@ function getCanvasHeight(slide: Slide): number {
 // (split/hero-bleed use their own widths). User scale is layered on top inside
 // getDeviceLayout so every template scales consistently.
 const DEVICE_WIDTH_RATIO = 0.78
+
+/** Keep-out band for an auto-placed loupe card, as a fraction of canvas height. */
+const HIGHLIGHT_SAFE_MARGIN = 0.03
 
 export function getDeviceDimensions(slide: Slide, canvasWidth: number): { w: number; h: number } {
   const spec = frameSpecOf(slide.deviceFrame)
@@ -588,18 +601,75 @@ export async function applyTemplate(
   // Rendered after the device so they can float above the bezel, but before
   // the badge so the badge stays the top-most attention element.
   if (slide.highlights && slide.highlights.length > 0 && slide.screenshot && screenBounds) {
+    const shot = slide.screenshot
     const hlRotation = deviceLayout ? (slide.deviceFrame.rotation ?? 0) : 0
+
+    // Geometry every stage below shares: the card's size, and the sampled
+    // region as a center + tilted box.
+    const geo = slide.highlights.map((h) => {
+      const size = popupPixelSize(h, shot, screenBounds.width, cw)
+      const region = {
+        width: screenBounds.width * h.sourceRegion.w,
+        height: screenBounds.height * h.sourceRegion.h,
+      }
+      return {
+        size,
+        center: regionCenterOnCanvas(screenBounds, h.sourceRegion, hlRotation),
+        region,
+        extent: rotatedExtent(region, hlRotation),
+      }
+    })
+
+    // Captions are already on the canvas at this point, so an auto-placed card
+    // can steer around them instead of being reported as an overlap later.
+    const obstacles: Box[] = canvas
+      .getObjects()
+      .filter((o) => (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.TEXT)
+      .map((o) => o.getBoundingRect())
+    const placed = placeHighlightCards(
+      slide.highlights.map((h, i) => ({
+        size: geo[i].size,
+        source: {
+          left: geo[i].center.x - geo[i].extent.width / 2,
+          top: geo[i].center.y - geo[i].extent.height / 2,
+          width: geo[i].extent.width,
+          height: geo[i].extent.height,
+        },
+        auto: !!h.popup.auto,
+      })),
+      obstacles,
+      { canvasWidth: cw, canvasHeight: ch, margin: ch * HIGHLIGHT_SAFE_MARGIN },
+    )
+
     for (const h of slide.highlights) {
-      canvas.add(renderHighlightSource(h, { screenBounds, rotation: hlRotation }))
+      canvas.add(renderHighlightSource(h, { screenBounds, rotation: hlRotation, canvasWidth: cw }))
     }
-    for (const h of slide.highlights) {
+
+    // Leader lines go under the cards so a line never crosses the art it points at.
+    slide.highlights.forEach((h, i) => {
+      if (!h.popup.connector) return
+      const card = placed[i] ?? {
+        x: cw * (h.popup.x ?? 0.5),
+        y: ch * (h.popup.y ?? 0.32),
+      }
+      const anchor = { center: geo[i].center, size: geo[i].region, angle: hlRotation }
+      const seg = connectorSegment(anchor, {
+        center: card,
+        size: geo[i].size,
+        angle: h.popup.rotation ?? 0,
+      })
+      if (seg) canvas.add(renderHighlightConnector(h, seg, anchor, cw))
+    })
+
+    for (const [i, h] of slide.highlights.entries()) {
       const popup = await renderHighlight(h, {
         canvasWidth: cw,
         canvasHeight: ch,
         screenBounds,
         rotation: hlRotation,
-        screenshot: slide.screenshot,
+        screenshot: shot,
         resolveUrl,
+        ...(placed[i] ? { center: placed[i]! } : {}),
       })
       if (!popup) continue
       canvas.add(popup)

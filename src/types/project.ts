@@ -425,6 +425,14 @@ export interface Highlight {
     rotation?: number
     /** Rim around the card. Absent = none, which is how legacy highlights render. */
     rim?: HighlightRim
+    /**
+     * Let the layout place the card. Must be its own flag: an absent `x`/`y`
+     * already means "legacy source-attached", so absence cannot also mean auto.
+     * Dragging the card clears it and `x`/`y` take over.
+     */
+    auto?: boolean
+    /** Draw the leader line from the source marker to the card. */
+    connector?: boolean
   }
 }
 

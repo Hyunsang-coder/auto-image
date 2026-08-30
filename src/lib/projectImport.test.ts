@@ -515,6 +515,32 @@ describe('parseManifest normalization', () => {
     const legacy = parseManifest(minimal({}, [{ highlights: [{ popup: { width: 0.9 } }] }]))
     expect(legacy.manifest?.slides[0].highlights?.[0].popup).toEqual({ width: 0.9 })
   })
+
+  it('auto-places a card the manifest did not place, and honours one it did', () => {
+    const { manifest } = parseManifest(
+      minimal({}, [
+        {
+          highlights: [
+            {}, // said nothing about position → the layout places it
+            { popup: { x: 0.62, y: 0.34 } }, // placed by hand → pinned
+          ],
+        },
+      ]),
+    )
+    const hl = manifest?.slides[0].highlights
+    expect(hl?.[0].popup.auto).toBe(true)
+    expect(hl?.[0].popup.connector).toBe(true)
+    expect(hl?.[1].popup.auto).toBeUndefined()
+    expect(hl?.[1].popup.connector).toBe(true)
+
+    // Explicit flags win over both defaults.
+    const off = parseManifest(
+      minimal({}, [{ highlights: [{ popup: { auto: false, connector: false } }] }]),
+    )
+    const p = off.manifest?.slides[0].highlights?.[0].popup
+    expect(p?.auto).toBeUndefined()
+    expect(p?.connector).toBeUndefined()
+  })
 })
 
 describe('buildProjectFromManifest', () => {

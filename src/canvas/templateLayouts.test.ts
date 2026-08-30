@@ -3,10 +3,13 @@ import { Rect, type FabricObject, type TPointerEvent, type Transform } from 'fab
 import { addTextBlocks, attachCropControls, cropScreenBounds, deviceBodyAnchors, getDeviceDimensions, getDeviceLayout, screenBoundsOf, trimCrop } from './templateLayouts'
 import { rotateAround } from './geometry'
 import {
+  boxExitPoint,
   canvasPointToRegionOrigin,
+  connectorSegment,
   POPUP_CORNER_RATIO,
   popupPixelWidth,
   regionCenterOnCanvas,
+  rotatedExtent,
   trackHighlightPopup,
   zoomFromPixelWidth,
 } from './objects/highlight'
@@ -619,5 +622,58 @@ describe('trackHighlightPopup', () => {
     popup.set({ left: 999 })
     trackHighlightPopup(canvas, popup)
     expect(stranger.left).toBe(0)
+  })
+})
+
+
+describe('connector geometry', () => {
+  const SQ = { width: 100, height: 100 }
+
+  it('exits an upright box through the face the ray points at', () => {
+    const c = { x: 0, y: 0 }
+    expect(boxExitPoint(c, SQ, 0, { x: 500, y: 0 })).toEqual({ x: 50, y: 0 })
+    expect(boxExitPoint(c, SQ, 0, { x: 0, y: -500 }).y).toBeCloseTo(-50, 6)
+  })
+
+  it('exits a tilted box on its own tilted face', () => {
+    // A square turned 45° reaches further along the axis — to its corner.
+    const p = boxExitPoint({ x: 0, y: 0 }, SQ, 45, { x: 500, y: 0 })
+    expect(p.x).toBeCloseTo(Math.SQRT2 * 50, 6)
+    expect(p.y).toBeCloseTo(0, 6)
+  })
+
+  it('spans only the gap between the two boxes', () => {
+    const seg = connectorSegment(
+      { center: { x: 100, y: 100 }, size: SQ, angle: 0 },
+      { center: { x: 100, y: 400 }, size: SQ, angle: 0 },
+    )!
+    expect(seg.y1).toBeCloseTo(150, 6) // source's bottom edge
+    expect(seg.y2).toBeCloseTo(350, 6) // card's top edge
+    expect(seg.x1).toBeCloseTo(100, 6)
+  })
+
+  it('is null when the card overlaps the region it magnifies', () => {
+    expect(
+      connectorSegment(
+        { center: { x: 100, y: 100 }, size: SQ, angle: 0 },
+        { center: { x: 100, y: 120 }, size: SQ, angle: 0 },
+      ),
+    ).toBeNull()
+  })
+
+  it('is null when the boxes merely touch', () => {
+    expect(
+      connectorSegment(
+        { center: { x: 0, y: 0 }, size: SQ, angle: 0 },
+        { center: { x: 0, y: 100 }, size: SQ, angle: 0 },
+      ),
+    ).toBeNull()
+  })
+
+  it('rotatedExtent grows the bounding box, and leaves an upright one alone', () => {
+    expect(rotatedExtent(SQ, 0)).toEqual(SQ)
+    const r = rotatedExtent({ width: 100, height: 20 }, 90)
+    expect(r.width).toBeCloseTo(20, 6)
+    expect(r.height).toBeCloseTo(100, 6)
   })
 })

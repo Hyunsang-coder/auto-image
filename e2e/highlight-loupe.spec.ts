@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
   clearAppState,
   controlPos,
@@ -24,7 +24,24 @@ test.beforeEach(async ({ page }) => {
   await expect.poll(() => findLayer(page, 'highlight-popup')).toBe(true)
 })
 
-test('새 하이라이트는 원본 박스와 확대 카드가 분리되어 생성됨', async ({ page }) => {
+/**
+ * A new loupe is auto-placed, which deliberately ties the card's position to
+ * the region. The specs below are about a card the user has taken over, so they
+ * pin it first — that is the state in which the card is independent.
+ */
+async function pinCard(page: Page) {
+  await page.getByLabel('자동 배치').uncheck()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('auto-image:project')
+        return raw ? JSON.parse(raw).state.project.slides[0].highlights[0].popup.auto : null
+      }),
+    )
+    .toBe(false)
+}
+
+test('새 하이라이트는 원본을 가리지 않는 자리에 자동으로 놓임', async ({ page }) => {
   const result = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
     const canvas = ed.canvas as unknown as { width: number; height: number }
@@ -45,19 +62,85 @@ test('새 하이라이트는 원본 박스와 확대 카드가 분리되어 생�
       x: canvas.width * h.popup.x,
       y: canvas.height * h.popup.y,
     }
+    const sb = source.getBoundingRect()
+    const pb = popup.getBoundingRect()
     return {
       sourceDx: Math.abs(sc.x - expectedSource.x),
       sourceDy: Math.abs(sc.y - expectedSource.y),
+      // popup.x/y must agree with where the card actually rendered, or anything
+      // reading the project instead of the canvas places it somewhere it isn't.
       popupDx: Math.abs(pc.x - expectedPopup.x),
       popupDy: Math.abs(pc.y - expectedPopup.y),
-      verticalGap: sc.y - pc.y,
+      auto: h.popup.auto,
+      overlapsSource:
+        Math.min(sb.left + sb.width, pb.left + pb.width) > Math.max(sb.left, pb.left) &&
+        Math.min(sb.top + sb.height, pb.top + pb.height) > Math.max(sb.top, pb.top),
+      insideCanvas:
+        pb.left >= 0 && pb.top >= 0 &&
+        pb.left + pb.width <= canvas.width && pb.top + pb.height <= canvas.height,
     }
   })
   expect(result.sourceDx).toBeLessThanOrEqual(1)
   expect(result.sourceDy).toBeLessThan(2)
+  expect(result.auto).toBe(true)
+  expect(result.overlapsSource).toBe(false)
+  expect(result.insideCanvas).toBe(true)
   expect(result.popupDx).toBeLessThan(1)
   expect(result.popupDy).toBeLessThan(1)
-  expect(result.verticalGap).toBeGreaterThan(100)
+})
+
+test('자동 배치 카드는 원본을 옮기면 따라 놓이고, 끌면 그 자리에 고정됨', async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    return {
+      source: ed.findByLayer('highlight-source')!.getCenterPoint(),
+      popup: ed.findByLayer('highlight-popup')!.getCenterPoint(),
+    }
+  })
+  const box = (await page.locator('canvas.upper-canvas').boundingBox())!
+  await selectLayer(page, 'highlight-source')
+  await drag(
+    page,
+    { x: box.x + before.source.x, y: box.y + before.source.y },
+    { x: box.x + before.source.x, y: box.y + before.source.y - 120 },
+  )
+  // The card is placed against the region, so moving the region re-places it.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+        // applyTemplate clears the canvas before re-adding, so a poll can land
+        // mid-render with no popup on it yet.
+        const obj = ed.findByLayer('highlight-popup')
+        return obj ? Math.round(obj.getCenterPoint().y) : null
+      }),
+    )
+    .not.toBe(Math.round(before.popup.y))
+
+  await expect.poll(() => findLayer(page, 'highlight-popup')).toBe(true)
+  const moved = await page.evaluate(() => {
+    const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
+    const raw = localStorage.getItem('auto-image:project')
+    const h = JSON.parse(raw!).state.project.slides[0].highlights[0]
+    return { popup: ed.findByLayer('highlight-popup')!.getCenterPoint(), auto: h.popup.auto }
+  })
+  expect(moved.auto).toBe(true)
+
+  // Dragging the card itself is what hands placement back to the user.
+  await selectLayer(page, 'highlight-popup')
+  await drag(
+    page,
+    { x: box.x + moved.popup.x, y: box.y + moved.popup.y },
+    { x: box.x + moved.popup.x + 40, y: box.y + moved.popup.y + 60 },
+  )
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem('auto-image:project')
+        return JSON.parse(raw!).state.project.slides[0].highlights[0].popup.auto
+      }),
+    )
+    .toBe(false)
 })
 
 test('확대 카드를 드래그해도 원본 영역은 변하지 않음', async ({ page }) => {
@@ -96,6 +179,7 @@ test('확대 카드를 드래그해도 원본 영역은 변하지 않음', async
 })
 
 test('원본 박스를 드래그하면 샘플 영역만 이동함', async ({ page }) => {
+  await pinCard(page)
   const before = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
     const raw = localStorage.getItem('auto-image:project')
@@ -190,6 +274,7 @@ test('확대 카드를 mtr 핸들로 회전하면 rotation이 저장·복원됨'
 })
 
 test('기기 드래그 중 원본 박스는 스크린샷을 따라가고 확대 카드는 제자리에 남음', async ({ page }) => {
+  await pinCard(page)
   const before = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
     const body = ed.findByLayer('device-frame')!
@@ -247,6 +332,7 @@ test('기기 드래그 중 원본 박스는 스크린샷을 따라가고 확대 
 })
 
 test('기기를 회전하면 원본 박스만 원본 지점을 따라가고 확대 카드는 유지됨', async ({ page }) => {
+  await pinCard(page)
   const before = await page.evaluate(() => {
     const ed = (window as unknown as { __editor?: EditorSurface }).__editor!
     const body = ed.findByLayer('device-frame')!

@@ -253,6 +253,8 @@ export function makeHighlight(overrides?: {
       width: 0.7,
       zoom: DEFAULT_HIGHLIGHT_ZOOM,
       rim: { ...DEFAULT_HIGHLIGHT_RIM },
+      auto: true,
+      connector: true,
     },
   }
 }

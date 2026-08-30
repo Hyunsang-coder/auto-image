@@ -148,6 +148,32 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
             </p>
           </Group>
 
+          <Group label={t('배치')}>
+            <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
+              <input
+                type="checkbox"
+                checked={!!h.popup.auto}
+                onChange={(e) => updatePopup(h.id, { auto: e.target.checked })}
+                className="accent-[var(--color-accent)]"
+              />
+              {t('자동 배치')}
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
+              <input
+                type="checkbox"
+                checked={!!h.popup.connector}
+                onChange={(e) => updatePopup(h.id, { connector: e.target.checked })}
+                className="accent-[var(--color-accent)]"
+              />
+              {t('연결선')}
+            </label>
+            <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
+              {h.popup.auto
+                ? t('원본을 가리지 않는 자리에 알아서 놓입니다. 카드를 끌면 그 자리에 고정돼요.')
+                : t('카드 위치를 직접 잡은 상태입니다.')}
+            </p>
+          </Group>
+
           <Group label={t('테두리')}>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
@@ -230,7 +256,8 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
                   min={0}
                   max={1}
                   step={0.01}
-                  onChange={(v) => updatePopup(h.id, { x: v })}
+                  disabled={!!h.popup.auto}
+                  onChange={(v) => updatePopup(h.id, { x: v, auto: false })}
                 />
                 <Slider
                   label="Y"
@@ -238,7 +265,8 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
                   min={0}
                   max={1}
                   step={0.01}
-                  onChange={(v) => updatePopup(h.id, { y: v })}
+                  disabled={!!h.popup.auto}
+                  onChange={(v) => updatePopup(h.id, { y: v, auto: false })}
                 />
                 <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
                   <span className="w-16 text-[var(--color-text-dim)]">{t('회전')}</span>
@@ -281,6 +309,7 @@ function Slider({
   min,
   max,
   step,
+  disabled,
   onChange,
 }: {
   label: string
@@ -288,10 +317,13 @@ function Slider({
   min: number
   max: number
   step: number
+  disabled?: boolean
   onChange: (v: number) => void
 }) {
   return (
-    <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
+    <label
+      className={`flex items-center justify-between text-xs text-[var(--color-text)] ${disabled ? 'opacity-40' : ''}`}
+    >
       <span className="w-16 text-[var(--color-text-dim)]">{label}</span>
       <input
         type="range"
@@ -299,8 +331,9 @@ function Slider({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="ml-2 flex-1 accent-[var(--color-accent)]"
+        className="ml-2 flex-1 accent-[var(--color-accent)] disabled:cursor-not-allowed"
       />
       <span className="w-10 text-right text-[var(--color-text-dim)]">
         {Math.round(value * 100)}%

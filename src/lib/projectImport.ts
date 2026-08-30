@@ -149,6 +149,8 @@ export interface ParsedHighlight {
     zoom?: number
     rotation?: number
     rim?: HighlightRim
+    auto?: boolean
+    connector?: boolean
   }
 }
 
@@ -925,6 +927,16 @@ export function coerceTextOverrides(
 
 /** Parse the per-slide `highlights` array. Each entry's missing fields fall
  *  back to makeHighlight's defaults so a partial region still renders. */
+/** An optional boolean popup flag: explicit value wins, otherwise the default. */
+function coerceFlag<K extends string>(
+  value: unknown,
+  fallback: boolean,
+  key: K,
+): Partial<Record<K, boolean>> {
+  const on = typeof value === 'boolean' ? value : fallback
+  return on ? ({ [key]: true } as Record<K, boolean>) : {}
+}
+
 /**
  * `rim: null` turns the outline off explicitly; omitting it takes the default
  * (on), except on a legacy width-sized popup, whose look must not change.
@@ -1007,6 +1019,10 @@ export function coerceHighlights(
         ...(legacySizing ? {} : { zoom: zoom ?? DEFAULT_HIGHLIGHT_ZOOM }),
         ...(rotation !== undefined ? { rotation } : {}),
         ...coerceRim(p.rim, legacySizing, hw, issues),
+        // A manifest that placed the card (popup.x/y) means it; auto placement
+        // only fills in for one that didn't say where the card goes.
+        ...coerceFlag(p.auto, !legacySizing && popupX === undefined && popupY === undefined, 'auto'),
+        ...coerceFlag(p.connector, !legacySizing, 'connector'),
       },
     })
   })

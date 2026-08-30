@@ -113,7 +113,7 @@ function applySnapGuides(canvas: Canvas, target: FabricObject, ln: string | unde
     // SCREENSHOT_SHADOW duplicates the screenshot's box and rides the device —
     // as a snap candidate it would make the drag self-sticky. HIGHLIGHT_RIM is
     // the same story for the magnified card.
-    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND || oln === LAYER_NAMES.TEXT_BOX || oln === LAYER_NAMES.SCREENSHOT_SHADOW || oln === LAYER_NAMES.HIGHLIGHT_RIM) continue
+    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND || oln === LAYER_NAMES.TEXT_BOX || oln === LAYER_NAMES.SCREENSHOT_SHADOW || oln === LAYER_NAMES.HIGHLIGHT_RIM || oln === LAYER_NAMES.HIGHLIGHT_CONNECTOR) continue
     // The screenshot moves with the device — don't let the device snap to it.
     if (isDevice && oln === LAYER_NAMES.SCREENSHOT) continue
     const b = boxOf(o)
@@ -264,7 +264,7 @@ const HISTORY_LIMIT = 50
 const HISTORY_PROPS = [
   'layerName', 'badgeId', 'ornamentId', 'shapeId', 'externalImageId', 'highlightId', 'textIndex', 'owner',
   '_baseRawLeft', '_baseRawTop', '_basePivotX', '_basePivotY',
-  '_crop', '_fullW', '_fullH', '_screenBounds', '_renderRot',
+  '_crop', '_fullW', '_fullH', '_screenBounds', '_renderRot', '_autoCenter', '_source',
   '_externalCrop', '_externalCornerRadiusRatio',
   '_absolutePos', '_designFontSize', '_padX', '_padY',
 ]
@@ -296,6 +296,58 @@ function clampPopupWidth(n: number): number {
 
 function clampZoom(n: number): number {
   return Math.max(HIGHLIGHT_ZOOM_MIN, Math.min(HIGHLIGHT_ZOOM_MAX, n))
+}
+
+/**
+ * Write the card's rendered box back into the highlight. Both fields are
+ * derived once zoom and auto placement own the geometry — the renderer ignores
+ * popup.x/y while `auto` is on, and ignores popup.width whenever `zoom` is set
+ * — so without this they drift into a lie, and everything that reads the
+ * project instead of the canvas (unpinning the card, a manifest export, a
+ * test) sizes or places it wrongly.
+ *
+ * Safe to run on every render: the next one derives the same box, so nothing
+ * differs and nothing is written.
+ */
+function commitCardGeometry(canvas: Canvas, slide: Slide): Partial<Slide> | null {
+  if (!slide.highlights?.length) return null
+  const cw = canvas.width ?? EDITOR_CANVAS_WIDTH
+  const ch = canvas.height ?? 1
+  let dirty = false
+  const next = slide.highlights.map((h) => {
+    const derivesWidth = typeof h.popup.zoom === 'number'
+    if (!h.popup.auto && !derivesWidth) return h
+    const obj = canvas
+      .getObjects()
+      .find(
+        (o) =>
+          (o as FabricObject & { layerName?: string }).layerName === LAYER_NAMES.HIGHLIGHT_POPUP &&
+          (o as FabricObject & { highlightId?: string }).highlightId === h.id,
+      ) as (FabricObject & { _autoCenter?: { x: number; y: number } }) | undefined
+    if (!obj) return h
+    const popup = { ...h.popup }
+    let changed = false
+    if (derivesWidth) {
+      const width = clampPopupWidth(((obj.width ?? 0) * (obj.scaleX ?? 1)) / cw)
+      if (Math.abs(width - h.popup.width) > 0.001) {
+        popup.width = width
+        changed = true
+      }
+    }
+    if (h.popup.auto && obj._autoCenter) {
+      const x = obj._autoCenter.x / cw
+      const y = obj._autoCenter.y / ch
+      if (Math.abs(x - (h.popup.x ?? -1)) > 0.001 || Math.abs(y - (h.popup.y ?? -1)) > 0.001) {
+        popup.x = x
+        popup.y = y
+        changed = true
+      }
+    }
+    if (!changed) return h
+    dirty = true
+    return { ...h, popup }
+  })
+  return dirty ? { highlights: next } : null
 }
 
 function offsetRegion(
@@ -733,6 +785,16 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           if (pop) {
             const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
             const c = pop.getCenterPoint()
+            // An auto-placed card sits wherever the layout put it, and every
+            // sync (including ones fired by editing something else entirely)
+            // reads that position back. Only a card that has moved AWAY from
+            // its placement was dragged by the user — that is what pins it.
+            const auto = (pop as FabricObject & { _autoCenter?: { x: number; y: number } })._autoCenter
+            const dragged =
+              !!auto && (Math.abs(c.x - auto.x) > 0.5 || Math.abs(c.y - auto.y) > 0.5)
+            // undefined stays undefined (legacy, never auto); an explicit false
+            // stays false — only a live auto flag can be cleared by a drag.
+            const nAuto = h.popup.auto === true ? !dragged : h.popup.auto
             const nWidth = clampPopupWidth(pW / cw)
             const nRot = normalizeAngle(pop.angle ?? 0)
             const nX = c.x / cw
@@ -756,6 +818,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
               Math.abs(nY - curY) > 0.001 ||
               Math.abs(nWidth - h.popup.width) > 0.002 ||
               nZoom !== h.popup.zoom ||
+              nAuto !== h.popup.auto ||
               Math.abs(nRot - (h.popup.rotation ?? 0)) > 0.05
             ) {
               n = {
@@ -766,6 +829,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
                   y: nY,
                   width: nWidth,
                   ...(nZoom !== undefined ? { zoom: nZoom } : {}),
+                  ...(nAuto !== undefined ? { auto: nAuto } : {}),
                   rotation: nRot,
                 },
               }
@@ -1524,6 +1588,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           await applyTemplate(canvas, activeSlide!, undefined, { resolveUrl })
         }
         if (fabricRef.current !== canvas) return
+        // Record the derived card box before the baseline snapshot below, so
+        // undo never rewinds to a state that disagrees with the canvas.
+        const autoPatch = commitCardGeometry(canvas, activeSlide!)
+        if (autoPatch) onSlideChangeRef.current(autoPatch)
         // Locale edit mode: lock the shared-layout elements so only captions
         // and the device frame remain editable for this locale.
         if (lockSharedLayout) {

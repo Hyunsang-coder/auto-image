@@ -9,6 +9,8 @@ export const LAYER_NAMES = {
   SCREENSHOT: 'screenshot',
   DEVICE_FRAME: 'device-frame',
   HIGHLIGHT_SOURCE: 'highlight-source',
+  /** Non-evented leader line from the source marker to the card; derived. */
+  HIGHLIGHT_CONNECTOR: 'highlight-connector',
   HIGHLIGHT_POPUP: 'highlight-popup',
   /** Non-evented outline drawn over the popup; derived from it, never synced back. */
   HIGHLIGHT_RIM: 'highlight-rim',
