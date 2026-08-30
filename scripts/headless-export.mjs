@@ -99,6 +99,9 @@ if (!inputStat) {
   process.exit(2)
 }
 const bundleMode = inputStat.isFile() && extname(inDir).toLowerCase() === '.zip'
+// Step 1 has one "프로젝트 열기" input for both paths: a .zip is a saved
+// project bundle, anything else an agent-authored file set.
+const OPEN_INPUT = 'input[accept=".zip,.json,.csv,image/*"]'
 
 const IMPORT_EXTS = new Set(['.json', '.csv', '.png', '.jpg', '.jpeg', '.webp'])
 let files = []
@@ -188,8 +191,8 @@ try {
     // load commits immediately (no overwrite confirm). Success lands on step 2
     // (the header "프로젝트 파일 저장" button only shows there); failure shows
     // the bundle-error modal.
-    await page.getByText('프로젝트 파일 열기').first().waitFor()
-    await page.locator('input[accept=".zip"]').setInputFiles(inDir)
+    await page.getByText('프로젝트 열기').first().waitFor()
+    await page.locator(OPEN_INPUT).setInputFiles(inDir)
     const ready = page
       .getByRole('button', { name: '프로젝트 파일 저장' })
       .waitFor({ timeout: 30_000 })
@@ -204,8 +207,8 @@ try {
     }
     log('opened bundle:', inDir)
   } else {
-    await page.getByText('프로젝트 가져오기').first().waitFor()
-    await page.locator('input[accept=".json,.csv,image/*"]').setInputFiles(files)
+    await page.getByText('프로젝트 열기').first().waitFor()
+    await page.locator(OPEN_INPUT).setInputFiles(files)
 
     if (validate && !exportManifest) {
       // Dry run: wait for the structured result the app publishes — it's set on
@@ -279,7 +282,7 @@ try {
     }
   } else if (bundle) {
     // Editable project bundle (project.json + image blobs) instead of PNGs —
-    // reopen in the editor later via "프로젝트 파일 열기". App exposes the
+    // reopen in the editor later via step 1's "프로젝트 열기". App exposes the
     // download via window.__downloadProjectBundle when __bundleExportEnabled.
     await mkdir(outDir, { recursive: true })
     const dl = page.waitForEvent('download', { timeout: 120_000 })

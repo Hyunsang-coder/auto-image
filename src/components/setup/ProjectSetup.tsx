@@ -7,7 +7,7 @@ import { useLibraryStore } from '../../store/useLibraryStore'
 import { useCustomStore } from '../../store/useCustomStore'
 import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
-import { runProjectImport, type ImportRunResult } from '../../lib/projectImportRun'
+import { routeOpenFiles, runProjectImport, type ImportRunResult } from '../../lib/projectImportRun'
 import { importProjectBundle } from '../../lib/projectBundle'
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
@@ -34,7 +34,8 @@ export function ProjectSetup() {
   const importInputRef = useRef<HTMLInputElement>(null)
   const [importResult, setImportResult] = useState<ImportRunResult | null>(null)
   const [importBusy, setImportBusy] = useState(false)
-  const bundleInputRef = useRef<HTMLInputElement>(null)
+  // Files picked alongside a bundle, so the surplus can be reported.
+  const [ignoredOnOpen, setIgnoredOnOpen] = useState(0)
   const [bundleError, setBundleError] = useState(false)
 
   const [name, setName] = useState(existingProject?.name ?? t('내 앱'))
@@ -151,6 +152,21 @@ export function ProjectSetup() {
   function cancelImport() {
     setImportResult(null)
     gcImages()
+  }
+
+  // One pick, two destinations: a .zip is a saved project bundle, anything else
+  // is the agent-authored file set. Surplus files alongside a bundle are
+  // reported rather than silently dropped.
+  async function handleOpenFiles(files: File[]) {
+    const choice = routeOpenFiles(files)
+    if (choice.kind === 'empty') return
+    if (choice.kind === 'import') {
+      setIgnoredOnOpen(0)
+      await handleImportFiles(choice.files)
+      return
+    }
+    setIgnoredOnOpen(choice.ignored)
+    await handleOpenBundle(choice.file)
   }
 
   async function handleOpenBundle(file: File) {
@@ -347,20 +363,26 @@ export function ProjectSetup() {
         </Section>
       )}
 
+      {/*
+        One entry point, not two: a saved project file and an agent-authored
+        file set were separate sections with the same "파일 선택" button, and
+        nothing on screen said which was which. The pick itself decides —
+        routeOpenFiles.
+      */}
       <Section
-        title={t('프로젝트 가져오기')}
-        hint={t('AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 선택하면 export 전 단계까지 채워진 프로젝트로 시작합니다.')}
+        title={t('프로젝트 열기')}
+        hint={t('저장한 프로젝트 파일(.zip)을 고르면 편집 내용 그대로 이어서 작업합니다. AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다.')}
       >
         <input
           ref={importInputRef}
           type="file"
-          accept=".json,.csv,image/*"
+          accept=".zip,.json,.csv,image/*"
           multiple
           className="hidden"
           onChange={(e) => {
             const files = Array.from(e.target.files ?? [])
             e.target.value = ''
-            if (files.length) void handleImportFiles(files)
+            void handleOpenFiles(files)
           }}
         />
         <button
@@ -369,33 +391,15 @@ export function ProjectSetup() {
           onClick={() => importInputRef.current?.click()}
           className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {importBusy ? t('가져오는 중…') : t('파일 선택')}
+          {importBusy ? t('여는 중…') : t('파일 선택')}
         </button>
-      </Section>
-
-      <Section
-        title={t('프로젝트 파일 열기')}
-        hint={t('이전에 저장한 프로젝트 파일(.zip)을 열어 이어서 편집합니다. 스크린샷과 모든 편집 내용이 그대로 복원됩니다.')}
-      >
-        <input
-          ref={bundleInputRef}
-          type="file"
-          accept=".zip"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            e.target.value = ''
-            if (file) void handleOpenBundle(file)
-          }}
-        />
-        <button
-          type="button"
-          disabled={importBusy}
-          onClick={() => bundleInputRef.current?.click()}
-          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {importBusy ? t('가져오는 중…') : t('파일 선택')}
-        </button>
+        {ignoredOnOpen > 0 && (
+          <p className="text-xs text-[var(--color-warning)]">
+            {t('프로젝트 파일을 열었습니다. 함께 고른 파일 {n}개는 사용하지 않았습니다.', {
+              n: ignoredOnOpen,
+            })}
+          </p>
+        )}
       </Section>
 
       {/*
@@ -562,7 +566,7 @@ export function ProjectSetup() {
       )}
 
       {bundleError && (
-        <Modal title={t('프로젝트 파일 열기')} onClose={() => setBundleError(false)}>
+        <Modal title={t('프로젝트 열기')} onClose={() => setBundleError(false)}>
             <p className="mt-2 text-sm text-[var(--color-danger)]">
               {t('프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.')}
             </p>

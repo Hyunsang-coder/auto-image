@@ -253,9 +253,21 @@ function App() {
               items={[
                 ...(step !== 1
                   ? [
-                      { label: t('라이브러리에 저장'), onSelect: openSaveModal },
-                      { label: t('템플릿으로 저장'), onSelect: openTemplateModal },
-                      { label: t('프로젝트 파일 저장'), onSelect: handleExportBundle },
+                      {
+                        label: t('라이브러리에 저장'),
+                        hint: t('이 브라우저 안에 보관 — 파일은 만들지 않습니다'),
+                        onSelect: openSaveModal,
+                      },
+                      {
+                        label: t('템플릿으로 저장'),
+                        hint: t('스크린샷을 뺀 디자인만 — 새 프로젝트의 출발점'),
+                        onSelect: openTemplateModal,
+                      },
+                      {
+                        label: t('프로젝트 파일 저장'),
+                        hint: t('.zip 파일로 내보내기 — 「프로젝트 열기」로 그대로 이어서 편집'),
+                        onSelect: handleExportBundle,
+                      },
                     ]
                   : []),
                 ...(isTauri()

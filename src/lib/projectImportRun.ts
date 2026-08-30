@@ -16,6 +16,26 @@ import { buildProjectFromManifest, isManifestShaped, parseManifest, type ParsedM
 
 const IMAGE_EXT = /\.(png|jpe?g|webp)$/i
 
+/**
+ * What a single "open a project" file pick means. The two paths used to be two
+ * side-by-side buttons that looked identical; a saved project bundle is always
+ * one .zip and the agent-authored form is always a loose set of
+ * manifest/caption/screenshot files, so the pick itself says which one it is.
+ */
+export type OpenChoice =
+  | { kind: 'bundle'; file: File; ignored: number }
+  | { kind: 'import'; files: File[] }
+  | { kind: 'empty' }
+
+export function routeOpenFiles(files: File[]): OpenChoice {
+  // A bundle carries the whole project, so anything picked alongside it is
+  // surplus — reported rather than silently dropped.
+  const bundle = files.find((f) => f.name.toLowerCase().endsWith('.zip'))
+  if (bundle) return { kind: 'bundle', file: bundle, ignored: files.length - 1 }
+  if (files.length) return { kind: 'import', files }
+  return { kind: 'empty' }
+}
+
 export interface RoutedImportFiles {
   /** Manifest vs caption-template JSON is decided by shape, not name — see classifyJson. */
   jsonFiles: File[]

@@ -2,6 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react'
 
 export interface MenuAction {
   label: string
+  /**
+   * One line under the label. Several commands here save different things to
+   * different places, and the verb alone can't tell them apart — say where it
+   * goes rather than leaving the reader to guess from the noun.
+   */
+  hint?: string
   onSelect: () => void
   /** Renders in the danger colour and sits below a separator. */
   destructive?: boolean
@@ -132,6 +138,11 @@ export function MenuButton({ label, items, glyph = '···' }: Props) {
                 }}
                 type="button"
                 role="menuitem"
+                // The hint is a description, not part of the command's name:
+                // without this it would be folded into the accessible name and
+                // "라이브러리에 저장" would no longer match the menu item.
+                aria-label={item.hint ? item.label : undefined}
+                aria-describedby={item.hint ? `${menuId}-hint-${i}` : undefined}
                 disabled={item.disabled}
                 tabIndex={i === active ? 0 : -1}
                 onMouseEnter={() => !item.disabled && setActive(i)}
@@ -140,13 +151,21 @@ export function MenuButton({ label, items, glyph = '···' }: Props) {
                   item.onSelect()
                 }}
                 className={[
-                  'flex h-[var(--control-h)] w-full items-center rounded-md px-2.5 text-left',
+                  'flex min-h-[var(--control-h)] w-full flex-col justify-center rounded-md px-2.5 py-1 text-left',
                   'text-[length:var(--text-ui)] transition disabled:cursor-not-allowed disabled:opacity-40',
                   item.destructive ? 'text-[var(--color-danger)]' : 'text-[var(--color-text)]',
                   'hover:bg-[var(--color-surface-3)]',
                 ].join(' ')}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.hint && (
+                  <span
+                    id={`${menuId}-hint-${i}`}
+                    className="text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]"
+                  >
+                    {item.hint}
+                  </span>
+                )}
               </button>
             </div>
           ))}

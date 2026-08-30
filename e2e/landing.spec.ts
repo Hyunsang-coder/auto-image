@@ -23,5 +23,5 @@ test('랜딩에 웹 스튜디오로 가는 링크가 없음', async ({ page }) =
 
 test('에디터가 /app/에서 그대로 서빙됨', async ({ page }) => {
   await page.goto('/app/')
-  await expect(page.getByText('프로젝트 가져오기').first()).toBeVisible()
+  await expect(page.getByText('프로젝트 열기').first()).toBeVisible()
 })

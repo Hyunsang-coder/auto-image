@@ -28,7 +28,7 @@ const CSV = [
   '2,,text:1,매일 자동 정리,Summarized daily',
 ].join('\n')
 
-const importInput = 'input[accept=".json,.csv,image/*"]'
+const importInput = 'input[accept=".zip,.json,.csv,image/*"]'
 
 test('프로젝트 가져오기: manifest + 이미지 + CSV가 한 번에 프로젝트로 조립됨', async ({ page }) => {
   // Clear once (not via clearAppState's init script) — the reload at the end

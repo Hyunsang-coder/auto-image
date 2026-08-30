@@ -13,7 +13,8 @@ export const en: Record<string, string> = {
   '스크린샷 프로젝트': 'Screenshot Projects',
   저장됨: 'Saved',
   '라이브러리에 저장됨 ✓': 'Saved to library ✓',
-  '라이브러리에 저장': 'Save to Library',
+  '라이브러리에 저장': 'Save Snapshot in This Browser',
+  '이 브라우저 안에 보관 — 파일은 만들지 않습니다': 'Kept inside this browser — no file is created',
   '모든 변경 사항은 자동으로 저장됩니다': 'Every change is saved automatically',
   '세트 전체가 보이도록 맞춤': 'Fit the whole set on screen',
   '기기 프레임': 'Device frame',
@@ -36,8 +37,10 @@ export const en: Record<string, string> = {
   '저장됨 ✓': 'Saved ✓',
   저장: 'Save',
   '템플릿 저장됨 ✓': 'Template saved ✓',
-  '템플릿으로 저장': 'Save as Template',
-  '프로젝트 파일 저장': 'Save Project File',
+  '템플릿으로 저장': 'Save Design as Template',
+  '스크린샷을 뺀 디자인만 — 새 프로젝트의 출발점': 'Design only, no screenshots — a starting point for new projects',
+  '프로젝트 파일 저장': 'Export Project File (.zip)',
+  '.zip 파일로 내보내기 — 「프로젝트 열기」로 그대로 이어서 편집': 'Exports a .zip — reopen it with Open Project to carry on editing',
   초기화: 'Reset',
   '저장 공간이 가득 차 최근 변경 사항이 저장되지 않았을 수 있습니다. 슬라이드 수나 하이라이트를 줄이거나, 내보낸 뒤 프로젝트를 초기화하세요.':
     'Storage is full — your latest changes may not have been saved. Reduce the number of slides or highlights, or export and reset the project.',
@@ -416,12 +419,12 @@ export const en: Record<string, string> = {
   '시작 →': 'Start →',
   '삭제 확인': 'Confirm Delete',
   '프로젝트 가져오기': 'Import Project',
-  'AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 선택하면 export 전 단계까지 채워진 프로젝트로 시작합니다.':
-    'Select files prepared by an AI agent (manifest.json + screenshots + caption CSV/JSON) all at once to start a project ready for export.',
-  '가져오는 중…': 'Importing…',
-  '프로젝트 파일 열기': 'Open Project File',
-  '이전에 저장한 프로젝트 파일(.zip)을 열어 이어서 편집합니다. 스크린샷과 모든 편집 내용이 그대로 복원됩니다.':
-    'Open a previously saved project file (.zip) to keep editing. Screenshots and all edits are restored as-is.',
+  '프로젝트 열기': 'Open Project',
+  '저장한 프로젝트 파일(.zip)을 고르면 편집 내용 그대로 이어서 작업합니다. AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다.':
+    'Pick a saved project file (.zip) to carry on exactly where you left off. Or pick an agent-authored set at once (manifest.json + screenshots + a caption CSV/JSON) to start from a project already filled in up to the export step.',
+  '여는 중…': 'Opening…',
+  '프로젝트 파일을 열었습니다. 함께 고른 파일 {n}개는 사용하지 않았습니다.':
+    'Opened the project file. The {n} other file(s) you picked were not used.',
   '프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.':
     'Could not open the project file. Make sure it is a valid project .zip.',
   '예: Dogo, Claude, ADHD': 'e.g. Dogo, Claude, ADHD',

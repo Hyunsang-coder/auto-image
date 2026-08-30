@@ -59,7 +59,7 @@ npm run headless:export -- project.studio.zip <out-dir> --report   # + layout �
 하니스 변경(`scripts/headless-export.mjs`):
 1. 입력 위치 인자를 `stat`. **파일(.zip/.studio.zip) → 번들 모드**(`IMPORT_EXTS` readdir 스킵), 디렉터리 → 기존 폴더 모드.
 2. 번들 분기(현 import 드라이브 구간 대체):
-   - `page.getByText('프로젝트 파일 열기').first().waitFor()`
+   - `page.getByText('프로젝트 열기').first().waitFor()`
    - `page.locator('input[accept=".zip"]').setInputFiles(bundlePath)`
    - 에디터 진입 대기(요약 모달/"에디터에서 검수 →" 없음): step-2 신호(예: `getByRole('button', { name: '프로젝트 파일 저장' })` — step≠1에서만 노출) 또는 캔버스 가시성.
    - 실패 가드: `bundleError` 모달 보이면 즉시 exit 1.

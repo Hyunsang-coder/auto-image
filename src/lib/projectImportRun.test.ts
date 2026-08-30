@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { routeImportFiles, runProjectImport } from './projectImportRun'
+import { routeImportFiles, routeOpenFiles, runProjectImport } from './projectImportRun'
 
 function f(name: string, content = '') {
   return new File([content], name)
@@ -11,6 +11,35 @@ const MANIFEST = JSON.stringify({
   sourceLocale: 'ko',
   targetLocales: ['en'],
   slides: [{ textBlocks: 1 }, { layout: 'split', textBlocks: 2 }],
+})
+
+describe('routeOpenFiles — one entry point for both open paths', () => {
+  it('treats a lone .zip as a saved project bundle', () => {
+    expect(routeOpenFiles([f('Dogo.studio.zip')])).toEqual({
+      kind: 'bundle',
+      file: expect.any(File),
+      ignored: 0,
+    })
+    expect(routeOpenFiles([f('Dogo.ZIP')])).toMatchObject({ kind: 'bundle' })
+  })
+
+  it('reports the surplus when a bundle is picked alongside other files', () => {
+    const r = routeOpenFiles([f('1.ko.png'), f('Dogo.studio.zip'), f('manifest.json')])
+    // The bundle carries the whole project; the rest are surplus, and the
+    // count is reported so the UI never silently drops a user's selection.
+    expect(r).toMatchObject({ kind: 'bundle', ignored: 2 })
+    expect((r as { file: File }).file.name).toBe('Dogo.studio.zip')
+  })
+
+  it('treats a loose set of files as an agent-authored import', () => {
+    expect(routeOpenFiles([f('manifest.json'), f('1.ko.png')])).toMatchObject({
+      kind: 'import',
+    })
+  })
+
+  it('reports an empty pick', () => {
+    expect(routeOpenFiles([])).toEqual({ kind: 'empty' })
+  })
 })
 
 describe('routeImportFiles', () => {
