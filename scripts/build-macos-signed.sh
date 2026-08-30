@@ -30,4 +30,31 @@ else
 fi
 
 cd "$ROOT"
-npx tauri build --bundles app,dmg
+# Extra args pass through, e.g. --target universal-apple-darwin for a build
+# that also runs on Intel Macs.
+npx tauri build --bundles app,dmg "$@"
+
+# Tauri notarizes and staples the .app but only *signs* the .dmg — and the dmg
+# is what people download, so Gatekeeper judges it as "Unnotarized Developer ID"
+# and blocks the disk image even though the app inside is clean. Submit it too.
+DMG="$(ls -t "$ROOT"/src-tauri/target/*/release/bundle/dmg/*.dmg \
+                "$ROOT"/src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
+if [ -z "$DMG" ]; then
+  echo "no dmg found to notarize" >&2
+  exit 1
+fi
+
+if [ -n "${APPLE_API_KEY:-}" ]; then
+  xcrun notarytool submit "$DMG" \
+    --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait
+elif [ -n "${APPLE_ID:-}" ]; then
+  xcrun notarytool submit "$DMG" \
+    --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+else
+  echo "dmg left unnotarized — no credentials" >&2
+  exit 0
+fi
+
+# Staples the ticket into the dmg so a first launch works offline too.
+xcrun stapler staple "$DMG"
+spctl -a -t open --context context:primary-signature -v "$DMG"

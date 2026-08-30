@@ -57,21 +57,27 @@ APPLE_API_KEY="..."
 APPLE_API_KEY_PATH="/Users/you/keys/AuthKey_XXXX.p8"
 ```
 
-Build:
+Build (extra args go to `tauri build` — releases ship universal so Intel Macs
+can run them):
 
 ```bash
-./scripts/build-macos-signed.sh
+./scripts/build-macos-signed.sh --target universal-apple-darwin
 ```
 
 Tauri signs the `.app` with `APPLE_SIGNING_IDENTITY` (hardened runtime is applied
 automatically) and, when notarization credentials are present, submits it to
-Apple and staples the ticket. Output: `src-tauri/target/release/bundle/{macos,dmg}/`.
+Apple and staples the ticket. It then signs the `.dmg` but does **not** notarize
+it — and the dmg is what people download, so Gatekeeper judges it as
+"Unnotarized Developer ID" and blocks the disk image even though the app inside
+is clean. The script submits and staples the dmg itself for that reason.
+Output: `src-tauri/target/universal-apple-darwin/release/bundle/{macos,dmg}/`.
 
-Verify:
+Verify (both halves — a stapled app inside an unnotarized dmg still warns):
 
 ```bash
-codesign -dv --verbose=4 "src-tauri/target/release/bundle/macos/Screenshot Studio.app"
-spctl -a -vvv "src-tauri/target/release/bundle/macos/Screenshot Studio.app"   # → accepted, source=Notarized Developer ID
+spctl -a -vvv "src-tauri/target/universal-apple-darwin/release/bundle/macos/Screenshot Studio.app"
+spctl -a -t open --context context:primary-signature -vvv "src-tauri/target/universal-apple-darwin/release/bundle/dmg/Screenshot Studio_0.1.1_universal.dmg"
+# both → accepted, source=Notarized Developer ID
 ```
 
 ## Notes
@@ -79,8 +85,9 @@ spctl -a -vvv "src-tauri/target/release/bundle/macos/Screenshot Studio.app"   # 
 - **Local dev only** (no distribution): sign with any installed identity (even an
   *Apple Development* cert) to stop the Keychain re-prompts — set
   `APPLE_SIGNING_IDENTITY` and skip the notarization vars.
-- **Headless builds** hang on the DMG step (`bundle_dmg.sh` drives Finder via
-  osascript). Build on a real GUI session, or use `--bundles app` to skip the DMG.
+- **DMG bundling** (`bundle_dmg.sh` drives Finder via osascript) has run fine
+  from a non-interactive shell in recent builds; `--bundles app` skips it if a
+  particular environment does hang.
 - **App Store** distribution is a different path (a `.pkg`, App Sandbox
   entitlements, an *Apple Distribution* cert) and is not covered here.
 - If notarization rejects the app for a missing entitlement, add an
