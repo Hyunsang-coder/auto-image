@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { StepIndicator } from './components/common/StepIndicator'
 import { MenuButton } from './components/common/MenuButton'
+import { AgentBridgeCard } from './components/common/AgentBridgeCard'
 import { Modal } from './components/common/Modal'
 import { ProjectSetup } from './components/setup/ProjectSetup'
 import { EditorLayout } from './components/editor/EditorLayout'
@@ -234,6 +235,8 @@ function App() {
               {justSaved ? t('라이브러리에 저장됨 ✓') : t('저장됨')}
             </span>
           )}
+          {/* Desktop only — renders nothing in the web build. */}
+          <AgentBridgeCard />
           {project && (
             <MenuButton
               label={t('더 보기')}

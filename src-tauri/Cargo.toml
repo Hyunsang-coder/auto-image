@@ -25,4 +25,9 @@ tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 base64 = "0.22"
-tokio = { version = "1", features = ["net", "io-util", "sync", "time"] }
+tokio = { version = "1", features = ["net", "io-util", "sync", "time", "macros"] }
+
+[dev-dependencies]
+# `test` gives the mock app the bridge tests drive: they exercise the real
+# listener (bind → accept → stop → rebind) without a window.
+tauri = { version = "2.11.2", features = ["test"] }

@@ -68,7 +68,9 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       write_file,
       bridge::bridge_respond,
-      bridge::bridge_ready
+      bridge::bridge_ready,
+      bridge::bridge_status,
+      bridge::bridge_set_enabled
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
@@ -80,9 +82,13 @@ pub fn run() {
       }
       // The agent bridge is best-effort: a desktop app that cannot open its
       // socket should still work as a plain editor.
-      match bridge::start(app.handle()) {
-        Ok(path) => log::info!("agent bridge listening on {}", path.display()),
-        Err(e) => log::warn!("agent bridge unavailable: {e}"),
+      if bridge::enabled(app.handle()) {
+        match bridge::start(app.handle()) {
+          Ok(path) => log::info!("agent bridge listening on {}", path.display()),
+          Err(e) => log::warn!("agent bridge unavailable: {e}"),
+        }
+      } else {
+        log::info!("agent bridge switched off by preference");
       }
 
       Ok(())

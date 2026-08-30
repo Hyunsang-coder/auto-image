@@ -36,3 +36,25 @@ export async function writeFileToDir(
       : await blobToBase64(data)
   await invoke('write_file', { dir, path, dataBase64, executable })
 }
+
+export interface BridgeStatus {
+  /** A socket is bound and accepting. */
+  running: boolean
+  /** The user's switch, persisted across launches. */
+  enabled: boolean
+  socketPath: string
+  /** Why nothing is listening while the switch is on. */
+  error: string | null
+}
+
+/** Null in the web build — there is no bridge there to report on. */
+export async function getBridgeStatus(): Promise<BridgeStatus | null> {
+  if (!isTauri()) return null
+  return await invoke<BridgeStatus>('bridge_status')
+}
+
+/** Flip the switch and get the resulting state back in one round trip. */
+export async function setBridgeEnabled(enabled: boolean): Promise<BridgeStatus | null> {
+  if (!isTauri()) return null
+  return await invoke<BridgeStatus>('bridge_set_enabled', { enabled })
+}

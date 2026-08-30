@@ -22,6 +22,9 @@
   --color-danger: #b42318;
   --color-danger-on: #ffffff;
   --color-warning: #9a4507;
+  /* 6.53:1 on surface, 5.48:1 on surface-3 — a status label, so it has to read
+     as text, not just as a green pixel. */
+  --color-success: #146c2e;
 
   /* macOS text: 13pt default, 10pt minimum. Figma's inspector density lands at
      11-12px, which is legal but never below --text-ui-xs. */
@@ -63,6 +66,8 @@
     --color-danger: #ff6b60;
     --color-danger-on: #1e1e1e;
     --color-warning: #f5a524;
+    /* 7.25:1 on surface — the 7:1 this palette asks of small dark-mode text. */
+    --color-success: #56d364;
   }
 }
 
@@ -74,6 +79,7 @@
     --color-border: #8c8c8c;
     --color-border-strong: #4a4a4a;
     --color-accent-strong: #005bbb;
+    --color-success: #0f5c28;
   }
 }
 
@@ -86,6 +92,7 @@
        one colour it most needs to. 8.20:1 on surface. */
     --color-accent-strong: #8ecdff;
     --color-accent-on: #1e1e1e;
+    --color-success: #7ee787;
   }
 }
 

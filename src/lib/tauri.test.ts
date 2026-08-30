@@ -3,7 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const invoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }))
 
-import { isTauri, writeFileToDir, sanitizePathSegment } from './tauri'
+import {
+  isTauri,
+  writeFileToDir,
+  sanitizePathSegment,
+  getBridgeStatus,
+  setBridgeEnabled,
+} from './tauri'
 
 beforeEach(() => {
   invoke.mockReset()
@@ -69,5 +75,36 @@ describe('writeFileToDir', () => {
       'write_file',
       expect.objectContaining({ dir: '/out', path: 'x.png', dataBase64: 'aGk=', executable: false }),
     )
+  })
+})
+
+describe('bridge status', () => {
+  function inTauri<T>(run: () => T): T {
+    ;(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {}
+    try {
+      return run()
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+    }
+  }
+
+  it('reports nothing in the web build instead of invoking', async () => {
+    expect(await getBridgeStatus()).toBeNull()
+    expect(await setBridgeEnabled(false)).toBeNull()
+    expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it('reads the status from Rust', async () => {
+    const status = { running: true, enabled: true, socketPath: '/tmp/a.sock', error: null }
+    invoke.mockResolvedValue(status)
+    expect(await inTauri(() => getBridgeStatus())).toEqual(status)
+    expect(invoke).toHaveBeenCalledWith('bridge_status')
+  })
+
+  it('passes the switch through and returns the resulting status', async () => {
+    const status = { running: false, enabled: false, socketPath: '/tmp/a.sock', error: null }
+    invoke.mockResolvedValue(status)
+    expect(await inTauri(() => setBridgeEnabled(false))).toEqual(status)
+    expect(invoke).toHaveBeenCalledWith('bridge_set_enabled', { enabled: false })
   })
 })

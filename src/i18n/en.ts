@@ -501,6 +501,15 @@ export const en: Record<string, string> = {
   '이미지 일괄': 'Bulk Images',
   '이미지 가져오기': 'Import Images',
   '규칙 복사': 'Copy Naming Guide',
+  'MCP 서버': 'MCP server',
+  'MCP 서버 사용': 'Enable MCP server',
+  '실행 중': 'Running',
+  중지됨: 'Stopped',
+  '소켓 경로': 'Socket path',
+  '소켓 경로 복사': 'Copy socket path',
+  '복사됨 ✓': 'Copied ✓',
+  '연결된 에이전트가 이 창에 열려 있는 프로젝트를 직접 편집합니다. 끄면 파일로 주고받는 방식만 남습니다.':
+    'A connected agent edits the project open in this window. Switched off, only the file round-trip remains.',
   '파일명 {pattern} · 기준 언어({locale})가 베이스 · 예: 1.{locale}.png, 1.{alt}.png':
     'Filename {pattern} · source language ({locale}) is base · e.g. 1.{locale}.png, 1.{alt}.png',
   '번역할 언어를 선택하세요': 'Select a language to translate',
