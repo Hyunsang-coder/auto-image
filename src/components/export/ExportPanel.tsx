@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { open } from '@tauri-apps/plugin-dialog'
 import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSlideWithReport, renderSpanGroup, renderSpanGroupWithReport } from '../../lib/renderSlide'
+import { useSlideThumbnails } from '../editor/useSlideThumbnails'
 import {
   createLayoutReport,
   createLayoutSummary,
@@ -17,6 +18,10 @@ import { typeOfModel } from '../../constants/deviceSpecs'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from '../../lib/readiness'
 import type { DeviceType, Slide } from '../../types/project'
 import { useT } from '../../i18n'
+
+// Stable empty array: the preview hook keys its effect on the slide array's
+// identity, and `project?.slides ?? []` would hand it a fresh one every render.
+const NO_SLIDES: Slide[] = []
 
 function deviceOf(slide: Slide): DeviceType {
   return typeOfModel(slide.deviceFrame.model)
@@ -144,9 +149,6 @@ export function ExportPanel() {
   const cancelledRef = useRef(false)
 
   const [previewLocale, setPreviewLocale] = useState<string>('')
-  const [previewSrcs, setPreviewSrcs] = useState<(string | null)[]>([])
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const prevUrlsRef = useRef<(string | null)[]>([])
   // Preview thumbnail size: 1 (small, more columns) … 5 (large, single column).
   const [previewSize, setPreviewSize] = useState(4)
   // Locales the user unticked for export; empty = export everything. Seeded
@@ -158,66 +160,16 @@ export function ExportPanel() {
     return new Set([p.sourceLocale, ...p.targetLocales].filter((l) => !locales.includes(l)))
   })
 
-  // Auto-render every slide for the chosen locale — no button. Re-runs whenever
-  // the project or preview locale changes; a cancelled flag drops stale results
-  // if the locale flips mid-render.
+  // Auto-rendered previews, no button. The editor's thumbnail hook owns the
+  // debounce, the content-hash cache and the per-slide commit, so an edit made
+  // while a run is in flight can't leave the panel blank or the spinner stuck.
+  // No width: full export resolution, so a preview is byte-identical to the
+  // exported PNG (absolute-pixel constants diverge at any other scale).
   const previewLocaleEff = previewLocale || project?.sourceLocale
-  useEffect(() => {
-    if (!project) return
-    let cancelled = false
-    const slides = project.slides
-    const renderLocale = previewLocaleEff === project.sourceLocale ? null : previewLocaleEff!
-    ;(async () => {
-      setPreviewLoading(true)
-      const urls: (string | null)[] = []
-      for (const slide of slides) {
-        if (cancelled) break
-        try {
-          let blob: Blob
-          if (slide.spanGroupId) {
-            const isLeader = slide.spanRole === 'leader'
-            const leader = isLeader
-              ? slide
-              : slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'leader')
-            const follower = !isLeader
-              ? slide
-              : slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === 'follower')
-            if (!leader || !follower) {
-              urls.push(null)
-              continue
-            }
-            // Render at full export resolution (no preview width) so the
-            // thumbnail is byte-identical to the exported PNG — absolute-pixel
-            // constants (fit-to-box floor, headline gap) otherwise diverge
-            // between the 440px preview scale and the export scale. CSS scales it
-            // down for display.
-            const halves = await renderSpanGroup(leader, follower, renderLocale)
-            blob = isLeader ? halves.leader : halves.follower
-          } else {
-            blob = await renderSlide(slide, renderLocale)
-          }
-          urls.push(URL.createObjectURL(blob))
-        } catch {
-          urls.push(null)
-        }
-      }
-      if (cancelled) {
-        urls.forEach((u) => u && URL.revokeObjectURL(u))
-        return
-      }
-      prevUrlsRef.current.forEach((u) => u && URL.revokeObjectURL(u))
-      prevUrlsRef.current = urls
-      setPreviewSrcs(urls)
-      setPreviewLoading(false)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [project, previewLocaleEff])
-
-  // Revoke the last committed preview blobs when the panel unmounts (the effect
-  // above only revokes the *previous* set on each re-run, never the final one).
-  useEffect(() => () => prevUrlsRef.current.forEach((u) => u && URL.revokeObjectURL(u)), [])
+  const { thumbs: previewSrcs, rendering: previewLoading } = useSlideThumbnails(
+    project?.slides ?? NO_SLIDES,
+    previewLocaleEff === project?.sourceLocale ? '' : previewLocaleEff ?? '',
+  )
 
   if (!project) return null
 
@@ -494,8 +446,8 @@ export function ExportPanel() {
                 key={s.id}
                 className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]"
               >
-                {previewSrcs[i] ? (
-                  <img src={previewSrcs[i]!} alt={t('슬라이드 {n}', { n: i + 1 })} className="w-full object-contain" />
+                {previewSrcs[s.id] ? (
+                  <img src={previewSrcs[s.id]} alt={t('슬라이드 {n}', { n: i + 1 })} className="w-full object-contain" />
                 ) : (
                   <div className="flex aspect-[9/19] items-center justify-center text-xs text-[var(--color-text-dim)]">
                     {i + 1}…

@@ -3,7 +3,7 @@ import { useProjectStore, spanLeaderOf, findSpanPartner } from '../../store/useP
 import { SlideList } from './SlideList'
 import { CanvasBoard } from './CanvasBoard'
 import { buildRows } from './slideRows'
-import { useSlideThumbnails } from './useSlideThumbnails'
+import { THUMB_WIDTH, useSlideThumbnails } from './useSlideThumbnails'
 import { useResizable } from './useResizable'
 import { FabricCanvas, type FabricCanvasHandle, type ObjIdentity } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
@@ -133,7 +133,7 @@ export function EditorLayout() {
   // One thumbnail render for the whole editor: the board draws every inactive
   // frame from it and the tray draws its strip from it. The hook debounces and
   // caches by content hash, so calling it in both places would double the work.
-  const thumbs = useSlideThumbnails(project?.slides ?? [], editLocale)
+  const { thumbs } = useSlideThumbnails(project?.slides ?? [], editLocale, THUMB_WIDTH)
 
   // Derived, not stored: a fit that reacts to the tray/panel being resized
   // without a setState-in-effect cascade. Sits above the early return so the
