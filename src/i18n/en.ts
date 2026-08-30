@@ -9,6 +9,8 @@ export const en: Record<string, string> = {
   '이 슬라이드 편집': 'Edit this slide',
   '2페이지': '2-page',
   '화면 맞춤': 'Fit',
+  '새 프로젝트': 'New project',
+  '스크린샷 프로젝트': 'Screenshot Projects',
   '세트 전체가 보이도록 맞춤': 'Fit the whole set on screen',
   '기기 프레임': 'Device frame',
   '원본 영역': 'Source region',

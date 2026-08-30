@@ -56,6 +56,7 @@ export function ProjectSetup() {
 
   const canSubmit = name.trim().length > 0
   const hasExisting = !!existingProject
+  const hasFiles = hasExisting || savedProjects.length > 0
 
   function submit() {
     if (!canSubmit) return
@@ -173,7 +174,7 @@ export function ProjectSetup() {
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto px-6 py-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-          {t('새 스크린샷 프로젝트')}
+          {hasFiles ? t('스크린샷 프로젝트') : t('새 스크린샷 프로젝트')}
         </h1>
         <p className="mt-2 text-sm text-[var(--color-text-dim)]">
           {t('App Store 제출용 스크린샷 세트를 만듭니다. 데이터는 이 브라우저에만 저장됩니다.')}
@@ -181,6 +182,85 @@ export function ProjectSetup() {
       </header>
 
       {!hasExisting && savedProjects.length === 0 && <FirstRunIntro />}
+
+      {hasExisting && (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm">
+          <p className="mb-2 text-[var(--color-text-dim)]">
+            {t('이전에 만들던 프로젝트가 있습니다:')}
+          </p>
+          <p className="text-[var(--color-text)]">
+            <span className="font-medium">{existingProject.name}</span>
+            <span className="ml-2 text-[var(--color-text-dim)]">
+              · {t('{n}장', { n: existingProject.slides.length })} · {t('마지막 수정')} {formatTime(existingProject.updatedAt)}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setStep(2)}
+            className="mt-3 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
+          >
+            {t('계속 편집하기 →')}
+          </button>
+        </div>
+      )}
+
+      {savedProjects.length > 0 && (
+        <Section title={t('저장된 프로젝트')} hint={t("헤더의 '저장'으로 보관한 프로젝트입니다.")}>
+          <ul className="flex flex-col gap-2">
+            {savedProjects.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
+                    {p.name}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-dim)]">
+                    {t('{n}장', { n: p.slides.length })} · {formatTime(p.updatedAt)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoad(p)}
+                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
+                  >
+                    {t('불러오기')}
+                  </button>
+                  {pendingDelete === p.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p.id)}
+                        className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-on)] hover:brightness-110"
+                      >
+                        {t('삭제 확인')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(null)}
+                        className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
+                      >
+                        {t('취소')}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete(p.id)}
+                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                    >
+                      {t('삭제')}
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
 
       {(BUILTIN_PROJECT_TEMPLATES.length > 0 || userTemplates.length > 0) && (
         <Section
@@ -318,6 +398,16 @@ export function ProjectSetup() {
         </button>
       </Section>
 
+      {/*
+        Creating is the rarer act once files exist, so the form collapses behind
+        a disclosure — open while there is nothing to open, which is also the
+        state every test starts from.
+      */}
+      <details open={!hasFiles}>
+        <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+          {t('새 프로젝트')}
+        </summary>
+        <div className="mt-3 flex flex-col gap-6">
       <Section title={t('앱 이름')}>
         <input
           value={name}
@@ -442,83 +532,8 @@ export function ProjectSetup() {
         </button>
       </footer>
 
-      {hasExisting && (
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm">
-          <p className="mb-2 text-[var(--color-text-dim)]">
-            {t('이전에 만들던 프로젝트가 있습니다:')}
-          </p>
-          <p className="text-[var(--color-text)]">
-            <span className="font-medium">{existingProject.name}</span>
-            <span className="ml-2 text-[var(--color-text-dim)]">
-              · {t('{n}장', { n: existingProject.slides.length })} · {t('마지막 수정')} {formatTime(existingProject.updatedAt)}
-            </span>
-          </p>
-          <button
-            type="button"
-            onClick={() => setStep(2)}
-            className="mt-3 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
-          >
-            {t('계속 편집하기 →')}
-          </button>
         </div>
-      )}
-
-      {savedProjects.length > 0 && (
-        <Section title={t('저장된 프로젝트')} hint={t("헤더의 '저장'으로 보관한 프로젝트입니다.")}>
-          <ul className="flex flex-col gap-2">
-            {savedProjects.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                    {p.name}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-dim)]">
-                    {t('{n}장', { n: p.slides.length })} · {formatTime(p.updatedAt)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleLoad(p)}
-                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
-                  >
-                    {t('불러오기')}
-                  </button>
-                  {pendingDelete === p.id ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(p.id)}
-                        className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-on)] hover:brightness-110"
-                      >
-                        {t('삭제 확인')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingDelete(null)}
-                        className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
-                      >
-                        {t('취소')}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPendingDelete(p.id)}
-                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                    >
-                      {t('삭제')}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
+      </details>
 
       {confirmLoad && (
         <Modal title={t('프로젝트 불러오기')} onClose={cancelLoad}>
