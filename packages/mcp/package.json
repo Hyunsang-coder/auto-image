@@ -1,0 +1,46 @@
+{
+  "name": "screenshot-studio-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets an AI agent drive the App Store Screenshot Studio project you have open on your Mac — inspect it, patch it, translate it, and see the rendered slide.",
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "app-store",
+    "screenshots",
+    "ios",
+    "localization"
+  ],
+  "type": "module",
+  "bin": {
+    "screenshot-studio-mcp": "bin/screenshot-studio-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "data"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin"
+  ],
+  "license": "MIT",
+  "author": "Hyunsang Joo",
+  "homepage": "https://screenshotstudio.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hyunsang-coder/auto-image.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/Hyunsang-coder/auto-image/issues"
+  },
+  "scripts": {
+    "prepack": "npm run --prefix ../.. mcp:package"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  }
+}

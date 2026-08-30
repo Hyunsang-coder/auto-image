@@ -40,3 +40,6 @@ playwright-report
 /promo.mp4
 /promo.webm
 /.promo-rec/
+
+# generated from the TS constants at pack time (scripts/build-mcp-package.mjs)
+packages/mcp/data/

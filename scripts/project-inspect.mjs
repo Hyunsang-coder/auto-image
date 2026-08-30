@@ -8,7 +8,7 @@
 import JSZip from 'jszip'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, join, resolve } from 'node:path'
-import { inspectBundle } from './lib/inspect.mjs'
+import { inspectBundle } from '../packages/mcp/lib/inspect.mjs'
 
 const MANIFEST = 'project.json'
 
