@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { useT } from '../../i18n'
+import { openUrl } from '@tauri-apps/plugin-opener'
+import { useI18nStore, useT } from '../../i18n'
 import { getBridgeStatus, isTauri, setBridgeEnabled, type BridgeStatus } from '../../lib/tauri'
+
+// What an agent actually needs from this card. The socket path alone is not
+// connectable — the thing that talks to it is the published MCP server, so the
+// card hands over a config that names it.
+const MCP_CONFIG = JSON.stringify(
+  { mcpServers: { 'screenshot-studio': { command: 'npx', args: ['-y', 'screenshot-studio-mcp'] } } },
+  null,
+  2,
+)
+const CLAUDE_CODE_CMD = 'claude mcp add screenshot-studio -- npx -y screenshot-studio-mcp'
 
 /**
  * Header status + switch for the agent bridge — the socket an MCP server talks
@@ -15,8 +26,9 @@ export function AgentBridgeCard() {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState<BridgeStatus | null>(null)
   const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState('')
   const [copyFailed, setCopyFailed] = useState(false)
+  const locale = useI18nStore((st) => st.locale)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -47,17 +59,21 @@ export function AgentBridgeCard() {
     }
   }
 
-  async function copyPath() {
-    if (!status) return
+  async function copy(text: string, key: string) {
     try {
-      await navigator.clipboard.writeText(status.socketPath)
+      await navigator.clipboard.writeText(text)
       setCopyFailed(false)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
+      setCopied(key)
+      window.setTimeout(() => setCopied((c) => (c === key ? '' : c)), 1500)
     } catch {
       setCopyFailed(true)
     }
   }
+
+  const guideUrl =
+    locale === 'ko'
+      ? 'https://screenshotstudio.dev/guides/ko/mcp-agent.html'
+      : 'https://screenshotstudio.dev/guides/mcp-agent.html'
 
   const running = status.running
   const stateLabel = running ? t('실행 중') : t('중지됨')
@@ -127,23 +143,19 @@ export function AgentBridgeCard() {
 
           <div className="mt-2.5">
             <div className="text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
-              {t('소켓 경로')}
+              {t('에이전트 연결 설정')}
             </div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <code
-                title={status.socketPath}
-                className="min-w-0 flex-1 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-1.5 py-1 text-[length:var(--text-ui-xs)] text-[var(--color-text)]"
-              >
-                {status.socketPath}
-              </code>
-              <button
-                type="button"
-                onClick={() => void copyPath()}
-                aria-label={t('소켓 경로 복사')}
-                className="h-[var(--control-h-sm)] shrink-0 rounded-md border border-[var(--color-border-strong)] px-2 text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)] transition hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)]"
-              >
-                {copied ? t('복사됨 ✓') : t('복사')}
-              </button>
+            <pre className="mt-1 max-h-28 overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] p-2 text-[length:var(--text-ui-xs)] leading-snug text-[var(--color-text)]">
+              {MCP_CONFIG}
+            </pre>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <CardButton onClick={() => void copy(MCP_CONFIG, 'config')}>
+                {copied === 'config' ? t('복사됨 ✓') : t('설정 복사')}
+              </CardButton>
+              <CardButton onClick={() => void copy(CLAUDE_CODE_CMD, 'cli')}>
+                {copied === 'cli' ? t('복사됨 ✓') : t('Claude Code 명령 복사')}
+              </CardButton>
+              <CardButton onClick={() => void openUrl(guideUrl)}>{t('가이드')}</CardButton>
             </div>
             {copyFailed && (
               <p className="mt-1 text-[length:var(--text-ui-sm)] text-[var(--color-danger)]">
@@ -155,9 +167,31 @@ export function AgentBridgeCard() {
           <p className="mt-2.5 text-[length:var(--text-ui-sm)] leading-snug text-[var(--color-text-dim)]">
             {t('연결된 에이전트가 이 창에 열려 있는 프로젝트를 직접 편집합니다. 끄면 파일로 주고받는 방식만 남습니다.')}
           </p>
+
+          {/* Debugging aid, not the address anyone connects to — hence the demotion. */}
+          <button
+            type="button"
+            onClick={() => void copy(status.socketPath, 'socket')}
+            title={status.socketPath}
+            className="mt-2 block w-full truncate text-left text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)] underline decoration-dotted underline-offset-2 hover:text-[var(--color-text)]"
+          >
+            {copied === 'socket' ? t('복사됨 ✓') : `${t('소켓 경로')}: ${status.socketPath}`}
+          </button>
         </div>
       )}
     </div>
+  )
+}
+
+function CardButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-[var(--control-h-sm)] rounded-md border border-[var(--color-border-strong)] px-2 text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)] transition hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text)]"
+    >
+      {children}
+    </button>
   )
 }
 

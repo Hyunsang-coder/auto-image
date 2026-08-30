@@ -28,6 +28,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-opener": "^2.5.4",
     "fabric": "^7.4.0",
     "file-saver": "^2.0.5",
     "idb-keyval": "^6.2.4",

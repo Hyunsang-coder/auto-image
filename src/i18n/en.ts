@@ -507,6 +507,10 @@ export const en: Record<string, string> = {
   중지됨: 'Stopped',
   '소켓 경로': 'Socket path',
   '소켓 경로 복사': 'Copy socket path',
+  '에이전트 연결 설정': 'Agent connection',
+  '설정 복사': 'Copy config',
+  'Claude Code 명령 복사': 'Copy Claude Code command',
+  가이드: 'Guide',
   '복사됨 ✓': 'Copied ✓',
   '연결된 에이전트가 이 창에 열려 있는 프로젝트를 직접 편집합니다. 끄면 파일로 주고받는 방식만 남습니다.':
     'A connected agent edits the project open in this window. Switched off, only the file round-trip remains.',
