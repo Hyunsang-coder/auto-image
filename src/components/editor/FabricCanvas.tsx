@@ -1086,14 +1086,32 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
 
         // syncToZustand only reads back objects that still exist on the canvas,
         // so a delete has to remove the store entry directly — same path the
-        // properties-panel delete buttons use. Only per-instance content layers
-        // are deletable; text / device / background are structural.
+        // properties-panel delete buttons use. Captions and per-instance content
+        // layers are deletable; the device frame and background are structural.
         const a = active as FabricObject & {
           badgeId?: string
           ornamentId?: string
           shapeId?: string
           externalImageId?: string
           highlightId?: string
+          textIndex?: number
+          owner?: 'leader' | 'follower'
+        }
+        // Removing a caption changes the shape of `texts`, which every
+        // per-locale override addresses by index — so it is a base-only edit,
+        // same as adding one. In locale mode the key does nothing.
+        if (ln === LAYER_NAMES.TEXT && !lockSharedLayout) {
+          const isFollower = a.owner === 'follower' && !!followerSlideRef.current
+          const owner = isFollower ? followerSlideRef.current! : slide
+          const i = a.textIndex ?? 0
+          if (!owner.texts[i]) return
+          const texts = owner.texts.filter((_, n) => n !== i)
+          canvas.discardActiveObject()
+          canvas.renderAll()
+          notifySelection(canvas)
+          if (isFollower) onSlideChangeRef.current({}, { texts })
+          else onSlideChangeRef.current({ texts })
+          return
         }
         let patch: Partial<Slide> | null = null
         if (ln === LAYER_NAMES.BADGE && a.badgeId) {

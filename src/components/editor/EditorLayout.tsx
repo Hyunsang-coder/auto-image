@@ -346,7 +346,7 @@ export function EditorLayout() {
         if (Object.keys(routedF).length) patches[spanFollower.id] = routedF
       }
     } else {
-      patches[editTargetId] = patch
+      if (Object.keys(patch).length) patches[editTargetId] = patch
       if (followerPatch && spanFollower) patches[spanFollower.id] = followerPatch
     }
     const ids = Object.keys(patches)
@@ -796,6 +796,10 @@ export function EditorLayout() {
             slide={editingSlide}
             captionSlide={captionSlide}
             tab={panelTab}
+            selectedTextIndex={
+              selectedLayer?.layerName === LAYER_NAMES.TEXT ? selectedLayer.textIndex ?? null : null
+            }
+            textBlocksEditable={!isLocaleMode}
             onBackgroundChange={handleBackgroundChange}
             onTextsChange={handleTextsChange}
             onScreenshotChange={handleScreenshotChange}

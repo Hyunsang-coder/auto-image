@@ -35,6 +35,10 @@ interface Props {
    */
   captionSlide?: Slide | null
   tab: PanelTab
+  /** Index of the caption selected on the canvas — the block the panel opens. */
+  selectedTextIndex?: number | null
+  /** False in locale mode: adding/removing text blocks is a base-only edit. */
+  textBlocksEditable: boolean
   onBackgroundChange: (bg: Background) => void
   onTextsChange: (texts: Caption[]) => void
   onScreenshotChange: (screenshot: ScreenshotImage | null) => void
@@ -62,6 +66,8 @@ export function PropertiesPanel({
   slide,
   captionSlide,
   tab,
+  selectedTextIndex,
+  textBlocksEditable,
   onBackgroundChange,
   onTextsChange,
   onScreenshotChange,
@@ -116,6 +122,8 @@ export function PropertiesPanel({
             texts={(captionSlide ?? slide).texts}
             template={(captionSlide ?? slide).template}
             onChange={onTextsChange}
+            selectedIndex={selectedTextIndex}
+            structuralEnabled={textBlocksEditable}
             bulkEnabled={bulkEnabled}
             selectedCount={selectedCount}
             slideCount={slideCount}

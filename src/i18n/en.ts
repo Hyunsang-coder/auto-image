@@ -79,6 +79,8 @@ export const en: Record<string, string> = {
   // LocalizeEditor grid field label (non-literal i18nT call — kept manually)
   '배지 {n}': 'Badge {n}',
   '이 텍스트 블록 삭제': 'Delete this text block',
+  '(비어 있음)': '(empty)',
+  '텍스트 블록이 없습니다.': 'No text blocks.',
   삭제: 'Delete',
   '텍스트 블록 추가 ({n}/{max})': 'Add text block ({n}/{max})',
 

@@ -6,7 +6,6 @@ import { preloadFontOptions } from '../../../lib/fonts'
 import { useT } from '../../../i18n'
 
 interface CaptionFieldProps {
-  label: string
   value: Caption
   onChange: (c: Caption) => void
 }
@@ -94,7 +93,7 @@ function ShadowControls({ label, value, onChange }: {
   )
 }
 
-function CaptionField({ label, value, onChange }: CaptionFieldProps) {
+function CaptionField({ value, onChange }: CaptionFieldProps) {
   const t = useT()
   const [fontSizeDraft, setFontSizeDraft] = useState(() => ({
     source: value.style.fontSize,
@@ -120,11 +119,7 @@ function CaptionField({ label, value, onChange }: CaptionFieldProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-border)] p-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-        {label}
-      </p>
-
+    <div className="flex flex-col gap-3">
       <div>
         <label className="mb-1 block text-xs text-[var(--color-text-dim)]">{t('텍스트')}</label>
         <textarea
@@ -478,18 +473,39 @@ interface Props {
   texts: Caption[]
   template: TemplateType
   onChange: (texts: Caption[]) => void
+  /** Index of the caption selected on the canvas — the block to open. */
+  selectedIndex?: number | null
+  /**
+   * Whether blocks may be added/removed here. Adding or removing changes the
+   * shape of `texts`, which every per-locale override addresses by index, so
+   * both are base-only edits — false in locale mode.
+   */
+  structuralEnabled?: boolean
   bulkEnabled?: boolean
   selectedCount?: number
   slideCount?: number
   onApplyTextStyleToSlides?: (style: Partial<TextStyle>, scope: 'all' | 'selected') => void
 }
 
-export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedCount = 1, slideCount = 1, onApplyTextStyleToSlides }: Props) {
+export function CaptionPanel({ texts, template, onChange, selectedIndex = null, structuralEnabled = true, bulkEnabled, selectedCount = 1, slideCount = 1, onApplyTextStyleToSlides }: Props) {
   const t = useT()
   const [bulkStyle, setBulkStyle] = useState<Partial<TextStyle>>({})
   const showBulk = bulkEnabled && onApplyTextStyleToSlides
+  // One block open at a time: every block carries ~20 controls, so expanding
+  // all of them buries the one the user actually clicked. The canvas selection
+  // drives which is open; clicking a header overrides it until the next select.
+  const [openIndex, setOpenIndex] = useState(selectedIndex ?? 0)
+  const [lastSelected, setLastSelected] = useState(selectedIndex)
+  if (selectedIndex !== lastSelected) {
+    setLastSelected(selectedIndex)
+    if (selectedIndex != null) setOpenIndex(selectedIndex)
+  }
+  // A delete can leave openIndex past the end; fall back to the last block.
+  const openIdx = openIndex >= texts.length ? texts.length - 1 : openIndex
+
   function addBlock() {
     onChange([...texts, makeTextBlock(texts.length, template, '')])
+    setOpenIndex(texts.length)
   }
   function removeBlock(index: number) {
     onChange(texts.filter((_, i) => i !== index))
@@ -497,6 +513,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
   function editBlock(index: number, c: Caption) {
     onChange(texts.map((tb, i) => (i === index ? c : tb)))
   }
+  const blockLabel = (i: number) => (i === 0 ? t('제목 (헤드라인)') : t('텍스트 {n}', { n: i + 1 }))
 
   return (
     <div className="flex flex-col gap-3">
@@ -570,25 +587,54 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
           </div>
         </div>
       )}
-      {texts.map((caption, i) => (
-        <div key={i} className="relative">
-          <CaptionField
-            label={i === 0 ? t('제목 (헤드라인)') : t('텍스트 {n}', { n: i + 1 })}
-            value={caption}
-            onChange={(c) => editBlock(i, c)}
-          />
-          {texts.length > 1 && (
-            <button
-              type="button"
-              onClick={() => removeBlock(i)}
-              title={t('이 텍스트 블록 삭제')}
-              className="absolute right-2 top-2 rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
-            >
-              {t('삭제')}
-            </button>
-          )}
-        </div>
-      ))}
+      {texts.map((caption, i) => {
+        const open = i === openIdx
+        return (
+          <div key={i} className="rounded-lg border border-[var(--color-border)]">
+            <div className="flex items-center gap-2 px-2">
+              <button
+                type="button"
+                onClick={() => setOpenIndex(open ? -1 : i)}
+                aria-expanded={open}
+                className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left"
+              >
+                <span className="w-2 shrink-0 text-[10px] text-[var(--color-text-dim)]">
+                  {open ? '▾' : '▸'}
+                </span>
+                <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  {blockLabel(i)}
+                </span>
+                {!open && (
+                  <span className="truncate text-xs text-[var(--color-text-dim)]">
+                    {caption.text || t('(비어 있음)')}
+                  </span>
+                )}
+              </button>
+              {structuralEnabled && (
+                <button
+                  type="button"
+                  onClick={() => removeBlock(i)}
+                  title={t('이 텍스트 블록 삭제')}
+                  className="shrink-0 rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                >
+                  {t('삭제')}
+                </button>
+              )}
+            </div>
+            {open && (
+              <div className="border-t border-[var(--color-border)] p-3">
+                <CaptionField value={caption} onChange={(c) => editBlock(i, c)} />
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {texts.length === 0 && (
+        <p className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-4 text-center text-xs text-[var(--color-text-dim)]">
+          {t('텍스트 블록이 없습니다.')}
+        </p>
+      )}
+      {structuralEnabled && (
       <button
         type="button"
         onClick={addBlock}
@@ -597,6 +643,7 @@ export function CaptionPanel({ texts, template, onChange, bulkEnabled, selectedC
       >
         {t('텍스트 블록 추가 ({n}/{max})', { n: texts.length, max: MAX_TEXTS })}
       </button>
+      )}
     </div>
   )
 }
