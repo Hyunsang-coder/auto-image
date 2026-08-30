@@ -9,6 +9,7 @@ import { gcImages } from '../../lib/imageRefs'
 import { serializeTemplate, parseTemplate, buildTranslationPrompt, type LocaleFileFormat } from '../../lib/localeIO'
 import { applyCaptionRows, buildTranslationPatch, type FieldKey } from '../../lib/localePatch'
 import { buildImageNamingGuide } from '../../lib/imageImport'
+import { resolveSlideForLocale } from '../../lib/resolveSlide'
 import { importBulkImages } from '../../lib/bulkImageImport'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
 import { useT, t as i18nT } from '../../i18n'
@@ -78,7 +79,7 @@ function getCellValue(slides: Slide[], slideId: string, field: FieldKey, locale:
 }
 
 /** Thumbnail that loads its blob from IndexedDB by imageKey. */
-function ImageThumb({ imageKey }: { imageKey: string }) {
+function ImageThumb({ imageKey, muted = false }: { imageKey: string; muted?: boolean }) {
   const [url, setUrl] = useState<string | undefined>()
   useEffect(() => {
     let revoked = false
@@ -97,16 +98,35 @@ function ImageThumb({ imageKey }: { imageKey: string }) {
     }
   }, [imageKey])
   if (!url) return <div className="h-14 w-9 rounded bg-[var(--color-surface-2)]" />
-  return <img src={url} alt="" className="h-14 w-auto rounded border border-[var(--color-border)] object-contain" />
+  return (
+    <img
+      src={url}
+      alt=""
+      className={`h-14 w-auto rounded border border-[var(--color-border)] object-contain${
+        muted ? ' opacity-50' : ''
+      }`}
+    />
+  )
 }
 
-/** Per-locale screenshot override cell: thumbnail + upload/change/clear. */
+/**
+ * Per-locale screenshot override cell: thumbnail + upload/change/clear.
+ *
+ * With no override the render path silently falls back to the base (or a
+ * borrowed donor) screenshot, so an empty upload slot here read as "this locale
+ * will export without an image". Show the image that WILL be used, dimmed and
+ * named, so the fallback is visible instead of inferred.
+ */
 function OverrideCell({
   imageKey,
+  fallbackImageKey,
+  fallbackLabel,
   onUpload,
   onClear,
 }: {
   imageKey?: string
+  fallbackImageKey?: string
+  fallbackLabel: string
   onUpload: (file: File) => void
   onClear: () => void
 }) {
@@ -117,7 +137,10 @@ function OverrideCell({
       {imageKey ? (
         <ImageThumb imageKey={imageKey} />
       ) : (
-        <span className="text-xs text-[var(--color-text-dim)]">{t('기본 이미지')}</span>
+        <span className="flex items-center gap-1.5" title={fallbackLabel}>
+          {fallbackImageKey && <ImageThumb imageKey={fallbackImageKey} muted />}
+          <span className="text-xs text-[var(--color-text-dim)]">{fallbackLabel}</span>
+        </span>
       )}
       <div className="flex flex-col gap-1">
         <button
@@ -608,6 +631,20 @@ export function LocalizeEditor() {
                       {row.field === 'image' ? (
                         <OverrideCell
                           imageKey={slide?.screenshot?.localeOverrides?.[locale]?.imageKey}
+                          // Resolve through the render path itself, so what the
+                          // cell shows is exactly what the export will draw.
+                          fallbackImageKey={
+                            slide
+                              ? resolveSlideForLocale(slide, locale).screenshot?.imageKey
+                              : undefined
+                          }
+                          fallbackLabel={
+                            slide?.screenshot?.localeSource?.[locale]
+                              ? t('{locale} 이미지 사용', {
+                                  locale: t(localeLabel(slide.screenshot!.localeSource![locale])),
+                                })
+                              : t('기준 언어와 동일')
+                          }
                           onUpload={file => handleOverrideUpload(row.slideId, locale, file)}
                           onClear={() => handleOverrideClear(row.slideId, locale)}
                         />

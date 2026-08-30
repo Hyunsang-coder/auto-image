@@ -474,7 +474,8 @@ export const en: Record<string, string> = {
   '히어로 상·하단 + 2페이지 스팬(기울인 기기)': 'Hero top & bottom + 2-page span (tilted device)',
 
   // LocalizeEditor.tsx
-  '기본 이미지': 'Default image',
+  '기준 언어와 동일': 'Same as base language',
+  '{locale} 이미지 사용': 'Using {locale} image',
   변경: 'Change',
   업로드: 'Upload',
   지우기: 'Clear',
