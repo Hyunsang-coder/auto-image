@@ -95,3 +95,10 @@ export function detectTypeFromAspect(width: number, height: number): DeviceType 
 }
 
 export const EDITOR_CANVAS_WIDTH = 440
+
+/** Height the editor canvas draws a slide at, before zoom. The board sizes its
+ *  frames with this so a thumbnail lines up with the live canvas beside it. */
+export function editorCanvasHeight(model: DeviceModel): number {
+  const spec = DEVICE_SPECS[model]
+  return Math.round((EDITOR_CANVAS_WIDTH / spec.exportWidth) * spec.exportHeight)
+}

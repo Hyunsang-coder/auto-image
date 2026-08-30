@@ -1,6 +1,9 @@
 import { useRef, useEffect, useState } from 'react'
 import { useProjectStore, spanLeaderOf, findSpanPartner } from '../../store/useProjectStore'
 import { SlideList } from './SlideList'
+import { CanvasBoard } from './CanvasBoard'
+import { buildRows } from './slideRows'
+import { useSlideThumbnails } from './useSlideThumbnails'
 import { useResizable } from './useResizable'
 import { FabricCanvas, type FabricCanvasHandle, type ObjIdentity } from './FabricCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
@@ -33,12 +36,13 @@ import { gcImages } from '../../lib/imageRefs'
 import { resolveSlideForLocale } from '../../lib/resolveSlide'
 import { routeLocalePatch, clearLocaleOverride } from '../../lib/localeOverride'
 import { SUPPORTED_LOCALES } from '../../constants/defaults'
-import { MODELS_BY_TYPE, DEVICE_SPECS, DEFAULT_MODEL } from '../../constants/deviceSpecs'
+import { MODELS_BY_TYPE, DEVICE_SPECS, DEFAULT_MODEL, editorCanvasHeight } from '../../constants/deviceSpecs'
 import type { DeviceModel, DeviceType } from '../../types/project'
 import { useT } from '../../i18n'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 3
+const BOARD_PADDING = 76 // board padding + frame label
 const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100))
 
 // Double-click an object → jump the properties panel to its tab.
@@ -69,6 +73,11 @@ export function EditorLayout() {
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const [zoom, setZoom] = useState(1)
+  // Height the board can show. Fit-to-height is the default view — a slide is
+  // ~956px tall at 100%, so an unfitted board shows a fraction of one frame and
+  // none of the set. Using the zoom controls opts out until the user refits.
+  const [boardHeight, setBoardHeight] = useState(0)
+  const [autoFit, setAutoFit] = useState(true)
   const [panelTab, setPanelTab] = useState<PanelTab>('background')
   // Which locale the editor is editing. '' = the shared/base view (full
   // editing of every element). A locale code = edit that locale: captions and
@@ -121,6 +130,31 @@ export function EditorLayout() {
     direction: 'invert',
   })
 
+  // One thumbnail render for the whole editor: the board draws every inactive
+  // frame from it and the tray draws its strip from it. The hook debounces and
+  // caches by content hash, so calling it in both places would double the work.
+  const thumbs = useSlideThumbnails(project?.slides ?? [], editLocale)
+
+  // Derived, not stored: a fit that reacts to the tray/panel being resized
+  // without a setState-in-effect cascade. Sits above the early return so the
+  // shortcut handler below can mirror it into a ref.
+  const fitModel =
+    (project?.slides.find((s) => s.id === activeSlideId) ?? project?.slides[0])?.deviceFrame.model
+  const fitZoom =
+    boardHeight && fitModel
+      ? clampZoom((boardHeight - BOARD_PADDING) / editorCanvasHeight(fitModel))
+      : 1
+  const viewZoom = autoFit ? fitZoom : zoom
+  const viewZoomRef = useRef(viewZoom)
+  useEffect(() => {
+    viewZoomRef.current = viewZoom
+  })
+
+  function changeZoom(next: number) {
+    setAutoFit(false)
+    setZoom(clampZoom(next))
+  }
+
   // Canvas keyboard shortcuts wired to the canvas handle.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -171,12 +205,15 @@ export function EditorLayout() {
         canvasRef.current?.duplicateSelected()
       } else if (e.key === '=' || e.key === '+') {
         e.preventDefault()
-        setZoom((z) => clampZoom(z + 0.1))
+        setAutoFit(false)
+        setZoom(clampZoom(viewZoomRef.current + 0.1))
       } else if (e.key === '-') {
         e.preventDefault()
-        setZoom((z) => clampZoom(z - 0.1))
+        setAutoFit(false)
+        setZoom(clampZoom(viewZoomRef.current - 0.1))
       } else if (e.key === '0') {
         e.preventDefault()
+        setAutoFit(false)
         setZoom(1)
       }
     }
@@ -200,6 +237,9 @@ export function EditorLayout() {
   const displaySelectedIds = new Set<string>()
   for (const id of selectedIds) if (liveIds.has(id)) displaySelectedIds.add(id)
   if (activeSlideId && liveIds.has(activeSlideId)) displaySelectedIds.add(activeSlideId)
+
+  const boardRows = buildRows(project.slides)
+
 
   const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
   // When the clicked slide is part of a span group, the leader owns the shared
@@ -563,8 +603,8 @@ export function EditorLayout() {
       </div>
 
       <div className="flex min-w-0 flex-col overflow-hidden">
-        <main className="flex flex-1 flex-col items-center overflow-y-auto bg-[var(--color-bg)]">
-        <div className="sticky top-0 z-10 flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--color-bg)]">
+        <div className="flex w-full shrink-0 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
           <div className="flex flex-1 items-center gap-2">
             {project.devices.map((dev) => {
               const model = project.deviceModels?.[dev] ?? DEFAULT_MODEL[dev]
@@ -600,7 +640,7 @@ export function EditorLayout() {
               <button
                 type="button"
                 title={t('축소 (Cmd −)')}
-                onClick={() => setZoom((z) => clampZoom(z - 0.1))}
+                onClick={() => changeZoom(viewZoom - 0.1)}
                 className="flex h-[var(--control-h-sm)] w-[var(--control-h-sm)] items-center justify-center rounded leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
                 −
@@ -608,15 +648,28 @@ export function EditorLayout() {
               <button
                 type="button"
                 title={t('100%로 맞춤 (Cmd 0)')}
-                onClick={() => setZoom(1)}
+                onClick={() => changeZoom(1)}
                 className="h-[var(--control-h-sm)] w-12 text-center tabular-nums transition hover:text-[var(--color-text)]"
               >
-                {Math.round(zoom * 100)}%
+                {Math.round(viewZoom * 100)}%
+              </button>
+              <button
+                type="button"
+                title={t('세트 전체가 보이도록 맞춤')}
+                onClick={() => setAutoFit(true)}
+                aria-pressed={autoFit}
+                className={`h-[var(--control-h-sm)] rounded px-1.5 text-[length:var(--text-ui-xs)] transition ${
+                  autoFit
+                    ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
+                    : 'hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                {t('화면 맞춤')}
               </button>
               <button
                 type="button"
                 title={t('확대 (Cmd +)')}
-                onClick={() => setZoom((z) => clampZoom(z + 0.1))}
+                onClick={() => changeZoom(viewZoom + 0.1)}
                 className="flex h-[var(--control-h-sm)] w-[var(--control-h-sm)] items-center justify-center rounded leading-none transition hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text)]"
               >
                 +
@@ -677,24 +730,31 @@ export function EditorLayout() {
             </button>
           </div>
         </div>
-        <div className="flex flex-1 items-start justify-center p-6">
+        <CanvasBoard
+          rows={boardRows}
+          activeSlideId={activeSlideId}
+          thumbs={thumbs}
+          zoom={viewZoom}
+          onSelect={switchSlide}
+          onViewportHeight={setBoardHeight}
+        >
           <FabricCanvas
             ref={canvasRef}
             activeSlide={canvasSlide}
             isGrouped={isGrouped}
             followerSlide={canvasFollower}
             lockSharedLayout={isLocaleMode}
-            zoom={zoom}
+            zoom={viewZoom}
             onSlideChange={handleSlideChange}
             onHistoryChange={({ canUndo, canRedo }) => {
               setCanUndo(canUndo)
               setCanRedo(canRedo)
             }}
-            onZoomChange={(z) => setZoom(clampZoom(z))}
+            onZoomChange={(z) => changeZoom(z)}
             onElementActivate={handleElementActivate}
             onSelectionChange={handleSelectionChange}
           />
-        </div>
+        </CanvasBoard>
         </main>
 
         {/* Tray resize handle: drag up to grow the slide tray, down to shrink. */}
@@ -715,6 +775,7 @@ export function EditorLayout() {
           onRemoveSlides={handleRemoveSlides}
           previewLocale={editLocale}
           thumbHeight={tray.size}
+          thumbs={thumbs}
         />
       </div>
 

@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, showDeviceFrame, openSection } from './helpers'
+import { clearAppState, createProject, showDeviceFrame, openSection, zoomTo100 } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
   await page.goto('/app/')
   await createProject(page, { name: 'Span Test', slideCount: 3 })
+  await zoomTo100(page)
 })
 
 test('인접 두 슬라이드를 링크하면 2-page span 행이 나타남', async ({ page }) => {

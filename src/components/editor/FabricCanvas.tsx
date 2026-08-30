@@ -13,13 +13,12 @@ import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
 import { CAPTION_FONT_SIZE_MAX, CAPTION_FONT_SIZE_MIN, MAX_SHAPES, newId } from '../../constants/defaults'
-import { EDITOR_CANVAS_WIDTH, DEVICE_SPECS } from '../../constants/deviceSpecs'
+import { EDITOR_CANVAS_WIDTH, editorCanvasHeight } from '../../constants/deviceSpecs'
 
 const SEAM_LAYER = 'span-seam-guide'
 
 function getEditorCanvasHeight(slide: Slide): number {
-  const spec = DEVICE_SPECS[slide.deviceFrame.model]
-  return Math.round((EDITOR_CANVAS_WIDTH / spec.exportWidth) * spec.exportHeight)
+  return editorCanvasHeight(slide.deviceFrame.model)
 }
 
 /**

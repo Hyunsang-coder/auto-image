@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Modal } from '../common/Modal'
+import { buildRows, type RowItem } from './slideRows'
 import type React from 'react'
 import type { Slide } from '../../types/project'
 import { useProjectStore } from '../../store/useProjectStore'
 import { titleText } from '../../constants/defaults'
 import { DEVICE_SPECS } from '../../constants/deviceSpecs'
-import { useSlideThumbnails } from './useSlideThumbnails'
 import { useT } from '../../i18n'
 
 /** Modifier keys read off the click event to drive selection semantics. */
@@ -31,6 +31,9 @@ interface Props {
    * the device aspect ratio, so height alone sizes every thumb (and the add/link
    * buttons that share its height). */
   thumbHeight?: number
+  /** slideId → object URL. Rendered once by the caller and shared with the
+   *  canvas board, so the set is not rendered twice. */
+  thumbs: Record<string, string | undefined>
 }
 
 const DEFAULT_THUMB_HEIGHT = 168
@@ -44,36 +47,6 @@ function aspectOf(slide: Slide): string {
   return `${spec.exportWidth} / ${spec.exportHeight}`
 }
 
-interface RowItem {
-  kind: 'single' | 'span'
-  /** For 'span', exactly two entries (leader, follower). For 'single', one. */
-  slides: Slide[]
-  /** Group id when kind === 'span'. */
-  groupId?: string
-}
-
-/**
- * Walk the linear slide list and bucket each span group's leader+follower into
- * a single "span" row. Singles fall through as 'single' rows. Adjacency
- * (leader.index + 1 === follower.index) is guaranteed by the store.
- */
-function buildRows(slides: Slide[]): RowItem[] {
-  const rows: RowItem[] = []
-  for (let i = 0; i < slides.length; i++) {
-    const s = slides[i]
-    if (s.spanGroupId && s.spanRole === 'leader' && slides[i + 1]?.spanGroupId === s.spanGroupId) {
-      rows.push({ kind: 'span', slides: [s, slides[i + 1]], groupId: s.spanGroupId })
-      i++
-    } else if (s.spanGroupId && s.spanRole === 'follower') {
-      // Defensive: stray follower without a preceding leader. Render as single.
-      rows.push({ kind: 'single', slides: [s] })
-    } else {
-      rows.push({ kind: 'single', slides: [s] })
-    }
-  }
-  return rows
-}
-
 export function SlideList({
   slides,
   activeSlideId,
@@ -82,6 +55,7 @@ export function SlideList({
   onRemoveSlides,
   previewLocale,
   thumbHeight = DEFAULT_THUMB_HEIGHT,
+  thumbs,
 }: Props) {
   const t = useT()
   const addSlide = useProjectStore((s) => s.addSlide)
@@ -97,7 +71,6 @@ export function SlideList({
   // = {id, side} of the thumb we'd insert next to. Both null when idle.
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; side: 'before' | 'after' } | null>(null)
-  const thumbs = useSlideThumbnails(slides, previewLocale ?? '')
   const canAdd = slides.length < MAX_SLIDES
   const rows = buildRows(slides)
 

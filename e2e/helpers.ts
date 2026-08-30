@@ -109,6 +109,16 @@ export async function showDeviceFrame(page: Page) {
 }
 
 /**
+ * Draw the canvas 1:1. The board fits the whole slide set on screen by default,
+ * so any assertion in canvas pixels (element width, drag deltas) has to opt out
+ * of the fit first or it measures a scaled canvas.
+ */
+export async function zoomTo100(page: Page) {
+  await page.keyboard.press('ControlOrMeta+0')
+  await expect(page.getByRole('button', { name: '100%', exact: true })).toBeVisible()
+}
+
+/**
  * Open an inspector section from the layer panel's add menu. The panel itself
  * is selection-driven now, so this is how a test reaches a section whose layer
  * has no instance yet (you cannot select a badge you have not added).

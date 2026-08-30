@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { clearAppState, createProject, slideTray, slideThumbs, openSection } from './helpers'
+import { clearAppState, createProject, slideTray, slideThumbs, openSection, zoomTo100 } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await clearAppState(page)
   await page.goto('/app/')
   await createProject(page, { name: 'Editor Test', slideCount: 3 })
+  await zoomTo100(page)
 })
 
 test('에디터 레이아웃이 캔버스 + 트레이 + 패널로 렌더됨', async ({ page }) => {

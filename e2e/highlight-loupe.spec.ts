@@ -7,7 +7,8 @@ import {
   findLayer,
   selectLayer,
   uploadScreenshot,
-  type EditorSurface, openSection } from './helpers'
+  type EditorSurface, openSection, zoomTo100
+} from './helpers'
 
 test.use({ viewport: { width: 1440, height: 1200 } })
 
@@ -15,6 +16,7 @@ test.beforeEach(async ({ page }) => {
   await clearAppState(page)
   await page.goto('/app/')
   await createProject(page, { name: 'Loupe Test' })
+  await zoomTo100(page)
   await uploadScreenshot(page, 'iphone_home.png')
   await openSection(page, '하이라이트')
   await page.getByRole('button', { name: '+ 추가' }).click()
