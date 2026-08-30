@@ -6,7 +6,7 @@
   <title>Privacy Policy — App Store Screenshot Studio</title>
   <meta
     name="description"
-    content="App Store Screenshot Studio privacy policy: a fully client-side Mac app — no accounts, no image uploads, your projects stay on your Mac. The only data collected is cookieless, aggregate page analytics on this site."
+    content="App Store Screenshot Studio privacy policy: a client-side Mac app — no accounts, no image uploads, your projects stay on your Mac. The app makes one request (a version check you can switch off); the site collects cookieless aggregate analytics."
   />
   <link rel="canonical" href="https://screenshotstudio.dev/privacy.html" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
@@ -70,11 +70,28 @@
     <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.
   </p>
 
+  <h2>The one request the app makes</h2>
+  <p>
+    On launch the app asks GitHub's releases API whether a newer version exists, so it can
+    show a "new version" badge. That request carries nothing about you or your project — no
+    identifier, no project data, not even which version you are on; GitHub sees an IP address
+    and the user agent <code>ScreenshotStudio</code>, as it would for any download. Nothing is
+    sent back to us, because there is no us to send it to.
+  </p>
+  <p>
+    Switch it off in the app: <strong>More ··· → Check at Launch</strong>. The same menu has a
+    manual <strong>Check for Updates</strong> that only runs when you press it.
+  </p>
+  <p>
+    The MCP bridge — which lets an AI agent you connect edit the open project — is a local unix
+    socket. It reaches nothing outside your Mac, and it has its own switch in the app's header.
+  </p>
+
   <h2>What is not collected</h2>
   <ul>
     <li>No accounts, sign-ins, or personal profiles.</li>
     <li>No advertising identifiers and no advertising cookies.</li>
-    <li>No third-party API calls are made by the app on your behalf.</li>
+    <li>No analytics of any kind inside the app — the update check above is the only request it makes.</li>
   </ul>
 
   <h2>Changes and contact</h2>

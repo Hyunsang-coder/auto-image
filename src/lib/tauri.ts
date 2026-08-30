@@ -58,3 +58,16 @@ export async function setBridgeEnabled(enabled: boolean): Promise<BridgeStatus |
   if (!isTauri()) return null
   return await invoke<BridgeStatus>('bridge_set_enabled', { enabled })
 }
+
+export interface UpdateCheck {
+  current: string
+  latest: string
+  newer: boolean
+  url: string
+}
+
+/** Ask GitHub whether a newer release exists. Null in the web build. */
+export async function checkForUpdate(): Promise<UpdateCheck | null> {
+  if (!isTauri()) return null
+  return await invoke<UpdateCheck>('check_for_update')
+}

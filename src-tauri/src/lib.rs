@@ -1,6 +1,7 @@
 use base64::Engine;
 
 mod bridge;
+mod update;
 
 // Write one file under a user-chosen export directory. Custom command (not the
 // fs plugin) so it can write into any folder the dialog returned without
@@ -71,7 +72,8 @@ pub fn run() {
       bridge::bridge_respond,
       bridge::bridge_ready,
       bridge::bridge_status,
-      bridge::bridge_set_enabled
+      bridge::bridge_set_enabled,
+      update::check_for_update
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

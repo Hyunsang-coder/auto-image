@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { StepIndicator } from './components/common/StepIndicator'
 import { MenuButton } from './components/common/MenuButton'
 import { AgentBridgeCard } from './components/common/AgentBridgeCard'
+import { UpdatePill } from './components/common/UpdatePill'
+import { useUpdateCheck } from './lib/updateCheck'
+import { isTauri } from './lib/tauri'
 import { Modal } from './components/common/Modal'
 import { ProjectSetup } from './components/setup/ProjectSetup'
 import { EditorLayout } from './components/editor/EditorLayout'
@@ -32,6 +35,7 @@ interface BundleWindow extends Window {
 
 function App() {
   const t = useT()
+  const { update, message: updateMessage, auto: autoUpdate, setAuto: setAutoUpdate, check: checkUpdate } = useUpdateCheck()
   const uiLocale = useI18nStore((s) => s.locale)
   const setUiLocale = useI18nStore((s) => s.setLocale)
   const step = useProjectStore((s) => s.step)
@@ -235,9 +239,15 @@ function App() {
               {justSaved ? t('라이브러리에 저장됨 ✓') : t('저장됨')}
             </span>
           )}
+          {updateMessage && (
+            <span role="status" className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
+              {updateMessage}
+            </span>
+          )}
+          <UpdatePill update={update} />
           {/* Desktop only — renders nothing in the web build. */}
           <AgentBridgeCard />
-          {project && (
+          {(project || isTauri()) && (
             <MenuButton
               label={t('더 보기')}
               items={[
@@ -248,7 +258,26 @@ function App() {
                       { label: t('프로젝트 파일 저장'), onSelect: handleExportBundle },
                     ]
                   : []),
-                { label: t('초기화'), onSelect: () => setShowResetConfirm(true), destructive: true },
+                ...(isTauri()
+                  ? [
+                      { label: t('업데이트 확인'), onSelect: checkUpdate },
+                      {
+                        label: autoUpdate
+                          ? t('시작할 때 확인함 ✓')
+                          : t('시작할 때 확인'),
+                        onSelect: () => setAutoUpdate(!autoUpdate),
+                      },
+                    ]
+                  : []),
+                ...(project
+                  ? [
+                      {
+                        label: t('초기화'),
+                        onSelect: () => setShowResetConfirm(true),
+                        destructive: true,
+                      },
+                    ]
+                  : []),
               ]}
             />
           )}
