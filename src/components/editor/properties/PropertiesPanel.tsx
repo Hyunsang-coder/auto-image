@@ -143,6 +143,7 @@ export function PropertiesPanel({
         {tab === 'highlights' && (
           <HighlightPanel
             value={slide.highlights ?? []}
+            slide={slide}
             hasScreenshot={!!slide.screenshot}
             onChange={onHighlightsChange}
           />

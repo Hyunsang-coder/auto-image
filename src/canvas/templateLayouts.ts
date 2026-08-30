@@ -8,7 +8,7 @@ import { renderBadge } from './objects/badge'
 import { renderCaption, renderCaptionBox } from './objects/caption'
 import { renderDeviceFrame, type ScreenBounds } from './objects/deviceFrame'
 import { renderExternalImage } from './objects/externalImage'
-import { renderHighlight, renderHighlightSource } from './objects/highlight'
+import { renderHighlight, renderHighlightRim, renderHighlightSource } from './objects/highlight'
 import { renderOrnament } from './objects/ornament'
 import { renderShape } from './objects/shape'
 import { LAYER_NAMES } from './layerNames'
@@ -429,6 +429,40 @@ function floatingScreenBounds(layout: DeviceLayout, style: ScreenshotStyle): Scr
 }
 
 /**
+ * The box the slide's screenshot occupies — and so the space a highlight's
+ * `sourceRegion` fractions normalize against. Split out of applyTemplate
+ * because highlight zoom converts between the card's size and the sampled
+ * region's on-canvas size: the properties panel has to reach the same answer
+ * the renderer will, and guessing it from the device ratio is wrong for hero
+ * (full bleed), a hidden frame, or a scaled device.
+ */
+export function screenBoundsFor(
+  slide: Slide,
+  cw: number,
+  ch: number,
+  deviceLayout: DeviceLayout | null,
+): ScreenBounds | null {
+  if (!slide.screenshot) return null
+  if (slide.template === 'hero') return heroScreenBounds(cw, ch)
+  if (!deviceLayout) return null
+  return slide.deviceFrame.show
+    ? deviceScreenBounds(deviceLayout, slide)
+    : floatingScreenBounds(deviceLayout, effectiveShotStyle(slide))
+}
+
+/** screenBoundsFor for callers outside the render pass, which have no layout yet. */
+export function screenBoundsOf(
+  slide: Slide,
+  cw: number = EDITOR_CANVAS_WIDTH,
+  ch: number = getCanvasHeight(slide),
+  spanCentered = false,
+): ScreenBounds | null {
+  const scale = (spanCentered ? cw / 2 : cw) / EDITOR_CANVAS_WIDTH
+  const layout = getDeviceLayout(slide, cw, ch, getDeviceDimensions(slide, cw), spanCentered, scale)
+  return screenBoundsFor(slide, cw, ch, layout)
+}
+
+/**
  * Which page a text pass belongs to on a 2-page span. Caption fractions
  * (pos/boxWidth) denormalize against `cw` (the page width, not the wide
  * canvas) and shift by `offsetX` (follower = one page right), so each slide's
@@ -497,31 +531,22 @@ export async function applyTemplate(
 
   // 3. Screenshot — device-inset if frame is shown, floating w/ shadow otherwise.
   // Hoist screenBounds so highlights below can sample the same region.
-  let screenBounds: ScreenBounds | null = null
-  if (slide.screenshot) {
+  const screenBounds = screenBoundsFor(slide, cw, ch, deviceLayout)
+  if (slide.screenshot && screenBounds) {
     const shotStyle = effectiveShotStyle(slide)
-    if (template === 'hero') {
-      screenBounds = heroScreenBounds(cw, ch)
-    } else if (deviceLayout) {
-      screenBounds = slide.deviceFrame.show
-        ? deviceScreenBounds(deviceLayout, slide)
-        : floatingScreenBounds(deviceLayout, shotStyle)
-    }
-    if (screenBounds) {
-      const floating = template !== 'hero' && !slide.deviceFrame.show
-      // Rotation only applies where there's a device footprint to pivot around;
-      // hero's full-bleed shot has no center to tilt about.
-      const rotation = deviceLayout ? (slide.deviceFrame.rotation ?? 0) : 0
-      const pivot = deviceLayout
-        ? { x: deviceLayout.centerX, y: deviceLayout.top + deviceLayout.height / 2 }
-        : undefined
-      await renderScreenshotLayer(canvas, slide.screenshot, screenBounds, resolveUrl, {
-        withShadow: floating && shotStyle.shadow,
-        clip: floating ? cropScreenBounds(screenBounds, shotStyle.crop) : undefined,
-        rotation,
-        pivot,
-      })
-    }
+    const floating = template !== 'hero' && !slide.deviceFrame.show
+    // Rotation only applies where there's a device footprint to pivot around;
+    // hero's full-bleed shot has no center to tilt about.
+    const rotation = deviceLayout ? (slide.deviceFrame.rotation ?? 0) : 0
+    const pivot = deviceLayout
+      ? { x: deviceLayout.centerX, y: deviceLayout.top + deviceLayout.height / 2 }
+      : undefined
+    await renderScreenshotLayer(canvas, slide.screenshot, screenBounds, resolveUrl, {
+      withShadow: floating && shotStyle.shadow,
+      clip: floating ? cropScreenBounds(screenBounds, shotStyle.crop) : undefined,
+      rotation,
+      pivot,
+    })
   }
 
   // 4. Text + device frame border. On a span each slide's texts lay out
@@ -576,7 +601,10 @@ export async function applyTemplate(
         screenshot: slide.screenshot,
         resolveUrl,
       })
-      if (popup) canvas.add(popup)
+      if (!popup) continue
+      canvas.add(popup)
+      const rim = renderHighlightRim(h, popup, cw)
+      if (rim) canvas.add(rim)
     }
   }
 

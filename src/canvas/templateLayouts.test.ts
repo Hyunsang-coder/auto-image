@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { Rect, type FabricObject, type TPointerEvent, type Transform } from 'fabric'
-import { addTextBlocks, attachCropControls, cropScreenBounds, deviceBodyAnchors, getDeviceDimensions, getDeviceLayout, trimCrop } from './templateLayouts'
+import { addTextBlocks, attachCropControls, cropScreenBounds, deviceBodyAnchors, getDeviceDimensions, getDeviceLayout, screenBoundsOf, trimCrop } from './templateLayouts'
 import { rotateAround } from './geometry'
-import { canvasPointToRegionOrigin, regionCenterOnCanvas } from './objects/highlight'
+import {
+  canvasPointToRegionOrigin,
+  POPUP_CORNER_RATIO,
+  popupPixelWidth,
+  regionCenterOnCanvas,
+  trackHighlightPopup,
+  zoomFromPixelWidth,
+} from './objects/highlight'
 import { LAYER_NAMES } from './layerNames'
 import type { Caption, Slide } from '../types/project'
 
@@ -498,5 +505,119 @@ describe('addTextBlocks', () => {
     addTextBlocks(canvas, textSlide([small, big]), OPTS)
     // Block 1 keeps its own (larger) size; it is NOT clamped to block 0's.
     expect((added[1] as AddedObj & { fontSize?: number }).fontSize).toBe(80)
+  })
+})
+
+
+describe('screenBoundsOf', () => {
+  function shot(template: Slide['template'], deviceFrame: Partial<Slide['deviceFrame']> = {}): Slide {
+    return {
+      ...makeSlide(template, deviceFrame),
+      screenshot: { imageKey: 'img:x', originalWidth: 1320, originalHeight: 2868, localeOverrides: {} },
+    } as Slide
+  }
+
+  it('is null without a screenshot — there is no box to normalize against', () => {
+    expect(screenBoundsOf(makeSlide('text-top'))).toBeNull()
+  })
+
+  it('hero bleeds to the whole canvas', () => {
+    const b = screenBoundsOf(shot('hero'), 1000, 2000)
+    expect(b).toEqual({ left: 0, top: 0, width: 1000, height: 2000, rx: 0 })
+  })
+
+  it('a framed device insets the screen inside the body', () => {
+    const b = screenBoundsOf(shot('text-top'), 1000, 2000)
+    expect(b!.width).toBeGreaterThan(0)
+    expect(b!.width).toBeLessThan(1000 * 0.78)
+  })
+
+  it('scales linearly with the canvas, so a zoom read off it is resolution-free', () => {
+    const small = screenBoundsOf(shot('text-top'), 440, 953)!
+    const large = screenBoundsOf(shot('text-top'), 1320, 2859)!
+    expect(large.width / 1320).toBeCloseTo(small.width / 440, 3)
+  })
+})
+
+describe('highlight card sizing', () => {
+  const hl = (over: Partial<{ w: number; width: number; zoom?: number }> = {}) => ({
+    id: 'h1',
+    sourceRegion: { x: 0.1, y: 0.4, w: over.w ?? 0.5, h: 0.1 },
+    popup: { x: 0.5, y: 0.3, width: over.width ?? 0.7, ...(over.zoom !== undefined ? { zoom: over.zoom } : {}) },
+  })
+
+  it('zoom multiplies the region as rendered', () => {
+    expect(popupPixelWidth(hl({ zoom: 2 }), 800, 1000)).toBe(2 * 0.5 * 800)
+  })
+
+  it('falls back to the stored canvas fraction when there is no zoom', () => {
+    expect(popupPixelWidth(hl({ width: 0.7 }), 800, 1000)).toBe(700)
+  })
+
+  it('keeps the magnification when the sampled region is resized', () => {
+    const narrow = popupPixelWidth(hl({ zoom: 2.5, w: 0.3 }), 800, 1000)
+    const wide = popupPixelWidth(hl({ zoom: 2.5, w: 0.6 }), 800, 1000)
+    expect(wide / narrow).toBeCloseTo(2, 6)
+    expect(zoomFromPixelWidth(narrow, 0.3, 800)).toBeCloseTo(2.5, 6)
+    expect(zoomFromPixelWidth(wide, 0.6, 800)).toBeCloseTo(2.5, 6)
+  })
+
+  it('round-trips a hand-resized card back to a zoom', () => {
+    const px = popupPixelWidth(hl({ zoom: 1.8 }), 640, 1000)
+    expect(zoomFromPixelWidth(px, 0.5, 640)).toBeCloseTo(1.8, 6)
+  })
+})
+
+
+describe('trackHighlightPopup', () => {
+  function scene() {
+    const box = { left: 100, top: 200, width: 300, height: 150 }
+    const popup = new Rect({ ...box, originX: 'left', originY: 'top' })
+    Object.assign(popup, { highlightId: 'h1' })
+    popup.clipPath = new Rect({ ...box, absolutePositioned: true })
+    const rim = new Rect({ ...box })
+    Object.assign(rim, { layerName: LAYER_NAMES.HIGHLIGHT_RIM, highlightId: 'h1' })
+    const stranger = new Rect({ left: 0, top: 0, width: 10, height: 10 })
+    Object.assign(stranger, { layerName: LAYER_NAMES.HIGHLIGHT_RIM, highlightId: 'h2' })
+    const canvas = { getObjects: () => [popup, rim, stranger] } as never
+    return { canvas, popup, rim, stranger }
+  }
+
+  it('drags the clip mask and the rim along with the card', () => {
+    const { canvas, popup, rim } = scene()
+    popup.set({ left: 140, top: 260 })
+    trackHighlightPopup(canvas, popup)
+    expect(popup.clipPath!.left).toBe(140)
+    expect(popup.clipPath!.top).toBe(260)
+    expect(rim.left).toBe(140)
+    expect(rim.top).toBe(260)
+  })
+
+  it('resizes both to the scaled card, without inheriting its scale', () => {
+    const { canvas, popup, rim } = scene()
+    popup.set({ scaleX: 2, scaleY: 2 })
+    trackHighlightPopup(canvas, popup)
+    expect(rim.width).toBe(600)
+    expect(rim.height).toBe(300)
+    // Width/height carry the new size, so the stroke must not be scaled too.
+    expect(rim.scaleX).toBe(1)
+    expect(rim.scaleY).toBe(1)
+    expect(rim.rx).toBeCloseTo(300 * POPUP_CORNER_RATIO, 6)
+    expect(popup.clipPath!.width).toBe(600)
+  })
+
+  it('carries the tilt so a rotated card keeps a square rim', () => {
+    const { canvas, popup, rim } = scene()
+    popup.set({ angle: -8 })
+    trackHighlightPopup(canvas, popup)
+    expect(rim.angle).toBe(-8)
+    expect(popup.clipPath!.angle).toBe(-8)
+  })
+
+  it("leaves another highlight's rim alone", () => {
+    const { canvas, popup, stranger } = scene()
+    popup.set({ left: 999 })
+    trackHighlightPopup(canvas, popup)
+    expect(stranger.left).toBe(0)
   })
 })

@@ -10,6 +10,8 @@ export const LAYER_NAMES = {
   DEVICE_FRAME: 'device-frame',
   HIGHLIGHT_SOURCE: 'highlight-source',
   HIGHLIGHT_POPUP: 'highlight-popup',
+  /** Non-evented outline drawn over the popup; derived from it, never synced back. */
+  HIGHLIGHT_RIM: 'highlight-rim',
   TEXT: 'text',
   TEXT_BOX: 'text-box',
   BADGE: 'badge',

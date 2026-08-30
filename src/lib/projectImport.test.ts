@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { buildProjectFromManifest, isManifestShaped, parseManifest } from './projectImport'
-import { DEFAULT_BACKGROUND, MAX_HIGHLIGHTS, THEME_PRESETS, headlinePlaceholder } from '../constants/defaults'
+import {
+  DEFAULT_BACKGROUND,
+  DEFAULT_HIGHLIGHT_RIM,
+  DEFAULT_HIGHLIGHT_ZOOM,
+  MAX_HIGHLIGHTS,
+  THEME_PRESETS,
+  headlinePlaceholder,
+  makeHighlight,
+} from '../constants/defaults'
 import { getDeviceDimensions, getDeviceLayout } from '../canvas/templateLayouts'
 import { DEVICE_SPECS, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 
@@ -469,7 +477,7 @@ describe('parseManifest normalization', () => {
       popup: { width: 0.9, rotation: -8 },
     })
     expect(hl?.[1]).toEqual({
-      sourceRegion: { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
+      sourceRegion: makeHighlight().sourceRegion,
       popup: { width: 1.5 },
     })
     expect(issues.some((i) => i.includes('popup.width'))).toBe(true)
@@ -483,6 +491,29 @@ describe('parseManifest normalization', () => {
     const bad = parseManifest(minimal({}, [{ highlights: { width: 0.5 } }]))
     expect(bad.manifest?.slides[0].highlights).toBeUndefined()
     expect(bad.issues.some((i) => i.includes('highlights는 배열'))).toBe(true)
+  })
+
+  it('sizes a highlight by zoom unless the manifest sized the card itself', () => {
+    const { manifest } = parseManifest(
+      minimal({}, [
+        {
+          highlights: [
+            {}, // no sizing of its own → zoom + rim defaults fill in
+            { popup: { zoom: 3, rim: null } },
+          ],
+        },
+      ]),
+    )
+    const hl = manifest?.slides[0].highlights
+    expect(hl?.[0].popup.zoom).toBe(DEFAULT_HIGHLIGHT_ZOOM)
+    expect(hl?.[0].popup.rim).toEqual(DEFAULT_HIGHLIGHT_RIM)
+    expect(hl?.[1].popup.zoom).toBe(3)
+    expect(hl?.[1].popup.rim).toBeUndefined()
+
+    // A popup that states its own width keeps it: no zoom to override it, and
+    // no rim it never asked for.
+    const legacy = parseManifest(minimal({}, [{ highlights: [{ popup: { width: 0.9 } }] }]))
+    expect(legacy.manifest?.slides[0].highlights?.[0].popup).toEqual({ width: 0.9 })
   })
 })
 

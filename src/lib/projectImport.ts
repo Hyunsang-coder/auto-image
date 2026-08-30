@@ -15,6 +15,7 @@ import type {
   DeviceColor,
   DeviceModel,
   DeviceType,
+  HighlightRim,
   OrnamentShape,
   Project,
   ScreenshotCrop,
@@ -30,6 +31,10 @@ import {
   badgePlaceholder,
   BLOB_BLEND_MODES,
   FONT_OPTIONS,
+  DEFAULT_HIGHLIGHT_RIM,
+  DEFAULT_HIGHLIGHT_ZOOM,
+  HIGHLIGHT_ZOOM_MAX,
+  HIGHLIGHT_ZOOM_MIN,
   MAX_BACKGROUND_BLOBS,
   MAX_HIGHLIGHTS,
   MAX_SHAPES,
@@ -137,7 +142,14 @@ export interface ParsedSlide {
  *  placement; the other fields fall back to makeHighlight-compatible defaults. */
 export interface ParsedHighlight {
   sourceRegion: { x: number; y: number; w: number; h: number }
-  popup: { x?: number; y?: number; width: number; rotation?: number }
+  popup: {
+    x?: number
+    y?: number
+    width: number
+    zoom?: number
+    rotation?: number
+    rim?: HighlightRim
+  }
 }
 
 /** Per-caption style + placement override. All fields optional — absent ones
@@ -913,6 +925,31 @@ export function coerceTextOverrides(
 
 /** Parse the per-slide `highlights` array. Each entry's missing fields fall
  *  back to makeHighlight's defaults so a partial region still renders. */
+/**
+ * `rim: null` turns the outline off explicitly; omitting it takes the default
+ * (on), except on a legacy width-sized popup, whose look must not change.
+ */
+function coerceRim(
+  value: unknown,
+  legacySizing: boolean,
+  where: string,
+  issues: string[],
+): { rim?: HighlightRim } {
+  if (value === null) return {}
+  if (value === undefined) return legacySizing ? {} : { rim: { ...DEFAULT_HIGHLIGHT_RIM } }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    issues.push(t('{where}: popup.rim 형식이 올바르지 않음 — 기본값 사용', { where }))
+    return { rim: { ...DEFAULT_HIGHLIGHT_RIM } }
+  }
+  const r = value as Record<string, unknown>
+  return {
+    rim: {
+      color: typeof r.color === 'string' ? r.color : DEFAULT_HIGHLIGHT_RIM.color,
+      width: coerceNumber(r.width, 0, 0.05, where, 'popup.rim.width', issues) ?? DEFAULT_HIGHLIGHT_RIM.width,
+    },
+  }
+}
+
 export function coerceHighlights(
   value: unknown,
   where: string,
@@ -929,6 +966,7 @@ export function coerceHighlights(
     items = items.slice(0, MAX_HIGHLIGHTS)
   }
   const out: ParsedHighlight[] = []
+  const fallback = makeHighlight()
   items.forEach((raw, j) => {
     const hw = t('{where} highlight {n}', { where, n: j + 1 })
     if (typeof raw !== 'object' || raw === null) {
@@ -949,18 +987,26 @@ export function coerceHighlights(
     const rotation = coerceRotation(p.rotation, hw, 'popup.rotation', issues)
     const popupX = coerceNumber(p.x, 0, 1, hw, 'popup.x', issues)
     const popupY = coerceNumber(p.y, 0, 1, hw, 'popup.y', issues)
+    const width = coerceNumber(p.width, POPUP_WIDTH_MIN, POPUP_WIDTH_MAX, hw, 'popup.width', issues)
+    const zoom = coerceNumber(p.zoom, HIGHLIGHT_ZOOM_MIN, HIGHLIGHT_ZOOM_MAX, hw, 'popup.zoom', issues)
+    // A manifest that sized its card by hand keeps doing exactly that: seeding a
+    // default zoom would override the width it asked for. Zoom (and the rim that
+    // comes with the modern shape) only fill in when the popup didn't.
+    const legacySizing = zoom === undefined && width !== undefined
     out.push({
       sourceRegion: {
-        x: coerceNumber(sr.x, 0, 1, hw, 'sourceRegion.x', issues) ?? 0.08,
-        y: coerceNumber(sr.y, 0, 1, hw, 'sourceRegion.y', issues) ?? 0.42,
-        w: coerceNumber(sr.w, HIGHLIGHT_DIM_MIN, 1, hw, 'sourceRegion.w', issues) ?? 0.84,
-        h: coerceNumber(sr.h, HIGHLIGHT_DIM_MIN, 1, hw, 'sourceRegion.h', issues) ?? 0.18,
+        x: coerceNumber(sr.x, 0, 1, hw, 'sourceRegion.x', issues) ?? fallback.sourceRegion.x,
+        y: coerceNumber(sr.y, 0, 1, hw, 'sourceRegion.y', issues) ?? fallback.sourceRegion.y,
+        w: coerceNumber(sr.w, HIGHLIGHT_DIM_MIN, 1, hw, 'sourceRegion.w', issues) ?? fallback.sourceRegion.w,
+        h: coerceNumber(sr.h, HIGHLIGHT_DIM_MIN, 1, hw, 'sourceRegion.h', issues) ?? fallback.sourceRegion.h,
       },
       popup: {
         ...(popupX !== undefined ? { x: popupX } : {}),
         ...(popupY !== undefined ? { y: popupY } : {}),
-        width: coerceNumber(p.width, POPUP_WIDTH_MIN, POPUP_WIDTH_MAX, hw, 'popup.width', issues) ?? 0.78,
+        width: width ?? fallback.popup.width,
+        ...(legacySizing ? {} : { zoom: zoom ?? DEFAULT_HIGHLIGHT_ZOOM }),
         ...(rotation !== undefined ? { rotation } : {}),
+        ...coerceRim(p.rim, legacySizing, hw, issues),
       },
     })
   })

@@ -312,6 +312,8 @@ export const en: Record<string, string> = {
     '{where}: emphasis needs a color or fontWeight — ignored',
   '{where}: highlights는 배열이어야 함 — 무시':
     '{where}: highlights must be an array — ignored',
+  '{where}: popup.rim 형식이 올바르지 않음 — 기본값 사용':
+    '{where}: popup.rim is malformed — using the default',
   '{where}: highlights는 최대 {max}개 — 처음 {max}개만 사용':
     '{where}: maximum {max} highlights — using first {max}',
   '{where}: sourceRegion 형식이 올바르지 않음 — 기본값 사용':
@@ -694,9 +696,15 @@ export const en: Record<string, string> = {
   '+ 추가': '+ Add',
   '하이라이트는 스크린샷 영역을 확대해 보여주는 기능이에요. 먼저 스크린샷을 업로드해야 추가할 수 있어요.':
     'Highlights zoom into a region of the screenshot. Upload a screenshot first to add one.',
-  '"+ 추가"로 하이라이트를 만드세요. 캔버스에서 원본 박스와 확대 카드를 직접 조정하세요.':
-    'Use "+ Add" to create a highlight. Adjust the source box and zoom card directly on the canvas.',
+  '"+ 추가"로 하이라이트를 만드세요. 캔버스에서 확대할 영역을 잡고 배율만 정하면 됩니다.':
+    'Use "+ Add" to create a highlight, then frame the region on the canvas and pick a zoom.',
   '하이라이트 {n}': 'Highlight {n}',
+  배율: 'Zoom',
+  '카드 크기는 배율에서 나옵니다. 영역을 다시 잡아도 배율은 그대로예요.':
+    'The zoom sizes the card, so reframing the region keeps the magnification.',
+  '카드 테두리': 'Card border',
+  '테두리 색': 'Border color',
+  '세부 조정': 'Fine-tune',
   '원본 영역 (스크린샷 안)': 'Source region (inside screenshot)',
   '확대 카드': 'Zoom card',
 }

@@ -412,11 +412,27 @@ export interface Highlight {
     /** Card center as fractions of the canvas. Absent = legacy source-attached placement. */
     x?: number
     y?: number
-    /** Card width as a fraction of canvas width (its height follows the region's aspect). */
+    /** Card width as a fraction of canvas width. Legacy sizing — `zoom` overrides it. */
     width: number
+    /**
+     * How much bigger the card draws the region than the region appears on the
+     * slide. Sizing the card from this instead of `width` is what keeps a
+     * resized sampling region at the same magnification. Absent = legacy
+     * highlight sized by `width`.
+     */
+    zoom?: number
     /** Tilt of the magnified card in degrees, about its center. 0 = upright. */
     rotation?: number
+    /** Rim around the card. Absent = none, which is how legacy highlights render. */
+    rim?: HighlightRim
   }
+}
+
+/** The card's outline. Without one it merges into same-colored UI beneath it. */
+export interface HighlightRim {
+  color: string
+  /** Stroke width as a fraction of canvas width, like Shape.strokeWidth. */
+  width: number
 }
 
 export interface ApiConfig {

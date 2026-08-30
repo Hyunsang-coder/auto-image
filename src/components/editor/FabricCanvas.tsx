@@ -5,14 +5,27 @@ import type { ExternalImage, Highlight, ScreenshotCrop, Shape, Slide } from '../
 import { applyTemplate, attachCropControls, DEFAULT_SHOT_STYLE, EMPTY_CROP } from '../../canvas/templateLayouts'
 import { fitCaption, placeCaptionBoxUnderlay } from '../../canvas/objects/caption'
 import { normalizeAngle, rotateAround } from '../../canvas/geometry'
-import { canvasPointToRegionOrigin } from '../../canvas/objects/highlight'
+import {
+  canvasPointToRegionOrigin,
+  popupPixelWidth,
+  trackHighlightPopup,
+  zoomFromPixelWidth,
+} from '../../canvas/objects/highlight'
 import { updateExternalImageClip } from '../../canvas/objects/externalImage'
 import { awaitSlideFonts } from '../../lib/fonts'
 import { parseEmphasis } from '../../lib/emphasis'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
-import { CAPTION_FONT_SIZE_MAX, CAPTION_FONT_SIZE_MIN, MAX_HIGHLIGHTS, MAX_SHAPES, newId } from '../../constants/defaults'
+import {
+  CAPTION_FONT_SIZE_MAX,
+  CAPTION_FONT_SIZE_MIN,
+  HIGHLIGHT_ZOOM_MAX,
+  HIGHLIGHT_ZOOM_MIN,
+  MAX_HIGHLIGHTS,
+  MAX_SHAPES,
+  newId,
+} from '../../constants/defaults'
 import { EDITOR_CANVAS_WIDTH, editorCanvasHeight } from '../../constants/deviceSpecs'
 
 const SEAM_LAYER = 'span-seam-guide'
@@ -98,8 +111,9 @@ function applySnapGuides(canvas: Canvas, target: FabricObject, ln: string | unde
     // TEXT_BOX rides its caption one tick behind — letting the caption snap to
     // its own box edges would make the drag sticky at ±padding offsets.
     // SCREENSHOT_SHADOW duplicates the screenshot's box and rides the device —
-    // as a snap candidate it would make the drag self-sticky.
-    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND || oln === LAYER_NAMES.TEXT_BOX || oln === LAYER_NAMES.SCREENSHOT_SHADOW) continue
+    // as a snap candidate it would make the drag self-sticky. HIGHLIGHT_RIM is
+    // the same story for the magnified card.
+    if (!oln || oln === DRAG_GUIDE_LAYER || oln === SEAM_LAYER || oln === LAYER_NAMES.BACKGROUND || oln === LAYER_NAMES.TEXT_BOX || oln === LAYER_NAMES.SCREENSHOT_SHADOW || oln === LAYER_NAMES.HIGHLIGHT_RIM) continue
     // The screenshot moves with the device — don't let the device snap to it.
     if (isDevice && oln === LAYER_NAMES.SCREENSHOT) continue
     const b = boxOf(o)
@@ -278,6 +292,10 @@ function clamp01(n: number): number {
 
 function clampPopupWidth(n: number): number {
   return Math.max(POPUP_WIDTH_MIN, Math.min(POPUP_WIDTH_MAX, n))
+}
+
+function clampZoom(n: number): number {
+  return Math.max(HIGHLIGHT_ZOOM_MIN, Math.min(HIGHLIGHT_ZOOM_MAX, n))
 }
 
 function offsetRegion(
@@ -721,17 +739,35 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
             const nY = c.y / ch
             const curX = n.popup.x
             const curY = n.popup.y
+            // Only a card the user actually resized rewrites the zoom. A source
+            // box dragged bigger changes n.sourceRegion but leaves the card at
+            // its rendered size for this tick — reading a zoom off that pair
+            // would be the "resize the region, lose the magnification" bug the
+            // zoom field exists to kill. Compare against what the last render
+            // drew (from the pre-sync record) to tell the two apart.
+            const scaled = Math.abs(pW - popupPixelWidth(h, sb.width, cw)) > 0.5
+            const nZoom = scaled
+              ? clampZoom(zoomFromPixelWidth(pW, n.sourceRegion.w, sb.width))
+              : h.popup.zoom
             if (
               curX === undefined ||
               curY === undefined ||
               Math.abs(nX - curX) > 0.001 ||
               Math.abs(nY - curY) > 0.001 ||
               Math.abs(nWidth - h.popup.width) > 0.002 ||
+              nZoom !== h.popup.zoom ||
               Math.abs(nRot - (h.popup.rotation ?? 0)) > 0.05
             ) {
               n = {
                 ...n,
-                popup: { ...n.popup, x: nX, y: nY, width: nWidth, rotation: nRot },
+                popup: {
+                  ...n.popup,
+                  x: nX,
+                  y: nY,
+                  width: nWidth,
+                  ...(nZoom !== undefined ? { zoom: nZoom } : {}),
+                  rotation: nRot,
+                },
               }
               dirty = true
             }
@@ -1137,6 +1173,8 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           active.set({ left: (active.left ?? 0) + dx, top: (active.top ?? 0) + dy })
           if (ln === LAYER_NAMES.EXTERNAL_IMAGE) {
             updateExternalImageClip(active)
+          } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
+            trackHighlightPopup(canvas, active)
           } else {
             const clip = (active as FabricObject & { clipPath?: FabricObject }).clipPath
             if (clip && (clip as FabricObject & { absolutePositioned?: boolean }).absolutePositioned) {
@@ -1259,13 +1297,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
         } else if (ln === LAYER_NAMES.EXTERNAL_IMAGE) {
           updateExternalImageClip(target)
         } else if (ln === LAYER_NAMES.HIGHLIGHT_POPUP) {
-          // Popup uses an absolutely-positioned clipPath; keep it pinned to the
-          // image's current position so the rounded mask doesn't lag behind
-          // during the drag.
-          const clip = (target as FabricObject & { clipPath?: Rect }).clipPath
-          if (clip) {
-            clip.set({ left: target.left ?? 0, top: target.top ?? 0 })
-          }
+          // The popup's clip mask and rim are absolutely positioned; pin both to
+          // the image so neither lags behind during the drag.
+          trackHighlightPopup(canvas, target)
         }
       })
 
@@ -1345,22 +1379,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           return
         }
         if (ln !== LAYER_NAMES.HIGHLIGHT_POPUP) return
-        const clip = (target as FabricObject & { clipPath?: Rect }).clipPath
-        if (!clip) return
-        const w = (target.width ?? 0) * (target.scaleX ?? 1)
-        const h = (target.height ?? 0) * (target.scaleY ?? 1)
-        const r = Math.min(w, h) * 0.06
-        clip.set({
-          left: target.left ?? 0,
-          top: target.top ?? 0,
-          width: w,
-          height: h,
-          rx: r,
-          ry: r,
-          angle: target.angle ?? 0,
-          scaleX: 1,
-          scaleY: 1,
-        })
+        trackHighlightPopup(canvas, target)
       })
 
       canvas.on('object:modified', (e) => {

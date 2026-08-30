@@ -1,17 +1,50 @@
-import type { Highlight } from '../../../types/project'
-import { MAX_HIGHLIGHTS, makeHighlight } from '../../../constants/defaults'
+import { useMemo } from 'react'
+import { ColorPickerPopover } from '../../common/ColorPickerPopover'
+import type { Highlight, Slide } from '../../../types/project'
+import {
+  DEFAULT_HIGHLIGHT_RIM,
+  DEFAULT_HIGHLIGHT_ZOOM,
+  HIGHLIGHT_ZOOM_MAX,
+  HIGHLIGHT_ZOOM_MIN,
+  MAX_HIGHLIGHTS,
+  makeHighlight,
+} from '../../../constants/defaults'
 import { normalizeAngle } from '../../../canvas/geometry'
+import { screenBoundsOf } from '../../../canvas/templateLayouts'
+import { zoomFromPixelWidth } from '../../../canvas/objects/highlight'
+import { EDITOR_CANVAS_WIDTH } from '../../../constants/deviceSpecs'
 import { useT } from '../../../i18n'
 
 interface Props {
   value: Highlight[]
+  slide: Slide
   hasScreenshot: boolean
   onChange: (next: Highlight[]) => void
 }
 
-export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
+const ZOOM_PRESETS = [1.5, 2, 2.5, 3]
+
+export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props) {
   const t = useT()
   const atMax = value.length >= MAX_HIGHLIGHTS
+
+  // The same screen box the renderer will sample, so a legacy highlight (sized
+  // by popup.width, before zoom existed) can be shown as the magnification it
+  // actually renders at instead of a placeholder.
+  const screenWidth = useMemo(() => {
+    const span = !!slide.spanGroupId
+    const cw = span ? EDITOR_CANVAS_WIDTH * 2 : EDITOR_CANVAS_WIDTH
+    return screenBoundsOf(slide, cw, undefined, span)?.width ?? null
+  }, [slide])
+
+  function zoomOf(h: Highlight): number {
+    if (typeof h.popup.zoom === 'number') return h.popup.zoom
+    if (!screenWidth) return DEFAULT_HIGHLIGHT_ZOOM
+    const span = !!slide.spanGroupId
+    const cw = span ? EDITOR_CANVAS_WIDTH * 2 : EDITOR_CANVAS_WIDTH
+    return zoomFromPixelWidth(cw * h.popup.width, h.sourceRegion.w, screenWidth)
+  }
+
   function add() {
     onChange([...value, makeHighlight()])
   }
@@ -58,7 +91,7 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
 
       {value.length === 0 && hasScreenshot && (
         <p className="rounded-md border border-dashed border-[var(--color-border)] px-3 py-4 text-center text-xs text-[var(--color-text-dim)]">
-          {t('"+ 추가"로 하이라이트를 만드세요. 캔버스에서 원본 박스와 확대 카드를 직접 조정하세요.')}
+          {t('"+ 추가"로 하이라이트를 만드세요. 캔버스에서 확대할 영역을 잡고 배율만 정하면 됩니다.')}
         </p>
       )}
 
@@ -78,90 +111,153 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
             </button>
           </div>
 
-          <Group label={t('원본 영역 (스크린샷 안)')}>
-            <Slider
-              label="X"
-              value={h.sourceRegion.x}
-              min={0}
-              max={1 - h.sourceRegion.w}
-              step={0.01}
-              onChange={(v) =>
-                update(h.id, { sourceRegion: { ...h.sourceRegion, x: v } })
-              }
-            />
-            <Slider
-              label="Y"
-              value={h.sourceRegion.y}
-              min={0}
-              max={1 - h.sourceRegion.h}
-              step={0.01}
-              onChange={(v) =>
-                update(h.id, { sourceRegion: { ...h.sourceRegion, y: v } })
-              }
-            />
-            <Slider
-              label="W"
-              value={h.sourceRegion.w}
-              min={0.05}
-              max={1 - h.sourceRegion.x}
-              step={0.01}
-              onChange={(v) =>
-                update(h.id, { sourceRegion: { ...h.sourceRegion, w: v } })
-              }
-            />
-            <Slider
-              label="H"
-              value={h.sourceRegion.h}
-              min={0.05}
-              max={1 - h.sourceRegion.y}
-              step={0.01}
-              onChange={(v) =>
-                update(h.id, { sourceRegion: { ...h.sourceRegion, h: v } })
-              }
-            />
-          </Group>
-
-          <Group label={t('확대 카드')}>
-            <Slider
-              label="X"
-              value={h.popup.x ?? 0.5}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(v) => updatePopup(h.id, { x: v })}
-            />
-            <Slider
-              label="Y"
-              value={h.popup.y ?? 0.32}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(v) => updatePopup(h.id, { y: v })}
-            />
-            <Slider
-              label={t('크기')}
-              value={h.popup.width}
-              min={0.2}
-              max={1}
-              step={0.01}
-              onChange={(v) => updatePopup(h.id, { width: v })}
-            />
+          <Group label={t('배율')}>
+            <div className="grid grid-cols-4 gap-1.5">
+              {ZOOM_PRESETS.map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  onClick={() => updatePopup(h.id, { zoom: z })}
+                  aria-pressed={Math.abs(zoomOf(h) - z) < 0.01}
+                  className={`rounded border py-1 text-xs transition ${
+                    Math.abs(zoomOf(h) - z) < 0.01
+                      ? 'border-[var(--color-accent-strong)] bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
+                      : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  {z}×
+                </button>
+              ))}
+            </div>
             <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
-              <span className="w-16 text-[var(--color-text-dim)]">{t('회전')}</span>
               <input
                 type="range"
-                min={-180}
-                max={180}
-                step={1}
-                value={h.popup.rotation ?? 0}
-                onChange={(e) => updatePopup(h.id, { rotation: normalizeAngle(Number(e.target.value)) })}
-                className="ml-2 flex-1 accent-[var(--color-accent)]"
+                min={HIGHLIGHT_ZOOM_MIN}
+                max={HIGHLIGHT_ZOOM_MAX}
+                step={0.1}
+                value={zoomOf(h)}
+                onChange={(e) => updatePopup(h.id, { zoom: Number(e.target.value) })}
+                className="flex-1 accent-[var(--color-accent)]"
               />
               <span className="w-10 text-right text-[var(--color-text-dim)]">
-                {Math.round(h.popup.rotation ?? 0)}°
+                {zoomOf(h).toFixed(1)}×
               </span>
             </label>
+            <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
+              {t('카드 크기는 배율에서 나옵니다. 영역을 다시 잡아도 배율은 그대로예요.')}
+            </p>
           </Group>
+
+          <Group label={t('테두리')}>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
+                <input
+                  type="checkbox"
+                  checked={!!h.popup.rim}
+                  onChange={(e) =>
+                    updatePopup(h.id, {
+                      rim: e.target.checked ? { ...DEFAULT_HIGHLIGHT_RIM } : undefined,
+                    })
+                  }
+                  className="accent-[var(--color-accent)]"
+                />
+                {t('카드 테두리')}
+              </label>
+              {h.popup.rim && (
+                <ColorPickerPopover
+                  color={h.popup.rim.color}
+                  onChange={(c) =>
+                    updatePopup(h.id, { rim: { ...(h.popup.rim ?? DEFAULT_HIGHLIGHT_RIM), color: c } })
+                  }
+                  label={t('테두리 색')}
+                />
+              )}
+            </div>
+          </Group>
+
+          <details>
+            <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+              {t('세부 조정')}
+            </summary>
+            <div className="mt-2 space-y-3">
+              <Group label={t('원본 영역 (스크린샷 안)')}>
+                <Slider
+                  label="X"
+                  value={h.sourceRegion.x}
+                  min={0}
+                  max={1 - h.sourceRegion.w}
+                  step={0.01}
+                  onChange={(v) =>
+                    update(h.id, { sourceRegion: { ...h.sourceRegion, x: v } })
+                  }
+                />
+                <Slider
+                  label="Y"
+                  value={h.sourceRegion.y}
+                  min={0}
+                  max={1 - h.sourceRegion.h}
+                  step={0.01}
+                  onChange={(v) =>
+                    update(h.id, { sourceRegion: { ...h.sourceRegion, y: v } })
+                  }
+                />
+                <Slider
+                  label="W"
+                  value={h.sourceRegion.w}
+                  min={0.05}
+                  max={1 - h.sourceRegion.x}
+                  step={0.01}
+                  onChange={(v) =>
+                    update(h.id, { sourceRegion: { ...h.sourceRegion, w: v } })
+                  }
+                />
+                <Slider
+                  label="H"
+                  value={h.sourceRegion.h}
+                  min={0.05}
+                  max={1 - h.sourceRegion.y}
+                  step={0.01}
+                  onChange={(v) =>
+                    update(h.id, { sourceRegion: { ...h.sourceRegion, h: v } })
+                  }
+                />
+              </Group>
+
+              <Group label={t('확대 카드')}>
+                <Slider
+                  label="X"
+                  value={h.popup.x ?? 0.5}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={(v) => updatePopup(h.id, { x: v })}
+                />
+                <Slider
+                  label="Y"
+                  value={h.popup.y ?? 0.32}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={(v) => updatePopup(h.id, { y: v })}
+                />
+                <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
+                  <span className="w-16 text-[var(--color-text-dim)]">{t('회전')}</span>
+                  <input
+                    type="range"
+                    min={-180}
+                    max={180}
+                    step={1}
+                    value={h.popup.rotation ?? 0}
+                    onChange={(e) => updatePopup(h.id, { rotation: normalizeAngle(Number(e.target.value)) })}
+                    className="ml-2 flex-1 accent-[var(--color-accent)]"
+                  />
+                  <span className="w-10 text-right text-[var(--color-text-dim)]">
+                    {Math.round(h.popup.rotation ?? 0)}°
+                  </span>
+                </label>
+              </Group>
+            </div>
+          </details>
         </div>
       ))}
     </div>

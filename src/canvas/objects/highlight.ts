@@ -1,4 +1,5 @@
 import { FabricImage, Rect, Shadow } from 'fabric'
+import type { Canvas, FabricObject } from 'fabric'
 import type { Highlight, ScreenshotImage } from '../../types/project'
 import { LAYER_NAMES } from '../layerNames'
 import { rotateAround } from '../geometry'
@@ -16,6 +17,36 @@ export interface HighlightRenderCtx {
 }
 
 type RegionBox = { left: number; top: number; width: number; height: number }
+
+/** Card corner radius as a fraction of its shorter side. */
+export const POPUP_CORNER_RATIO = 0.06
+
+/**
+ * The card's width on canvas in px. `zoom` is the source of truth: it multiplies
+ * the region's *rendered* size, so resizing the sampling box keeps the
+ * magnification instead of silently changing it. Highlights authored before
+ * zoom existed fall back to their stored canvas fraction and render unchanged.
+ */
+export function popupPixelWidth(
+  highlight: Highlight,
+  screenWidth: number,
+  canvasWidth: number,
+): number {
+  const { zoom } = highlight.popup
+  return typeof zoom === 'number'
+    ? zoom * highlight.sourceRegion.w * screenWidth
+    : canvasWidth * highlight.popup.width
+}
+
+/** Inverse of popupPixelWidth — what a hand-resized card means as a zoom. */
+export function zoomFromPixelWidth(
+  pixelWidth: number,
+  regionWidth: number,
+  screenWidth: number,
+): number {
+  return pixelWidth / Math.max(1, regionWidth * screenWidth)
+}
+
 type HighlightObjectProps = { layerName: string; highlightId: string; _renderRot: number }
 
 /**
@@ -132,10 +163,9 @@ export async function renderHighlight(
   const cropW = Math.max(1, srcW * sourceRegion.w)
   const cropH = Math.max(1, srcH * sourceRegion.h)
 
-  // Target popup dimensions on canvas. popup.width is a fraction of canvas
-  // width; height is derived from the crop's aspect so the magnified piece
-  // never distorts what it samples.
-  const popupW = ctx.canvasWidth * popup.width
+  // Target popup dimensions on canvas. Height is derived from the crop's aspect
+  // so the magnified piece never distorts what it samples.
+  const popupW = popupPixelWidth(highlight, ctx.screenBounds.width, ctx.canvasWidth)
   const popupH = popupW * (cropH / cropW)
   const scale = popupW / cropW
 
@@ -185,7 +215,7 @@ export async function renderHighlight(
 
   // Round the popup card. clipPath uses absolute coords so it tracks the image
   // position; sync code re-creates the clip after a drag.
-  const radius = Math.min(popupW, popupH) * 0.06
+  const radius = Math.min(popupW, popupH) * POPUP_CORNER_RATIO
   img.clipPath = new Rect({
     left,
     top,
@@ -214,4 +244,77 @@ export async function renderHighlight(
   ;(img as FabricImage & HighlightObjectProps).highlightId = highlight.id
   ;(img as FabricImage & HighlightObjectProps)._renderRot = ctx.rotation ?? 0
   return img
+}
+
+/** The card's live box on canvas, shared by its clip mask and its rim. */
+function popupBox(popup: FabricObject): {
+  left: number
+  top: number
+  width: number
+  height: number
+  rx: number
+  ry: number
+  angle: number
+} {
+  const width = (popup.width ?? 0) * (popup.scaleX ?? 1)
+  const height = (popup.height ?? 0) * (popup.scaleY ?? 1)
+  const r = Math.min(width, height) * POPUP_CORNER_RATIO
+  return {
+    left: popup.left ?? 0,
+    top: popup.top ?? 0,
+    width,
+    height,
+    rx: r,
+    ry: r,
+    angle: popup.angle ?? 0,
+  }
+}
+
+/**
+ * Non-evented outline over the magnified card. A card sampling the same UI it
+ * floats over has no visible edge of its own — the rim is what separates them.
+ * Derived from the card (sync never reads it back), so it is re-placed every
+ * gesture tick by trackHighlightPopup rather than carrying its own state.
+ */
+export function renderHighlightRim(highlight: Highlight, popup: FabricImage, canvasWidth: number): Rect | null {
+  const rim = highlight.popup.rim
+  if (!rim) return null
+  const rect = new Rect({
+    ...popupBox(popup),
+    fill: 'transparent',
+    stroke: rim.color,
+    strokeWidth: rim.width * canvasWidth,
+    strokeUniform: true,
+    originX: 'left',
+    originY: 'top',
+    selectable: false,
+    evented: false,
+    hoverCursor: 'default',
+  })
+  Object.assign(rect, {
+    layerName: LAYER_NAMES.HIGHLIGHT_RIM,
+    highlightId: highlight.id,
+  })
+  return rect
+}
+
+/**
+ * Pin the card's absolutely-positioned clip mask and its rim to the card's
+ * current geometry. Called every move/scale tick so neither lags the drag.
+ */
+export function trackHighlightPopup(canvas: Canvas, popup: FabricObject): void {
+  const box = popupBox(popup)
+  const clip = (popup as FabricObject & { clipPath?: Rect }).clipPath
+  if (clip) {
+    clip.set({ ...box, scaleX: 1, scaleY: 1 })
+    popup.dirty = true
+  }
+  const id = (popup as FabricObject & { highlightId?: string }).highlightId
+  if (!id) return
+  for (const obj of canvas.getObjects()) {
+    const o = obj as FabricObject & { layerName?: string; highlightId?: string }
+    if (o.layerName !== LAYER_NAMES.HIGHLIGHT_RIM || o.highlightId !== id) continue
+    o.set({ ...box, scaleX: 1, scaleY: 1 })
+    o.setCoords()
+  }
 }

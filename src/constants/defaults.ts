@@ -7,6 +7,7 @@ import type {
   DeviceFrame,
   DeviceType,
   Highlight,
+  HighlightRim,
   Ornament,
   OrnamentShape,
   Project,
@@ -240,12 +241,19 @@ export function makeHighlight(overrides?: {
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `hl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-  // Default: sample the middle band of the screenshot and place the magnified
-  // card independently above it so the two can be adjusted like normal objects.
+  // Default: sample a narrow strip mid-screen and float the card above it. The
+  // region is deliberately small — the card's size comes from `zoom`, so a
+  // full-width region at 2x would draw a card wider than the canvas.
   return {
     id,
-    sourceRegion: overrides?.sourceRegion ?? { x: 0.08, y: 0.42, w: 0.84, h: 0.18 },
-    popup: overrides?.popup ?? { x: 0.5, y: 0.32, width: 0.78 },
+    sourceRegion: overrides?.sourceRegion ?? { x: 0.25, y: 0.44, w: 0.5, h: 0.12 },
+    popup: overrides?.popup ?? {
+      x: 0.5,
+      y: 0.3,
+      width: 0.7,
+      zoom: DEFAULT_HIGHLIGHT_ZOOM,
+      rim: { ...DEFAULT_HIGHLIGHT_RIM },
+    },
   }
 }
 
@@ -550,6 +558,18 @@ export const MAX_SHAPES = 8
 
 /** Max loupes per slide. One reads clean, two is the ceiling before the cut clutters. */
 export const MAX_HIGHLIGHTS = 2
+
+/** Magnification a new loupe starts at — enough that the crop reads as enlarged. */
+export const DEFAULT_HIGHLIGHT_ZOOM = 2
+
+// A white rim plus the card's existing shadow is the floating-card idiom, and
+// unlike a tinted outline it never reads as editor chrome. It does disappear
+// where the card overlaps white UI, which is what the colour picker is for.
+export const DEFAULT_HIGHLIGHT_RIM: HighlightRim = { color: '#FFFFFF', width: 0.006 }
+
+/** Magnification range offered in the panel and accepted from a manifest. */
+export const HIGHLIGHT_ZOOM_MIN = 1
+export const HIGHLIGHT_ZOOM_MAX = 6
 
 // Per-kind defaults chosen so a freshly added shape reads immediately: rect/
 // ellipse are translucent color blocks behind the device (layer 'back'),
