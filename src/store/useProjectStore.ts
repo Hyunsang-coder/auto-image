@@ -6,7 +6,7 @@ import { typeOfModel, detectTypeFromAspect, DEFAULT_MODEL } from '../constants/d
 import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
-import { PROJECT_SCHEMA_VERSION, migrateProject } from '../lib/projectMigrate'
+import { PROJECT_SCHEMA_VERSION, isRevivableProject, migrateProject } from '../lib/projectMigrate'
 import { t } from '../i18n'
 
 function newId(prefix: string): string {
@@ -563,6 +563,15 @@ export const useProjectStore = create<ProjectState>()(
         if (version < 4) return { project: null, step: 1, activeSlideId: null }
         const state = _persisted as { project: Project | null; step: Step; activeSlideId: string | null }
         if (state.project) state.project = migrateProject(state.project, version)
+        return state
+      },
+      // `migrate` only runs on a version mismatch, so a legacy project wearing
+      // the current stamp would sail past it. This runs on every rehydrate.
+      merge: (persisted, current) => {
+        const state = { ...current, ...(persisted as object) } as ProjectState
+        if (state.project && !isRevivableProject(state.project)) {
+          return { ...state, project: null, step: 1, activeSlideId: null }
+        }
         return state
       },
       partialize: (state) => ({

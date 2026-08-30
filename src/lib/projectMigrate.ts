@@ -11,6 +11,19 @@ import { migrateSpanSlides } from './spanTextMigration'
 export const PROJECT_SCHEMA_VERSION = 5
 
 /**
+ * A stamp can lie. Persist writes the *current* version on every save, so a
+ * project revived through a path that skipped migration (the library store used
+ * to be one) gets stamped current while its slides still carry the pre-v4 fixed
+ * `headline`/`subheadline` instead of `texts[]`. Every predicate that walks
+ * `slide.texts` throws on those — during App's render that is a white screen the
+ * user cannot get out of, because the bad value reloads with them. So trust the
+ * shape, not the number.
+ */
+export function isRevivableProject(project: Project): boolean {
+  return project.slides.every((slide) => Array.isArray(slide.texts))
+}
+
+/**
  * Bring a project authored under an older schema up to the current one, or
  * return null if it predates the earliest recoverable version.
  * - `< 4`: fixed `headline`/`subheadline` predate `texts[]` — unrecoverable.
@@ -18,6 +31,7 @@ export const PROJECT_SCHEMA_VERSION = 5
  *   per-slide ownership (`migrateSpanSlides`).
  */
 export function migrateProject(project: Project, fromVersion: number): Project | null {
+  if (!isRevivableProject(project)) return null
   if (fromVersion < 4) return null
   if (fromVersion < 5) return { ...project, slides: migrateSpanSlides(project.slides) }
   return project

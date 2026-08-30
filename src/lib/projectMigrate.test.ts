@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { migrateLibraryProjects, migrateProject } from './projectMigrate'
+import { isRevivableProject, migrateLibraryProjects, migrateProject } from './projectMigrate'
 import type { Caption, Project, Slide } from '../types/project'
 
 const STYLE = {
@@ -77,5 +77,33 @@ describe('migrateLibraryProjects', () => {
 
   it('drops unrecoverable snapshots instead of failing the whole library', () => {
     expect(migrateLibraryProjects([v4Pair(), v4Pair()], 3)).toEqual([])
+  })
+})
+
+// The shape that actually reached a user: pre-v4 slides (fixed headline /
+// subheadline, no texts[]) carrying the *current* version stamp, because a
+// revive path that skipped migration saved them back.
+const legacyShaped = () =>
+  ({
+    id: 'p',
+    name: 'P',
+    slides: [{ id: 's', index: 0, headline: cap(), subheadline: cap() }],
+  }) as unknown as Project
+
+describe('a stamp that lies about the shape', () => {
+  it('refuses a project whose slides predate texts[], whatever the version says', () => {
+    expect(isRevivableProject(legacyShaped())).toBe(false)
+    expect(migrateProject(legacyShaped(), 5)).toBeNull()
+  })
+
+  it('leaves a current project alone', () => {
+    const p = project([slide({ id: 's', texts: [cap()] })])
+    expect(isRevivableProject(p)).toBe(true)
+    expect(migrateProject(p, 5)).toBe(p)
+  })
+
+  it('drops the legacy one out of a library snapshot instead of poisoning it', () => {
+    const good = project([slide({ id: 's', texts: [cap()] })])
+    expect(migrateLibraryProjects([legacyShaped(), good], 5)).toEqual([good])
   })
 })
