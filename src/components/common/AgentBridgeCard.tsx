@@ -155,7 +155,11 @@ export function AgentBridgeCard() {
               <CardButton onClick={() => void copy(CLAUDE_CODE_CMD, 'cli')}>
                 {copied === 'cli' ? t('복사됨 ✓') : t('Claude Code 명령 복사')}
               </CardButton>
-              <CardButton onClick={() => void openUrl(guideUrl)}>{t('가이드')}</CardButton>
+              {/* No browser to hand it to (or the ACL said no) — leave the URL on
+                  the clipboard rather than a dead button. */}
+              <CardButton onClick={() => void openUrl(guideUrl).catch(() => copy(guideUrl, 'guide'))}>
+                {copied === 'guide' ? t('주소 복사됨 ✓') : t('가이드')}
+              </CardButton>
             </div>
             {copyFailed && (
               <p className="mt-1 text-[length:var(--text-ui-sm)] text-[var(--color-danger)]">
