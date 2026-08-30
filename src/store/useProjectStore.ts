@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { Project, Slide, Step, ScreenshotImage, Background, DeviceType, DeviceModel, LocaleOverride } from '../types/project'
+import type { Project, Slide, Step, Background, DeviceType, DeviceModel, LocaleOverride } from '../types/project'
 import { makeProject, makeSlide, relocalizePlaceholder, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { typeOfModel, detectTypeFromAspect, DEFAULT_MODEL } from '../constants/deviceSpecs'
-import { loadImageBlob, saveImage } from '../lib/imageStore'
 import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
 import { PROJECT_SCHEMA_VERSION, isRevivableProject, migrateProject } from '../lib/projectMigrate'
@@ -67,35 +66,22 @@ function cloneSlideStandalone(src: Slide): Slide {
   return c
 }
 
-async function duplicateScreenshot(
-  src: ScreenshotImage | null,
-): Promise<ScreenshotImage | null> {
-  if (!src) return null
-  const blob = await loadImageBlob(src.imageKey)
-  if (!blob) return null
-  const newKey = await saveImage(blob)
-  return {
-    id: newId('shot'),
-    imageKey: newKey,
-    originalWidth: src.originalWidth,
-    originalHeight: src.originalHeight,
-  }
-}
-
 /**
  * Clone the shared look from `leader` onto `follower`, giving it brand new IDs
- * for IDed sub-objects and a duplicated screenshot blob so the two slides
- * become fully independent. Texts are NOT cloned — the follower owned the
- * right page's captions while grouped and keeps them (with the text portion of
- * its locale overrides). Identity (id/index) and span markers are reset.
+ * for IDed sub-objects so the two slides become fully independent. Texts are
+ * NOT cloned — the follower owned the right page's captions while grouped and
+ * keeps them (with the text portion of its locale overrides). Identity
+ * (id/index) and span markers are reset.
+ *
+ * The screenshot is NOT cloned either. While grouped, one image spans both
+ * pages; once split, each slide draws a whole image, so copying the leader's
+ * would leave the user looking at the same device screen twice. The follower
+ * gets back its own pre-link screenshot if it had one, and an empty frame
+ * otherwise — a state the editor already renders and the export already warns
+ * about.
  */
-async function buildIndependentFromLeader(
-  leader: Slide,
-  follower: Slide,
-): Promise<Slide> {
-  const screenshot = follower.screenshot
-    ? structuredClone(follower.screenshot)
-    : await duplicateScreenshot(leader.screenshot)
+function buildIndependentFromLeader(leader: Slide, follower: Slide): Slide {
+  const screenshot = follower.screenshot ? structuredClone(follower.screenshot) : null
   const highlights = leader.highlights.map((h) => ({ ...h, id: newId('hl') }))
   const ornaments = leader.ornaments?.map((o) => ({ ...o, id: newId('orn') }))
   const shapes = leader.shapes?.map((s) => ({ ...s, id: newId('shape') }))
@@ -534,9 +520,9 @@ export const useProjectStore = create<ProjectState>()(
         const leader = members.find((s) => s.spanRole === 'leader')
         const follower = members.find((s) => s.spanRole === 'follower')
         if (!leader || !follower) return
-        // Duplicate leader's IndexedDB image and clone all visual fields onto
-        // follower so both slides are fully independent after this returns.
-        const newFollower = await buildIndependentFromLeader(leader, follower)
+        // Clone the leader's visual fields onto the follower so both slides are
+        // fully independent after this returns.
+        const newFollower = buildIndependentFromLeader(leader, follower)
         const after = get().project
         if (!after) return
         set({

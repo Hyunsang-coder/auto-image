@@ -141,6 +141,27 @@ describe('span link/unlink — per-slide texts', () => {
     expect(after.slides[0].screenshot?.imageKey).toBe('img:a')
     expect(after.slides[1].screenshot?.imageKey).toBe('img:b')
   })
+
+  it('unlink does NOT copy the leader’s screenshot onto a follower that had none', async () => {
+    const { project, updateSlide, linkSpanWithNext } = useProjectStore.getState()
+    const [a, b] = project!.slides
+    updateSlide(a.id, {
+      screenshot: { id: 'shot-a', imageKey: 'img:a', originalWidth: 1320, originalHeight: 2868 },
+    })
+    updateSlide(b.id, { screenshot: null })
+
+    expect(linkSpanWithNext(a.id)).toBeNull()
+    const linked = useProjectStore.getState().project!
+    await useProjectStore.getState().unlinkSpan(linked.slides[0].spanGroupId!)
+
+    const after = useProjectStore.getState().project!
+    // While grouped, one image spanned both pages; split, each slide draws a
+    // whole image — cloning the leader's would show the same screen twice.
+    expect(after.slides[0].screenshot?.imageKey).toBe('img:a')
+    expect(after.slides[1].screenshot).toBeNull()
+    // The rest of the look is still cloned from the leader.
+    expect(after.slides[1].background).toEqual(after.slides[0].background)
+  })
 })
 
 describe('setDeviceSize', () => {
