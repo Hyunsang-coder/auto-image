@@ -7,6 +7,15 @@ import { clearAppState, createProject, selectLayer, controlPos, drag, openSectio
 
 type TextObj = { text?: string; textLines?: string[]; fontSize?: number; width?: number }
 
+/**
+ * The caption block's font-size input. The bulk-style section above it has a
+ * 크기 input too; only that one carries a placeholder ("변경 안 함"), so the
+ * absence of one identifies the block's own.
+ */
+function headlineSizeInput(page: import('@playwright/test').Page) {
+  return page.locator('input[type="number"]:not([placeholder])').first()
+}
+
 function readHeadline(page: import('@playwright/test').Page): Promise<TextObj | null> {
   return page.evaluate(() => {
     const ed = (
@@ -58,9 +67,7 @@ test('띄어쓰기 있는 한글은 단어 단위 줄바꿈 유지', async ({ pa
 })
 
 test('크기 입력은 빈칸 상태를 0으로 저장하지 않고 완성된 숫자만 반영', async ({ page }) => {
-  const sizeInput = page
-    .locator('div:has(> p:has-text("헤드라인")) input[type="number"]')
-    .first()
+  const sizeInput = headlineSizeInput(page)
   await expect(sizeInput).toHaveValue('40')
   await expect.poll(async () => (await readHeadline(page))?.fontSize ?? 0).toBe(40)
 
@@ -90,12 +97,7 @@ test('fit-to-box: 줄어든 표시 크기가 저장 크기를 오염시키지 �
   // mutation, so polling on the text guarantees the final re-render landed
   // (dragging mid-re-render would grab a stale, replaced object).
   await page.locator('label:has-text("박스 너비에 맞춤") input[type=checkbox]').check()
-  // Scope to the headline block — the bulk-style section above it has its own
-  // 크기 number input that would otherwise match first.
-  await page
-    .locator('div:has(> p:has-text("헤드라인")) input[type="number"]')
-    .first()
-    .fill('64')
+  await headlineSizeInput(page).fill('64')
   await page.locator('textarea').first().fill('Comprehensive weather information')
   await expect.poll(async () => (await readHeadline(page))?.text).toBe('Comprehensive weather information')
 
@@ -122,10 +124,7 @@ test('fit-to-box: 줄어든 표시 크기가 저장 크기를 오염시키지 �
 
 test('fit-to-box: 모서리 스케일은 줄어든 표시 크기로 저장 크기를 낮추지 않음', async ({ page }) => {
   await page.locator('label:has-text("박스 너비에 맞춤") input[type=checkbox]').check()
-  await page
-    .locator('div:has(> p:has-text("헤드라인")) input[type="number"]')
-    .first()
-    .fill('300')
+  await headlineSizeInput(page).fill('300')
   await page.locator('textarea').first().fill('Comprehensive weather information')
   await expect.poll(async () => (await readHeadline(page))?.text).toBe('Comprehensive weather information')
 

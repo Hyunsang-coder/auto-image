@@ -73,7 +73,7 @@ test('마지막 남은 텍스트 블록도 삭제할 수 있음', async ({ page 
 
   // The panel's delete button used to appear only from the second block on, so
   // the first one could never be removed by any route.
-  await page.getByRole('button', { name: '삭제', exact: true }).click()
+  await page.getByRole('button', { name: '이 텍스트 블록 삭제' }).click()
 
   await expect.poll(() => textCount(page)).toBe(0)
   await expect(page.getByText('텍스트 블록이 없습니다.')).toBeVisible()

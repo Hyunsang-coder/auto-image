@@ -614,7 +614,10 @@ export function CaptionPanel({ texts, template, onChange, selectedIndex = null, 
                 <button
                   type="button"
                   onClick={() => removeBlock(i)}
-                  title={t('이 텍스트 블록 삭제')}
+                  // Named, not just titled: "삭제" alone collides with every
+                  // other delete button on the page, and the visible word is
+                  // still contained in the name.
+                  aria-label={t('이 텍스트 블록 삭제')}
                   className="shrink-0 rounded border border-[var(--color-border)] px-1.5 py-0.5 text-xs text-[var(--color-text-dim)] transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
                 >
                   {t('삭제')}

@@ -23,11 +23,12 @@ test('이미지 일괄 가져오기: 베이스 + 언어별 override를 파일명
 
   await expect(page.getByText(/이미지를 가져왔습니다/)).toBeVisible()
 
-  // The base screenshot now exists → the 이미지 row appears, with the base
-  // thumbnail (source column) plus the ja override thumbnail = two images.
+  // The base screenshot now exists → the 이미지 row appears: the base thumbnail
+  // (source column), the ja override, and en showing the base it falls back to.
   const imageRow = page.locator('tr', { has: page.getByText('이미지', { exact: true }) })
   await expect(imageRow).toHaveCount(1)
-  await expect(imageRow.locator('img')).toHaveCount(2)
+  await expect(imageRow.locator('img')).toHaveCount(3)
+  await expect(imageRow.getByText('기준 언어와 동일')).toHaveCount(1)
 })
 
 test('이미지 일괄 가져오기: 기기 불일치 이미지는 시각 프레임 오버라이드로 수용됨', async ({ page }) => {
