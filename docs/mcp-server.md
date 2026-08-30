@@ -100,3 +100,38 @@ live_status → live_list_untranslated            # 남은 문자열 × 로케�
 
 스모크(`scripts/mcp-smoke.mjs`)는 지식 도구와 도구 등록만 검증한다 — 렌더
 경로의 회귀는 기존 `npm run test:headless`가 막는다.
+
+## npm 발행 (`screenshot-studio-mcp`)
+
+앱과 **따로** 버전이 매겨진다. 체크아웃 없이 `.app`만 받은 사람이 쓰는 절반이라,
+앱이 새 어휘를 실으면 이 패키지도 올려야 한다 — 안 올리면 `npx`로 붙은
+에이전트만 구 버전 어휘를 보게 된다. 릴리즈 노트를 쓰기 전에 확인한다:
+
+```bash
+npm view screenshot-studio-mcp version   # 레지스트리
+node -p "require('./packages/mcp/package.json').version"
+```
+
+`prepack`이 `npm run mcp:package`를 돌려 `packages/mcp/data/`(design reference +
+import spec)를 다시 굽기 때문에, 발행 전에 따로 빌드할 필요는 없다. 무엇이
+나가는지는 `npm publish --dry-run`으로 먼저 본다.
+
+계정 2FA가 `auth-and-writes`라 **쓰기마다** 챌린지가 걸린다. `auth-type`이 `web`이면
+브라우저로 답할 수 있지만, 그 흐름을 시작하려면 TTY가 필요하다 — TTY 없는
+셸에서는 브라우저를 못 띄우고 곧장 `EOTP`로 떨어진다. 의사 TTY를 붙이면 된다:
+
+```bash
+cd packages/mcp && script -q /dev/null npm publish --auth-type=web
+```
+
+출력에 뜨는 `https://www.npmjs.com/auth/cli/...`를 브라우저에서 승인하면 발행이
+끝난다. (`--otp=`로 코드를 넘기는 길도 있지만, 웹 승인이 코드를 주고받지 않아
+낫다.)
+
+발행 직후 `npm view`는 캐시된 packument를 내주며 한동안 옛 버전을 보고한다.
+성공 여부는 레지스트리에 직접 묻는다:
+
+```bash
+curl -s https://registry.npmjs.org/screenshot-studio-mcp | jq '.["dist-tags"]'
+npx -y --prefer-online screenshot-studio-mcp   # 실사용 경로까지 확인
+```

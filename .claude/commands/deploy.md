@@ -71,5 +71,22 @@ matching edit, or make it.
 - Publishing is irreversible: a tag and a released asset are public the moment the script
   reaches step 3's end. Everything before that point is local and safe to abort.
 - Notarization needs Apple's servers; a run takes ~5 minutes, most of it waiting.
-- The npm side (`packages/mcp`) versions independently — `npm publish` from that directory,
-  and it needs the user's own 2FA code.
+- The npm side (`packages/mcp`) versions independently and is easy to forget: the app can ship
+  a vocabulary the published agent half does not have yet. Check
+  `npm view screenshot-studio-mcp version` against `packages/mcp/package.json` before you write
+  the notes, and say so in them if they differ.
+- Publishing it needs 2FA, but **not** the user typing a code to you. The account is
+  `auth-and-writes`, so npm challenges every write; with `auth-type=web` it answers that in a
+  browser — it just needs a TTY to start the flow, which a plain tool call does not have (you
+  get a bare `EOTP` instead). Give it one:
+
+  ```
+  cd packages/mcp && script -q /dev/null npm publish --auth-type=web
+  ```
+
+  Run it in the background, read the `https://www.npmjs.com/auth/cli/...` URL out of the
+  output and hand it to the user. They approve in the browser and the publish completes. Do
+  not ask for the OTP itself, and do not conclude it is impossible from the first `EOTP`.
+- `npm view` serves a cached packument and will report the old version for a while after a
+  successful publish. Confirm against the registry itself:
+  `curl -s https://registry.npmjs.org/screenshot-studio-mcp | jq '.["dist-tags"]'`.
