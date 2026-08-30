@@ -408,6 +408,11 @@ export interface Highlight {
     w: number
     h: number
   }
+  /**
+   * How the sampled region is marked on the screenshot. Absent = the original
+   * dashed indigo boundary, so highlights authored before this render unchanged.
+   */
+  marker?: HighlightMarker
   popup: {
     /** Card center as fractions of the canvas. Absent = legacy source-attached placement. */
     x?: number
@@ -433,7 +438,21 @@ export interface Highlight {
     auto?: boolean
     /** Draw the leader line from the source marker to the card. */
     connector?: boolean
+    /**
+     * Card silhouette. 'circle' rounds the corners to half the shorter side —
+     * a circle on a square card, a lozenge on a wide one. Absent = 'rect'.
+     */
+    shape?: HighlightShape
   }
+}
+
+export type HighlightShape = 'rect' | 'circle'
+
+/** The boundary drawn around the sampled region, and the ink its leader shares. */
+export interface HighlightMarker {
+  /** Off leaves only the card — some designs want the magnified piece alone. */
+  show: boolean
+  color: string
 }
 
 /** The card's outline. Without one it merges into same-colored UI beneath it. */

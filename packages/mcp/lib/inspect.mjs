@@ -42,6 +42,7 @@ function bgImageKey(bg) {
 export function inspectBundle(bundle) {
   const project = bundle.project
   const images = bundle.images ?? {}
+  const screenRects = bundle.screenRects ?? {}
   const issues = []
   const spanGroups = new Map()
 
@@ -101,6 +102,12 @@ export function inspectBundle(bundle) {
             imageKey: slide.screenshot.imageKey,
             overrides: Object.keys(slide.screenshot.localeOverrides ?? {}),
             localeSource: slide.screenshot.localeSource ?? {},
+            // Where the screenshot sits on the composed canvas. A highlight's
+            // sourceRegion is normalized to THIS box, not to the canvas, so
+            // without it an agent looking at a render has to guess. Supplied by
+            // the caller (the live bridge computes it from the layout); absent
+            // when inspecting a bundle on disk.
+            canvasRect: screenRects[slide.id] ?? null,
           }
         : null,
       counts: {
@@ -125,6 +132,26 @@ export function inspectBundle(bundle) {
         field: `badge:${index}`,
         text: badge.text ?? '',
         translations: badge.translations ?? {},
+      })),
+      // Loupes: what each one samples and how the card is derived from it.
+      // `sourceRegion` is a fraction of screenshot.canvasRect above.
+      highlights: (slide.highlights ?? []).map((h, index) => ({
+        index,
+        id: h.id,
+        path: `highlights[${index}]`,
+        sourceRegion: h.sourceRegion,
+        marker: h.marker ?? { show: true, color: '#6366F1' },
+        zoom: h.popup?.zoom ?? null,
+        width: h.popup?.width ?? null,
+        auto: h.popup?.auto === true,
+        connector: h.popup?.connector === true,
+        shape: h.popup?.shape ?? 'rect',
+        rim: h.popup?.rim ?? null,
+        rotation: h.popup?.rotation ?? 0,
+        // Only meaningful while auto is off; with auto on these record where the
+        // last render placed the card.
+        x: h.popup?.x ?? null,
+        y: h.popup?.y ?? null,
       })),
       shapes: (slide.shapes ?? []).map((shape, index) => ({
         index,

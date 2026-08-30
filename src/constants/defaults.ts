@@ -7,6 +7,7 @@ import type {
   DeviceFrame,
   DeviceType,
   Highlight,
+  HighlightMarker,
   HighlightRim,
   Ornament,
   OrnamentShape,
@@ -233,10 +234,14 @@ export function newId(prefix: string): string {
     : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-export function makeHighlight(overrides?: {
-  sourceRegion?: Highlight['sourceRegion']
-  popup?: Highlight['popup']
-}): Highlight {
+export function makeHighlight(
+  overrides?: {
+    sourceRegion?: Highlight['sourceRegion']
+    marker?: HighlightMarker
+    popup?: Highlight['popup']
+  },
+  accentColor?: string,
+): Highlight {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -247,6 +252,7 @@ export function makeHighlight(overrides?: {
   return {
     id,
     sourceRegion: overrides?.sourceRegion ?? { x: 0.25, y: 0.44, w: 0.5, h: 0.12 },
+    marker: overrides?.marker ?? { show: true, color: accentColor ?? DEFAULT_MARKER_COLOR },
     popup: overrides?.popup ?? {
       x: 0.5,
       y: 0.3,
@@ -568,6 +574,12 @@ export const DEFAULT_HIGHLIGHT_ZOOM = 2
 // unlike a tinted outline it never reads as editor chrome. It does disappear
 // where the card overlaps white UI, which is what the colour picker is for.
 export const DEFAULT_HIGHLIGHT_RIM: HighlightRim = { color: '#FFFFFF', width: 0.006 }
+
+// The boundary drawn around the sampled region. A new loupe takes the project's
+// accent so the marker belongs to the design; without one this indigo is the
+// fallback, and it is also what a highlight with no `marker` at all renders as.
+export const DEFAULT_MARKER_COLOR = '#6366F1'
+export const DEFAULT_MARKER: HighlightMarker = { show: true, color: DEFAULT_MARKER_COLOR }
 
 /** Magnification range offered in the panel and accepted from a manifest. */
 export const HIGHLIGHT_ZOOM_MIN = 1

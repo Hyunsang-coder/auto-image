@@ -1,6 +1,7 @@
 import type { ShapeKind, Slide } from '../../types/project'
 import type { ObjIdentity } from './FabricCanvas'
 import { LAYER_NAMES } from '../../canvas/layerNames'
+import { markerOf } from '../../canvas/objects/highlight'
 import { SHAPE_KINDS } from '../../constants/defaults'
 import { MenuButton } from '../common/MenuButton'
 import { PANEL_SECTIONS, type PanelTab } from './properties/sections'
@@ -83,12 +84,15 @@ function buildRows(slide: Slide, follower: Slide | null | undefined, t: (k: stri
       glyph: '◎',
       group: t('하이라이트'),
     })
-    rows.push({
-      id: { layerName: LAYER_NAMES.HIGHLIGHT_SOURCE, highlightId: h.id },
-      label: t('원본 영역'),
-      glyph: '⬚',
-      group: t('하이라이트'),
-    })
+    // A hidden marker draws no object, so a row for it would select nothing.
+    if (markerOf(h).show) {
+      rows.push({
+        id: { layerName: LAYER_NAMES.HIGHLIGHT_SOURCE, highlightId: h.id },
+        label: t('원본 영역'),
+        glyph: '⬚',
+        group: t('하이라이트'),
+      })
+    }
   }
 
   for (const img of slide.externalImages ?? []) {

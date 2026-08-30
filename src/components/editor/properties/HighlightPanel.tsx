@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Highlight, Slide } from '../../../types/project'
 import {
+  accentFromBackground,
   DEFAULT_HIGHLIGHT_RIM,
   DEFAULT_HIGHLIGHT_ZOOM,
   HIGHLIGHT_ZOOM_MAX,
@@ -9,9 +10,10 @@ import {
   MAX_HIGHLIGHTS,
   makeHighlight,
 } from '../../../constants/defaults'
+import { useProjectStore } from '../../../store/useProjectStore'
 import { normalizeAngle } from '../../../canvas/geometry'
 import { screenBoundsOf } from '../../../canvas/templateLayouts'
-import { zoomFromPixelWidth } from '../../../canvas/objects/highlight'
+import { markerOf, zoomFromPixelWidth } from '../../../canvas/objects/highlight'
 import { EDITOR_CANVAS_WIDTH } from '../../../constants/deviceSpecs'
 import { useT } from '../../../i18n'
 
@@ -23,10 +25,16 @@ interface Props {
 }
 
 const ZOOM_PRESETS = [1.5, 2, 2.5, 3]
+const SHAPES: { id: NonNullable<Highlight['popup']['shape']>; label: string }[] = [
+  { id: 'rect', label: '사각' },
+  { id: 'circle', label: '원형' },
+]
+
 
 export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props) {
   const t = useT()
   const atMax = value.length >= MAX_HIGHLIGHTS
+  const themeBackground = useProjectStore((s) => s.project?.themeBackground)
 
   // The same screen box the renderer will sample, so a legacy highlight (sized
   // by popup.width, before zoom existed) can be shown as the magnification it
@@ -46,7 +54,8 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
   }
 
   function add() {
-    onChange([...value, makeHighlight()])
+    // A new marker takes the project's accent, the same way a new badge does.
+    onChange([...value, makeHighlight(undefined, themeBackground ? accentFromBackground(themeBackground) : undefined)])
   }
   function update(id: string, patch: Partial<Highlight>) {
     onChange(value.map((h) => (h.id === id ? { ...h, ...patch } : h)))
@@ -148,6 +157,49 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
             </p>
           </Group>
 
+          <Group label={t('모양')}>
+            <div className="grid grid-cols-2 gap-1.5">
+              {SHAPES.map((sh) => (
+                <button
+                  key={sh.id}
+                  type="button"
+                  onClick={() => updatePopup(h.id, { shape: sh.id })}
+                  aria-pressed={(h.popup.shape ?? 'rect') === sh.id}
+                  className={`rounded border py-1 text-xs transition ${
+                    (h.popup.shape ?? 'rect') === sh.id
+                      ? 'border-[var(--color-accent-strong)] bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
+                      : 'border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-accent)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  {t(sh.label)}
+                </button>
+              ))}
+            </div>
+          </Group>
+
+          <Group label={t('원본 표시')}>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
+                <input
+                  type="checkbox"
+                  checked={markerOf(h).show}
+                  onChange={(e) =>
+                    update(h.id, { marker: { ...markerOf(h), show: e.target.checked } })
+                  }
+                  className="accent-[var(--color-accent)]"
+                />
+                {t('원본 테두리')}
+              </label>
+              {markerOf(h).show && (
+                <ColorPickerPopover
+                  color={markerOf(h).color}
+                  onChange={(c) => update(h.id, { marker: { ...markerOf(h), color: c } })}
+                  label={t('원본 테두리 색')}
+                />
+              )}
+            </div>
+          </Group>
+
           <Group label={t('배치')}>
             <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
               <input
@@ -158,12 +210,15 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
               />
               {t('자동 배치')}
             </label>
-            <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
+            <label
+              className={`flex items-center gap-1.5 text-xs text-[var(--color-text)] ${markerOf(h).show ? '' : 'opacity-40'}`}
+            >
               <input
                 type="checkbox"
-                checked={!!h.popup.connector}
+                checked={!!h.popup.connector && markerOf(h).show}
+                disabled={!markerOf(h).show}
                 onChange={(e) => updatePopup(h.id, { connector: e.target.checked })}
-                className="accent-[var(--color-accent)]"
+                className="accent-[var(--color-accent)] disabled:cursor-not-allowed"
               />
               {t('연결선')}
             </label>

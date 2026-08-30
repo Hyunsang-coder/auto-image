@@ -52,7 +52,12 @@ template, texts[i] / texts[i].pos / texts[i].boxWidth / texts[i].style.*
 gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→bottom,
 and emphasis {color?,fontWeight?} — painted onto ==word== marker ranges written
 inside caption text/translation strings via setText),
-badges[i].style.*, ornaments, highlights,
+badges[i].style.*, ornaments,
+highlights (whole-array; items {sourceRegion {x,y,w,h} — fractions of the
+SCREENSHOT box, not the canvas (live_inspect reports it as
+screenshot.canvasRect) — marker {show,color}, popup {zoom, auto, connector,
+shape: rect|circle, rim {color,width}, rotation, x, y}}. Size the card with
+popup.zoom and leave placement to popup.auto; see get_design_reference.highlight),
 shapes (whole-array; items {kind: rect|ellipse|line|arrow, x, y, width, height,
 rotation, fill (hex or "none"), opacity, cornerRadiusRatio (rect),
 stroke {color,width}, layer: back|front} — x/y = center fractions, width of
@@ -129,7 +134,12 @@ export function registerKnowledgeTools(server, { readImportSpec, designReference
   gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→bottom,
   and emphasis {color?,fontWeight?} — painted onto ==word== marker ranges written
   inside caption text/translation strings via setText),
-  badges[i].style.*, ornaments, highlights,
+  badges[i].style.*, ornaments,
+highlights (whole-array; items {sourceRegion {x,y,w,h} — fractions of the
+SCREENSHOT box, not the canvas (live_inspect reports it as
+screenshot.canvasRect) — marker {show,color}, popup {zoom, auto, connector,
+shape: rect|circle, rim {color,width}, rotation, x, y}}. Size the card with
+popup.zoom and leave placement to popup.auto; see get_design_reference.highlight),
   shapes (whole-array; items {kind: rect|ellipse|line|arrow, x, y, width, height,
   rotation, fill (hex or "none"), opacity, cornerRadiusRatio (rect),
   stroke {color,width}, layer: back|front} — x/y = center fractions, width of
@@ -242,14 +252,17 @@ export function registerLiveTools(server) {
       title: 'Inspect the project open in the app',
       description:
         'Read the LIVE project the user has open into the same agent-friendly JSON as inspect_bundle: per-slide ' +
-        'template, device, span role, text & badge content with setText field addresses, external images, and ' +
-        'structural issues. Use this to find what to address before live_patch.',
+        'template, device, span role, text & badge content with setText field addresses, external images, ' +
+        'highlights (loupes), and structural issues. Use this to find what to address before live_patch. ' +
+        'Unlike inspect_bundle it also reports screenshot.canvasRect — where the screenshot sits on the composed ' +
+        "canvas, in canvas fractions — because a highlight's sourceRegion is normalized to that box, not to the " +
+        'canvas you see in live_view.',
       inputSchema: {},
     },
     async () =>
       liveGuard(async () => {
-        const { project, images } = await liveCall('inspect')
-        return ok(inspectBundle({ bundleVersion: null, schemaVersion: null, project, images }))
+        const { project, images, screenRects } = await liveCall('inspect')
+        return ok(inspectBundle({ bundleVersion: null, schemaVersion: null, project, images, screenRects }))
       }),
   )
 

@@ -4,6 +4,7 @@ import {
   DEFAULT_BACKGROUND,
   DEFAULT_HIGHLIGHT_RIM,
   DEFAULT_HIGHLIGHT_ZOOM,
+  DEFAULT_MARKER,
   MAX_HIGHLIGHTS,
   THEME_PRESETS,
   headlinePlaceholder,
@@ -514,6 +515,28 @@ describe('parseManifest normalization', () => {
     // no rim it never asked for.
     const legacy = parseManifest(minimal({}, [{ highlights: [{ popup: { width: 0.9 } }] }]))
     expect(legacy.manifest?.slides[0].highlights?.[0].popup).toEqual({ width: 0.9 })
+  })
+
+  it('reads the region marker and the card silhouette', () => {
+    const { manifest } = parseManifest(
+      minimal({}, [
+        {
+          highlights: [
+            { marker: null, popup: { shape: 'circle' } },
+            { marker: { color: '#FF0000' } },
+          ],
+        },
+      ]),
+    )
+    const hl = manifest?.slides[0].highlights
+    // null hides the boundary but keeps the ink the leader line uses.
+    expect(hl?.[0].marker).toEqual({ show: false, color: DEFAULT_MARKER.color })
+    expect(hl?.[0].popup.shape).toBe('circle')
+    expect(hl?.[1].marker).toEqual({ show: true, color: '#FF0000' })
+    // Unset stays unset — the renderer falls back to the default marker.
+    expect(hl?.[1].popup.shape).toBeUndefined()
+    const bare = parseManifest(minimal({}, [{ highlights: [{}] }]))
+    expect(bare.manifest?.slides[0].highlights?.[0].marker).toBeUndefined()
   })
 
   it('auto-places a card the manifest did not place, and honours one it did', () => {

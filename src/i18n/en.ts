@@ -312,6 +312,8 @@ export const en: Record<string, string> = {
     '{where}: emphasis needs a color or fontWeight — ignored',
   '{where}: highlights는 배열이어야 함 — 무시':
     '{where}: highlights must be an array — ignored',
+  '{where}: marker 형식이 올바르지 않음 — 기본값 사용':
+    '{where}: marker is malformed — using the default',
   '{where}: popup.rim 형식이 올바르지 않음 — 기본값 사용':
     '{where}: popup.rim is malformed — using the default',
   '{where}: highlights는 최대 {max}개 — 처음 {max}개만 사용':
@@ -702,6 +704,14 @@ export const en: Record<string, string> = {
   배율: 'Zoom',
   '카드 크기는 배율에서 나옵니다. 영역을 다시 잡아도 배율은 그대로예요.':
     'The zoom sizes the card, so reframing the region keeps the magnification.',
+  모양: 'Shape',
+  // Card silhouette labels reach t() through a non-literal t(sh.label), so the
+  // en.test.ts scan can't see them — they have to be listed by hand.
+  사각: 'Rectangle',
+  원형: 'Circle',
+  '원본 표시': 'Region marker',
+  '원본 테두리': 'Mark the region',
+  '원본 테두리 색': 'Marker color',
   배치: 'Placement',
   '자동 배치': 'Auto placement',
   연결선: 'Leader line',

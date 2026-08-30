@@ -9,7 +9,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useProjectStore } from '../store/useProjectStore'
-import { DEFAULT_MODEL } from '../constants/deviceSpecs'
+import { DEFAULT_MODEL, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
+import { getCanvasHeight, screenBoundsOf } from '../canvas/templateLayouts'
 import { THEME_PRESETS, findThemePreset } from '../constants/defaults'
 import type { DeviceType, Project, Slide, Step } from '../types/project'
 import { projectImageKeys } from './imageRefs'
@@ -131,6 +132,11 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
     return {
       project,
       images: Object.fromEntries(projectImageKeys(project).map((key) => [key, `idb:${key}`])),
+      // A highlight's sourceRegion is normalized to the screenshot's box on the
+      // composed canvas, but all an agent can see is the render. Only the app
+      // can answer where that box is (the layout math lives in the TS graph the
+      // MCP process can't import), so it answers here.
+      screenRects: screenRectsOf(project),
     }
   },
 
@@ -213,4 +219,33 @@ export function startAgentBridge(): void {
     })
     await invoke('bridge_ready')
   })()
+}
+
+
+/**
+ * Each slide's screenshot box on the composed canvas, keyed by slide id, in
+ * canvas fractions so it lines up with a render at any resolution.
+ */
+function screenRectsOf(project: Project): Record<string, {
+  left: number
+  top: number
+  width: number
+  height: number
+}> {
+  const out: Record<string, { left: number; top: number; width: number; height: number }> = {}
+  for (const slide of project.slides) {
+    if (!slide.screenshot) continue
+    const span = !!slide.spanGroupId
+    const cw = span ? EDITOR_CANVAS_WIDTH * 2 : EDITOR_CANVAS_WIDTH
+    const ch = getCanvasHeight(slide)
+    const b = screenBoundsOf(slide, cw, ch, span)
+    if (!b) continue
+    out[slide.id] = {
+      left: b.left / cw,
+      top: b.top / ch,
+      width: b.width / cw,
+      height: b.height / ch,
+    }
+  }
+  return out
 }

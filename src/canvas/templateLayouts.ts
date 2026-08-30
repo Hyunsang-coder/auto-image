@@ -17,6 +17,7 @@ import {
   renderHighlightRim,
   renderHighlightSource,
   rotatedExtent,
+  markerOf,
 } from './objects/highlight'
 import { placeHighlightCards, type Box } from '../lib/highlightPlacement'
 import { renderOrnament } from './objects/ornament'
@@ -24,7 +25,7 @@ import { renderShape } from './objects/shape'
 import { LAYER_NAMES } from './layerNames'
 import { loadImageObjectUrl, type ImageUrlResolver } from '../lib/imageStore'
 
-function getCanvasHeight(slide: Slide): number {
+export function getCanvasHeight(slide: Slide): number {
   const spec = DEVICE_SPECS[slide.deviceFrame.model]
   return Math.round(
     (EDITOR_CANVAS_WIDTH / spec.exportWidth) * spec.exportHeight,
@@ -642,12 +643,15 @@ export async function applyTemplate(
     )
 
     for (const h of slide.highlights) {
-      canvas.add(renderHighlightSource(h, { screenBounds, rotation: hlRotation, canvasWidth: cw }))
+      const marker = renderHighlightSource(h, { screenBounds, rotation: hlRotation, canvasWidth: cw })
+      if (marker) canvas.add(marker)
     }
 
     // Leader lines go under the cards so a line never crosses the art it points at.
     slide.highlights.forEach((h, i) => {
-      if (!h.popup.connector) return
+      // The marker and its leader are one annotation: a line reaching out of a
+      // boundary that isn't drawn reads as a stray mark, not a cue.
+      if (!h.popup.connector || !markerOf(h).show) return
       const card = placed[i] ?? {
         x: cw * (h.popup.x ?? 0.5),
         y: ch * (h.popup.y ?? 0.32),

@@ -1,6 +1,7 @@
 import { FabricImage, Line, Rect, Shadow } from 'fabric'
 import type { Canvas, FabricObject } from 'fabric'
-import type { Highlight, ScreenshotImage } from '../../types/project'
+import type { Highlight, HighlightMarker, HighlightShape, ScreenshotImage } from '../../types/project'
+import { DEFAULT_MARKER, hexToRgb } from '../../constants/defaults'
 import { LAYER_NAMES } from '../layerNames'
 import { rotateAround } from '../geometry'
 import type { ImageUrlResolver } from '../../lib/imageStore'
@@ -29,9 +30,18 @@ export const POPUP_CORNER_RATIO = 0.06
 // canvas, the same convention as every other constant in the render path. A
 // flat 2px would draw the marker three times thinner in a 1320px export than
 // in the editor preview, and a leader line that thin disappears entirely.
-const SOURCE_MARKER_COLOR = '#6366F1'
 const SOURCE_MARKER_WIDTH = 2 / EDITOR_CANVAS_WIDTH
 const SOURCE_MARKER_DASH = [8, 6].map((d) => d / EDITOR_CANVAS_WIDTH)
+/** The marker's translucent wash, at the same alpha the fixed indigo used. */
+const SOURCE_MARKER_FILL_ALPHA = 0.1
+
+export const markerOf = (highlight: Highlight): HighlightMarker =>
+  highlight.marker ?? DEFAULT_MARKER
+
+/** Corner radius for a card: half the shorter side rounds a square into a circle. */
+function cornerRadius(width: number, height: number, shape: HighlightShape | undefined): number {
+  return Math.min(width, height) * (shape === 'circle' ? 0.5 : POPUP_CORNER_RATIO)
+}
 
 /**
  * The card's width on canvas in px. `zoom` is the source of truth: it multiplies
@@ -130,7 +140,10 @@ export function sourceRegionRectOnCanvas(
 export function renderHighlightSource(
   highlight: Highlight,
   ctx: Pick<HighlightRenderCtx, 'screenBounds' | 'rotation' | 'canvasWidth'>,
-): Rect {
+): Rect | null {
+  const marker = markerOf(highlight)
+  if (!marker.show) return null
+  const { r, g, b } = hexToRgb(marker.color)
   const box = sourceRegionRectOnCanvas(ctx.screenBounds, highlight.sourceRegion, ctx.rotation ?? 0)
   const rect = new Rect({
     left: box.left,
@@ -140,8 +153,8 @@ export function renderHighlightSource(
     angle: box.angle,
     originX: 'left',
     originY: 'top',
-    fill: 'rgba(99, 102, 241, 0.10)',
-    stroke: SOURCE_MARKER_COLOR,
+    fill: `rgba(${r}, ${g}, ${b}, ${SOURCE_MARKER_FILL_ALPHA})`,
+    stroke: marker.color,
     strokeWidth: SOURCE_MARKER_WIDTH * ctx.canvasWidth,
     strokeDashArray: SOURCE_MARKER_DASH.map((d) => d * ctx.canvasWidth),
     strokeUniform: true,
@@ -153,8 +166,8 @@ export function renderHighlightSource(
     lockScalingFlip: true,
     lockSkewingX: true,
     lockSkewingY: true,
-    borderColor: '#6366F1',
-    cornerColor: '#6366F1',
+    borderColor: marker.color,
+    cornerColor: marker.color,
     hoverCursor: 'move',
   })
   rect.setControlsVisibility({ mtr: false })
@@ -247,7 +260,7 @@ export async function renderHighlight(
 
   // Round the popup card. clipPath uses absolute coords so it tracks the image
   // position; sync code re-creates the clip after a drag.
-  const radius = Math.min(popupW, popupH) * POPUP_CORNER_RATIO
+  const radius = cornerRadius(popupW, popupH, popup.shape)
   img.clipPath = new Rect({
     left,
     top,
@@ -278,6 +291,7 @@ export async function renderHighlight(
   // Where auto placement put the card. Sync compares against it to tell a drag
   // (which pins the card) from the re-render that follows any other edit.
   ;(img as FabricImage & { _autoCenter?: { x: number; y: number } })._autoCenter = ctx.center
+  ;(img as FabricImage & { _shape?: HighlightShape })._shape = popup.shape
   return img
 }
 
@@ -293,7 +307,7 @@ function popupBox(popup: FabricObject): {
 } {
   const width = (popup.width ?? 0) * (popup.scaleX ?? 1)
   const height = (popup.height ?? 0) * (popup.scaleY ?? 1)
-  const r = Math.min(width, height) * POPUP_CORNER_RATIO
+  const r = cornerRadius(width, height, (popup as FabricObject & { _shape?: HighlightShape })._shape)
   return {
     left: popup.left ?? 0,
     top: popup.top ?? 0,
@@ -452,7 +466,7 @@ export function renderHighlightConnector(
   canvasWidth: number,
 ): Line {
   const line = new Line([seg.x1, seg.y1, seg.x2, seg.y2], {
-    stroke: SOURCE_MARKER_COLOR,
+    stroke: markerOf(highlight).color,
     strokeWidth: SOURCE_MARKER_WIDTH * canvasWidth,
     strokeDashArray: SOURCE_MARKER_DASH.map((d) => d * canvasWidth),
     strokeUniform: true,

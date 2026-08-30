@@ -15,7 +15,9 @@ import type {
   DeviceColor,
   DeviceModel,
   DeviceType,
+  HighlightMarker,
   HighlightRim,
+  HighlightShape,
   OrnamentShape,
   Project,
   ScreenshotCrop,
@@ -33,6 +35,7 @@ import {
   FONT_OPTIONS,
   DEFAULT_HIGHLIGHT_RIM,
   DEFAULT_HIGHLIGHT_ZOOM,
+  DEFAULT_MARKER,
   HIGHLIGHT_ZOOM_MAX,
   HIGHLIGHT_ZOOM_MIN,
   MAX_BACKGROUND_BLOBS,
@@ -142,6 +145,7 @@ export interface ParsedSlide {
  *  placement; the other fields fall back to makeHighlight-compatible defaults. */
 export interface ParsedHighlight {
   sourceRegion: { x: number; y: number; w: number; h: number }
+  marker?: HighlightMarker
   popup: {
     x?: number
     y?: number
@@ -151,6 +155,7 @@ export interface ParsedHighlight {
     rim?: HighlightRim
     auto?: boolean
     connector?: boolean
+    shape?: HighlightShape
   }
 }
 
@@ -927,6 +932,30 @@ export function coerceTextOverrides(
 
 /** Parse the per-slide `highlights` array. Each entry's missing fields fall
  *  back to makeHighlight's defaults so a partial region still renders. */
+/**
+ * The region's boundary. `marker: null` hides it; omitting it leaves the field
+ * unset, which renders as the default marker — the same as before it existed.
+ */
+function coerceMarker(
+  value: unknown,
+  where: string,
+  issues: string[],
+): { marker?: HighlightMarker } {
+  if (value === undefined) return {}
+  if (value === null) return { marker: { ...DEFAULT_MARKER, show: false } }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    issues.push(t('{where}: marker 형식이 올바르지 않음 — 기본값 사용', { where }))
+    return {}
+  }
+  const m = value as Record<string, unknown>
+  return {
+    marker: {
+      show: typeof m.show === 'boolean' ? m.show : DEFAULT_MARKER.show,
+      color: typeof m.color === 'string' ? m.color : DEFAULT_MARKER.color,
+    },
+  }
+}
+
 /** An optional boolean popup flag: explicit value wins, otherwise the default. */
 function coerceFlag<K extends string>(
   value: unknown,
@@ -1006,6 +1035,7 @@ export function coerceHighlights(
     // comes with the modern shape) only fill in when the popup didn't.
     const legacySizing = zoom === undefined && width !== undefined
     out.push({
+      ...coerceMarker(h.marker, hw, issues),
       sourceRegion: {
         x: coerceNumber(sr.x, 0, 1, hw, 'sourceRegion.x', issues) ?? fallback.sourceRegion.x,
         y: coerceNumber(sr.y, 0, 1, hw, 'sourceRegion.y', issues) ?? fallback.sourceRegion.y,
@@ -1023,6 +1053,7 @@ export function coerceHighlights(
         // only fills in for one that didn't say where the card goes.
         ...coerceFlag(p.auto, !legacySizing && popupX === undefined && popupY === undefined, 'auto'),
         ...coerceFlag(p.connector, !legacySizing, 'connector'),
+        ...(p.shape === 'circle' || p.shape === 'rect' ? { shape: p.shape } : {}),
       },
     })
   })
