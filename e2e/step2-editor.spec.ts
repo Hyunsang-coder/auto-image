@@ -416,3 +416,32 @@ test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   // 로컬라이즈 에디터 헤더 확인
   await expect(page.getByRole('button', { name: /로컬라이즈/ })).toHaveAttribute('aria-current', 'step')
 })
+
+// A slide sitting flush against the edge of the board is the bug this guards:
+// scrolling stops where the content does, so without wider outer gutters the
+// first and last slides can never reach the middle however hard you scroll.
+async function boardOffset(page: import('@playwright/test').Page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('canvas')!
+    let el: HTMLElement | null = canvas.parentElement
+    while (el && getComputedStyle(el).overflowX === 'visible') el = el.parentElement
+    const slide = canvas.getBoundingClientRect()
+    const board = el!.getBoundingClientRect()
+    return Math.abs(slide.left + slide.width / 2 - (board.left + board.width / 2))
+  })
+}
+
+test('첫·마지막 슬라이드를 선택해도 캔버스 보드 가운데에 놓인다', async ({ page }) => {
+  const thumbs = slideThumbs(page)
+  await expect(thumbs).toHaveCount(3)
+
+  await thumbs.first().click()
+  await expect.poll(() => boardOffset(page), { timeout: 3000 }).toBeLessThan(4)
+
+  await thumbs.last().click()
+  await expect.poll(() => boardOffset(page), { timeout: 3000 }).toBeLessThan(4)
+
+  // The middle one already worked; it must keep working.
+  await thumbs.nth(1).click()
+  await expect.poll(() => boardOffset(page), { timeout: 3000 }).toBeLessThan(4)
+})

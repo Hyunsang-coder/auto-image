@@ -1,7 +1,11 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { RowItem } from './slideRows'
 import { EDITOR_CANVAS_WIDTH, editorCanvasHeight } from '../../constants/deviceSpecs'
 import { useT } from '../../i18n'
+
+/** `gap-8` and the vertical `py-8`, in px — the padding maths needs the numbers. */
+const GAP = 32
+const GUTTER = 32
 
 interface Props {
   rows: RowItem[]
@@ -27,29 +31,65 @@ export function CanvasBoard({ rows, activeSlideId, thumbs, zoom, onSelect, onVie
   const t = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
   const activeRef = useRef<HTMLDivElement>(null)
-
-  // Keep the edited slide on screen when the selection moves from the tray or
-  // the layer panel — otherwise switching slides can leave the canvas scrolled
-  // out of view on a wide project.
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' })
-  }, [activeSlideId])
+  const [viewportWidth, setViewportWidth] = useState(0)
 
   // Report the visible height so the caller can pick a zoom that fits a whole
   // slide. Measured rather than assumed: the tray and toolbar are resizable.
+  // The width is measured here too — the end padding below depends on it.
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const report = () => onViewportHeight(el.clientHeight)
+    const report = () => {
+      onViewportHeight(el.clientHeight)
+      setViewportWidth(el.clientWidth)
+    }
     report()
     const ro = new ResizeObserver(report)
     ro.observe(el)
     return () => ro.disconnect()
   }, [onViewportHeight])
 
+  // Scrolling stops where the content does, so with a uniform gutter the first
+  // and last slides can never reach the middle of the viewport however hard you
+  // scroll — selecting one leaves it pinned to an edge. Widening the outer
+  // gutters to half the empty space gives those two the room every slide in the
+  // middle already has.
+  const slideWidth = EDITOR_CANVAS_WIDTH * zoom
+  const rowWidth = (row: RowItem) => row.slides.length * slideWidth
+  const contentWidth =
+    rows.reduce((w, row) => w + rowWidth(row), 0) + GAP * Math.max(0, rows.length - 1)
+  // Only when the set actually overflows: padding a set that already fits would
+  // introduce a scrollbar and shove it off-centre.
+  const overflows = viewportWidth > 0 && contentWidth + GUTTER * 2 > viewportWidth
+  const padStart =
+    overflows && rows.length ? Math.max(GUTTER, (viewportWidth - rowWidth(rows[0])) / 2) : GUTTER
+  const padEnd =
+    overflows && rows.length
+      ? Math.max(GUTTER, (viewportWidth - rowWidth(rows[rows.length - 1])) / 2)
+      : GUTTER
+
+  // Keep the edited slide on screen when the selection moves from the tray or
+  // the layer panel — otherwise switching slides can leave the canvas scrolled
+  // out of view on a wide project. Re-runs when the padding lands (first
+  // measurement, resize, zoom) so the centring is against the final layout.
+  useEffect(() => {
+    const el = activeRef.current
+    if (!el) return
+    const centre = () => el.scrollIntoView({ block: 'nearest', inline: 'center' })
+    centre()
+    // The live canvas mounts into this row and only takes its width a frame
+    // later, so centring once aims at a half-built box and stops short.
+    const ro = new ResizeObserver(centre)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [activeSlideId, padStart, padEnd])
+
   return (
     <div ref={scrollRef} className="flex-1 overflow-auto bg-[var(--color-bg)]">
-      <div className="flex w-max items-start gap-8 p-8">
+      <div
+        className="flex w-max items-start gap-8 py-8"
+        style={{ paddingInlineStart: padStart, paddingInlineEnd: padEnd }}
+      >
         {rows.map((row) => {
           const isActive = row.slides.some((s) => s.id === activeSlideId)
           const first = row.slides[0]
