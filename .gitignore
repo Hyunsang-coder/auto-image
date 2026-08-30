@@ -16,10 +16,15 @@ dist-ssr
 .env
 .env.*
 
-# Agent runtime state
+# Agent runtime state (the /deploy command is tracked; these are machine-local)
 .claude/scheduled_tasks.lock
 .claude/handoff.md
 .claude/skills/
+.claude/settings.local.json
+.claude/launch.json
+
+# Release artifacts (rebuild from the tag)
+dist-release
 
 # Playwright
 test-results

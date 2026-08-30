@@ -29,6 +29,7 @@ npm run mcp          # MCP stdio server exposing the headless pipeline to AI age
 npm run test:mcp     # smoke: MCP tool registration + knowledge tools (no browser)
 npm run tauri:dev    # macOS desktop shell (Tauri v2) wrapping the app + agent bridge
 npm run tauri:build  # bundle the .app (signing/notarization: docs/SIGNING.md)
+./scripts/release.sh <version> [--notes FILE] [--dry-run]  # gates → signed+notarized universal build → verify → tag → GitHub release
 npm run test:e2e     # playwright e2e (chromium, against the Vite dev server)
 npm run test:e2e:ui  # playwright UI mode
 ```
@@ -37,7 +38,9 @@ E2E specs live in `e2e/` (one per step + a top-level navigation spec). `playwrig
 
 Project-specific Codex skills live in `.agents/skills/` (for example `test`,
 `update-tests`, `verifier-project-import`, and `promo-video`). `.claude/` is
-reserved for local runtime state and is not the canonical skill source.
+reserved for local runtime state and is not the canonical skill source — the one
+exception is `.claude/commands/deploy.md`, the `/deploy` command, which is a thin
+wrapper over `scripts/release.sh` (the script is the source of truth).
 
 ## Architecture
 
