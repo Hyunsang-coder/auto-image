@@ -56,7 +56,7 @@
 | `slides[].shapes` | array | — | 벡터 도형(rect/ellipse/line/arrow), 슬라이드당 최대 8개 — 아래 참조 |
 | `slides[].externalImages` | array | — | 기기 스크린샷과 독립된 bitmap 이미지, 슬라이드당 최대 3개. 각 항목의 `file`은 같이 선택한 이미지 파일명. 렌더 스타일은 `screenshotStyle`과 같은 `cornerRadiusRatio`/`shadow`/`crop`을 사용 |
 | `slides[].texts` | array | — | **블록별 텍스트 스타일/위치 오버라이드**(폰트·색·정렬·박스 등) — 아래 참조 |
-| `slides[].highlights` | array | — | **루페(돋보기)** — 스크린샷 특정 영역 확대 카드, 슬라이드당 최대 3개 — 아래 참조 |
+| `slides[].highlights` | array | — | **루페(돋보기)** — 스크린샷 특정 영역 확대 카드, 슬라이드당 최대 2개 — 아래 참조 |
 | `slides[].badges` | array | — | 배지/필 슬롯. 캡션 파일의 `badge:N` 행으로 텍스트/번역 채움 — 아래 참조 |
 | `slides[].span` | object | — | 인접한 두 슬라이드를 2-page span으로 묶음 — 아래 참조 |
 

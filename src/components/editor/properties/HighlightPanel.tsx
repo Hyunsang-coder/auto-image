@@ -1,5 +1,5 @@
 import type { Highlight } from '../../../types/project'
-import { makeHighlight } from '../../../constants/defaults'
+import { MAX_HIGHLIGHTS, makeHighlight } from '../../../constants/defaults'
 import { normalizeAngle } from '../../../canvas/geometry'
 import { useT } from '../../../i18n'
 
@@ -11,6 +11,7 @@ interface Props {
 
 export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
   const t = useT()
+  const atMax = value.length >= MAX_HIGHLIGHTS
   function add() {
     onChange([...value, makeHighlight()])
   }
@@ -35,8 +36,14 @@ export function HighlightPanel({ value, hasScreenshot, onChange }: Props) {
         <button
           type="button"
           onClick={add}
-          disabled={!hasScreenshot}
-          title={hasScreenshot ? t('하이라이트 추가') : t('먼저 스크린샷을 업로드하세요')}
+          disabled={!hasScreenshot || atMax}
+          title={
+            !hasScreenshot
+              ? t('먼저 스크린샷을 업로드하세요')
+              : atMax
+                ? t('최대 {n}개까지 추가할 수 있습니다', { n: MAX_HIGHLIGHTS })
+                : t('하이라이트 추가')
+          }
           className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-text)] transition hover:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {t('+ 추가')}

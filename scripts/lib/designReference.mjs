@@ -5,6 +5,7 @@
 
 import {
   FONT_OPTIONS,
+  MAX_HIGHLIGHTS,
   MAX_TEXTS,
   ORNAMENT_DEFAULTS,
   SHAPE_DEFAULTS,
@@ -47,7 +48,7 @@ export function buildDesignReference() {
       ornamentsPerSlide: 5,
       shapesPerSlide: 8,
       externalImagesPerSlide: 3,
-      highlightsPerSlide: 3,
+      highlightsPerSlide: MAX_HIGHLIGHTS,
     },
     editorCanvasWidth: EDITOR_CANVAS_WIDTH,
     notes: [

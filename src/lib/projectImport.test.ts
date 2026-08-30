@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildProjectFromManifest, isManifestShaped, parseManifest } from './projectImport'
-import { DEFAULT_BACKGROUND, THEME_PRESETS, headlinePlaceholder } from '../constants/defaults'
+import { DEFAULT_BACKGROUND, MAX_HIGHLIGHTS, THEME_PRESETS, headlinePlaceholder } from '../constants/defaults'
 import { getDeviceDimensions, getDeviceLayout } from '../canvas/templateLayouts'
 import { DEVICE_SPECS, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 
@@ -477,8 +477,8 @@ describe('parseManifest normalization', () => {
     const capped = parseManifest(
       minimal({}, [{ highlights: Array.from({ length: 4 }, () => ({})) }]),
     )
-    expect(capped.manifest?.slides[0].highlights).toHaveLength(3)
-    expect(capped.issues.some((i) => i.includes('최대 3개'))).toBe(true)
+    expect(capped.manifest?.slides[0].highlights).toHaveLength(MAX_HIGHLIGHTS)
+    expect(capped.issues.some((i) => i.includes(`최대 ${MAX_HIGHLIGHTS}개`))).toBe(true)
 
     const bad = parseManifest(minimal({}, [{ highlights: { width: 0.5 } }]))
     expect(bad.manifest?.slides[0].highlights).toBeUndefined()

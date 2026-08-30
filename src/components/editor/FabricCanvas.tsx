@@ -12,7 +12,7 @@ import { parseEmphasis } from '../../lib/emphasis'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
-import { CAPTION_FONT_SIZE_MAX, CAPTION_FONT_SIZE_MIN, MAX_SHAPES, newId } from '../../constants/defaults'
+import { CAPTION_FONT_SIZE_MAX, CAPTION_FONT_SIZE_MIN, MAX_HIGHLIGHTS, MAX_SHAPES, newId } from '../../constants/defaults'
 import { EDITOR_CANVAS_WIDTH, editorCanvasHeight } from '../../constants/deviceSpecs'
 
 const SEAM_LAYER = 'span-seam-guide'
@@ -1066,7 +1066,11 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
                 { ...src, id: newId('ext'), x: clamp01(src.x + 0.03), y: clamp01(src.y + 0.03) },
               ],
             }
-        } else if ((ln === LAYER_NAMES.HIGHLIGHT_POPUP || ln === LAYER_NAMES.HIGHLIGHT_SOURCE) && a.highlightId) {
+        } else if (
+          (ln === LAYER_NAMES.HIGHLIGHT_POPUP || ln === LAYER_NAMES.HIGHLIGHT_SOURCE) &&
+          a.highlightId &&
+          (slide.highlights ?? []).length < MAX_HIGHLIGHTS
+        ) {
           const src = (slide.highlights ?? []).find((h) => h.id === a.highlightId)
           if (src)
             patch = {

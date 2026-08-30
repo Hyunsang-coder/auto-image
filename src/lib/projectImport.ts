@@ -31,6 +31,7 @@ import {
   BLOB_BLEND_MODES,
   FONT_OPTIONS,
   MAX_BACKGROUND_BLOBS,
+  MAX_HIGHLIGHTS,
   MAX_SHAPES,
   MAX_TEXTS,
   ORNAMENT_DEFAULTS,
@@ -53,7 +54,6 @@ import { DEFAULT_MODEL, MODELS_BY_TYPE } from '../constants/deviceSpecs'
 const MAX_SLIDES = 10
 const MAX_ORNAMENTS = 5
 const MAX_EXTERNAL_IMAGES = 3
-const MAX_HIGHLIGHTS = 3 // a loupe per slide reads clean; more clutters the cut
 const MAX_BADGES = 5
 const HIGHLIGHT_DIM_MIN = 0.02 // a sampling window narrower than this is degenerate
 const POPUP_WIDTH_MIN = 0.1

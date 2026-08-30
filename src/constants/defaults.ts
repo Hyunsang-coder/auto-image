@@ -548,6 +548,9 @@ export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>
 /** Max generic shapes per slide. */
 export const MAX_SHAPES = 8
 
+/** Max loupes per slide. One reads clean, two is the ceiling before the cut clutters. */
+export const MAX_HIGHLIGHTS = 2
+
 // Per-kind defaults chosen so a freshly added shape reads immediately: rect/
 // ellipse are translucent color blocks behind the device (layer 'back'),
 // line/arrow are solid annotation marks above it (layer 'front'). Module-scope
