@@ -57,6 +57,8 @@ function App() {
   const [justSavedTemplate, setJustSavedTemplate] = useState(false)
   const [storageError, setStorageError] = useState(false)
   const [recovery, setRecovery] = useState<Extract<RecoveryDecision, { kind: 'offer' }> | null>(null)
+  const [saveWarning, setSaveWarning] = useState(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
   // Fraction of the localStorage budget in use, once it is high enough to be
   // worth saying. Seeded from what is already on disk so a session that opens
   // an already-full store hears about it before its first write fails.
@@ -143,7 +145,7 @@ function App() {
     w.__downloadProjectBundle = async () => {
       const p = useProjectStore.getState().project
       if (!p) return
-      saveAs(await exportProjectBundle(p), `${p.name || 'project'}.studio.zip`)
+      saveAs((await exportProjectBundle(p)).blob, `${p.name || 'project'}.studio.zip`)
     }
   }, [])
 
@@ -203,7 +205,16 @@ function App() {
   async function handleExportBundle() {
     const current = useProjectStore.getState().project
     if (!current) return
-    saveAs(await exportProjectBundle(current), `${current.name || t('제목 없음')}.studio.zip`)
+    try {
+      const { blob, missingImageKeys } = await exportProjectBundle(current)
+      saveAs(blob, `${current.name || t('제목 없음')}.studio.zip`)
+      // The file is still worth having — it carries every caption, layout and
+      // setting. But a save that quietly shipped fewer images than the project
+      // references is exactly the failure nobody notices until reopening it.
+      if (missingImageKeys.length) setSaveWarning(missingImageKeys.length)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e))
+    }
   }
 
   function openTemplateModal() {
@@ -547,6 +558,41 @@ function App() {
               className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
             >
               {t('복구하기')}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {saveError !== null && (
+        <Modal title={t('프로젝트 파일 저장')} onClose={() => setSaveError(null)}>
+          <p className="mt-2 text-sm text-[var(--color-danger)]">
+            {t('저장하지 못했습니다. 프로젝트는 그대로 열려 있습니다.')}
+          </p>
+          <p className="mt-2 break-words text-xs text-[var(--color-text-dim)]">{saveError}</p>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSaveError(null)}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('닫기')}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {saveWarning > 0 && (
+        <Modal title={t('프로젝트 파일 저장')} onClose={() => setSaveWarning(0)}>
+          <p className="mt-2 text-sm text-[var(--color-warning)]">
+            {t('저장했지만 이미지 {n}개를 파일에 담지 못했습니다 — 이 브라우저 저장소에서 이미 사라진 이미지입니다. 다른 기기에서 열면 그 자리가 비어 보입니다.', { n: saveWarning })}
+          </p>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setSaveWarning(0)}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('닫기')}
             </button>
           </div>
         </Modal>

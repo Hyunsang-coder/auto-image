@@ -24,18 +24,35 @@ function extFor(type: string): string {
   return 'bin'
 }
 
+export interface BundleExport {
+  blob: Blob
+  /**
+   * References whose blob was gone from IndexedDB, so the zip could not carry
+   * them. Reported rather than swallowed: this is the one shape in which a save
+   * that says it succeeded still loses pixels, and only the caller can decide
+   * whether to keep the file or go find the missing images first.
+   */
+  missingImageKeys: string[]
+}
+
 /**
  * Pack the full project + its IndexedDB image blobs into one portable .zip so
  * work can be saved, moved, and reopened for later tweaking. The project JSON is
  * self-contained except for image blobs (referenced by `imageKey`), which ride
  * along under `images/`. Same image surface as the GC keep-set (`projectImageKeys`).
  */
-export async function exportProjectBundle(project: Project): Promise<Blob> {
+export async function exportProjectBundle(project: Project): Promise<BundleExport> {
   const zip = new JSZip()
   const images: Record<string, string> = {}
+  const missingImageKeys: string[] = []
   for (const key of [...new Set(projectImageKeys(project))]) {
     const blob = await loadImageBlob(key)
-    if (!blob) continue // pointer stays in JSON; an already-missing blob just won't resolve
+    if (!blob) {
+      // The pointer stays in the JSON so reopening elsewhere degrades the same
+      // way it does here, rather than silently dropping the reference too.
+      missingImageKeys.push(key)
+      continue
+    }
     const path = `images/${key.replace('img:', '')}.${extFor(blob.type)}`
     zip.file(path, blob)
     images[key] = path
@@ -47,7 +64,7 @@ export async function exportProjectBundle(project: Project): Promise<Blob> {
     images,
   }
   zip.file(MANIFEST, JSON.stringify(manifest, null, 2))
-  return zip.generateAsync({ type: 'blob' })
+  return { blob: await zip.generateAsync({ type: 'blob' }), missingImageKeys }
 }
 
 /**

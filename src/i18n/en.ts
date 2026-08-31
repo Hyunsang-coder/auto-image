@@ -66,6 +66,10 @@ export const en: Record<string, string> = {
     'The project you were last editing is no longer in this browser\u2019s storage. It can be recovered from the backup on disk.',
   '디스크 백업본이 지금 열려 있는 프로젝트보다 최신입니다. 저장 공간이 가득 차 최근 변경 사항이 기록되지 못했을 때 이렇게 됩니다.':
     'The backup on disk is newer than the project currently open. This happens when storage fills up and recent changes stop being recorded.',
+  '저장하지 못했습니다. 프로젝트는 그대로 열려 있습니다.':
+    'Could not save. Your project is still open and unchanged.',
+  '저장했지만 이미지 {n}개를 파일에 담지 못했습니다 — 이 브라우저 저장소에서 이미 사라진 이미지입니다. 다른 기기에서 열면 그 자리가 비어 보입니다.':
+    'Saved, but {n} image(s) could not be packed into the file — they were already gone from this browser\u2019s storage. Opening the file elsewhere will show gaps where they were.',
   무시하기: 'Ignore',
   복구하기: 'Recover',
 
