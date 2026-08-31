@@ -130,6 +130,10 @@ export async function armAutosave(active: Project | null): Promise<ArmedAutosave
           // as a mirror that is behind, which is the safe direction.
         })
       }
+      // Write once up front rather than waiting for the next edit. This is what
+      // resolves a recovery offer: whichever copy the user kept becomes the
+      // mirror, so declining does not re-offer the same file on every launch.
+      flush()
       const unsubscribe = subscribe(() => {
         if (timer) clearTimeout(timer)
         timer = setTimeout(flush, DEBOUNCE_MS)

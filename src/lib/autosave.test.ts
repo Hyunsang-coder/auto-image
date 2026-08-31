@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const invoke = vi.fn()
+vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }))
+
 import type { Project } from '../types/project'
 import { makeProject, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { PROJECT_SCHEMA_VERSION } from './projectMigrate'
-import { chooseRecovery } from './autosave'
+import { armAutosave, chooseRecovery } from './autosave'
 
 function proj(name: string, updatedAt: string): Project {
   const p = makeProject({
@@ -78,5 +82,47 @@ describe('chooseRecovery', () => {
   it('refuses a mirror that is not a revivable project', () => {
     const broken = { ...proj('A', '2026-08-31T18:00:00Z'), slides: undefined } as unknown as Project
     expect(chooseRecovery(null, snapshot(broken))).toEqual({ kind: 'none' })
+  })
+})
+
+describe('the mirror', () => {
+  beforeEach(() => {
+    invoke.mockReset()
+    invoke.mockResolvedValue(null)
+    ;(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {}
+  })
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+  })
+
+  // Resolving a recovery offer has to land in the mirror straight away.
+  // Otherwise declining leaves the newer copy on disk, and the same offer comes
+  // back on every launch until the user happens to make an edit.
+  it('writes as soon as it starts, without waiting for an edit', async () => {
+    const armed = await armAutosave(null)
+    invoke.mockClear()
+    const stop = armed.begin(() => proj('Kept', '2026-08-31T10:00:00Z'), () => () => {})
+
+    const write = invoke.mock.calls.find(([cmd]) => cmd === 'autosave_write')
+    expect(write).toBeDefined()
+    expect(JSON.parse((write![1] as { json: string }).json).project.name).toBe('Kept')
+    stop()
+  })
+
+  it('clears the mirror rather than writing a null project', async () => {
+    const armed = await armAutosave(null)
+    invoke.mockClear()
+    const stop = armed.begin(() => null, () => () => {})
+
+    expect(invoke.mock.calls.map(([cmd]) => cmd)).toContain('autosave_clear')
+    stop()
+  })
+
+  it('does nothing at all off the desktop', async () => {
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+    const armed = await armAutosave(null)
+    expect(armed.decision).toEqual({ kind: 'none' })
+    armed.begin(() => proj('X', '2026-08-31T10:00:00Z'), () => () => {})()
+    expect(invoke).not.toHaveBeenCalled()
   })
 })
