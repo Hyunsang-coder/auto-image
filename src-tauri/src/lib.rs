@@ -1,12 +1,15 @@
 use base64::Engine;
 
 mod bridge;
+mod save;
 mod update;
 
 // Write one file under a user-chosen export directory. Custom command (not the
 // fs plugin) so it can write into any folder the dialog returned without
 // declaring an fs scope — fine for a local BYO-key desktop tool. Called once
 // per PNG so a full export never holds every blob in a single IPC payload.
+// The write itself is atomic (see save::write_atomic), so an interrupted export
+// leaves whatever was already there rather than a truncated file.
 #[tauri::command]
 fn write_file(dir: String, path: String, data_base64: String, executable: bool) -> Result<(), String> {
     // Defense in depth: the relative path must stay under `dir`. An absolute
@@ -23,10 +26,7 @@ fn write_file(dir: String, path: String, data_base64: String, executable: bool) 
         .decode(data_base64.as_bytes())
         .map_err(|e| e.to_string())?;
     let full = std::path::Path::new(&dir).join(&path);
-    if let Some(parent) = full.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    std::fs::write(&full, bytes).map_err(|e| e.to_string())?;
+    save::write_atomic(&full, &bytes).map_err(|e| e.to_string())?;
     if executable {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&full, std::fs::Permissions::from_mode(0o755))
@@ -69,6 +69,9 @@ pub fn run() {
     .manage(bridge::BridgeState::default())
     .invoke_handler(tauri::generate_handler![
       write_file,
+      save::autosave_write,
+      save::autosave_read,
+      save::autosave_clear,
       bridge::bridge_respond,
       bridge::bridge_ready,
       bridge::bridge_status,

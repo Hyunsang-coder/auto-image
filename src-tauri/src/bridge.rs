@@ -138,7 +138,7 @@ async fn handle_conn<R: Runtime>(app: AppHandle<R>, stream: UnixStream) {
     }
 }
 
-fn config_dir<R: Runtime>(app: &AppHandle<R>) -> io::Result<PathBuf> {
+pub(crate) fn config_dir<R: Runtime>(app: &AppHandle<R>) -> io::Result<PathBuf> {
     let dir = app
         .path()
         .app_config_dir()
