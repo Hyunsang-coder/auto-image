@@ -41,6 +41,12 @@ jobs:
       # back to token auth, which no longer exists here.
       - run: npm install -g npm@latest
 
+      - run: |
+          echo "npm $(npm -v)  node $(node -v)"
+          echo "id-token env: ${ACTIONS_ID_TOKEN_REQUEST_URL:+present}${ACTIONS_ID_TOKEN_REQUEST_URL:-ABSENT}"
+          echo "userconfig: ${NPM_CONFIG_USERCONFIG:-none}"
+          cat "${NPM_CONFIG_USERCONFIG:-/dev/null}" 2>/dev/null | sed 's/=.*/=<redacted>/' || true
+
       # A tag can be pushed without the package version having moved, and a
       # re-run of this workflow must not fail on an already-published version.
       - id: check
