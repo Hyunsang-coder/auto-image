@@ -38,21 +38,20 @@ export function ProjectSetup() {
   const [ignoredOnOpen, setIgnoredOnOpen] = useState(0)
   const [bundleError, setBundleError] = useState(false)
 
-  const [name, setName] = useState(existingProject?.name ?? t('내 앱'))
+  // Defaults, never the open project's values: this form only ever mints a NEW
+  // project, and seeding it from the current one made both "새로 만들기" and
+  // "템플릿으로 시작" produce a project wearing the old project's name — which
+  // reads on screen as the new project having opened into the existing one.
+  const [name, setName] = useState(t('내 앱'))
   // Exactly one device type per project (radio, never both/neither). The chosen
   // App Store size per type is picked here too and seeds project.deviceModels.
-  const [device, setDevice] = useState<DeviceType>(
-    existingProject?.devices?.[0] ?? 'iphone',
-  )
+  const [device, setDevice] = useState<DeviceType>('iphone')
   const [deviceModel, setDeviceModel] = useState<Record<DeviceType, DeviceModel>>({
-    iphone: existingProject?.deviceModels?.iphone ?? DEFAULT_MODEL.iphone,
-    ipad: existingProject?.deviceModels?.ipad ?? DEFAULT_MODEL.ipad,
+    ...DEFAULT_MODEL,
   })
-  const [count, setCount] = useState<number>(
-    existingProject?.screenshotCount ?? 5,
-  )
-  const [themeBackground, setThemeBackground] = useState<Background>(
-    existingProject?.themeBackground ?? structuredClone(DEFAULT_BACKGROUND),
+  const [count, setCount] = useState(5)
+  const [themeBackground, setThemeBackground] = useState<Background>(() =>
+    structuredClone(DEFAULT_BACKGROUND),
   )
 
   const canSubmit = name.trim().length > 0
