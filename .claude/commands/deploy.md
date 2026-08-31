@@ -76,13 +76,16 @@ matching edit, or make it.
   `npm view screenshot-studio-mcp version` against `packages/mcp/package.json` before you write
   the notes, and say so in them if they differ.
 - Publishing normally happens on its own: `.github/workflows/publish-mcp.yml` fires on the
-  `v*` tag this script pushes, and skips when the version is already on npm. Check the run
-  before reaching for the manual path below — that one is the fallback for when the
-  `NPM_TOKEN` secret is missing or the workflow failed.
+  `v*` tag this script pushes, and skips when the version is already on npm. It authenticates
+  by OIDC trusted publishing — there is no token to keep alive, but the trust is registered on
+  the package at npmjs.com against this repo *and the workflow's filename*, so a renamed
+  workflow fails with a bare "cannot publish". Check the run before reaching for the manual
+  path below.
 - Publishing by hand needs 2FA, but **not** the user typing a code to you. The account is
   `auth-and-writes`, so npm challenges every write; with `auth-type=web` it answers that in a
   browser — it just needs a TTY to start the flow, which a plain tool call does not have (you
-  get a bare `EOTP` instead). Give it one:
+  get a bare `EOTP` instead). The local `~/.npmrc` token may also have expired (`npm whoami`
+  → E401), in which case `npm login --auth-type=web` comes first. Give it a TTY:
 
   ```
   cd packages/mcp && script -q /dev/null npm publish --auth-type=web

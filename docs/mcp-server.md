@@ -125,23 +125,40 @@ import spec)를 다시 굽기 때문에, 발행 전에 따로 빌드할 필요�
 있으면 건너뛴다 — 태그마다 버전이 오르는 게 아니고, 워크플로 재실행도 안전해야
 하기 때문이다.
 
-리포 시크릿 **`NPM_TOKEN`**이 필요하며, npm의 **Automation** 토큰이어야 한다.
-계정이 `auth-and-writes`라 일반 토큰은 쓰기마다 챌린지에 걸리는데, Automation
-타입만 그 예외다(CI에는 승인해 줄 사람이 없으니 당연하다).
+**인증은 토큰이 아니라 OIDC trusted publishing이다.** npm이 2025-12-09에 classic
+토큰(Automation 포함)을 전부 폐기했고, 그 자리를 대신한 granular 토큰은 쓰기 권한이
+있으면 **90일**마다 만료되며 2027-01부터는 publish 자체를 잃는다. 그래서 시크릿을
+두지 않는다 — 워크플로가 `id-token: write`로 OIDC 토큰을 발급받고, npm이 그것을
+검증한다. 부수 효과로 provenance가 자동으로 붙는다.
+
+npmjs.com 쪽 설정은 패키지 Settings → Trusted Publisher → GitHub Actions:
+
+| 칸 | 값 |
+|---|---|
+| Organization or user | `Hyunsang-coder` |
+| Repository | `auto-image` |
+| Workflow filename | `publish-mcp.yml` |
+
+파일명이 **정확히** 일치해야 하므로 워크플로 파일을 옮기거나 이름을 바꾸면 npm 쪽도
+같이 고쳐야 한다. 요구 조건: GitHub 호스팅 러너(셀프호스티드 불가), npm ≥ 11.5.1
+(워크플로가 `npm install -g npm@latest`로 확보), `package.json`의 `repository.url`이
+실제 리포와 일치할 것, 그리고 환경에 `NODE_AUTH_TOKEN`이 **없을** 것(있으면 그쪽이
+이긴다).
 
 ### 손으로 발행 (폴백)
 
-계정 2FA가 `auth-and-writes`라 **쓰기마다** 챌린지가 걸린다. `auth-type`이 `web`이면
-브라우저로 답할 수 있지만, 그 흐름을 시작하려면 TTY가 필요하다 — TTY 없는
-셸에서는 브라우저를 못 띄우고 곧장 `EOTP`로 떨어진다. 의사 TTY를 붙이면 된다:
+CI가 막혔고 지금 당장 올려야 하면 로컬에서 발행할 수 있다. 계정 2FA가
+`auth-and-writes`라 쓰기마다 챌린지가 걸리고, 브라우저 승인 흐름은 TTY가 있어야
+시작된다 — TTY 없는 셸에서는 곧장 `EOTP`로 떨어진다. 의사 TTY를 붙인다:
 
 ```bash
+npm login --auth-type=web          # ~/.npmrc 토큰은 만료돼 있을 수 있다 (E401)
 cd packages/mcp && script -q /dev/null npm publish --auth-type=web
 ```
 
 출력에 뜨는 `https://www.npmjs.com/auth/cli/...`를 브라우저에서 승인하면 발행이
 끝난다. (`--otp=`로 코드를 넘기는 길도 있지만, 웹 승인이 코드를 주고받지 않아
-낫다.)
+낫다.) 이 경로에는 provenance가 붙지 않는다.
 
 발행 직후 `npm view`는 캐시된 packument를 내주며 한동안 옛 버전을 보고한다.
 성공 여부는 레지스트리에 직접 묻는다:

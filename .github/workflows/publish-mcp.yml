@@ -4,9 +4,11 @@ name: Publish MCP package
 # shipping a release whose agent half is still a version behind on npm. Tie the
 # publish to the release tag so it cannot be forgotten.
 #
-# Needs an NPM_TOKEN repository secret holding an npm **Automation** token —
-# that type is the one npm exempts from the account's 2FA-on-write setting, so
-# no interactive approval is possible (or needed) here.
+# Auth is OIDC trusted publishing, not a token: npm revoked classic (including
+# Automation) tokens in December 2025, and the granular token that replaced them
+# expires every 90 days and loses publish rights in January 2027. The trust is
+# configured on the package at npmjs.com — org, repo, and *this filename* — so
+# renaming this file breaks publishing until npm is told the new name.
 on:
   push:
     tags: ['v*']
@@ -15,6 +17,10 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # id-token is what lets the runner mint the OIDC token npm verifies.
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -27,6 +33,10 @@ jobs:
       # `npm run --prefix ../.. mcp:package`, which needs tsx and the TS
       # constants to regenerate data/design-reference.json.
       - run: npm ci
+
+      # Trusted publishing landed in npm 11.5.1; an older npm silently falls
+      # back to token auth, which no longer exists here.
+      - run: npm install -g npm@latest
 
       # A tag can be pushed without the package version having moved, and a
       # re-run of this workflow must not fail on an already-published version.
@@ -44,11 +54,11 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # No NODE_AUTH_TOKEN: npm uses the OIDC token when it finds one, and a
+      # token in the environment would take precedence over it.
       - if: steps.check.outputs.publish == 'true'
         run: npm publish
         working-directory: packages/mcp
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - if: steps.check.outputs.publish == 'true'
         run: echo "::notice::published ${{ steps.check.outputs.version }}"
