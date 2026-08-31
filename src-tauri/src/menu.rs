@@ -167,7 +167,13 @@ pub fn set_menu_labels<R: Runtime>(
     labels: MenuLabels,
     recents: Vec<RecentLabel>,
 ) -> Result<(), String> {
-    let menu = build(&app, &labels, &recents).map_err(|e| e.to_string())?;
+    let menu = build(&app, &labels, &recents).map_err(|e| {
+        // The webview can only swallow this — a missing menu bar is survivable
+        // and there is nowhere on screen to report it — so it has to be
+        // findable in the log instead.
+        log::error!("could not build the menu: {e}");
+        e.to_string()
+    })?;
     *app.state::<MenuState>().recents.lock().unwrap_or_else(|e| e.into_inner()) =
         recents.into_iter().map(|r| r.path).collect();
     app.set_menu(menu).map_err(|e| e.to_string())?;
@@ -201,5 +207,24 @@ pub fn on_event<R: Runtime>(app: &AppHandle<R>, id: &str) {
     }
     if matches!(id, "new" | "open" | "save" | "saveAs") {
         let _ = app.emit("menu:action", serde_json::json!({ "id": id }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // `build` itself cannot be unit-tested: muda refuses to create a menu item
+    // off the main thread, and cargo's harness runs every test on a worker.
+    // What is testable is the part that is ours — the fallback, and the index
+    // that keeps filesystem paths out of menu ids. Whether the menu bar
+    // actually appears is on the human checklist in docs/document-model.md,
+    // and a build failure is logged rather than swallowed (see set_menu_labels).
+
+    #[test]
+    fn a_label_the_webview_left_empty_falls_back_rather_than_rendering_blank() {
+        assert_eq!(or("", "Save"), "Save");
+        assert_eq!(or("   ", "Save"), "Save");
+        assert_eq!(or("저장", "Save"), "저장");
     }
 }

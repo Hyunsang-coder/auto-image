@@ -110,8 +110,10 @@ export function DocumentShell() {
     void invoke('set_menu_labels', {
       labels: menuLabels(t),
       recents: recents.map((r) => ({ path: r.path, name: r.name })),
-    }).catch(() => {
-      // No menu is survivable; the same commands are all in the app's own UI.
+    }).catch((e) => {
+      // Survivable — every command is also in the app's own UI — but it must
+      // not vanish without a trace. Rust logs the build failure too.
+      console.error('menu build failed', e)
     })
   }, [t, uiLocale, recents])
 
