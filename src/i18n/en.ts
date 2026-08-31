@@ -70,6 +70,9 @@ export const en: Record<string, string> = {
     'Could not save. Your project is still open and unchanged.',
   '저장했지만 이미지 {n}개를 파일에 담지 못했습니다 — 이 브라우저 저장소에서 이미 사라진 이미지입니다. 다른 기기에서 열면 그 자리가 비어 보입니다.':
     'Saved, but {n} image(s) could not be packed into the file — they were already gone from this browser\u2019s storage. Opening the file elsewhere will show gaps where they were.',
+  '복구 완료': 'Recovered',
+  '복구했지만 이미지 {n}개는 되살리지 못했습니다. 해당 슬라이드는 스크린샷이 빈 상태입니다.':
+    'Recovered, but {n} image(s) could not be brought back. Those slides have no screenshot.',
   무시하기: 'Ignore',
   복구하기: 'Recover',
 

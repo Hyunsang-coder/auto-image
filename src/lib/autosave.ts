@@ -13,8 +13,11 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import type { Project } from '../types/project'
-import { isTauri } from './tauri'
+import { blobToBase64, isTauri } from './tauri'
 import { PROJECT_SCHEMA_VERSION, isRevivableProject, migrateProject } from './projectMigrate'
+import { projectImageKeys } from './imageRefs'
+import { extFor } from './projectBundle'
+import { loadImageBlob, putImage } from './imageStore'
 
 /** How long the project must sit unchanged before the mirror is rewritten. */
 const DEBOUNCE_MS = 1500
@@ -80,6 +83,47 @@ async function readSnapshot(): Promise<AutosaveSnapshot | null> {
   }
 }
 
+const MIME_FOR_EXT: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  webp: 'image/webp',
+}
+
+/** `img:<uuid>` ↔ `<uuid>.<ext>`. The uuid is what makes the name a safe path
+ *  segment; the extension is how the blob's type survives the round trip. */
+function nameFor(key: string, type: string): string {
+  return `${key.replace('img:', '')}.${extFor(type)}`
+}
+
+function keyFor(name: string): string {
+  return `img:${name.replace(/\.[^.]+$/, '')}`
+}
+
+/**
+ * Bring the mirror's image set in line with the project's, by difference.
+ * Screenshots are the bulk of a project and change only when someone uploads
+ * one, while the JSON changes on every keystroke — so this compares first and
+ * usually writes nothing, which is what makes it affordable on every tick.
+ */
+async function syncImages(project: Project): Promise<void> {
+  const wanted = new Set(projectImageKeys(project))
+  const onDisk = await invoke<string[]>('autosave_image_names')
+  const haveKeys = new Set(onDisk.map(keyFor))
+
+  const stale = onDisk.filter((name) => !wanted.has(keyFor(name)))
+  if (stale.length) await invoke('autosave_delete_images', { names: stale })
+
+  for (const key of wanted) {
+    if (haveKeys.has(key)) continue
+    const blob = await loadImageBlob(key)
+    if (!blob) continue // already gone from IndexedDB; the JSON keeps the pointer
+    await invoke('autosave_put_image', {
+      name: nameFor(key, blob.type),
+      dataBase64: await blobToBase64(blob),
+    })
+  }
+}
+
 export async function writeSnapshot(project: Project | null): Promise<void> {
   if (!project) {
     await invoke('autosave_clear')
@@ -90,7 +134,36 @@ export async function writeSnapshot(project: Project | null): Promise<void> {
     savedAt: new Date().toISOString(),
     project,
   }
+  // JSON first: it is the cheap part and the part that is almost always what
+  // changed, so a slow image sync never delays recording the actual edit.
   await invoke('autosave_write', { json: JSON.stringify(snapshot) })
+  await syncImages(project)
+}
+
+/**
+ * Put back any blob the recovered project points at that IndexedDB no longer
+ * has. Without this the mirror recovers a project full of empty frames — the
+ * captions and layout survive, but the screenshots, which are the work, do not.
+ * Returns how many could not be restored.
+ */
+export async function restoreImages(project: Project): Promise<number> {
+  if (!isTauri()) return 0
+  const names = await invoke<string[]>('autosave_image_names')
+  const nameByKey = new Map(names.map((name) => [keyFor(name), name]))
+  let missing = 0
+  for (const key of new Set(projectImageKeys(project))) {
+    if (await loadImageBlob(key)) continue
+    const name = nameByKey.get(key)
+    const base64 = name ? await invoke<string | null>('autosave_read_image', { name }) : null
+    if (!base64) {
+      missing++
+      continue
+    }
+    const ext = name!.split('.').pop() ?? 'png'
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+    await putImage(key, new Blob([bytes], { type: MIME_FOR_EXT[ext] ?? 'image/png' }))
+  }
+  return missing
 }
 
 export interface ArmedAutosave {

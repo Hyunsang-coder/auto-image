@@ -23,7 +23,7 @@ import { exportProjectBundle } from './lib/projectBundle'
 import { exportProject } from './lib/projectExport'
 import { STORAGE_ERROR_EVENT, STORAGE_PRESSURE_EVENT, storageUsage } from './lib/safeStorage'
 import { startAgentBridge } from './lib/agentBridge'
-import { armAutosave, type RecoveryDecision } from './lib/autosave'
+import { armAutosave, restoreImages, type RecoveryDecision } from './lib/autosave'
 import { formatTime } from './lib/formatTime'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
 import { useI18nStore, useT } from './i18n'
@@ -57,6 +57,9 @@ function App() {
   const [justSavedTemplate, setJustSavedTemplate] = useState(false)
   const [storageError, setStorageError] = useState(false)
   const [recovery, setRecovery] = useState<Extract<RecoveryDecision, { kind: 'offer' }> | null>(null)
+  // Nothing that prunes images may run until this is true — see the sweep below.
+  const [recoveryResolved, setRecoveryResolved] = useState(false)
+  const [recoveryMissing, setRecoveryMissing] = useState(0)
   const [saveWarning, setSaveWarning] = useState(0)
   const [saveError, setSaveError] = useState<string | null>(null)
   // Fraction of the localStorage budget in use, once it is high enough to be
@@ -80,14 +83,17 @@ function App() {
   }, [project])
 
   // Sweep image blobs left orphaned by interrupted sessions, once on startup.
-  // Skip when there's no project so we never wipe blobs before hydration.
+  // Skip when there's no project so we never wipe blobs before hydration, and
+  // wait for the recovery decision: the keep-set is built from the *loaded*
+  // project, so sweeping while a newer mirror is still on offer would delete
+  // exactly the images that recovery is about to need.
   useEffect(() => {
-    if (prunedRef.current) return
+    if (prunedRef.current || !recoveryResolved) return
     const current = useProjectStore.getState().project
     if (!current) return
     prunedRef.current = true
     pruneOrphanImages(allReferencedImageKeys())
-  }, [project])
+  }, [project, recoveryResolved])
 
   // Desktop shell only: lets an MCP agent drive this window. No-op on the web.
   useEffect(() => {
@@ -115,7 +121,10 @@ function App() {
       }
       resumeMirrorRef.current = startMirror
       if (armed.decision.kind === 'offer') setRecovery(armed.decision)
-      else startMirror()
+      else {
+        setRecoveryResolved(true)
+        startMirror()
+      }
     })
     return () => {
       cancelled = true
@@ -168,15 +177,22 @@ function App() {
     setShowResetConfirm(false)
   }
 
-  // Answering either way releases the mirror the autosave effect held back.
-  function acceptRecovery() {
-    if (recovery) useProjectStore.getState().loadProject(recovery.project)
+  // Answering either way releases the mirror (and the image sweep) that startup
+  // held back. Images come back before the project loads, so the editor never
+  // paints a slide whose screenshot is still missing.
+  async function acceptRecovery() {
+    if (!recovery) return
+    const missing = await restoreImages(recovery.project)
+    useProjectStore.getState().loadProject(recovery.project)
     setRecovery(null)
+    setRecoveryResolved(true)
     resumeMirrorRef.current()
+    if (missing) setRecoveryMissing(missing)
   }
 
   function declineRecovery() {
     setRecovery(null)
+    setRecoveryResolved(true)
     resumeMirrorRef.current()
   }
 
@@ -554,10 +570,27 @@ function App() {
             </button>
             <button
               type="button"
-              onClick={acceptRecovery}
+              onClick={() => void acceptRecovery()}
               className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
             >
               {t('복구하기')}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {recoveryMissing > 0 && (
+        <Modal title={t('복구 완료')} onClose={() => setRecoveryMissing(0)}>
+          <p className="mt-2 text-sm text-[var(--color-warning)]">
+            {t('복구했지만 이미지 {n}개는 되살리지 못했습니다. 해당 슬라이드는 스크린샷이 빈 상태입니다.', { n: recoveryMissing })}
+          </p>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setRecoveryMissing(0)}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('닫기')}
             </button>
           </div>
         </Modal>

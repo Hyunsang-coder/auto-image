@@ -17,7 +17,7 @@ interface ProjectBundle {
   images: Record<string, string> // imageKey -> zip path
 }
 
-function extFor(type: string): string {
+export function extFor(type: string): string {
   if (type === 'image/png') return 'png'
   if (type === 'image/jpeg') return 'jpg'
   if (type === 'image/webp') return 'webp'

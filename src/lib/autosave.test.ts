@@ -3,10 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const invoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }))
 
+const loadImageBlob = vi.fn()
+const putImage = vi.fn()
+vi.mock('./imageStore', () => ({
+  loadImageBlob: (k: string) => loadImageBlob(k),
+  putImage: (k: string, b: Blob) => putImage(k, b),
+}))
+
 import type { Project } from '../types/project'
 import { makeProject, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { PROJECT_SCHEMA_VERSION } from './projectMigrate'
-import { armAutosave, chooseRecovery } from './autosave'
+import { armAutosave, chooseRecovery, restoreImages, writeSnapshot } from './autosave'
 
 function proj(name: string, updatedAt: string): Project {
   const p = makeProject({
@@ -124,5 +131,89 @@ describe('the mirror', () => {
     expect(armed.decision).toEqual({ kind: 'none' })
     armed.begin(() => proj('X', '2026-08-31T10:00:00Z'), () => () => {})()
     expect(invoke).not.toHaveBeenCalled()
+  })
+})
+
+function withShot(name: string, key: string): Project {
+  const p = proj(name, '2026-08-31T10:00:00Z')
+  p.slides[0].screenshot = { id: 's', imageKey: key, originalWidth: 10, originalHeight: 10 }
+  return p
+}
+
+// The mirror is only worth having if the screenshots come back with it — the
+// captions and layout were never the expensive part.
+describe('image mirroring', () => {
+  beforeEach(() => {
+    invoke.mockReset()
+    loadImageBlob.mockReset()
+    putImage.mockReset()
+    ;(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {}
+  })
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+  })
+
+  function respond(names: string[], readBase64: string | null = null) {
+    invoke.mockImplementation((cmd: string) => {
+      if (cmd === 'autosave_image_names') return Promise.resolve(names)
+      if (cmd === 'autosave_read_image') return Promise.resolve(readBase64)
+      return Promise.resolve(null)
+    })
+  }
+
+  it('uploads a blob the mirror does not have yet', async () => {
+    respond([])
+    loadImageBlob.mockResolvedValue(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }))
+
+    await writeSnapshot(withShot('A', 'img:abc'))
+
+    const put = invoke.mock.calls.find(([cmd]) => cmd === 'autosave_put_image')
+    expect(put?.[1]).toMatchObject({ name: 'abc.png' })
+  })
+
+  // Without this the mirror grows forever as screenshots are replaced.
+  it('deletes mirrored images the project no longer references', async () => {
+    respond(['stale.png'])
+    loadImageBlob.mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
+
+    await writeSnapshot(withShot('A', 'img:abc'))
+
+    const del = invoke.mock.calls.find(([cmd]) => cmd === 'autosave_delete_images')
+    expect(del?.[1]).toEqual({ names: ['stale.png'] })
+  })
+
+  it('does not re-upload what the mirror already holds', async () => {
+    respond(['abc.png'])
+    await writeSnapshot(withShot('A', 'img:abc'))
+    expect(invoke.mock.calls.some(([cmd]) => cmd === 'autosave_put_image')).toBe(false)
+    expect(loadImageBlob).not.toHaveBeenCalled()
+  })
+
+  it('restores a blob IndexedDB has lost', async () => {
+    respond(['abc.png'], btoa('png-bytes'))
+    loadImageBlob.mockResolvedValue(undefined)
+
+    const missing = await restoreImages(withShot('A', 'img:abc'))
+
+    expect(missing).toBe(0)
+    expect(putImage).toHaveBeenCalledWith('img:abc', expect.any(Blob))
+    expect((putImage.mock.calls[0][1] as Blob).type).toBe('image/png')
+  })
+
+  it('leaves an already-present blob alone', async () => {
+    respond(['abc.png'], btoa('png-bytes'))
+    loadImageBlob.mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
+
+    expect(await restoreImages(withShot('A', 'img:abc'))).toBe(0)
+    expect(putImage).not.toHaveBeenCalled()
+  })
+
+  // Counted and reported rather than silently producing empty frames.
+  it('reports what it could not restore', async () => {
+    respond([], null)
+    loadImageBlob.mockResolvedValue(undefined)
+
+    expect(await restoreImages(withShot('A', 'img:abc'))).toBe(1)
+    expect(putImage).not.toHaveBeenCalled()
   })
 })
