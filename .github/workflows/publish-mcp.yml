@@ -38,15 +38,8 @@ jobs:
       - run: npm ci
 
       # Trusted publishing landed in npm 11.5.1; an older npm silently falls
-      # back to token auth, which no longer exists here. Pinned to 11.x —
-      # npm 12.0.2 skips the OIDC exchange entirely and reports ENEEDAUTH.
-      - run: npm install -g npm@^11.5.1
-
-      - run: |
-          echo "npm $(npm -v)  node $(node -v)"
-          echo "id-token env: ${ACTIONS_ID_TOKEN_REQUEST_URL:+present}${ACTIONS_ID_TOKEN_REQUEST_URL:-ABSENT}"
-          echo "userconfig: ${NPM_CONFIG_USERCONFIG:-none}"
-          cat "${NPM_CONFIG_USERCONFIG:-/dev/null}" 2>/dev/null | sed 's/=.*/=<redacted>/' || true
+      # back to token auth, which no longer exists here.
+      - run: npm install -g npm@latest
 
       # A tag can be pushed without the package version having moved, and a
       # re-run of this workflow must not fail on an already-published version.
@@ -67,7 +60,7 @@ jobs:
       # No NODE_AUTH_TOKEN: npm uses the OIDC token when it finds one, and a
       # token in the environment would take precedence over it.
       - if: steps.check.outputs.publish == 'true'
-        run: npm publish --loglevel verbose
+        run: npm publish
         working-directory: packages/mcp
 
       - if: steps.check.outputs.publish == 'true'

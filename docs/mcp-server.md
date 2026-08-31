@@ -139,6 +139,20 @@ npmjs.com 쪽 설정은 패키지 Settings → Trusted Publisher → GitHub Acti
 | Repository | `auto-image` |
 | Workflow filename | `publish-mcp.yml` |
 
+등록이 실제로 붙었는지는 실패했을 때의 메시지로만 구분된다. `npm publish`는 설정이
+없든 안 맞든 똑같이 `ENEEDAUTH`("You need to authorize this machine")로 떨어져서
+자격증명 문제처럼 보이는데, 진짜 원인은 그 위에 있다:
+
+```bash
+npm publish --loglevel verbose   # 워크플로 스텝에 붙여서 한 번 돌린다
+# npm http fetch GET  .../idtoken?audience=npm%3Aregistry.npmjs.org 200   ← 깃허브 쪽은 정상
+# npm http fetch POST 404 https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/<pkg>
+# npm verbose oidc ... OIDC token exchange error - package not found      ← npm 에 등록이 없다
+```
+
+GET이 200이면 러너의 OIDC는 문제가 없다는 뜻이고, 그다음 POST의 응답이 npm 쪽 등록
+상태를 말해 준다.
+
 파일명이 **정확히** 일치해야 하므로 워크플로 파일을 옮기거나 이름을 바꾸면 npm 쪽도
 같이 고쳐야 한다. 요구 조건: GitHub 호스팅 러너(셀프호스티드 불가), npm ≥ 11.5.1
 (워크플로가 `npm install -g npm@latest`로 확보), `package.json`의 `repository.url`이
