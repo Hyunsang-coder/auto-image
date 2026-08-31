@@ -4,6 +4,7 @@ const invoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...a: unknown[]) => invoke(...a) }))
 
 import {
+  blobToBase64,
   isTauri,
   writeFileToDir,
   sanitizePathSegment,
@@ -75,6 +76,26 @@ describe('writeFileToDir', () => {
       'write_file',
       expect.objectContaining({ dir: '/out', path: 'x.png', dataBase64: 'aGk=', executable: false }),
     )
+  })
+})
+
+describe('blobToBase64', () => {
+  it('round-trips arbitrary bytes, not just text', async () => {
+    const bytes = new Uint8Array(Array.from({ length: 256 }, (_, i) => i))
+    const encoded = await blobToBase64(new Blob([bytes]))
+    expect(Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0))).toEqual(bytes)
+  })
+
+  // A screenshot is megabytes; spreading that into String.fromCharCode in one
+  // go throws RangeError, so the chunking is load-bearing rather than tidy.
+  it('handles a payload far past the argument limit', async () => {
+    const big = new Uint8Array(300_000).fill(7)
+    const encoded = await blobToBase64(new Blob([big]))
+    expect(atob(encoded).length).toBe(big.length)
+  })
+
+  it('encodes an empty blob as an empty string', async () => {
+    expect(await blobToBase64(new Blob([]))).toBe('')
   })
 })
 

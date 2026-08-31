@@ -16,7 +16,7 @@ import type { Project } from '../types/project'
 import { blobToBase64, isTauri } from './tauri'
 import { PROJECT_SCHEMA_VERSION, isRevivableProject, migrateProject } from './projectMigrate'
 import { projectImageKeys } from './imageRefs'
-import { extFor } from './projectBundle'
+import { extFor, typeForExt } from './projectBundle'
 import { loadImageBlob, putImage } from './imageStore'
 
 /** How long the project must sit unchanged before the mirror is rewritten. */
@@ -112,12 +112,6 @@ async function readSnapshot(): Promise<AutosaveSnapshot | null> {
   }
 }
 
-const MIME_FOR_EXT: Record<string, string> = {
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  webp: 'image/webp',
-}
-
 /** `img:<uuid>` ↔ `<uuid>.<ext>`. The uuid is what makes the name a safe path
  *  segment; the extension is how the blob's type survives the round trip. */
 function nameFor(key: string, type: string): string {
@@ -193,9 +187,8 @@ export async function restoreImages(project: Project): Promise<number> {
       missing++
       continue
     }
-    const ext = name!.split('.').pop() ?? 'png'
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-    await putImage(key, new Blob([bytes], { type: MIME_FOR_EXT[ext] ?? 'image/png' }))
+    await putImage(key, new Blob([bytes], { type: typeForExt(name!) }))
   }
   return missing
 }

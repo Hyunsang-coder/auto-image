@@ -110,7 +110,11 @@ describe('the save / reopen round trip', () => {
     blobs.clear()
     const reopened = await readProjectBundle(blob)
     for (const key of projectImageKeys(reopened.project)) {
-      expect(blobs.get(key), `image ${key} did not survive the round trip`).toBeInstanceOf(Blob)
+      const restored = blobs.get(key)
+      expect(restored, `image ${key} did not survive the round trip`).toBeInstanceOf(Blob)
+      // Retyped from the stored path — a typeless blob would be written back as
+      // `.bin` on the next save, and again on the one after that.
+      expect(restored!.type).toBe('image/png')
     }
   })
 

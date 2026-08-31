@@ -14,13 +14,26 @@ export function sanitizePathSegment(name: string): string {
   return cleaned || 'export'
 }
 
-export function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',', 2)[1] ?? '')
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(blob)
-  })
+/**
+ * Every byte that leaves the webview for the filesystem goes through here:
+ * project saves, the crash mirror's images, the PNG export.
+ *
+ * `arrayBuffer()` rather than `FileReader`. WebKit throttles a window it
+ * considers backgrounded, and a `FileReader` in that state fails outright with
+ * "The I/O read operation failed" — observed as a save that a live agent could
+ * not complete while the app sat behind another window. `arrayBuffer()` does
+ * not go through that path, and it also drops the data-URL prefix parsing.
+ */
+export async function blobToBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  // Chunked: `String.fromCharCode(...bytes)` blows the argument limit on
+  // anything the size of a screenshot.
+  const CHUNK = 0x8000
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  return btoa(binary)
 }
 
 /** Write one file under `dir` via the native Rust command (creates parent dirs). */

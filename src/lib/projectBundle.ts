@@ -24,6 +24,18 @@ export function extFor(type: string): string {
   return 'bin'
 }
 
+/**
+ * The inverse. A blob unzipped with JSZip has no type at all, so without this
+ * a bundle round trip would launder every image into `.bin` — the name inside
+ * the next zip, and in the crash mirror, degrades one cycle at a time.
+ */
+export function typeForExt(nameOrPath: string): string {
+  const ext = nameOrPath.split('.').pop()?.toLowerCase()
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+  if (ext === 'webp') return 'image/webp'
+  return 'image/png'
+}
+
 export interface BundleExport {
   blob: Blob
   /**
@@ -95,7 +107,8 @@ export async function readProjectBundle(file: Blob): Promise<BundleImport> {
   for (const [key, path] of Object.entries(manifest.images ?? {})) {
     const entry = zip.file(path)
     if (!entry) continue
-    await putImage(key, await entry.async('blob'))
+    // Retype from the stored path: JSZip hands back a typeless blob.
+    await putImage(key, new Blob([await entry.async('blob')], { type: typeForExt(path) }))
   }
   return { project, schemaVersion: manifest.schemaVersion ?? 4 }
 }

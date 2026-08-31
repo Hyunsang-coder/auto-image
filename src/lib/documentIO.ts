@@ -278,10 +278,13 @@ export async function saveDocumentAs(): Promise<boolean> {
   doc().set({ busy: true })
   try {
     // Premise 5: the file name is the document name, so the two must not be
-    // allowed to drift. This is the only place a project gets renamed.
-    store().updateProject({ name: docNameFromPath(path) })
-    const current = store().project!
-    await afterWrite(current, path, await writeBundle(current, path))
+    // allowed to drift. This is the only place a project gets renamed — and
+    // the rename is only committed once the bytes are down, so a Save As that
+    // fails leaves the open project exactly as it was.
+    const renamed: Project = { ...project, name: docNameFromPath(path) }
+    const missing = await writeBundle(renamed, path)
+    store().updateProject({ name: renamed.name })
+    await afterWrite(renamed, path, missing)
     return true
   } catch (e) {
     doc().set({
@@ -323,7 +326,10 @@ export async function openDocument(path: string): Promise<boolean> {
       backups: null,
     })
     await writeSnapshot(opened, path)
-    await rememberRecent(opened, path)
+    // Thumbnail on open too, not only on save: a project opened from a file
+    // this app has never written would otherwise sit in the switcher as a blank
+    // placeholder until the user happened to press ⌘S.
+    await rememberRecent(opened, path, await previewOf(opened))
     // The project that just closed may have been the last reference to its
     // blobs; its images live in its own file now.
     gcImages()
@@ -380,10 +386,11 @@ export async function adoptAsDocument(project: Project): Promise<boolean> {
 
     // Keep the two names together from the very first write; a collision
     // suffix that only exists in the path would show one name in the header
-    // and another in Finder.
-    if (base !== project.name) store().updateProject({ name: base })
-    const current = store().project ?? project
-    await afterWrite(current, path, await writeBundle(current, path))
+    // and another in Finder. Committed after the write, as in saveDocumentAs.
+    const named: Project = base === project.name ? project : { ...project, name: base }
+    const missing = await writeBundle(named, path)
+    if (named !== project) store().updateProject({ name: base })
+    await afterWrite(named, path, missing)
     return true
   } catch (e) {
     doc().set({

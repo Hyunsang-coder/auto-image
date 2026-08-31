@@ -15,10 +15,9 @@
 // and it refuses to run against a project that is not its own — this drives the
 // real app, which may be the one the user is working in.
 //
-// Bring the window to the front before running. macOS throttles an occluded
-// WKWebView, and the first `invoke` after that shows up as "IPC custom protocol
-// failed … TypeError: Load failed" — a rejected save that the app correctly
-// reports as a failure, but that has nothing to do with what is being tested.
+// Runs with the window in the background. macOS throttles an occluded WKWebView
+// and loses the first `invoke` after it wakes ("IPC custom protocol failed …"),
+// so `main` burns one read-only call before the checks begin.
 
 import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
@@ -89,6 +88,12 @@ async function headlineOf() {
 }
 
 async function main() {
+  // Burn one read-only call first. macOS throttles an occluded WKWebView, and
+  // the first `invoke` after it wakes fails on the IPC custom protocol before
+  // Tauri falls back to postMessage — losing exactly one call. Which call that
+  // is should not decide whether the suite passes.
+  await callBridge('status').catch(() => {})
+
   const status = await call('status')
   if (status.project && !status.project.name.startsWith(PREFIX)) {
     console.error(
@@ -166,7 +171,41 @@ async function main() {
   check('saves are rotated into backups', rotated.some(Boolean))
 
   await migratedFileKeepsItsOriginal(first.path)
+  await theMirrorCarriesTheScreenshots(first.path)
   await aFailedSaveLeavesTheFileAlone()
+}
+
+/**
+ * Phase 0 left this unverified: the mirror's image sync is unit-tested, but the
+ * IPC seam that actually moves the bytes had never been exercised on a real
+ * app. A mirror that recovers a project full of empty frames recovers nothing —
+ * the captions were never the expensive part.
+ */
+async function theMirrorCarriesTheScreenshots(sourcePath) {
+  await mkdir(SCRATCH, { recursive: true })
+  const target = join(SCRATCH, `${PREFIX}-shot.studio.zip`)
+  const key = 'e2e00000-0000-4000-8000-00000000cafe'
+
+  const zip = await JSZip.loadAsync(await readFile(sourcePath))
+  const manifest = JSON.parse(await zip.file('project.json').async('string'))
+  manifest.project.slides[0].screenshot = {
+    id: 'e2e-shot',
+    imageKey: `img:${key}`,
+    originalWidth: 1320,
+    originalHeight: 2868,
+  }
+  manifest.images = { ...manifest.images, [`img:${key}`]: `images/${key}.png` }
+  zip.file('project.json', JSON.stringify(manifest, null, 2))
+  zip.file(`images/${key}.png`, await readFile(new URL('../e2e/fixtures/iphone_home.png', import.meta.url)))
+  await writeFile(target, await zip.generateAsync({ type: 'nodebuffer' }))
+
+  await call('open', { path: target, discardUnsaved: true })
+  // The mirror writes on a 1.5s debounce, and opening flushes it once.
+  const mirrored = join(CONFIG, 'autosave-images', `${key}.png`)
+  for (let i = 0; i < 20 && !(await exists(mirrored)); i++) {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+  check('the crash mirror carries the screenshot blobs, not just the JSON', await exists(mirrored))
 }
 
 /**
@@ -212,7 +251,7 @@ async function aFailedSaveLeavesTheFileAlone() {
   const dir = join(SCRATCH, 'readonly')
   await mkdir(dir, { recursive: true })
   const target = join(dir, `${PREFIX}-locked.studio.zip`)
-  const source = join(SCRATCH, `${PREFIX}-legacy.studio.zip`)
+  const source = join(SCRATCH, `${PREFIX}-shot.studio.zip`)
   await writeFile(target, await readFile(source))
   const before = await readFile(target)
 
