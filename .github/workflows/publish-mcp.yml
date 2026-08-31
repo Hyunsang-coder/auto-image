@@ -59,8 +59,12 @@ jobs:
 
       # No NODE_AUTH_TOKEN: npm uses the OIDC token when it finds one, and a
       # token in the environment would take precedence over it.
+      #
+      # Verbose on purpose: a trusted-publishing failure reports ENEEDAUTH, the
+      # same as having no credential, and only this log distinguishes them — the
+      # id-token GET and the registry's token-exchange POST answer separately.
       - if: steps.check.outputs.publish == 'true'
-        run: npm publish
+        run: npm publish --loglevel verbose
         working-directory: packages/mcp
 
       - if: steps.check.outputs.publish == 'true'
