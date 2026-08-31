@@ -46,12 +46,17 @@ Then ask your agent to `live_status` — it will report what the app has open.
 | `live_list_untranslated` | The localize worklist — every string still missing a locale, with its source text and address. |
 | `live_patch` | Apply surgical ops (`setText`, `set`, external images…) to the open project. |
 | `live_view` | Render one slide at export resolution and return it as an image, so the agent can see what it just did. |
+| `live_save` | Write the open project back to its own `.studio.zip` — the same thing ⌘S does. |
+| `live_open` | Open an absolute path to a `.studio.zip` as the live document. |
 | `get_design_reference` | Theme preset ids, font families, layouts, ornament/shape kinds, locales, device models and export sizes, per-slide limits. |
 | `get_patch_spec` | The op vocabulary and the whitelisted `set` paths. |
 | `get_import_spec` | The full manifest authoring spec (Korean). |
 
 Translating a whole set is `live_list_untranslated` → translate → `live_patch` with one `setText` op
 per string per locale. A locale the project has not selected yet is added automatically.
+
+On the desktop a project is a file, and a patch dirties it exactly like a user edit — nothing
+autosaves. Finish a batch with `live_save`.
 
 ## Requirements
 

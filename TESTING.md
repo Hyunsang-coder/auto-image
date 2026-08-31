@@ -3,8 +3,10 @@
 This app is a fully client-side SPA (no backend), so verification has three layers:
 fast pure-function unit tests (Vitest), an automated Playwright e2e suite, and a
 manual browser-driven check for the canvas/render behavior that pixels — not the
-DOM — actually prove. The `test` and `update-tests` skills (`.claude/skills/`)
-encode how to pick a layer and how to reconcile tests after a change.
+DOM — actually prove. The macOS shell adds two more: Rust unit tests, and a
+desktop e2e harness that drives the *running* app over the agent bridge. The
+`test` and `update-tests` skills (`.agents/skills/`) encode how to pick a layer
+and how to reconcile tests after a change.
 
 ## 1. Gates (run before every commit)
 
@@ -14,6 +16,20 @@ npm run lint      # eslint . — 0 errors (1 known exhaustive-deps warning in Sc
 npm run test:unit # vitest run — logic layer (src/**/*.test.ts)
 npm run test:e2e  # playwright (chromium) against the Vite dev server
 ```
+
+Pipeline and desktop layers, run when you touch them:
+
+```bash
+npm run test:headless           # renders a committed fixture; asserts PNGs + 0 layout issues
+npm run test:mcp                # MCP tool registration + knowledge tools (no browser)
+(cd src-tauri && cargo test)    # atomic writes, .bak + rotation, quit guard, instance lock
+npm run test:doc                # document e2e — needs the desktop app running and frontmost
+```
+
+`test:doc` (`scripts/document-e2e.mjs`) drives the live app through the agent
+bridge instead of a second automation stack: new project becomes a file, a patch
+dirties it, save clears it, backups rotate, mirrored images actually land on
+disk. What is left to a human is listed at the end of `docs/document-model.md`.
 
 ### Logic layer (Vitest)
 

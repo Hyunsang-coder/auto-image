@@ -6,7 +6,7 @@ Generate a full set of localized App Store / iPad screenshots — device frames,
 
 **The idea:** you shouldn't be dragging text boxes around for every language. Let an AI agent build the whole set from your raw simulator screenshots, then open it in the editor and nudge anything you want. Most people let the AI do ~95% and just tweak a headline or two.
 
-**Private by default.** No backend, no API keys, nothing uploaded. Your screenshots never leave your machine — images stay in the browser (IndexedDB), project data in `localStorage`. Use the hosted site, self-host it, or run the desktop build.
+**Private by default.** No backend, no API keys, nothing uploaded. Your screenshots never leave your machine — in the Mac app a project is a `.studio.zip` file in your own Documents folder; on the web, images stay in the browser (IndexedDB) and project data in `localStorage`. Use the hosted site, self-host it, or [download the Mac app](https://github.com/Hyunsang-coder/auto-image/releases/latest).
 
 **Guides** (English & Korean): [how to use](https://screenshotstudio.dev/guides/how-to-use.html) · [screenshot sizes](https://screenshotstudio.dev/guides/app-store-screenshot-sizes.html) · [localization](https://screenshotstudio.dev/guides/app-store-screenshot-localization.html) · [fastlane upload](https://screenshotstudio.dev/guides/upload-app-store-screenshots-fastlane.html) · [simulator capture](https://screenshotstudio.dev/guides/take-ios-simulator-screenshots.html) · [writing captions](https://screenshotstudio.dev/guides/app-store-screenshot-captions.html)
 
@@ -46,6 +46,8 @@ When you do want to touch something, ask the agent for an **editable project fil
 
 The bundle round-trips *every* edit losslessly — highlights, badges, ornaments, per-language screenshots — so you can bounce between the AI workflow and the visual editor freely. You can also start from scratch in the editor (**Setup → Edit → Localize → Export**) and skip AI entirely. Both paths produce the same App Store Connect-ready output.
 
+**On the Mac app that file *is* the project.** New, imported, or template-started, it lands in `~/Documents/Screenshot Studio/` immediately, and ⌘N / ⌘O / ⌘S / ⇧⌘S, a recent-projects list, and the usual "save before closing?" prompt all behave as they do in any Mac app. Unsaved work is mirrored to disk as you type and offered back if the app was quit unexpectedly. An MCP agent drives the same document — `live_save` is its ⌘S ([docs/mcp-server.md](./docs/mcp-server.md), design notes in [docs/document-model.md](./docs/document-model.md)).
+
 ---
 
 ## From screenshots to the App Store
@@ -68,7 +70,7 @@ Ask the agent to package for **fastlane** and the export comes out the way fastl
 - **Localization without an API.** Translate captions in *your own* AI tool. Export a template, copy the built-in translation prompt, paste both into any LLM, re-import the filled file. Screenshots and captions can both differ per language.
 - **A real visual editor** when you want it — gradients, device frames, headlines, magnified highlight call-outs, badges, emoji accents, device tilt, two-page panoramic spreads.
 - **One-click PNG export** — every slide rendered and packaged as a ZIP grouped by `{locale}/{device}/`, or as a fastlane-ready bundle.
-- **Portable project files** (`.studio.zip`) you can save, reopen, and hand back and forth between the CLI and the editor.
+- **Portable project files** (`.studio.zip`) you can save, reopen, move, back up, and hand back and forth between the CLI and the editor — one file holding the project and every screenshot in it.
 
 ---
 

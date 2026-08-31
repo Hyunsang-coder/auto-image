@@ -119,11 +119,13 @@
     <tr><td><code>live_list_untranslated</code></td><td>The localize worklist: every string still missing a locale, with its source text and address.</td></tr>
     <tr><td><code>live_patch</code></td><td>Apply surgical edits — text, position, style, background, device frame, external images.</td></tr>
     <tr><td><code>live_view</code></td><td>Render one slide at export resolution and return it as an image, so the agent can see the result.</td></tr>
+    <tr><td><code>live_save</code></td><td>Write the open project back to its own <code>.studio.zip</code> — the same thing ⌘S does.</td></tr>
+    <tr><td><code>live_open</code></td><td>Open a <code>.studio.zip</code> from disk as the live document.</td></tr>
     <tr><td><code>get_design_reference</code></td><td>Theme ids, fonts, layouts, ornaments, locales, device models and export sizes, per-slide limits.</td></tr>
     <tr><td><code>get_patch_spec</code> / <code>get_import_spec</code></td><td>The op vocabulary and the manifest authoring spec.</td></tr>
   </table>
 
-  <h2>Three things worth asking for</h2>
+  <h2>Four things worth asking for</h2>
   <h3>1. Translate the whole set</h3>
   <p>
     “Translate every missing caption into Japanese and German.” The agent calls
@@ -137,7 +139,14 @@
     the real export size, so the agent judges the layout that actually ships, patches, and looks
     again.
   </p>
-  <h3>3. Draft from scratch</h3>
+  <h3>3. Save when the batch is done</h3>
+  <p>
+    On the Mac a project is a file. An agent's patch dirties it exactly like your own edit and
+    nothing autosaves, so “translate everything and save” ends with one <code>live_save</code> — the
+    title bar's dot clears and the file on disk matches what you see. A project that has never been
+    saved is refused: you pick the location once, in the app.
+  </p>
+  <h3>4. Draft from scratch</h3>
   <p>
     “Make me a 5-slide iPhone project on the porcelain theme with these captions.”
     <code>live_new_project</code> then a batch of <code>live_patch</code> ops. You still add the screenshots —

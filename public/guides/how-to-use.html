@@ -89,8 +89,15 @@
   <ul>
     <li><strong>Start from a template</strong> — a designed multi-slide starter set that drops you straight into the editor.</li>
     <li><strong>Import a project</strong> — select an AI-drafted file set (manifest + captions + screenshots, see below) and get a ready-to-review project in one pick.</li>
+    <li><strong>Open a project you already have</strong> — pick a <code>.studio.zip</code>, or one of the recent projects (<kbd>⌘O</kbd>).</li>
   </ul>
-  <p>Everything is stored locally on your Mac (localStorage + IndexedDB inside the app). Nothing is sent anywhere.</p>
+  <p>
+    However you start, the project becomes a <strong>file</strong> right away —
+    <code>~/Documents/Screenshot Studio/</code> unless you save it elsewhere — so
+    <kbd>⌘S</kbd>, <kbd>⇧⌘S</kbd> and the File menu work the way they do in any Mac app. The window
+    title is the file name, with a dot in front while there is something unsaved. Everything stays on
+    your Mac; nothing is sent anywhere.
+  </p>
 
   <h2>Step 2 — Design in the editor</h2>
   <ul>
@@ -168,9 +175,10 @@ npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3
 
   <h2>FAQ</h2>
   <p><strong>Where is my project stored?</strong><br />
-  On your Mac, in the app's local storage: project data in localStorage, images in
-  IndexedDB. Deleting the app's data deletes it — export your set (or save a template)
-  when you're done.</p>
+  In a <code>.studio.zip</code> file you own — by default under
+  <code>~/Documents/Screenshot Studio/</code>. It holds the project and every screenshot in it, so
+  you can move it, back it up, or hand it to someone else. Work you have not saved yet is also
+  mirrored inside the app's own folder, and the app offers it back if it was quit unexpectedly.</p>
   <p><strong>Does it cost anything or need an account?</strong><br />
   No. It's MIT-licensed open source released on GitHub; there is no backend at all.</p>
   <p><strong>Which sizes does it export?</strong><br />
