@@ -23,6 +23,9 @@ import { exportProjectBundle } from './lib/projectBundle'
 import { exportProject } from './lib/projectExport'
 import { STORAGE_ERROR_EVENT, STORAGE_PRESSURE_EVENT, storageUsage } from './lib/safeStorage'
 import { startAgentBridge } from './lib/agentBridge'
+import { DocumentShell } from './components/document/DocumentShell'
+import { docNameFromPath, isDirty } from './lib/documentModel'
+import { saveDocument, saveDocumentAs, useDocumentStore } from './lib/documentIO'
 import { armAutosave, restoreImages, type RecoveryDecision } from './lib/autosave'
 import { formatTime } from './lib/formatTime'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
@@ -43,6 +46,9 @@ function App() {
   const step = useProjectStore((s) => s.step)
   const setStep = useProjectStore((s) => s.setStep)
   const project = useProjectStore((s) => s.project)
+  const docPath = useProjectStore((s) => s.docPath)
+  const savedHash = useProjectStore((s) => s.savedHash)
+  const openPicker = useDocumentStore((s) => s.set)
   const resetProject = useProjectStore((s) => s.resetProject)
   const updateProject = useProjectStore((s) => s.updateProject)
   const saveProject = useLibraryStore((s) => s.saveProject)
@@ -82,6 +88,12 @@ function App() {
     document.title = project ? `${project.name} — ${APP_NAME}` : APP_NAME
   }, [project])
 
+  // On the desktop the document is a file, so its name is the file's — and the
+  // dirty marker is the difference between the project and what that file
+  // holds. In the web build there is no file, so nothing changes there.
+  const documentName = docPath ? docNameFromPath(docPath) : project?.name
+  const dirty = isTauri() && isDirty(project, savedHash)
+
   // Sweep image blobs left orphaned by interrupted sessions, once on startup.
   // Skip when there's no project so we never wipe blobs before hydration, and
   // wait for the recovery decision: the keep-set is built from the *loaded*
@@ -107,12 +119,16 @@ function App() {
   useEffect(() => {
     let stopMirror: (() => void) | undefined
     let cancelled = false
-    void armAutosave(useProjectStore.getState().project).then((armed) => {
+    const { project: activeAtStart, docPath: pathAtStart } = useProjectStore.getState()
+    void armAutosave(activeAtStart, pathAtStart).then((armed) => {
       if (cancelled) return
       const startMirror = () => {
         if (cancelled || stopMirror) return
         stopMirror = armed.begin(
-          () => useProjectStore.getState().project,
+          () => {
+            const { project: current, docPath: path } = useProjectStore.getState()
+            return { project: current, docPath: path }
+          },
           (fn) =>
             useProjectStore.subscribe((s, prev) => {
               if (s.project !== prev.project) fn()
@@ -183,7 +199,19 @@ function App() {
   async function acceptRecovery() {
     if (!recovery) return
     const missing = await restoreImages(recovery.project)
+    // loadProject clears the file identity (the usual case is a project that
+    // came from somewhere else). Recovery is the exception: these edits belong
+    // to a document, and the point is to reopen it *dirty* so one ⌘S puts them
+    // in the file. The saved hash stays the file's, untouched.
+    const { docPath: openPath, savedHash: openHash } = useProjectStore.getState()
     useProjectStore.getState().loadProject(recovery.project)
+    if (recovery.reason === 'unsaved') {
+      useProjectStore.getState().setDocument(openPath, openHash)
+    } else if (recovery.docPath) {
+      // A mirror from another document: it belongs to that file, and nothing
+      // says the file already holds these edits.
+      useProjectStore.getState().setDocument(recovery.docPath, null)
+    }
     setRecovery(null)
     setRecoveryResolved(true)
     resumeMirrorRef.current()
@@ -272,9 +300,20 @@ function App() {
           >
             {APP_SHORT_NAME}
           </span>
-          {/* The window title is the document, not the app name (HIG). */}
+          {/* The window title is the document, not the app name (HIG). On the
+              desktop that name is the file's, and the leading dot is the
+              standard "edited" marker. */}
           <span className="truncate text-[length:var(--text-ui)] font-medium text-[var(--color-text)]">
-            {project ? project.name : APP_NAME}
+            {dirty && (
+              <span
+                aria-hidden
+                title={t('저장하지 않은 변경 사항')}
+                className="mr-1 text-[var(--color-text-dim)]"
+              >
+                •
+              </span>
+            )}
+            {documentName ?? APP_NAME}
           </span>
           {project && (
             <span className="shrink-0 text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
@@ -319,13 +358,23 @@ function App() {
             their project. State the truth instead; the thing the old button
             actually did (upsert a library snapshot) is a named menu command.
           */}
-          {project && step !== 1 && (
+          {project && step !== 1 && !isTauri() && (
             <span
               role="status"
               title={t('모든 변경 사항은 자동으로 저장됩니다')}
               className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]"
             >
               {justSaved ? t('라이브러리에 저장됨 ✓') : t('저장됨')}
+            </span>
+          )}
+          {/* On the desktop the honest status is about the file: an edit is
+              only safe once ⌘S has put it there. */}
+          {project && isTauri() && (
+            <span
+              role="status"
+              className="text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]"
+            >
+              {dirty ? t('저장되지 않음') : t('저장됨')}
             </span>
           )}
           {updateMessage && (
@@ -340,7 +389,33 @@ function App() {
             <MenuButton
               label={t('더 보기')}
               items={[
-                ...(step !== 1
+                // Desktop: the document commands. The library is retired here —
+                // every project is a file in the Screenshot Studio folder, and
+                // Recents is how you get back to one.
+                ...(isTauri()
+                  ? [
+                      {
+                        label: t('프로젝트 열기…'),
+                        hint: t('⌘O — 최근 항목에서 고르거나 파일에서 엽니다'),
+                        onSelect: () => openPicker({ pickerOpen: true }),
+                      },
+                      ...(project
+                        ? [
+                            {
+                              label: t('저장'),
+                              hint: t('⌘S — 열려 있는 파일에 씁니다'),
+                              onSelect: () => void saveDocument(),
+                            },
+                            {
+                              label: t('다른 이름으로 저장…'),
+                              hint: t('⇧⌘S — 새 위치·새 이름으로 저장하고 그 파일로 이어서 작업합니다'),
+                              onSelect: () => void saveDocumentAs(),
+                            },
+                          ]
+                        : []),
+                    ]
+                  : []),
+                ...(step !== 1 && !isTauri()
                   ? [
                       {
                         label: t('라이브러리에 저장'),
@@ -348,14 +423,18 @@ function App() {
                         onSelect: openSaveModal,
                       },
                       {
-                        label: t('템플릿으로 저장'),
-                        hint: t('스크린샷을 뺀 디자인만 — 새 프로젝트의 출발점'),
-                        onSelect: openTemplateModal,
-                      },
-                      {
                         label: t('프로젝트 파일 저장'),
                         hint: t('.zip 파일로 내보내기 — 「프로젝트 열기」로 그대로 이어서 편집'),
                         onSelect: handleExportBundle,
+                      },
+                    ]
+                  : []),
+                ...(step !== 1
+                  ? [
+                      {
+                        label: t('템플릿으로 저장'),
+                        hint: t('스크린샷을 뺀 디자인만 — 새 프로젝트의 출발점'),
+                        onSelect: openTemplateModal,
                       },
                     ]
                   : []),
@@ -449,6 +528,10 @@ function App() {
           </button>
         </div>
       )}
+
+      {/* Desktop document surface: native menu, window title, close guard,
+          and the ⌘O switcher. Renders nothing in the web build. */}
+      <DocumentShell />
 
       <div className="flex-1 overflow-hidden">
         {step === 1 && <ProjectSetup />}
@@ -551,7 +634,9 @@ function App() {
           <p className="mt-2 text-sm text-[var(--color-text-dim)]">
             {recovery.reason === 'no-active'
               ? t('마지막으로 편집하던 프로젝트가 이 브라우저 저장소에 남아 있지 않습니다. 디스크 백업본에서 복구할 수 있습니다.')
-              : t('디스크 백업본이 지금 열려 있는 프로젝트보다 최신입니다. 저장 공간이 가득 차 최근 변경 사항이 기록되지 못했을 때 이렇게 됩니다.')}
+              : recovery.reason === 'unsaved'
+                ? t('지금 열려 있는 문서에 저장하지 않은 편집이 남아 있습니다. 복구하면 편집 상태로 열리고, ⌘S를 누르면 파일에 반영됩니다.')
+                : t('디스크 백업본이 지금 열려 있는 프로젝트보다 최신입니다. 저장 공간이 가득 차 최근 변경 사항이 기록되지 못했을 때 이렇게 됩니다.')}
           </p>
           <p className="mt-3 text-sm text-[var(--color-text)]">
             <span className="font-medium">{recovery.project.name}</span>

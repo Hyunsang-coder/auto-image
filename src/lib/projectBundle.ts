@@ -67,13 +67,19 @@ export async function exportProjectBundle(project: Project): Promise<BundleExpor
   return { blob: await zip.generateAsync({ type: 'blob' }), missingImageKeys }
 }
 
-/**
- * Unpack a bundle: restore image blobs to IndexedDB under their original keys
- * (UUIDs, so no remap needed) and return the uncommitted project. The caller
- * commits via `loadProject`; blobs written for a load the user declines are
- * swept by `gcImages`. Throws on a malformed or non-bundle zip.
- */
-export async function importProjectBundle(file: Blob): Promise<Project> {
+export interface BundleImport {
+  project: Project
+  /**
+   * The schema the file was written under, *before* migration. The document
+   * layer needs it: the first save of a file that had to be migrated keeps a
+   * `.bak` of the original, which is the only thing standing between a
+   * migration bug and the user's data.
+   */
+  schemaVersion: number
+}
+
+/** `importProjectBundle` plus the schema the file was actually written under. */
+export async function readProjectBundle(file: Blob): Promise<BundleImport> {
   const zip = await JSZip.loadAsync(file)
   const manifestFile = zip.file(MANIFEST)
   if (!manifestFile) throw new Error('not a project bundle: missing project.json')
@@ -91,5 +97,15 @@ export async function importProjectBundle(file: Blob): Promise<Project> {
     if (!entry) continue
     await putImage(key, await entry.async('blob'))
   }
-  return project
+  return { project, schemaVersion: manifest.schemaVersion ?? 4 }
+}
+
+/**
+ * Unpack a bundle: restore image blobs to IndexedDB under their original keys
+ * (UUIDs, so no remap needed) and return the uncommitted project. The caller
+ * commits via `loadProject`; blobs written for a load the user declines are
+ * swept by `gcImages`. Throws on a malformed or non-bundle zip.
+ */
+export async function importProjectBundle(file: Blob): Promise<Project> {
+  return (await readProjectBundle(file)).project
 }

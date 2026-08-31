@@ -119,6 +119,14 @@ interface ProjectState {
   project: Project | null
   step: Step
   activeSlideId: string | null
+  /**
+   * Absolute path of the file this project *is*. Null only in the web build and
+   * for the instant between creating a project and its first write. Not part of
+   * the project data, so it never goes inside the .studio.zip.
+   */
+  docPath: string | null
+  /** `hashProject` at the last successful save; dirty is the comparison. */
+  savedHash: string | null
 
   createProject: (input: {
     name: string
@@ -139,6 +147,9 @@ interface ProjectState {
   setDeviceSize: (type: DeviceType, model: DeviceModel) => void
   /** Change sourceLocale and swap base ↔ translation for all slides atomically. */
   changeSourceLocale: (next: string) => void
+
+  /** Record which file the open project belongs to, and what was written. */
+  setDocument: (docPath: string | null, savedHash: string | null) => void
 
   setStep: (step: Step) => void
   setActiveSlide: (slideId: string) => void
@@ -201,13 +212,23 @@ export const useProjectStore = create<ProjectState>()(
       project: null,
       step: 1,
       activeSlideId: null,
+      docPath: null,
+      savedHash: null,
+
+      setDocument: (docPath, savedHash) => set({ docPath, savedHash }),
 
       createProject: (input) => {
         const project = makeProject(input)
+        // File identity is cleared, not carried: whatever was open belonged to
+        // another file, and inheriting its path would make the first ⌘S
+        // overwrite a project the user never meant to touch. `newDocument`
+        // gives the fresh project its own path immediately after.
         set({
           project,
           step: 2,
           activeSlideId: project.slides[0]?.id ?? null,
+          docPath: null,
+          savedHash: null,
         })
         // Same sweep resetProject and every loadProject caller run: the project
         // just discarded may have been the last reference to its screenshots.
@@ -215,7 +236,7 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       resetProject: () => {
-        set({ project: null, step: 1, activeSlideId: null })
+        set({ project: null, step: 1, activeSlideId: null, docPath: null, savedHash: null })
         // Reference-checked: only sweep blobs no saved project/preset/template
         // still points at (the cleared project may have shared keys with them).
         gcImages()
@@ -223,10 +244,14 @@ export const useProjectStore = create<ProjectState>()(
 
       loadProject: (project) => {
         const clone = ensureThemeBackground(structuredClone(project))
+        // Same reason as createProject: the incoming project is not the file
+        // that was open. `openDocument` sets the path back afterwards.
         set({
           project: clone,
           step: 2,
           activeSlideId: clone.slides[0]?.id ?? null,
+          docPath: null,
+          savedHash: null,
         })
       },
 
@@ -549,7 +574,7 @@ export const useProjectStore = create<ProjectState>()(
       // bundle reopen path). A pre-v4 project is unrecoverable, so the whole
       // persisted state (step/activeSlideId too) drops to a clean slate.
       migrate: (_persisted, version) => {
-        if (version < 4) return { project: null, step: 1, activeSlideId: null }
+        if (version < 4) return { project: null, step: 1, activeSlideId: null, docPath: null, savedHash: null }
         const state = _persisted as { project: Project | null; step: Step; activeSlideId: string | null }
         if (state.project) state.project = migrateProject(state.project, version)
         return state
@@ -559,14 +584,18 @@ export const useProjectStore = create<ProjectState>()(
       merge: (persisted, current) => {
         const state = { ...current, ...(persisted as object) } as ProjectState
         if (state.project && !isRevivableProject(state.project)) {
-          return { ...state, project: null, step: 1, activeSlideId: null }
+          return { ...state, project: null, step: 1, activeSlideId: null, docPath: null, savedHash: null }
         }
         return state
       },
+      // docPath/savedHash ride along so a relaunch knows which file was open
+      // and whether it had unsaved edits.
       partialize: (state) => ({
         project: state.project,
         step: state.step,
         activeSlideId: state.activeSlideId,
+        docPath: state.docPath,
+        savedHash: state.savedHash,
       }),
     },
   ),

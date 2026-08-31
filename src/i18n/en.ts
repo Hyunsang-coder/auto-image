@@ -4,6 +4,72 @@
  * are interpolation slots filled by `t()`.
  */
 export const en: Record<string, string> = {
+  // Document model (desktop): file identity, menu, recents, close guard.
+  '저장하지 않은 변경 사항': 'Unsaved Changes',
+  '저장되지 않음': 'Not saved',
+  '프로젝트 열기…': 'Open Project…',
+  '⌘O — 최근 항목에서 고르거나 파일에서 엽니다': '⌘O — pick a recent project or open a file',
+  '⌘S — 열려 있는 파일에 씁니다': '⌘S — writes to the open file',
+  '다른 이름으로 저장…': 'Save As…',
+  '다른 이름으로 저장': 'Save As',
+  '⇧⌘S — 새 위치·새 이름으로 저장하고 그 파일로 이어서 작업합니다':
+    '⇧⌘S — save to a new name or place and keep working in that file',
+  '지금 열려 있는 문서에 저장하지 않은 편집이 남아 있습니다. 복구하면 편집 상태로 열리고, ⌘S를 누르면 파일에 반영됩니다.':
+    'The document you had open has edits that were never saved. Recovering opens it with those edits pending — one ⌘S writes them to the file.',
+  'Screenshot Studio 정보': 'About Screenshot Studio',
+  가리기: 'Hide Screenshot Studio',
+  '다른 항목 가리기': 'Hide Others',
+  '모두 보기': 'Show All',
+  종료: 'Quit Screenshot Studio',
+  파일: 'File',
+  '열기…': 'Open…',
+  '최근 프로젝트': 'Open Recent',
+  '최근 항목 없음': 'No Recent Projects',
+  '창 닫기': 'Close Window',
+  '실행 취소': 'Undo',
+  '다시 실행': 'Redo',
+  오려두기: 'Cut',
+  복사하기: 'Copy',
+  붙여넣기: 'Paste',
+  윈도우: 'Window',
+  최소화: 'Minimize',
+  '확대/축소': 'Zoom',
+  '전체 화면 사용': 'Toggle Full Screen',
+  '최근 프로젝트를 고르거나 파일에서 엽니다. 저장하지 않은 편집이 있으면 먼저 물어봅니다.':
+    'Pick a recent project or open a file. If the open project has unsaved edits, you are asked first.',
+  '열려 있음': 'open',
+  '찾을 수 없음': 'Not found',
+  '목록에서 제거': 'Remove from list',
+  열기: 'Open',
+  '이전 버전': 'Previous versions',
+  '아직 이전 버전이 없습니다. 저장할 때마다 최근 10개가 보관됩니다.':
+    'No previous versions yet. Every save keeps the last 10.',
+  되돌리기: 'Restore',
+  '파일에서 열기…': 'Open from file…',
+  '이전 버전…': 'Previous versions…',
+  '「{name}」의 변경 사항을 저장할까요? 저장하지 않으면 사라집니다.':
+    'Save the changes to “{name}”? They are lost if you do not.',
+  '「{name}」에 저장하지 않은 변경 사항이 있습니다. 계속하기 전에 저장할까요?':
+    '“{name}” has unsaved changes. Save them before continuing?',
+  '저장 안 함': "Don't Save",
+  '덮어쓸까요?': 'Replace the existing file?',
+  '「{name}」이(가) 이미 있습니다. 덮어쓰면 기존 내용은 사라집니다.':
+    '“{name}” already exists. Replacing it discards what it holds.',
+  '프로젝트는 그대로 열려 있고, 디스크의 파일도 그대로입니다.':
+    'The project is still open, and the file on disk is untouched.',
+  '저장 완료': 'Saved',
+  '라이브러리를 파일로 옮겼습니다': 'Your library is now files',
+  '이 브라우저에 보관돼 있던 프로젝트 {n}개를 「Screenshot Studio」 폴더에 파일로 저장하고 최근 목록에 넣었습니다.':
+    'Wrote the {n} project(s) kept inside this browser to files in the Screenshot Studio folder, and added them to Recents.',
+  '이미지 {n}개는 이미 사라져 파일에 담기지 못했습니다.':
+    '{n} image(s) were already gone and could not be written into the files.',
+  확인: 'OK',
+  '파일 가져오기': 'Import files',
+  'AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다. 저장해 둔 프로젝트는 ⌘O로 엽니다.':
+    'Pick an agent-authored file set (manifest.json + screenshots + a caption CSV/JSON) in one go to start from a project filled in right up to export. Saved projects open with ⌘O.',
+  '저장한 프로젝트 열기 (⌘O)': 'Open a saved project (⌘O)',
+  '저장하지 못했습니다': 'Could not save',
+  '프로젝트를 열지 못했습니다': 'Could not open the project',
   '레이어 목록': 'Layers',
   '요소 추가': 'Add element',
   '이 슬라이드 편집': 'Edit this slide',

@@ -9,6 +9,8 @@ import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
 import { routeOpenFiles, runProjectImport, type ImportRunResult } from '../../lib/projectImportRun'
 import { importProjectBundle } from '../../lib/projectBundle'
+import { adoptAsDocument, ensureSaved, useDocumentStore } from '../../lib/documentIO'
+import { isTauri } from '../../lib/tauri'
 import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
 import { Modal } from '../common/Modal'
@@ -38,6 +40,11 @@ export function ProjectSetup() {
   // Files picked alongside a bundle, so the surplus can be reported.
   const [ignoredOnOpen, setIgnoredOnOpen] = useState(0)
   const [bundleError, setBundleError] = useState(false)
+  const openDocumentPicker = useDocumentStore((s) => s.set)
+  // On the desktop this step is only the new-project form: opening lives on
+  // ⌘O, which reaches it from any step, and the library has been retired in
+  // favour of real files. The web build keeps both, since it has no files.
+  const desktop = isTauri()
 
   // Defaults, never the open project's values: this form only ever mints a NEW
   // project, and seeding it from the current one made both "새로 만들기" and
@@ -57,20 +64,28 @@ export function ProjectSetup() {
 
   const canSubmit = name.trim().length > 0
   const hasExisting = !!existingProject
-  const hasFiles = hasExisting || savedProjects.length > 0
+  const hasFiles = hasExisting || (!desktop && savedProjects.length > 0)
 
   function submit() {
     if (!canSubmit) return
+    // Desktop: the open project is a file, so the question is whether to save
+    // it — three buttons, not "replace / cancel".
+    if (desktop) {
+      void (async () => {
+        if (await ensureSaved('new')) await doCreate()
+      })()
+      return
+    }
     // Creating a fresh project overwrites the active one — confirm first, like
     // load/delete do, since this is the most destructive path here.
     if (existingProject) {
       setConfirmNew(true)
       return
     }
-    doCreate()
+    void doCreate()
   }
 
-  function doCreate() {
+  async function doCreate() {
     createProject({
       name: name.trim(),
       devices: [device],
@@ -79,6 +94,13 @@ export function ProjectSetup() {
       themeBackground,
     })
     setConfirmNew(false)
+    // A new project becomes a file straight away. There is no "unsaved,
+    // untitled" state on the desktop: the whole point of the document model is
+    // that work cannot be lost by forgetting to save it.
+    if (desktop) {
+      const created = useProjectStore.getState().project
+      if (created) await adoptAsDocument(created)
+    }
   }
 
   function handleDelete(id: string) {
@@ -89,20 +111,32 @@ export function ProjectSetup() {
   }
 
   function handleLoad(p: Project) {
+    if (desktop) {
+      void (async () => {
+        if (await ensureSaved('open')) await doLoad(p)
+      })()
+      return
+    }
     // Loading replaces the active project. Confirm first if there's current
     // work that hasn't been explicitly saved into the library as-is.
     if (existingProject) {
       setConfirmLoad(p)
       return
     }
-    doLoad(p)
+    void doLoad(p)
   }
 
-  function doLoad(p: Project) {
+  async function doLoad(p: Project) {
     loadProject(p)
     setConfirmLoad(null)
     // The outgoing project's blobs are swept if nothing else references them.
     gcImages()
+    // Same rule as a new project: whatever route produced it — a template, an
+    // agent-authored file set — it lands as a file of its own.
+    if (desktop) {
+      const loaded = useProjectStore.getState().project
+      if (loaded) await adoptAsDocument(loaded)
+    }
   }
 
   // Starting from a template builds a fresh project, then routes through the
@@ -144,9 +178,9 @@ export function ProjectSetup() {
 
   function confirmImport() {
     if (!importResult?.project) return
-    loadProject(importResult.project)
+    const imported = importResult.project
     setImportResult(null)
-    gcImages()
+    void doLoad(imported)
   }
 
   function cancelImport() {
@@ -220,7 +254,10 @@ export function ProjectSetup() {
         </div>
       )}
 
-      {savedProjects.length > 0 && (
+      {/* Retired on the desktop: every project is a real file now, reached
+          with ⌘O. The store and this list stay one version longer for the web
+          build, which has nowhere else to keep a project. */}
+      {!desktop && savedProjects.length > 0 && (
         <Section title={t('저장된 프로젝트')} hint={t("헤더의 '저장'으로 보관한 프로젝트입니다.")}>
           <ul className="flex flex-col gap-2">
             {savedProjects.map((p) => (
@@ -370,8 +407,12 @@ export function ProjectSetup() {
         routeOpenFiles.
       */}
       <Section
-        title={t('프로젝트 열기')}
-        hint={t('저장한 프로젝트 파일(.zip)을 고르면 편집 내용 그대로 이어서 작업합니다. AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다.')}
+        title={desktop ? t('파일 가져오기') : t('프로젝트 열기')}
+        hint={
+          desktop
+            ? t('AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다. 저장해 둔 프로젝트는 ⌘O로 엽니다.')
+            : t('저장한 프로젝트 파일(.zip)을 고르면 편집 내용 그대로 이어서 작업합니다. AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다.')
+        }
       >
         <input
           ref={importInputRef}
@@ -393,6 +434,15 @@ export function ProjectSetup() {
         >
           {importBusy ? t('여는 중…') : t('파일 선택')}
         </button>
+        {desktop && (
+          <button
+            type="button"
+            onClick={() => openDocumentPicker({ pickerOpen: true })}
+            className="self-start text-sm text-[var(--color-accent-strong)] underline-offset-2 hover:underline"
+          >
+            {t('저장한 프로젝트 열기 (⌘O)')}
+          </button>
+        )}
         {ignoredOnOpen > 0 && (
           <p className="text-xs text-[var(--color-warning)]">
             {t('프로젝트 파일을 열었습니다. 함께 고른 파일 {n}개는 사용하지 않았습니다.', {

@@ -25,8 +25,8 @@ function proj(name: string, updatedAt: string): Project {
   return { ...p, updatedAt }
 }
 
-function snapshot(project: Project, schemaVersion = PROJECT_SCHEMA_VERSION) {
-  return { schemaVersion, savedAt: project.updatedAt, project }
+function snapshot(project: Project, schemaVersion = PROJECT_SCHEMA_VERSION, docPath?: string) {
+  return { schemaVersion, savedAt: project.updatedAt, project, docPath }
 }
 
 describe('chooseRecovery', () => {
@@ -79,6 +79,36 @@ describe('chooseRecovery', () => {
     expect(decision.kind === 'offer' && decision.project.name).toBe('Newer')
   })
 
+  // With a document model the same "mirror is ahead" fact means two different
+  // things, and the prompt has to say the right one.
+  it('calls it unsaved edits when the mirror belongs to the document that is open', () => {
+    const decision = chooseRecovery(
+      proj('A', '2026-08-31T10:00:00Z'),
+      snapshot(proj('A', '2026-08-31T18:00:00Z'), PROJECT_SCHEMA_VERSION, '/docs/A.studio.zip'),
+      '/docs/A.studio.zip',
+    )
+    expect(decision).toMatchObject({ kind: 'offer', reason: 'unsaved' })
+  })
+
+  it('falls back to the lost-project wording when the mirror is from another document', () => {
+    const decision = chooseRecovery(
+      proj('A', '2026-08-31T10:00:00Z'),
+      snapshot(proj('B', '2026-08-31T18:00:00Z'), PROJECT_SCHEMA_VERSION, '/docs/B.studio.zip'),
+      '/docs/A.studio.zip',
+    )
+    expect(decision).toMatchObject({ kind: 'offer', reason: 'newer' })
+  })
+
+  // Mirrors written before the document model carry no docPath at all.
+  it('falls back for a mirror that predates the document model', () => {
+    const decision = chooseRecovery(
+      proj('A', '2026-08-31T10:00:00Z'),
+      snapshot(proj('A', '2026-08-31T18:00:00Z')),
+      '/docs/A.studio.zip',
+    )
+    expect(decision).toMatchObject({ kind: 'offer', reason: 'newer' })
+  })
+
   it('migrates an older-schema mirror before offering it', () => {
     const mirrored = proj('A', '2026-08-31T18:00:00Z')
     const decision = chooseRecovery(null, snapshot(mirrored, 4))
@@ -108,18 +138,25 @@ describe('the mirror', () => {
   it('writes as soon as it starts, without waiting for an edit', async () => {
     const armed = await armAutosave(null)
     invoke.mockClear()
-    const stop = armed.begin(() => proj('Kept', '2026-08-31T10:00:00Z'), () => () => {})
+    const stop = armed.begin(
+      () => ({ project: proj('Kept', '2026-08-31T10:00:00Z'), docPath: '/docs/Kept.studio.zip' }),
+      () => () => {},
+    )
 
     const write = invoke.mock.calls.find(([cmd]) => cmd === 'autosave_write')
     expect(write).toBeDefined()
-    expect(JSON.parse((write![1] as { json: string }).json).project.name).toBe('Kept')
+    const written = JSON.parse((write![1] as { json: string }).json)
+    expect(written.project.name).toBe('Kept')
+    // The docPath rides along: on the next launch it is the only way to tell
+    // unsaved edits apart from a project localStorage lost.
+    expect(written.docPath).toBe('/docs/Kept.studio.zip')
     stop()
   })
 
   it('clears the mirror rather than writing a null project', async () => {
     const armed = await armAutosave(null)
     invoke.mockClear()
-    const stop = armed.begin(() => null, () => () => {})
+    const stop = armed.begin(() => ({ project: null, docPath: null }), () => () => {})
 
     expect(invoke.mock.calls.map(([cmd]) => cmd)).toContain('autosave_clear')
     stop()
@@ -129,7 +166,7 @@ describe('the mirror', () => {
     delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
     const armed = await armAutosave(null)
     expect(armed.decision).toEqual({ kind: 'none' })
-    armed.begin(() => proj('X', '2026-08-31T10:00:00Z'), () => () => {})()
+    armed.begin(() => ({ project: proj('X', '2026-08-31T10:00:00Z'), docPath: null }), () => () => {})()
     expect(invoke).not.toHaveBeenCalled()
   })
 })

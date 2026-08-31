@@ -27,14 +27,30 @@ interface AutosaveSnapshot {
   schemaVersion: number
   savedAt: string
   project: Project
+  /**
+   * The document these edits belong to. Without it there is no way to tell
+   * "unsaved edits to the file you had open" from "localStorage lost a
+   * different project", and the two need different words. Absent in mirrors
+   * written before the document model.
+   */
+  docPath?: string | null
 }
 
 export type RecoveryDecision =
   | { kind: 'none' }
   /** `no-active` means localStorage lost the project outright; `newer` means it
    *  still holds one, but an older one than the mirror — i.e. its writes have
-   *  been failing. */
-  | { kind: 'offer'; project: Project; reason: 'no-active' | 'newer'; savedAt: string }
+   *  been failing. `unsaved` is the same "mirror is ahead" case, but for the
+   *  document that is still open, so the words can be about unsaved edits
+   *  rather than about a lost project. */
+  | {
+      kind: 'offer'
+      project: Project
+      reason: 'no-active' | 'newer' | 'unsaved'
+      savedAt: string
+      /** The document the mirrored edits belong to, when it recorded one. */
+      docPath: string | null
+    }
 
 /**
  * Which of the two copies is ahead. Pure so the decision itself is testable
@@ -45,6 +61,7 @@ export type RecoveryDecision =
 export function chooseRecovery(
   active: Project | null,
   snapshot: AutosaveSnapshot | null,
+  docPath: string | null = null,
 ): RecoveryDecision {
   // The mirror is a file, not a store rehydrate: it can be hand-edited, come
   // from another version, or predate the atomic write. Check the shape before
@@ -54,9 +71,21 @@ export function chooseRecovery(
   }
   const project = migrateProject(snapshot.project, snapshot.schemaVersion ?? PROJECT_SCHEMA_VERSION)
   if (!project) return { kind: 'none' }
-  if (!active) return { kind: 'offer', project, reason: 'no-active', savedAt: snapshot.savedAt }
+  const from = snapshot.docPath ?? null
+  if (!active) {
+    return { kind: 'offer', project, reason: 'no-active', savedAt: snapshot.savedAt, docPath: from }
+  }
   if (project.updatedAt > active.updatedAt) {
-    return { kind: 'offer', project, reason: 'newer', savedAt: snapshot.savedAt }
+    // Same mirror-is-ahead condition either way; the docPath only decides
+    // which of the two situations the user is actually in.
+    const sameDocument = !!docPath && from === docPath
+    return {
+      kind: 'offer',
+      project,
+      reason: sameDocument ? 'unsaved' : 'newer',
+      savedAt: snapshot.savedAt,
+      docPath: from,
+    }
   }
   return { kind: 'none' }
 }
@@ -124,7 +153,11 @@ async function syncImages(project: Project): Promise<void> {
   }
 }
 
-export async function writeSnapshot(project: Project | null): Promise<void> {
+export async function writeSnapshot(
+  project: Project | null,
+  docPath: string | null = null,
+): Promise<void> {
+  if (!isTauri()) return
   if (!project) {
     await invoke('autosave_clear')
     return
@@ -133,6 +166,7 @@ export async function writeSnapshot(project: Project | null): Promise<void> {
     schemaVersion: PROJECT_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
     project,
+    docPath,
   }
   // JSON first: it is the cheap part and the part that is almost always what
   // changed, so a slow image sync never delays recording the actual edit.
@@ -174,15 +208,21 @@ export interface ArmedAutosave {
    * before the recovery offer is resolved would overwrite the very file being
    * offered.
    */
-  begin: (getProject: () => Project | null, subscribe: (fn: () => void) => () => void) => () => void
+  begin: (
+    getState: () => { project: Project | null; docPath: string | null },
+    subscribe: (fn: () => void) => () => void,
+  ) => () => void
 }
 
 /** Read the mirror and decide, without touching it. Inert off the desktop. */
-export async function armAutosave(active: Project | null): Promise<ArmedAutosave> {
+export async function armAutosave(
+  active: Project | null,
+  docPath: string | null = null,
+): Promise<ArmedAutosave> {
   let decision: RecoveryDecision = { kind: 'none' }
   if (isTauri()) {
     try {
-      decision = chooseRecovery(active, await readSnapshot())
+      decision = chooseRecovery(active, await readSnapshot(), docPath)
     } catch {
       // An unreadable mirror must not stop the app from opening; the user still
       // has whatever localStorage holds.
@@ -192,12 +232,13 @@ export async function armAutosave(active: Project | null): Promise<ArmedAutosave
 
   return {
     decision,
-    begin(getProject, subscribe) {
+    begin(getState, subscribe) {
       if (!isTauri()) return () => {}
       let timer: ReturnType<typeof setTimeout> | undefined
       const flush = () => {
         timer = undefined
-        void writeSnapshot(getProject()).catch(() => {
+        const { project, docPath: path } = getState()
+        void writeSnapshot(project, path).catch(() => {
           // Fire-and-forget: the mirror is a backstop, and failing it must not
           // interrupt editing. A failure that matters shows up on next launch
           // as a mirror that is behind, which is the safe direction.

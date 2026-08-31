@@ -74,7 +74,7 @@ fn images_dir<R: Runtime>(app: &AppHandle<R>) -> io::Result<PathBuf> {
 /// Image names are built from the webview's own UUID keys, but they arrive over
 /// IPC and end up as path segments, so they are checked like any other untrusted
 /// input: one segment, no separators, no climbing out.
-fn safe_name(name: &str) -> Result<&str, String> {
+pub(crate) fn safe_name(name: &str) -> Result<&str, String> {
     let ok = !name.is_empty()
         && name.len() <= 128
         && !name.starts_with('.')

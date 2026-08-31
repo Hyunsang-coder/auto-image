@@ -1,6 +1,12 @@
 use base64::Engine;
+use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 
 mod bridge;
+mod document;
+mod instance;
+mod menu;
+mod quit;
 mod save;
 mod update;
 
@@ -61,14 +67,34 @@ mod tests {
     }
 }
 
+/// English on purpose: this fires before the webview (and `src/i18n/`) exists,
+/// so there is no locale to ask.
+const SECOND_INSTANCE_MESSAGE: &str =
+  "Screenshot Studio is already running. Switch to the open window — two copies would overwrite each other's work.";
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_opener::init())
     .manage(bridge::BridgeState::default())
+    .manage(menu::MenuState::default())
+    .manage(quit::QuitState::default())
     .invoke_handler(tauri::generate_handler![
       write_file,
+      document::save_document,
+      document::read_document,
+      document::document_exists,
+      document::default_document_dir,
+      document::list_document_names,
+      document::backup_original,
+      document::recents_read,
+      document::recents_write,
+      document::rotate_backup,
+      document::list_backups,
+      menu::set_menu_labels,
+      quit::close_ack,
+      quit::confirm_close,
       save::autosave_write,
       save::autosave_read,
       save::autosave_clear,
@@ -82,6 +108,17 @@ pub fn run() {
       bridge::bridge_set_enabled,
       update::check_for_update
     ])
+    .on_menu_event(|app, event| menu::on_event(app, event.id().as_ref()))
+    // Every quit path lands here: the red button, ⌘W, and the custom ⌘Q item
+    // (which calls quit::request directly). The window stays open until the
+    // webview answers — or fails to prove it is alive. See quit.rs.
+    .on_window_event(|window, event| {
+      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        if quit::on_window_close(window.app_handle()) {
+          api.prevent_close();
+        }
+      }
+    })
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -90,6 +127,23 @@ pub fn run() {
             .build(),
         )?;
       }
+      // Two copies of the app share one localStorage origin, one crash mirror
+      // and — now — one document file. Second one in gets told and shown out.
+      if !instance::claim(app.handle()) {
+        log::warn!("another Screenshot Studio instance is already running; exiting");
+        if let Some(window) = app.get_webview_window("main") {
+          // Hidden rather than closed: closing the last window exits the app,
+          // which would take the dialog with it before anyone read it.
+          let _ = window.hide();
+        }
+        let handle = app.handle().clone();
+        app.dialog()
+          .message(SECOND_INSTANCE_MESSAGE)
+          .title("Screenshot Studio")
+          .show(move |_| handle.exit(0));
+        return Ok(());
+      }
+
       // The agent bridge is best-effort: a desktop app that cannot open its
       // socket should still work as a plain editor.
       if bridge::enabled(app.handle()) {
