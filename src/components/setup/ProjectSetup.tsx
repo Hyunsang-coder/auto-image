@@ -13,6 +13,7 @@ import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
 import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
 import { Modal } from '../common/Modal'
 import { useT } from '../../i18n'
+import { formatTime } from '../../lib/formatTime'
 
 const MIN_SLIDES = 1
 const MAX_SLIDES = 10
@@ -708,11 +709,3 @@ function Section({
   )
 }
 
-function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString()
-  } catch {
-    return iso
-  }
-}

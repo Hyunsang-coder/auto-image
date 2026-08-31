@@ -23,6 +23,8 @@ import { exportProjectBundle } from './lib/projectBundle'
 import { exportProject } from './lib/projectExport'
 import { STORAGE_ERROR_EVENT, STORAGE_PRESSURE_EVENT, storageUsage } from './lib/safeStorage'
 import { startAgentBridge } from './lib/agentBridge'
+import { armAutosave, type RecoveryDecision } from './lib/autosave'
+import { formatTime } from './lib/formatTime'
 import { getUntranslatedLocales, getSlidesMissingScreenshot } from './lib/readiness'
 import { useI18nStore, useT } from './i18n'
 
@@ -54,6 +56,7 @@ function App() {
   const [templateName, setTemplateName] = useState('')
   const [justSavedTemplate, setJustSavedTemplate] = useState(false)
   const [storageError, setStorageError] = useState(false)
+  const [recovery, setRecovery] = useState<Extract<RecoveryDecision, { kind: 'offer' }> | null>(null)
   // Fraction of the localStorage budget in use, once it is high enough to be
   // worth saying. Seeded from what is already on disk so a session that opens
   // an already-full store hears about it before its first write fails.
@@ -62,6 +65,9 @@ function App() {
     return ratio >= 0.8 ? ratio : 0
   })
   const prunedRef = useRef(false)
+  // Set by the autosave effect so answering the recovery prompt can start the
+  // mirror it deliberately held back.
+  const resumeMirrorRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     if (!project && step !== 1) setStep(1)
@@ -84,6 +90,35 @@ function App() {
   // Desktop shell only: lets an MCP agent drive this window. No-op on the web.
   useEffect(() => {
     startAgentBridge()
+  }, [])
+
+  // Crash recovery, then the mirror that feeds it. Order matters: mirroring
+  // writes the current project, so it must not start until any recovery offer
+  // has been answered — otherwise the first debounce tick overwrites the file
+  // being offered.
+  useEffect(() => {
+    let stopMirror: (() => void) | undefined
+    let cancelled = false
+    void armAutosave(useProjectStore.getState().project).then((armed) => {
+      if (cancelled) return
+      const startMirror = () => {
+        if (cancelled || stopMirror) return
+        stopMirror = armed.begin(
+          () => useProjectStore.getState().project,
+          (fn) =>
+            useProjectStore.subscribe((s, prev) => {
+              if (s.project !== prev.project) fn()
+            }),
+        )
+      }
+      resumeMirrorRef.current = startMirror
+      if (armed.decision.kind === 'offer') setRecovery(armed.decision)
+      else startMirror()
+    })
+    return () => {
+      cancelled = true
+      stopMirror?.()
+    }
   }, [])
 
   useEffect(() => {
@@ -129,6 +164,18 @@ function App() {
   function handleReset() {
     resetProject()
     setShowResetConfirm(false)
+  }
+
+  // Answering either way releases the mirror the autosave effect held back.
+  function acceptRecovery() {
+    if (recovery) useProjectStore.getState().loadProject(recovery.project)
+    setRecovery(null)
+    resumeMirrorRef.current()
+  }
+
+  function declineRecovery() {
+    setRecovery(null)
+    resumeMirrorRef.current()
   }
 
   function openSaveModal() {
@@ -463,6 +510,45 @@ function App() {
                 {t('저장')}
               </button>
             </div>
+        </Modal>
+      )}
+
+      {/*
+        Never applied silently: the mirror can be ahead because localStorage
+        writes were failing, but it can also be ahead because the app was force
+        quit mid-edit — only the person who did the work can tell which copy
+        they want. Declining leaves the current project untouched.
+      */}
+      {recovery && (
+        <Modal title={t('복구할 작업이 있습니다')} onClose={declineRecovery}>
+          <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+            {recovery.reason === 'no-active'
+              ? t('마지막으로 편집하던 프로젝트가 이 브라우저 저장소에 남아 있지 않습니다. 디스크 백업본에서 복구할 수 있습니다.')
+              : t('디스크 백업본이 지금 열려 있는 프로젝트보다 최신입니다. 저장 공간이 가득 차 최근 변경 사항이 기록되지 못했을 때 이렇게 됩니다.')}
+          </p>
+          <p className="mt-3 text-sm text-[var(--color-text)]">
+            <span className="font-medium">{recovery.project.name}</span>
+            <span className="text-[var(--color-text-dim)]">
+              {' '}· {t('{n}장', { n: recovery.project.slides.length })} · {t('마지막 수정')}{' '}
+              {formatTime(recovery.project.updatedAt)}
+            </span>
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={declineRecovery}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('무시하기')}
+            </button>
+            <button
+              type="button"
+              onClick={acceptRecovery}
+              className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
+            >
+              {t('복구하기')}
+            </button>
+          </div>
         </Modal>
       )}
 

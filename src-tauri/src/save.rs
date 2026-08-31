@@ -154,6 +154,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    fn mock_app() -> tauri::App<tauri::test::MockRuntime> {
+        tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap()
+    }
+
+    // Drives the real commands against a real config dir, so a mismatch between
+    // the three of them (or a path that never resolves) fails here rather than
+    // on someone's machine at recovery time.
+    #[test]
+    fn the_mirror_round_trips_and_a_missing_one_reads_as_none() {
+        let app = mock_app();
+        let handle = app.handle().clone();
+        autosave_clear(handle.clone()).unwrap();
+
+        assert_eq!(autosave_read(handle.clone()).unwrap(), None);
+
+        autosave_write(handle.clone(), "{\"project\":1}".into()).unwrap();
+        assert_eq!(autosave_read(handle.clone()).unwrap().as_deref(), Some("{\"project\":1}"));
+
+        // Overwrites rather than appends, and clearing twice is not an error.
+        autosave_write(handle.clone(), "{\"project\":2}".into()).unwrap();
+        assert_eq!(autosave_read(handle.clone()).unwrap().as_deref(), Some("{\"project\":2}"));
+
+        autosave_clear(handle.clone()).unwrap();
+        autosave_clear(handle.clone()).unwrap();
+        assert_eq!(autosave_read(handle).unwrap(), None);
+    }
+
     // rename() is only atomic within one filesystem, so the temp file has to be
     // a sibling of the target rather than something under /tmp.
     #[test]

@@ -61,6 +61,13 @@ export const en: Record<string, string> = {
   '프로젝트 초기화': 'Reset Project',
   '현재 프로젝트 데이터가 모두 삭제됩니다. 되돌릴 수 없습니다.':
     'All data in the current project will be deleted. This cannot be undone.',
+  '복구할 작업이 있습니다': 'There is work to recover',
+  '마지막으로 편집하던 프로젝트가 이 브라우저 저장소에 남아 있지 않습니다. 디스크 백업본에서 복구할 수 있습니다.':
+    'The project you were last editing is no longer in this browser\u2019s storage. It can be recovered from the backup on disk.',
+  '디스크 백업본이 지금 열려 있는 프로젝트보다 최신입니다. 저장 공간이 가득 차 최근 변경 사항이 기록되지 못했을 때 이렇게 됩니다.':
+    'The backup on disk is newer than the project currently open. This happens when storage fills up and recent changes stop being recorded.',
+  무시하기: 'Ignore',
+  복구하기: 'Recover',
 
   // PropertiesPanel tabs
   배경: 'Background',
