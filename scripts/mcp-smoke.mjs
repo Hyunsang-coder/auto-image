@@ -32,6 +32,8 @@ const EXPECTED_TOOLS = [
   'live_list_untranslated',
   'live_patch',
   'live_view',
+  'live_save',
+  'live_open',
 ]
 
 // What the published package ships: the live half plus the vocabulary, and

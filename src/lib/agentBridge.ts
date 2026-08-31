@@ -18,9 +18,11 @@ import { getPendingTranslations } from './readiness'
 import { applyPatch, type PatchOp } from './projectPatch'
 import { renderSlide, renderSpanGroup } from './renderSlide'
 import { blobToBase64, isTauri } from './tauri'
+import { docNameFromPath, isDirty } from './documentModel'
+import { adoptAsDocument, openDocument, saveDocument, useDocumentStore } from './documentIO'
 
 /** Bumped when the request/response shape changes; reported by `status`. */
-const PROTOCOL_VERSION = 1
+const PROTOCOL_VERSION = 2
 
 interface BridgeRequest {
   reqId: number
@@ -64,7 +66,56 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
         targetLocales: project.targetLocales ?? [],
         slideCount: project.slides.length,
       },
+      // Which file the agent is editing, and whether its edits are in it yet.
+      // Without this an agent patches for an hour with no idea what it is
+      // touching or whether anything it did is on disk.
+      document: docStatus(),
     }
+  },
+
+  /** Just the document facts — path, name, dirty. Also the e2e harness's eyes. */
+  docStatus() {
+    return docStatus()
+  },
+
+  /**
+   * ⌘S on the agent's behalf. Patches make the document dirty exactly like a
+   * user edit does (no special treatment, and no autosave), so this is how an
+   * agent commits a batch of them.
+   */
+  async save() {
+    const { project, docPath } = useProjectStore.getState()
+    if (!project) throw new Error('no project is open — create or open one in the app first')
+    if (!docPath) {
+      // Save As would put a native panel in front of the user with no way for
+      // the agent to answer it.
+      throw new Error('this project has no file yet; save it once from the app (⇧⌘S) first')
+    }
+    if (!(await saveDocument())) {
+      const error = useDocumentStore.getState().error
+      throw new Error(error ? `${error.title}: ${error.detail}` : 'the save did not complete')
+    }
+    return docStatus()
+  },
+
+  /**
+   * Open a .studio.zip as the live document. Refuses to discard unsaved work
+   * unless told to: the user may be watching a project the agent did not save.
+   */
+  async open(params) {
+    const path = params.path
+    if (typeof path !== 'string' || !path) throw new Error('open needs an absolute "path"')
+    const { project, savedHash } = useProjectStore.getState()
+    if (project && isDirty(project, savedHash) && params.discardUnsaved !== true) {
+      throw new Error(
+        `"${project.name}" has unsaved changes. Call save first, or pass discardUnsaved: true.`,
+      )
+    }
+    if (!(await openDocument(path))) {
+      const error = useDocumentStore.getState().error
+      throw new Error(error ? `${error.title}: ${error.detail}` : 'the file could not be opened')
+    }
+    return docStatus()
   },
 
   // Navigation. Deliberately outside applyPatch's vocabulary because it changes
@@ -92,7 +143,7 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
     return handlers.status({})
   },
 
-  newProject(params) {
+  async newProject(params) {
     const store = useProjectStore.getState()
     // Creating clobbers whatever is open, so it takes an explicit flag — an
     // agent must not throw away work the user has on screen by accident.
@@ -121,6 +172,10 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
       screenshotCount: slideCount,
       themeBackground: structuredClone(preset.background),
     })
+    // Same rule the app's own new-project form follows: it becomes a file
+    // immediately, so an agent's project is never one crash from gone.
+    const created = useProjectStore.getState().project
+    if (created) await adoptAsDocument(created)
     return handlers.status({})
   },
 
@@ -221,6 +276,24 @@ export function startAgentBridge(): void {
   })()
 }
 
+
+function docStatus(): {
+  path: string | null
+  name: string | null
+  dirty: boolean
+  error?: string
+} {
+  const { project, docPath, savedHash } = useProjectStore.getState()
+  const error = useDocumentStore.getState().error
+  return {
+    path: docPath,
+    name: docPath ? docNameFromPath(docPath) : (project?.name ?? null),
+    dirty: isDirty(project, savedHash),
+    // A project that ends up with no path did not get one for a reason, and
+    // "path: null" on its own tells an agent nothing about what to fix.
+    ...(error ? { error: `${error.title}: ${error.detail}` } : {}),
+  }
+}
 
 /**
  * Each slide's screenshot box on the composed canvas, keyed by slide id, in

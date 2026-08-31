@@ -445,6 +445,29 @@ export async function ensureSaved(intent: DirtyIntent): Promise<boolean> {
   return saveDocument()
 }
 
+/**
+ * The webview half of the close guard (src-tauri/src/quit.rs). Rust has already
+ * held the window open and is waiting.
+ *
+ * The ack goes first and is deliberately separate from the answer: Rust's
+ * 3-second timer is a *liveness* check, not a decision deadline. Acking stops
+ * it, which is what lets the user read the prompt at their own pace and lets a
+ * slow save finish. Without the ack a save that takes longer than three seconds
+ * would be cut off by the exit it is racing.
+ */
+export async function handleCloseRequest(): Promise<void> {
+  await invoke('close_ack').catch(() => {})
+  let close: boolean
+  try {
+    close = await ensureSaved('close')
+  } catch {
+    // A save that threw its way out here has already told the user. Staying
+    // open is the safe answer: nothing is lost by not quitting.
+    close = false
+  }
+  await invoke('confirm_close', { close }).catch(() => {})
+}
+
 // ---------------------------------------------------------------- backups
 
 export async function loadBackups(): Promise<void> {

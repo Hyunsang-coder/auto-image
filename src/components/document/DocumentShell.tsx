@@ -21,6 +21,7 @@ import { docNameFromPath, isDirty } from '../../lib/documentModel'
 import {
   ensureSaved,
   forgetRecent,
+  handleCloseRequest,
   loadBackups,
   loadRecents,
   migrateLibraryToFiles,
@@ -147,11 +148,7 @@ export function DocumentShell() {
   useEffect(() => {
     if (!isTauri()) return
     const unlisten = listen('document:close-requested', () => {
-      void (async () => {
-        await invoke('close_ack').catch(() => {})
-        const proceed = await ensureSaved('close')
-        await invoke('confirm_close', { close: proceed }).catch(() => {})
-      })()
+      void handleCloseRequest()
     })
     return () => {
       void unlisten.then((off) => off())

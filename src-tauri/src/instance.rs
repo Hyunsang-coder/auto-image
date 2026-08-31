@@ -13,10 +13,8 @@
 use std::io;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-
-use tauri::{AppHandle, Runtime};
 
 const LOCK_NAME: &str = "instance.lock.sock";
 
@@ -24,21 +22,58 @@ const LOCK_NAME: &str = "instance.lock.sock";
 /// socket and let a second instance in.
 static HELD: Mutex<Option<UnixListener>> = Mutex::new(None);
 
-/// Try to become *the* instance. False means another one is already running.
-pub fn claim<R: Runtime>(app: &AppHandle<R>) -> bool {
-    let path = match crate::bridge::config_dir(app) {
-        Ok(dir) => dir.join(LOCK_NAME),
+/// Where Tauri's `app_config_dir()` resolves to, derived without an AppHandle.
+///
+/// The claim has to happen *before* `Builder::build()`, because that is what
+/// creates the window — and a rejected instance whose webview loads has
+/// already rehydrated the shared localStorage, may rewrite the crash mirror on
+/// its first debounce tick, and may run the orphan-image sweep with its own
+/// stale keep-set. Being told "already running" after that has happened is too
+/// late. So this is the one place that spells the path out instead of asking
+/// the app: macOS `config_dir()` is `~/Library/Application Support`.
+fn config_dir_for(identifier: &str) -> Option<PathBuf> {
+    let home = std::env::var_os("HOME")?;
+    let dir = PathBuf::from(home)
+        .join("Library")
+        .join("Application Support")
+        .join(identifier);
+    std::fs::create_dir_all(&dir).ok()?;
+    let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
+    Some(dir)
+}
+
+/// Try to become *the* instance, before any window exists. False means another
+/// one is already running and this process should say so and stop.
+pub fn claim(identifier: &str) -> bool {
+    let Some(dir) = config_dir_for(identifier) else {
         // No config dir means no mirror and no recents either; refusing to
         // start over a lock we cannot place would be the worse failure.
-        Err(_) => return true,
+        return true;
     };
-    match bind(&path) {
+    match bind(&dir.join(LOCK_NAME)) {
         Ok(listener) => {
             *HELD.lock().unwrap_or_else(|e| e.into_inner()) = Some(listener);
             true
         }
         Err(_) => false,
     }
+}
+
+/// Tell the user why nothing opened.
+///
+/// `osascript` rather than the dialog plugin, for the same reason `update.rs`
+/// shells out to `curl`: the plugin needs a built Tauri app, and building one
+/// is exactly what must not happen here. English, because this runs before the
+/// webview — and `src/i18n/` lives inside it.
+pub fn notify_already_running() {
+    let message = "Screenshot Studio is already running. Switch to the open window \u{2014} \
+                   two copies would overwrite each other's work.";
+    let _ = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(format!(
+            "display alert \"Screenshot Studio\" message \"{message}\" as critical"
+        ))
+        .status();
 }
 
 /// Bind the lock socket, clearing a stale file first. `Err` means — and only
@@ -63,7 +98,6 @@ fn bind(path: &Path) -> io::Result<UnixListener> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("ss-instance-{name}"));

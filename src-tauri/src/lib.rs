@@ -1,6 +1,5 @@
 use base64::Engine;
 use tauri::Manager;
-use tauri_plugin_dialog::DialogExt;
 
 mod bridge;
 mod document;
@@ -67,13 +66,22 @@ mod tests {
     }
 }
 
-/// English on purpose: this fires before the webview (and `src/i18n/`) exists,
-/// so there is no locale to ask.
-const SECOND_INSTANCE_MESSAGE: &str =
-  "Screenshot Studio is already running. Switch to the open window — two copies would overwrite each other's work.";
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  let context = tauri::generate_context!();
+
+  // Two copies of the app share one localStorage origin, one crash mirror and
+  // — now — one document file. The check is here rather than in `setup()`
+  // because `build()` is what creates the window: by the time setup runs, a
+  // second webview has already rehydrated the shared stores. See instance.rs.
+  if !instance::claim(&context.config().identifier) {
+    // eprintln, not log::warn: the log plugin is installed in `setup()`, which
+    // this path never reaches, so a `log::` call here goes nowhere.
+    eprintln!("another Screenshot Studio instance is already running; exiting");
+    instance::notify_already_running();
+    return;
+  }
+
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_opener::init())
@@ -127,23 +135,6 @@ pub fn run() {
             .build(),
         )?;
       }
-      // Two copies of the app share one localStorage origin, one crash mirror
-      // and — now — one document file. Second one in gets told and shown out.
-      if !instance::claim(app.handle()) {
-        log::warn!("another Screenshot Studio instance is already running; exiting");
-        if let Some(window) = app.get_webview_window("main") {
-          // Hidden rather than closed: closing the last window exits the app,
-          // which would take the dialog with it before anyone read it.
-          let _ = window.hide();
-        }
-        let handle = app.handle().clone();
-        app.dialog()
-          .message(SECOND_INSTANCE_MESSAGE)
-          .title("Screenshot Studio")
-          .show(move |_| handle.exit(0));
-        return Ok(());
-      }
-
       // The agent bridge is best-effort: a desktop app that cannot open its
       // socket should still work as a plain editor.
       if bridge::enabled(app.handle()) {
@@ -157,6 +148,6 @@ pub fn run() {
 
       Ok(())
     })
-    .run(tauri::generate_context!())
+    .run(context)
     .expect("error while running tauri application");
 }

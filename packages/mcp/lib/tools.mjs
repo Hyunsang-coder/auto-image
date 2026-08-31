@@ -210,6 +210,40 @@ export function registerLiveTools(server) {
   )
 
   server.registerTool(
+    'live_save',
+    {
+      title: 'Save the open project to its file',
+      description:
+        'Write the project the user has open back to its own .studio.zip (the same thing ⌘S does). ' +
+        'live_patch leaves the document dirty exactly as a user edit would — nothing autosaves it — so call this ' +
+        'when a batch of patches is done. Fails if the project has never been saved to a file; the user has to ' +
+        'pick a location once from the app. live_status reports the path and whether it is dirty.',
+      inputSchema: {},
+    },
+    async () => liveGuard(async () => ok(await liveCall('save'))),
+  )
+
+  server.registerTool(
+    'live_open',
+    {
+      title: 'Open a project file in the app',
+      description:
+        'Open an absolute path to a .studio.zip as the LIVE document, replacing whatever the app has open. ' +
+        'Use it to bring a bundle you edited with patch_bundle (the only way to add images from files) in front ' +
+        'of the user. Refuses when the open project has unsaved changes unless discardUnsaved is true — call ' +
+        'live_save first instead.',
+      inputSchema: {
+        path: z.string().describe('Absolute path to a .studio.zip file.'),
+        discardUnsaved: z
+          .boolean()
+          .optional()
+          .describe('Throw away unsaved changes in the open project (default false).'),
+      },
+    },
+    async (params) => liveGuard(async () => ok(await liveCall('open', params))),
+  )
+
+  server.registerTool(
     'live_focus',
     {
       title: 'Move the app to a step / slide',

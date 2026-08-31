@@ -43,13 +43,15 @@ cwd=리포 루트로 spawn하면 된다. 서버는 `tsx`로 실행된다 — 디
 
 | 도구 | 역할 |
 |---|---|
-| `live_status` | 앱이 떠 있는지 + 지금 무엇이 열려 있는지(step, 프로젝트명, 슬라이드 수, 로케일). **다른 `live_*` 전에 먼저 호출**하고, 실패하면 파일 도구로 폴백 |
+| `live_status` | 앱이 떠 있는지 + 지금 무엇이 열려 있는지(step, 프로젝트명, 슬라이드 수, 로케일) + `document` (파일 경로 · 이름 · dirty 여부). **다른 `live_*` 전에 먼저 호출**하고, 실패하면 파일 도구로 폴백 |
 | `live_focus` | 4-step 화면(1 프로젝트 · 2 에디터 · 3 로컬라이즈 · 4 export) 전환 + 활성 슬라이드 선택. 프로젝트 데이터는 건드리지 않는다 — `live_patch` 전에 에디터로 가거나, 방금 고친 슬라이드를 사용자 앞에 띄울 때 |
 | `live_new_project` | 앱에 빈 프로젝트 생성 후 에디터로 이동. 이미 열린 프로젝트가 있으면 `replace: true` 없이는 거부 |
 | `live_inspect` | 열린 프로젝트를 `inspect_bundle`과 **같은 형태**로 반환(공용 `scripts/lib/inspect.mjs`) + `screenshot.canvasRect` — 스크린샷이 합성 캔버스에서 차지하는 박스(캔버스 비율). 하이라이트 `sourceRegion`이 캔버스가 아니라 이 박스 기준이라, 없으면 에이전트가 렌더만 보고 좌표를 추측해야 한다. 레이아웃 계산이 TS 그래프에 있어 MCP 프로세스가 못 부르므로 **앱이 계산해서 넘긴다**(번들 경로에는 없음) |
 | `live_list_untranslated` | 로컬라이즈 워크리스트 — 아직 번역이 빠진 문자열 × 로케일을 원문과 `setText` 주소(`text:N` / `badge:N`)로 반환. 번역해서 `live_patch`의 `setText`로 되쓰면 끝 (없는 로케일은 자동 추가). CSV 내보내기 → 외부 번역 → 다시 가져오기 왕복을 대체한다 |
 | `live_patch` | `patch_bundle`과 **같은 op 어휘**를 라이브 프로젝트에 적용. 캔버스가 즉시 다시 그려지고 사용자가 보던 슬라이드는 유지된다. 이미지 파일을 새로 들여오는 op(`file`)는 미지원 → `patch_bundle` 사용 |
 | `live_view` | 라이브 슬라이드를 export와 동일한 해상도로 렌더해 인라인 이미지로 반환(전송 시에만 축소) |
+| `live_save` | 열린 프로젝트를 자기 파일(`.studio.zip`)에 쓴다 = ⌘S. `live_patch`는 사용자 편집과 똑같이 dirty만 만들고 **자동 저장하지 않으므로**, 패치 묶음이 끝나면 이걸 부른다. 아직 파일이 없는 프로젝트는 거부(사용자가 앱에서 한 번 위치를 골라야 한다) |
+| `live_open` | 절대 경로의 `.studio.zip`을 라이브 문서로 연다. `patch_bundle`로 고친 번들(이미지 추가는 이 경로뿐)을 사용자 앞에 띄울 때. 열린 프로젝트에 미저장 변경이 있으면 `discardUnsaved: true` 없이는 거부 |
 
 앱은 `npm run tauri:dev` 또는 빌드된 `.app`으로 띄운다. 전송은
 `~/Library/Application Support/com.hyunsang.screenshotstudio/agent-bridge.sock`

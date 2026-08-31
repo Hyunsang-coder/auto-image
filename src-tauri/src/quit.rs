@@ -117,6 +117,7 @@ pub fn on_window_close<R: Runtime>(app: &AppHandle<R>) -> bool {
 
 /// Forward the close request and arm the liveness timer.
 pub fn ask<R: Runtime>(app: &AppHandle<R>, generation: u64) {
+    log::info!("close requested; asking the editor window (generation {generation})");
     if app.emit("document:close-requested", ()).is_err() {
         // No window to ask — nothing can be unsaved that the user could act on.
         exit(app);
@@ -147,6 +148,7 @@ pub fn close_ack<R: Runtime>(app: AppHandle<R>) {
 /// by the time it sends `close: true` after choosing 저장).
 #[tauri::command]
 pub fn confirm_close<R: Runtime>(app: AppHandle<R>, close: bool) {
+    log::info!("editor window answered the close request: close={close}");
     if app.state::<QuitState>().on_answer(close) {
         exit(&app);
     }
