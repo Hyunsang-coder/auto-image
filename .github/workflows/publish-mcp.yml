@@ -67,7 +67,7 @@ jobs:
       # No NODE_AUTH_TOKEN: npm uses the OIDC token when it finds one, and a
       # token in the environment would take precedence over it.
       - if: steps.check.outputs.publish == 'true'
-        run: npm publish
+        run: npm publish --loglevel verbose
         working-directory: packages/mcp
 
       - if: steps.check.outputs.publish == 'true'
