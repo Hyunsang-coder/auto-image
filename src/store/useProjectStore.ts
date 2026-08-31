@@ -209,6 +209,9 @@ export const useProjectStore = create<ProjectState>()(
           step: 2,
           activeSlideId: project.slides[0]?.id ?? null,
         })
+        // Same sweep resetProject and every loadProject caller run: the project
+        // just discarded may have been the last reference to its screenshots.
+        gcImages()
       },
 
       resetProject: () => {

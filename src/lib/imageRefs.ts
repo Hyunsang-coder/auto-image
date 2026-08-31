@@ -4,19 +4,23 @@ import { useLibraryStore } from '../store/useLibraryStore'
 import { useCustomStore } from '../store/useCustomStore'
 import { pruneOrphanImages } from './imageStore'
 
-function bgImageKey(bg: Background): string | undefined {
-  return bg.type === 'image' ? bg.imageKey : undefined
+function bgImageKey(bg: Background | undefined): string | undefined {
+  return bg?.type === 'image' ? bg.imageKey : undefined
 }
 
 export function projectImageKeys(p: Project): string[] {
-  return p.slides
-    .flatMap((s) => [
+  return [
+    // The project-level theme background is a real reference, not just a seed
+    // for new slides: step 1 previews it, and a bundle that omitted it reopened
+    // with a dangling key on the other machine.
+    bgImageKey(p.themeBackground),
+    ...p.slides.flatMap((s) => [
       s.screenshot?.imageKey,
       ...Object.values(s.screenshot?.localeOverrides ?? {}).map((o) => o.imageKey),
       bgImageKey(s.background),
       ...(s.externalImages ?? []).map((img) => img.imageKey),
-    ])
-    .filter((k): k is string => !!k)
+    ]),
+  ].filter((k): k is string => !!k)
 }
 
 /**
@@ -57,5 +61,5 @@ export function allReferencedImageKeys(): Set<string> {
  * Fire-and-forget; a failed sweep is harmless (re-runs on next startup).
  */
 export function gcImages(): void {
-  void pruneOrphanImages(allReferencedImageKeys())
+  void pruneOrphanImages(allReferencedImageKeys()).catch(() => {})
 }

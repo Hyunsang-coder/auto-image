@@ -52,6 +52,15 @@ describe('allReferencedImageKeys', () => {
     expect(keys.has('img:shot-en')).toBe(true)
   })
 
+  // The project-level theme background survives even when no slide still uses
+  // it — step 1 previews it and every new slide is seeded from it.
+  it('includes the project theme background image key', () => {
+    const p = projWithKeys('A', 'img:shot-a', 'img:bg-a')
+    p.themeBackground = { type: 'image', imageKey: 'img:theme-bg' }
+    useProjectStore.setState({ project: p })
+    expect(allReferencedImageKeys().has('img:theme-bg')).toBe(true)
+  })
+
   it('includes external image keys', () => {
     const p = projWithKeys('A', 'img:shot-a', 'img:bg-a')
     p.slides[0].externalImages = [
