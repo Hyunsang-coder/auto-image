@@ -26,6 +26,19 @@ test('헤더에서 프로젝트 이름을 바꾼다', async ({ page }) => {
   await expect(page.getByLabel('프로젝트 이름')).toHaveValue('Renamed App')
 })
 
+// The name is the export's file name and the window title, so an emptied
+// field must not stick — it snaps back when focus leaves.
+test('이름을 비우고 포커스를 옮기면 기본 이름으로 되돌아온다', async ({ page }) => {
+  await createProject(page, { name: 'Has A Name' })
+
+  const nameField = page.getByLabel('프로젝트 이름')
+  await nameField.fill('')
+  await expect(nameField).toHaveValue('')
+
+  await nameField.blur()
+  await expect(nameField).toHaveValue('제목 없음')
+})
+
 test('트레이 + 버튼으로 슬라이드를 늘린다', async ({ page }) => {
   await createProject(page, { slideCount: 3 })
   await expect(slideThumbs(page)).toHaveCount(3)

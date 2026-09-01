@@ -44,6 +44,21 @@ const NEW_SLIDE_COUNT = 1
 const previewCache = new Map<string, string>()
 
 /**
+ * Every card has its own effect, so without this the home would spin up one
+ * offscreen canvas per project at once — the thing `renderSlide` is rendered
+ * sequentially everywhere else to avoid.
+ */
+let previewQueue: Promise<unknown> = Promise.resolve()
+function queuePreview(project: Project): Promise<string | undefined> {
+  // The catch is on the chain itself, not a branch of it: a rejection has to
+  // both keep the queue moving and leave the returned promise settled, or a
+  // failed render surfaces as an unhandled rejection in the console.
+  const next = previewQueue.then(() => projectPreview(project)).catch(() => undefined)
+  previewQueue = next
+  return next
+}
+
+/**
  * The home screen: what you already have, then the ways to start something new.
  * It is not a form — every question the old setup form asked (name, device,
  * size, slide count, background) is answerable later in the editor, where the
@@ -235,21 +250,32 @@ export function ProjectSetup() {
   }
 
   const hasProjects = desktop ? recents.length > 0 : savedProjects.length > 0
+  // Tauri's window takes the OS drag-drop handler (`dragDropEnabled` defaults
+  // to true), so HTML5 drop events never reach the webview on the desktop.
+  // Promising a drop target there would be a lie; ⌘O and the two cards are the
+  // desktop's ways in. Giving the desktop a working drop means listening for
+  // Tauri's own drag-drop event, which hands over real paths — a different
+  // feature, not a CSS class.
+  const dropSupported = !desktop
 
   return (
     <div
-      onDragOver={(e) => {
+      onDragOver={dropSupported ? (e) => {
         e.preventDefault()
         setDragOver(true)
-      }}
-      onDragLeave={(e) => {
+      } : undefined}
+      onDragLeave={dropSupported ? (e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false)
-      }}
-      onDrop={(e) => {
+      } : undefined}
+      onDrop={dropSupported ? (e) => {
         e.preventDefault()
         setDragOver(false)
+        // The cards disable themselves while an import runs; a drop has to
+        // refuse for the same reason, or two runProjectImport calls overlap
+        // and the later summary modal replaces the earlier one.
+        if (importBusy) return
         void handleOpenFiles(Array.from(e.dataTransfer.files))
-      }}
+      } : undefined}
       className={[
         'mx-auto flex h-full w-full max-w-5xl flex-col gap-8 overflow-y-auto px-6 py-8',
         dragOver ? 'outline-dashed outline-2 outline-offset-[-8px] outline-[var(--color-accent)]' : '',
@@ -363,9 +389,11 @@ export function ProjectSetup() {
             <p className="text-[length:var(--text-ui)] text-[var(--color-text-dim)]">
               {t('아직 프로젝트가 없습니다. 위에서 하나 고르세요.')}
             </p>
-            <p className="mt-1 text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
-              {t('프로젝트 파일이나 스크린샷을 여기에 끌어다 놓아도 됩니다.')}
-            </p>
+            {dropSupported && (
+              <p className="mt-1 text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
+                {t('프로젝트 파일이나 스크린샷을 여기에 끌어다 놓아도 됩니다.')}
+              </p>
+            )}
           </div>
         ) : (
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
@@ -715,7 +743,7 @@ function usePreview(key: string, project: Project): string | undefined {
   useEffect(() => {
     if (previewCache.has(key)) return
     let alive = true
-    void projectPreview(project).then((b64) => {
+    void queuePreview(project).then((b64) => {
       if (!b64) return
       previewCache.set(key, `data:image/png;base64,${b64}`)
       if (alive) repaint()

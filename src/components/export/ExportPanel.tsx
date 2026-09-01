@@ -366,7 +366,9 @@ export function ExportPanel() {
         // platform UNIX so the unixPermissions on upload.sh actually lands in
         // the archive (jszip silently drops it on the default DOS platform).
         const zipBlob = await zip!.generateAsync({ type: 'blob', platform: 'UNIX' })
-        saveAs(zipBlob, `${project.name}${suffix}.zip`)
+        // Same guard the folder export uses: a name that is empty (or all
+        // separators) would download a file called ".zip".
+        saveAs(zipBlob, `${sanitizePathSegment(project.name)}${suffix}.zip`)
         setStatus('done')
       }
     } catch (e) {

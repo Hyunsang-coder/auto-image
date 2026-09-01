@@ -63,7 +63,12 @@ Step 1 is a **launcher, not a form**. A row of start cards (continue / new / one
 template / open) sits above a grid of the projects you already have — Recents on the
 desktop (drawn from `RecentEntry.preview`, so no zip is opened), the in-browser library
 on the web (whose previews this screen renders via `projectPreview`, lifted out of
-`documentIO`). Files can also be dropped straight onto it.
+`documentIO` — serialized through one queue, because `renderSlide` is spun up
+sequentially everywhere else on purpose). Files can be dropped onto it **on the web
+only**: Tauri's window takes the OS drag-drop handler (`dragDropEnabled` defaults to
+true), so HTML5 drop events never reach the webview. Giving the desktop a working drop
+means listening for Tauri's own drag-drop event, which hands over real paths — a
+different feature, not a CSS class.
 
 It asks **nothing**. The questions the old setup form asked all have answers elsewhere:
 the size dropdowns and background panel are in the editor, the slide tray's `+` sets the

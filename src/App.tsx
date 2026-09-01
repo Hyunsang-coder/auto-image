@@ -334,6 +334,11 @@ function App() {
                 aria-label={t('프로젝트 이름')}
                 maxLength={60}
                 onChange={(e) => updateProject({ name: e.target.value })}
+                /* Empty is fine while you are retyping, but it must not stick:
+                   the name is the export's file name and the window title. */
+                onBlur={(e) => {
+                  if (!e.target.value.trim()) updateProject({ name: t('제목 없음') })
+                }}
                 className="min-w-0 max-w-[16rem] flex-1 truncate rounded border border-transparent bg-transparent px-1 text-[length:var(--text-ui)] font-medium text-[var(--color-text)] outline-none hover:border-[var(--color-border)] focus:border-[var(--color-accent)]"
               />
             )}
