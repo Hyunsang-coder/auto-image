@@ -71,8 +71,8 @@ function menuLabels(t: (ko: string) => string) {
 }
 
 /**
- * ⌘N. Step 1 is the new-project form and nothing else now, so this just takes
- * the user there rather than duplicating its device/theme choices.
+ * ⌘N. Step 1 is the home screen, where "새 프로젝트" is one click — so this takes
+ * the user there rather than minting a project the launcher would have made.
  */
 async function newFromMenu(): Promise<void> {
   if (!(await ensureSaved('new'))) return

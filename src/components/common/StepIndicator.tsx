@@ -3,7 +3,6 @@ import { useT } from '../../i18n'
 
 interface Props {
   current: Step
-  hasProject: boolean
   onJump: (step: Step) => void
   /** Amber dot on the 에디터 step — some slides have no screenshot. */
   editorIncomplete?: boolean
@@ -23,7 +22,6 @@ const STEPS: { id: Step; label: string }[] = [
 
 export function StepIndicator({
   current,
-  hasProject,
   onJump,
   editorIncomplete,
   localizeIncomplete,
@@ -34,7 +32,6 @@ export function StepIndicator({
   return (
     <nav className="flex items-center gap-2">
       {STEPS.map((s, idx) => {
-        const reachable = s.id === 1 || hasProject
         const active = s.id === current
         const incomplete =
           (s.id === 2 && editorIncomplete) || (s.id === 3 && localizeIncomplete)
@@ -43,17 +40,14 @@ export function StepIndicator({
           <div key={s.id} className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => reachable && onJump(s.id)}
-              disabled={!reachable}
+              onClick={() => onJump(s.id)}
               title={hint}
               aria-current={active ? 'step' : undefined}
               className={[
                 'flex h-[var(--control-h-lg)] items-center gap-2 rounded-full px-3 text-[length:var(--text-ui)] transition',
                 active
                   ? 'bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
-                  : reachable
-                    ? 'bg-[var(--color-surface-2)] text-[var(--color-text)] hover:bg-[var(--color-surface-3)]'
-                    : 'cursor-not-allowed bg-[var(--color-surface)] text-[var(--color-text-dim)] opacity-50',
+                  : 'bg-[var(--color-surface-2)] text-[var(--color-text)] hover:bg-[var(--color-surface-3)]',
               ].join(' ')}
             >
               <span

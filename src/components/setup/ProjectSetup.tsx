@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
-import type { Background, DeviceType, DeviceModel, Project } from '../../types/project'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import type { Project } from '../../types/project'
 import { DEFAULT_BACKGROUND } from '../../constants/defaults'
-import { DEVICE_SPECS, MODELS_BY_TYPE, DEFAULT_MODEL } from '../../constants/deviceSpecs'
+import { DEFAULT_MODEL } from '../../constants/deviceSpecs'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useLibraryStore } from '../../store/useLibraryStore'
 import { useCustomStore } from '../../store/useCustomStore'
@@ -9,17 +9,46 @@ import { allReferencedImageKeys, gcImages } from '../../lib/imageRefs'
 import { pruneOrphanImages } from '../../lib/imageStore'
 import { routeOpenFiles, runProjectImport, type ImportRunResult } from '../../lib/projectImportRun'
 import { importProjectBundle } from '../../lib/projectBundle'
-import { adoptAsDocument, ensureSaved, useDocumentStore } from '../../lib/documentIO'
+import {
+  adoptAsDocument,
+  ensureSaved,
+  forgetRecent,
+  openRecent,
+  pickAndOpen,
+  projectPreview,
+  useDocumentStore,
+} from '../../lib/documentIO'
+import { docNameFromPath } from '../../lib/documentModel'
 import { isTauri } from '../../lib/tauri'
-import { BackgroundPanel } from '../editor/properties/BackgroundPanel'
-import { BUILTIN_PROJECT_TEMPLATES, buildProjectFromTemplate, type ProjectTemplate } from '../../constants/projectTemplates'
+import {
+  BUILTIN_PROJECT_TEMPLATES,
+  buildProjectFromTemplate,
+  type ProjectTemplate,
+} from '../../constants/projectTemplates'
 import { Modal } from '../common/Modal'
 import { useT } from '../../i18n'
 import { formatTime } from '../../lib/formatTime'
 
-const MIN_SLIDES = 1
-const MAX_SLIDES = 10
+/**
+ * A blank project starts with one slide and the default device; the editor's
+ * tray adds the rest. Nothing here asks for a device type either — the first
+ * screenshot decides it (`detectTypeFromAspect`), so asking would only let the
+ * user contradict the app.
+ */
+const NEW_SLIDE_COUNT = 1
 
+/**
+ * Card previews, keyed by content. Module-level because every miss costs a
+ * Fabric render, and leaving the editor comes back to this screen constantly.
+ */
+const previewCache = new Map<string, string>()
+
+/**
+ * The home screen: what you already have, then the ways to start something new.
+ * It is not a form — every question the old setup form asked (name, device,
+ * size, slide count, background) is answerable later in the editor, where the
+ * controls already exist, and one of them the app answers by itself.
+ */
 export function ProjectSetup() {
   const t = useT()
   const createProject = useProjectStore((s) => s.createProject)
@@ -30,8 +59,11 @@ export function ProjectSetup() {
   const removeProject = useLibraryStore((s) => s.removeProject)
   const userTemplates = useCustomStore((s) => s.projectTemplates)
   const removeProjectTemplate = useCustomStore((s) => s.removeProjectTemplate)
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
-  const [pendingTplDelete, setPendingTplDelete] = useState<string | null>(null)
+  const docPath = useProjectStore((s) => s.docPath)
+  const recents = useDocumentStore((s) => s.recents)
+  const [confirmRemove, setConfirmRemove] = useState<
+    { kind: 'project' | 'template'; id: string; label: string } | null
+  >(null)
   const [confirmLoad, setConfirmLoad] = useState<Project | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -40,58 +72,19 @@ export function ProjectSetup() {
   // Files picked alongside a bundle, so the surplus can be reported.
   const [ignoredOnOpen, setIgnoredOnOpen] = useState(0)
   const [bundleError, setBundleError] = useState(false)
-  const openDocumentPicker = useDocumentStore((s) => s.set)
-  // On the desktop this step is only the new-project form: opening lives on
-  // ⌘O, which reaches it from any step, and the library has been retired in
-  // favour of real files. The web build keeps both, since it has no files.
+  const [dragOver, setDragOver] = useState(false)
+  // On the desktop the list below is Recents (real files, thumbnail cached on
+  // save); on the web it is the in-browser library, which has nowhere else to
+  // live.
   const desktop = isTauri()
-
-  // Defaults, never the open project's values: this form only ever mints a NEW
-  // project, and seeding it from the current one made both "새로 만들기" and
-  // "템플릿으로 시작" produce a project wearing the old project's name — which
-  // reads on screen as the new project having opened into the existing one.
-  const [name, setName] = useState(t('내 앱'))
-  // Exactly one device type per project (radio, never both/neither). The chosen
-  // App Store size per type is picked here too and seeds project.deviceModels.
-  const [device, setDevice] = useState<DeviceType>('iphone')
-  const [deviceModel, setDeviceModel] = useState<Record<DeviceType, DeviceModel>>({
-    ...DEFAULT_MODEL,
-  })
-  const [count, setCount] = useState(5)
-  const [themeBackground, setThemeBackground] = useState<Background>(() =>
-    structuredClone(DEFAULT_BACKGROUND),
-  )
-
-  const canSubmit = name.trim().length > 0
-  const hasExisting = !!existingProject
-  const hasFiles = hasExisting || (!desktop && savedProjects.length > 0)
-
-  function submit() {
-    if (!canSubmit) return
-    // Desktop: the open project is a file, so the question is whether to save
-    // it — three buttons, not "replace / cancel".
-    if (desktop) {
-      void (async () => {
-        if (await ensureSaved('new')) await doCreate()
-      })()
-      return
-    }
-    // Creating a fresh project overwrites the active one — confirm first, like
-    // load/delete do, since this is the most destructive path here.
-    if (existingProject) {
-      setConfirmNew(true)
-      return
-    }
-    void doCreate()
-  }
 
   async function doCreate() {
     createProject({
-      name: name.trim(),
-      devices: [device],
-      deviceModels: { [device]: deviceModel[device] },
-      screenshotCount: count,
-      themeBackground,
+      name: t('제목 없음'),
+      devices: ['iphone'],
+      deviceModels: { iphone: DEFAULT_MODEL.iphone },
+      screenshotCount: NEW_SLIDE_COUNT,
+      themeBackground: structuredClone(DEFAULT_BACKGROUND),
     })
     setConfirmNew(false)
     // A new project becomes a file straight away. There is no "unsaved,
@@ -103,11 +96,20 @@ export function ProjectSetup() {
     }
   }
 
-  function handleDelete(id: string) {
-    removeProject(id)
-    setPendingDelete(null)
-    // Sweep any image blobs the deleted project no longer keeps alive.
-    pruneOrphanImages(allReferencedImageKeys())
+  function handleNew() {
+    // Desktop: the open project is a file, so the question is whether to save
+    // it — three buttons, not "replace / cancel".
+    if (desktop) {
+      void (async () => {
+        if (await ensureSaved('new')) await doCreate()
+      })()
+      return
+    }
+    if (existingProject) {
+      setConfirmNew(true)
+      return
+    }
+    void doCreate()
   }
 
   function handleLoad(p: Project) {
@@ -142,7 +144,19 @@ export function ProjectSetup() {
   // Starting from a template builds a fresh project, then routes through the
   // same load path (so it confirms before overwriting current work).
   function startFromTemplate(tpl: ProjectTemplate) {
-    handleLoad(buildProjectFromTemplate(tpl, name))
+    handleLoad(buildProjectFromTemplate(tpl, tpl.label))
+  }
+
+  function handleRemove() {
+    if (!confirmRemove) return
+    if (confirmRemove.kind === 'project') {
+      removeProject(confirmRemove.id)
+      // Sweep any image blobs the deleted project no longer keeps alive.
+      pruneOrphanImages(allReferencedImageKeys())
+    } else {
+      removeProjectTemplate(confirmRemove.id)
+    }
+    setConfirmRemove(null)
   }
 
   // The import runs uncommitted, then one modal shows the summary/warnings and
@@ -220,415 +234,239 @@ export function ProjectSetup() {
     gcImages()
   }
 
+  const hasProjects = desktop ? recents.length > 0 : savedProjects.length > 0
+
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col gap-6 overflow-y-auto px-6 py-8">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-text)]">
-          {hasFiles ? t('스크린샷 프로젝트') : t('새 스크린샷 프로젝트')}
-        </h1>
-        <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-          {t('App Store 제출용 스크린샷 세트를 만듭니다. 데이터는 이 브라우저에만 저장됩니다.')}
-        </p>
-      </header>
+    <div
+      onDragOver={(e) => {
+        e.preventDefault()
+        setDragOver(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragOver(false)
+        void handleOpenFiles(Array.from(e.dataTransfer.files))
+      }}
+      className={[
+        'mx-auto flex h-full w-full max-w-5xl flex-col gap-8 overflow-y-auto px-6 py-8',
+        dragOver ? 'outline-dashed outline-2 outline-offset-[-8px] outline-[var(--color-accent)]' : '',
+      ].join(' ')}
+    >
+      <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+        {t('스크린샷 프로젝트')}
+      </h1>
 
-      {!hasExisting && savedProjects.length === 0 && <FirstRunIntro />}
-
-      {hasExisting && (
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm">
-          <p className="mb-2 text-[var(--color-text-dim)]">
-            {t('이전에 만들던 프로젝트가 있습니다:')}
-          </p>
-          <p className="text-[var(--color-text)]">
-            <span className="font-medium">{existingProject.name}</span>
-            <span className="ml-2 text-[var(--color-text-dim)]">
-              · {t('{n}장', { n: existingProject.slides.length })} · {t('마지막 수정')} {formatTime(existingProject.updatedAt)}
-            </span>
-          </p>
-          <button
-            type="button"
+      <section className="flex flex-wrap gap-4">
+        {existingProject && (
+          <StartCard
+            label={t('계속 편집하기 →')}
+            /* Same name the header shows: on the desktop that is the file's. */
+            hint={docPath ? docNameFromPath(docPath) : existingProject.name}
             onClick={() => setStep(2)}
-            className="mt-3 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
           >
-            {t('계속 편집하기 →')}
-          </button>
-        </div>
-      )}
-
-      {/* Retired on the desktop: every project is a real file now, reached
-          with ⌘O. The store and this list stay one version longer for the web
-          build, which has nowhere else to keep a project. */}
-      {!desktop && savedProjects.length > 0 && (
-        <Section title={t('저장된 프로젝트')} hint={t("헤더의 '저장'으로 보관한 프로젝트입니다.")}>
-          <ul className="flex flex-col gap-2">
-            {savedProjects.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                    {p.name}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-dim)]">
-                    {t('{n}장', { n: p.slides.length })} · {formatTime(p.updatedAt)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleLoad(p)}
-                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
-                  >
-                    {t('불러오기')}
-                  </button>
-                  {pendingDelete === p.id ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(p.id)}
-                        className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-on)] hover:brightness-110"
-                      >
-                        {t('삭제 확인')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingDelete(null)}
-                        className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
-                      >
-                        {t('취소')}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPendingDelete(p.id)}
-                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                    >
-                      {t('삭제')}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-
-      {(BUILTIN_PROJECT_TEMPLATES.length > 0 || userTemplates.length > 0) && (
-        <Section
-          title={t('템플릿으로 시작')}
-          hint={t('여러 슬라이드로 구성된 시작 세트입니다. 고르면 바로 편집 단계로 들어갑니다.')}
-        >
-          <ul className="flex flex-col gap-2">
-            {BUILTIN_PROJECT_TEMPLATES.map((tpl) => (
-              <li
-                key={tpl.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                    {t(tpl.label)}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-dim)]">
-                    {t(tpl.description)} · {t('{n}장', { n: tpl.slides.length })}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => startFromTemplate(tpl)}
-                  className="shrink-0 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
-                >
-                  {t('이 템플릿으로 시작 →')}
-                </button>
-              </li>
-            ))}
-            {userTemplates.map((tpl) => (
-              <li
-                key={tpl.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--color-text)]">
-                    {tpl.label}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-dim)]">
-                    {tpl.description} · {t('내 템플릿')}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => startFromTemplate(tpl)}
-                    className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
-                  >
-                    {t('시작 →')}
-                  </button>
-                  {pendingTplDelete === tpl.id ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          removeProjectTemplate(tpl.id)
-                          setPendingTplDelete(null)
-                        }}
-                        className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[var(--color-danger-on)] hover:brightness-110"
-                      >
-                        {t('삭제 확인')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingTplDelete(null)}
-                        className="rounded-md border border-[var(--color-border)] px-2 py-1.5 text-xs hover:border-[var(--color-text-dim)]"
-                      >
-                        {t('취소')}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPendingTplDelete(tpl.id)}
-                      className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
-                    >
-                      {t('삭제')}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      {/*
-        One entry point, not two: a saved project file and an agent-authored
-        file set were separate sections with the same "파일 선택" button, and
-        nothing on screen said which was which. The pick itself decides —
-        routeOpenFiles.
-      */}
-      <Section
-        title={desktop ? t('파일 가져오기') : t('프로젝트 열기')}
-        hint={
-          desktop
-            ? t('AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다. 저장해 둔 프로젝트는 ⌘O로 엽니다.')
-            : t('저장한 프로젝트 파일(.zip)을 고르면 편집 내용 그대로 이어서 작업합니다. AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다.')
-        }
-      >
-        <input
-          ref={importInputRef}
-          type="file"
-          accept=".zip,.json,.csv,image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? [])
-            e.target.value = ''
-            void handleOpenFiles(files)
-          }}
-        />
-        <button
-          type="button"
-          disabled={importBusy}
-          onClick={() => importInputRef.current?.click()}
-          className="self-start rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-2.5 text-sm text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {importBusy ? t('여는 중…') : t('파일 선택')}
-        </button>
-        {desktop && (
-          <button
-            type="button"
-            onClick={() => openDocumentPicker({ pickerOpen: true })}
-            className="self-start text-sm text-[var(--color-accent-strong)] underline-offset-2 hover:underline"
-          >
-            {t('저장한 프로젝트 열기 (⌘O)')}
-          </button>
+            <span aria-hidden className="text-2xl text-[var(--color-accent-strong)]">
+              ▸
+            </span>
+          </StartCard>
         )}
-        {ignoredOnOpen > 0 && (
-          <p className="text-xs text-[var(--color-warning)]">
-            {t('프로젝트 파일을 열었습니다. 함께 고른 파일 {n}개는 사용하지 않았습니다.', {
-              n: ignoredOnOpen,
-            })}
-          </p>
-        )}
-      </Section>
-
-      {/*
-        Creating is the rarer act once files exist, so the form collapses behind
-        a disclosure — open while there is nothing to open, which is also the
-        state every test starts from.
-      */}
-      <details open={!hasFiles}>
-        <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-          {t('새 프로젝트')}
-        </summary>
-        <div className="mt-3 flex flex-col gap-6">
-      <Section title={t('앱 이름')}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={60}
-          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-          placeholder={t('예: Dogo, Claude, ADHD')}
-        />
-      </Section>
-
-      <Section
-        title={t('기기')}
-        hint={t('한 종류만 선택합니다. 사이즈는 App Store에 등록 가능한 해상도입니다.')}
-      >
-        {/* Real radios, not a clickable div: the card is the whole hit target,
-            but the input is what carries focus, arrow-key movement between the
-            two types, and the checked state a screen reader reads. */}
-        <div className="flex flex-wrap gap-3" role="radiogroup" aria-label={t('기기')}>
-          {(['iphone', 'ipad'] as DeviceType[]).map((d) => {
-            const active = device === d
-            const model = deviceModel[d]
-            const spec = DEVICE_SPECS[model]
-            return (
-              <div
-                key={d}
-                onClick={() => setDevice(d)}
-                className={[
-                  'flex flex-1 min-w-[200px] cursor-pointer flex-col items-start gap-2 rounded-xl border px-4 py-3 text-left transition',
-                  active
-                    ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
-                    : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-dim)]',
-                ].join(' ')}
-              >
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="radio"
-                    name="device-type"
-                    value={d}
-                    checked={active}
-                    onChange={() => setDevice(d)}
-                  />
-                  <span className="text-base font-medium text-[var(--color-text)]">
-                    {d === 'iphone' ? 'iPhone' : 'iPad'}
-                  </span>
-                </label>
-                {active ? (
-                  <select
-                    value={model}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      setDeviceModel((m) => ({ ...m, [d]: e.target.value as DeviceModel }))
-                    }
-                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-                  >
-                    {MODELS_BY_TYPE[d].map((mm) => (
-                      <option key={mm} value={mm}>
-                        {DEVICE_SPECS[mm].label} · {DEVICE_SPECS[mm].exportWidth}×
-                        {DEVICE_SPECS[mm].exportHeight}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-xs text-[var(--color-text-dim)]">
-                    {spec.label} · {spec.exportWidth} × {spec.exportHeight} px
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </Section>
-
-      <Section title={t('슬라이드 수')} hint={t('1~10장. 나중에 추가할 수도 있습니다.')}>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setCount((c) => Math.max(MIN_SLIDES, c - 1))}
-            className="h-10 w-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] text-lg leading-none hover:bg-[var(--color-border)]"
-          >
-            −
-          </button>
-          <input
-            type="number"
-            value={count}
-            min={MIN_SLIDES}
-            max={MAX_SLIDES}
-            onChange={(e) => {
-              const v = Number.parseInt(e.target.value, 10)
-              if (Number.isNaN(v)) return
-              setCount(Math.max(MIN_SLIDES, Math.min(MAX_SLIDES, v)))
-            }}
-            className="w-20 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-center text-base text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
-          />
-          <button
-            type="button"
-            onClick={() => setCount((c) => Math.min(MAX_SLIDES, c + 1))}
-            className="h-10 w-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] text-lg leading-none hover:bg-[var(--color-border)]"
-          >
+        <StartCard
+          label={t('새 프로젝트')}
+          hint={t('빈 슬라이드 한 장으로 시작합니다')}
+          onClick={handleNew}
+        >
+          <span aria-hidden className="text-3xl font-light text-[var(--color-text-dim)]">
             +
-          </button>
-          <span className="text-sm text-[var(--color-text-dim)]">{t('장')}</span>
-        </div>
-      </Section>
-
-      <Section title={t('기본 배경')} hint={t('모든 슬라이드의 기본 배경으로 사용됩니다.')}>
-        <BackgroundPanel value={themeBackground} onChange={setThemeBackground} />
-      </Section>
-
-      <footer className="mt-2 flex items-center justify-between border-t border-[var(--color-border)] pt-4">
-        <p className="text-xs text-[var(--color-text-dim)]">
-          {hasExisting
-            ? t('계속하면 기존 프로젝트를 덮어씁니다.')
-            : t('저장은 자동으로 이루어집니다.')}
-        </p>
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={submit}
-          className="rounded-lg bg-[var(--color-accent-strong)] px-5 py-2.5 text-sm font-semibold text-[var(--color-accent-on)] shadow-lg shadow-[var(--color-accent-strong)]/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          </span>
+        </StartCard>
+        {BUILTIN_PROJECT_TEMPLATES.map((tpl) => (
+          <TemplateCard
+            key={tpl.id}
+            tpl={tpl}
+            label={t(tpl.label)}
+            hint={t(tpl.description)}
+            onStart={startFromTemplate}
+          />
+        ))}
+        {userTemplates.map((tpl) => (
+          <TemplateCard
+            key={tpl.id}
+            tpl={tpl}
+            label={tpl.label}
+            hint={t('내 템플릿')}
+            onStart={startFromTemplate}
+            onRemove={() => setConfirmRemove({ kind: 'template', id: tpl.id, label: tpl.label })}
+          />
+        ))}
+        {/* Two cards on the desktop, one on the web. A file picked through the
+            webview's own input arrives without a path, so opening a .studio.zip
+            that way would fork a second file instead of opening the one on
+            disk — the desktop needs the native picker for that. The web has no
+            files at all, so there one card routes both kinds by what was
+            picked (routeOpenFiles). The harness enters through that input, and
+            it runs against the web build. */}
+        <StartCard
+          label={importBusy ? t('여는 중…') : t('프로젝트 열기')}
+          hint={
+            desktop ? t('⌘O — 저장해 둔 프로젝트 파일') : t('저장한 .studio.zip 또는 AI가 만든 파일 세트')
+          }
+          onClick={() => (desktop ? void pickAndOpen() : importInputRef.current?.click())}
+          disabled={importBusy}
         >
-          {hasExisting ? t('새로 만들기 →') : t('다음 →')}
-        </button>
-      </footer>
+          <span aria-hidden className="text-2xl text-[var(--color-text-dim)]">
+            ⤓
+          </span>
+        </StartCard>
+        {desktop && (
+          <StartCard
+            label={importBusy ? t('여는 중…') : t('파일 가져오기')}
+            hint={t('AI가 만든 manifest + 스크린샷 + 캡션 파일 한 묶음')}
+            onClick={() => importInputRef.current?.click()}
+            disabled={importBusy}
+          >
+            <span aria-hidden className="text-2xl text-[var(--color-text-dim)]">
+              ⇥
+            </span>
+          </StartCard>
+        )}
+      </section>
 
-        </div>
-      </details>
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".zip,.json,.csv,image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? [])
+          e.target.value = ''
+          void handleOpenFiles(files)
+        }}
+      />
+
+      {ignoredOnOpen > 0 && (
+        <p className="text-[length:var(--text-ui-xs)] text-[var(--color-warning)]">
+          {t('프로젝트 파일을 열었습니다. 함께 고른 파일 {n}개는 사용하지 않았습니다.', {
+            n: ignoredOnOpen,
+          })}
+        </p>
+      )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-[length:var(--text-ui-sm)] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+          {t('내 프로젝트')}
+        </h2>
+        {!hasProjects ? (
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] px-6 py-10 text-center">
+            <p className="text-[length:var(--text-ui)] text-[var(--color-text-dim)]">
+              {t('아직 프로젝트가 없습니다. 위에서 하나 고르세요.')}
+            </p>
+            <p className="mt-1 text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
+              {t('프로젝트 파일이나 스크린샷을 여기에 끌어다 놓아도 됩니다.')}
+            </p>
+          </div>
+        ) : (
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+            {desktop
+              ? recents.map((entry) => (
+                  <li key={entry.path}>
+                    <ProjectCard
+                      title={entry.name}
+                      meta={
+                        entry.missing
+                          ? t('찾을 수 없음')
+                          : `${t('{n}장', { n: entry.slideCount })}${entry.lastOpened ? ` · ${formatTime(entry.lastOpened)}` : ''}`
+                      }
+                      src={entry.preview ? `data:image/png;base64,${entry.preview}` : undefined}
+                      disabled={entry.missing}
+                      onOpen={() => void openRecent(entry.path)}
+                      onRemove={entry.missing ? () => void forgetRecent(entry.path) : undefined}
+                      removeLabel={t('목록에서 제거')}
+                    />
+                  </li>
+                ))
+              : savedProjects.map((p) => (
+                  <li key={p.id}>
+                    <LibraryCard
+                      project={p}
+                      onOpen={() => handleLoad(p)}
+                      onRemove={() =>
+                        setConfirmRemove({ kind: 'project', id: p.id, label: p.name })
+                      }
+                    />
+                  </li>
+                ))}
+          </ul>
+        )}
+      </section>
 
       {confirmLoad && (
         <Modal title={t('프로젝트 불러오기')} onClose={cancelLoad}>
-            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              {t('현재 편집 중인 작업을')}{' '}
-              <span className="font-medium text-[var(--color-text)]">{confirmLoad.name}</span>
-              {t('(으)로 교체합니다. 저장하지 않은 변경 사항은 사라집니다.')}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={cancelLoad}
-                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
-              >
-                {t('취소')}
-              </button>
-              <button
-                type="button"
-                onClick={() => doLoad(confirmLoad)}
-                className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
-              >
-                {t('불러오기')}
-              </button>
-            </div>
+          <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+            {t('현재 편집 중인 작업을')}{' '}
+            <span className="font-medium text-[var(--color-text)]">{confirmLoad.name}</span>
+            {t('(으)로 교체합니다. 저장하지 않은 변경 사항은 사라집니다.')}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={cancelLoad}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('취소')}
+            </button>
+            <button
+              type="button"
+              onClick={() => doLoad(confirmLoad)}
+              className="rounded-md bg-[var(--color-accent-strong)] px-3 py-1.5 text-sm font-semibold text-[var(--color-accent-on)] hover:brightness-110"
+            >
+              {t('불러오기')}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmRemove && (
+        <Modal title={t('삭제')} size="sm" onClose={() => setConfirmRemove(null)}>
+          <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+            <span className="font-medium text-[var(--color-text)]">{confirmRemove.label}</span>
+            {t('을(를) 삭제합니다. 되돌릴 수 없습니다.')}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmRemove(null)}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('취소')}
+            </button>
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-sm font-semibold text-[var(--color-danger-on)] hover:brightness-110"
+            >
+              {t('삭제 확인')}
+            </button>
+          </div>
         </Modal>
       )}
 
       {bundleError && (
         <Modal title={t('프로젝트 열기')} onClose={() => setBundleError(false)}>
-            <p className="mt-2 text-sm text-[var(--color-danger)]">
-              {t('프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.')}
-            </p>
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setBundleError(false)}
-                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
-              >
-                {t('닫기')}
-              </button>
-            </div>
+          <p className="mt-2 text-sm text-[var(--color-danger)]">
+            {t('프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.')}
+          </p>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setBundleError(false)}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('닫기')}
+            </button>
+          </div>
         </Modal>
       )}
 
@@ -656,7 +494,7 @@ export function ProjectSetup() {
               </ul>
             </details>
           )}
-          {importResult.project && hasExisting && (
+          {importResult.project && existingProject && (
             <p className="mt-3 text-xs text-[var(--color-text-dim)]">
               {t('가져오면 현재 편집 중인 프로젝트를 덮어씁니다. 저장하지 않은 변경 사항은 사라집니다.')}
             </p>
@@ -684,78 +522,207 @@ export function ProjectSetup() {
 
       {confirmNew && (
         <Modal title={t('새 프로젝트 만들기')} onClose={() => setConfirmNew(false)}>
-            <p className="mt-2 text-sm text-[var(--color-text-dim)]">
-              {t("현재 편집 중인 프로젝트를 새 프로젝트로 덮어씁니다. 저장하지 않은 변경 사항은 사라집니다. 먼저 '저장'으로 보관해 두면 나중에 다시 불러올 수 있습니다.")}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmNew(false)}
-                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
-              >
-                {t('취소')}
-              </button>
-              <button
-                type="button"
-                onClick={doCreate}
-                className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-sm font-semibold text-[var(--color-danger-on)] hover:brightness-110"
-              >
-                {t('새로 만들기')}
-              </button>
-            </div>
+          <p className="mt-2 text-sm text-[var(--color-text-dim)]">
+            {t("현재 편집 중인 프로젝트를 새 프로젝트로 덮어씁니다. 저장하지 않은 변경 사항은 사라집니다. 먼저 '저장'으로 보관해 두면 나중에 다시 불러올 수 있습니다.")}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmNew(false)}
+              className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm hover:border-[var(--color-text-dim)]"
+            >
+              {t('취소')}
+            </button>
+            <button
+              type="button"
+              onClick={doCreate}
+              className="rounded-md bg-[var(--color-danger)] px-3 py-1.5 text-sm font-semibold text-[var(--color-danger-on)] hover:brightness-110"
+            >
+              {t('새로 만들기')}
+            </button>
+          </div>
         </Modal>
       )}
     </div>
   )
 }
 
-function FirstRunIntro() {
-  const t = useT()
-  const steps = [
-    { n: 1, label: '설정', desc: '기기 · 슬라이드 수 · 테마' },
-    { n: 2, label: '편집', desc: '스크린샷 올리고 문구 · 디자인' },
-    { n: 3, label: '현지화', desc: '언어별 문구 · 스크린샷' },
-    { n: 4, label: '내보내기', desc: 'PNG ZIP (App Store 규격)' },
-  ]
+/** One tile in the "start something" row: a picture box with a label under it. */
+function StartCard({
+  label,
+  hint,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string
+  hint?: string
+  onClick: () => void
+  disabled?: boolean
+  children: React.ReactNode
+}) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <p className="mb-3 text-sm text-[var(--color-text)]">{t('처음이신가요? 4단계로 만듭니다:')}</p>
-      <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {steps.map((s) => (
-          <li key={s.n} className="flex flex-col gap-1">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-xs font-semibold text-[var(--color-accent-strong)]">
-              {s.n}
-            </span>
-            <span className="text-sm font-medium text-[var(--color-text)]">{t(s.label)}</span>
-            <span className="text-xs text-[var(--color-text-dim)]">{t(s.desc)}</span>
-          </li>
-        ))}
-      </ol>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="group flex w-40 flex-col gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] transition group-hover:border-[var(--color-accent)] group-focus-visible:border-[var(--color-accent)]">
+        {children}
+      </span>
+      <span className="line-clamp-2 text-[length:var(--text-ui)] font-medium text-[var(--color-text)]">
+        {label}
+      </span>
+      {hint && (
+        <span className="line-clamp-2 text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
+          {hint}
+        </span>
+      )}
+    </button>
+  )
+}
+
+/** A template tile — the picture is the template's own first slide, rendered. */
+function TemplateCard({
+  tpl,
+  label,
+  hint,
+  onStart,
+  onRemove,
+}: {
+  tpl: ProjectTemplate
+  /** Built-ins go through the dictionary; a user's own template does not. */
+  label: string
+  hint: string
+  onStart: (tpl: ProjectTemplate) => void
+  onRemove?: () => void
+}) {
+  const t = useT()
+  const project = useMemo(() => buildProjectFromTemplate(tpl, tpl.label), [tpl])
+  const src = usePreview(`tpl:${tpl.id}`, project)
+  return (
+    <div className="group relative">
+      <StartCard label={label} hint={hint} onClick={() => onStart(tpl)}>
+        {src ? (
+          <img src={src} alt="" className="max-h-full max-w-full object-contain" />
+        ) : (
+          <span aria-hidden className="text-2xl text-[var(--color-text-dim)]">
+            ▦
+          </span>
+        )}
+      </StartCard>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          title={t('삭제')}
+          aria-label={t('삭제')}
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-dim)] opacity-0 transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] focus-visible:opacity-100 group-hover:opacity-100"
+        >
+          ✕
+        </button>
+      )}
     </div>
   )
 }
 
-function Section({
-  title,
-  hint,
-  children,
+/** A web-library entry. Its preview is rendered here — only files cache one. */
+function LibraryCard({
+  project,
+  onOpen,
+  onRemove,
 }: {
-  title: string
-  hint?: string
-  children: React.ReactNode
+  project: Project
+  onOpen: () => void
+  onRemove: () => void
 }) {
+  const t = useT()
+  const src = usePreview(`lib:${project.id}:${project.updatedAt}`, project)
   return (
-    <section className="flex flex-col gap-2">
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-          {title}
-        </h2>
-        {hint && (
-          <p className="mt-0.5 text-xs text-[var(--color-text-dim)]">{hint}</p>
-        )}
-      </div>
-      {children}
-    </section>
+    <ProjectCard
+      title={project.name}
+      meta={`${t('{n}장', { n: project.slides.length })} · ${formatTime(project.updatedAt)}`}
+      src={src}
+      onOpen={onOpen}
+      onRemove={onRemove}
+      removeLabel={t('삭제')}
+    />
   )
 }
 
+/** A tile in the "my projects" grid: thumbnail, name, one line of detail. */
+function ProjectCard({
+  title,
+  meta,
+  src,
+  disabled,
+  onOpen,
+  onRemove,
+  removeLabel,
+}: {
+  title: string
+  meta: string
+  src?: string
+  disabled?: boolean
+  onOpen: () => void
+  onRemove?: () => void
+  removeLabel: string
+}) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={disabled}
+        className="flex w-full flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-left transition hover:border-[var(--color-accent)] focus-visible:border-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span className="flex h-32 w-full items-center justify-center bg-[var(--color-surface-2)] p-2">
+          {src && <img src={src} alt="" className="max-h-full max-w-full object-contain" />}
+        </span>
+        <span className="flex flex-col gap-0.5 border-t border-[var(--color-border)] px-3 py-2">
+          <span className="truncate text-[length:var(--text-ui)] font-medium text-[var(--color-text)]">
+            {title}
+          </span>
+          <span className="truncate text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
+            {meta}
+          </span>
+        </span>
+      </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          title={removeLabel}
+          aria-label={removeLabel}
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-dim)] opacity-0 transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] focus-visible:opacity-100 group-hover:opacity-100"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Render a project's first slide into a data URL, once per key. Rendering is a
+ * Fabric canvas spin-up, so the result is cached for the life of the tab.
+ */
+function usePreview(key: string, project: Project): string | undefined {
+  // The cache is the state; the effect only fills it and asks for a repaint.
+  // Reading it during render keeps a key change from showing the old picture.
+  const [, repaint] = useReducer((n: number) => n + 1, 0)
+  useEffect(() => {
+    if (previewCache.has(key)) return
+    let alive = true
+    void projectPreview(project).then((b64) => {
+      if (!b64) return
+      previewCache.set(key, `data:image/png;base64,${b64}`)
+      if (alive) repaint()
+    })
+    return () => {
+      alive = false
+    }
+  }, [key, project])
+  return previewCache.get(key)
+}

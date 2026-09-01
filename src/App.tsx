@@ -303,7 +303,7 @@ function App() {
           {/* The window title is the document, not the app name (HIG). On the
               desktop that name is the file's, and the leading dot is the
               standard "edited" marker. */}
-          <span className="truncate text-[length:var(--text-ui)] font-medium text-[var(--color-text)]">
+          <span className="flex min-w-0 items-center truncate text-[length:var(--text-ui)] font-medium text-[var(--color-text)]">
             {dirty && (
               <span
                 aria-hidden
@@ -313,7 +313,30 @@ function App() {
                 •
               </span>
             )}
-            {documentName ?? APP_NAME}
+            {/* Renaming: on the desktop the name IS the file, and the app never
+                renames a file the user placed — so the name opens Save As
+                rather than editing in place. The web build has no file, so
+                there the field simply is the project's name. */}
+            {!project ? (
+              APP_NAME
+            ) : isTauri() ? (
+              <button
+                type="button"
+                onClick={() => void saveDocumentAs()}
+                title={t('다른 이름으로 저장…')}
+                className="truncate rounded px-1 hover:bg-[var(--color-surface-2)]"
+              >
+                {documentName}
+              </button>
+            ) : (
+              <input
+                value={project.name}
+                aria-label={t('프로젝트 이름')}
+                maxLength={60}
+                onChange={(e) => updateProject({ name: e.target.value })}
+                className="min-w-0 max-w-[16rem] flex-1 truncate rounded border border-transparent bg-transparent px-1 text-[length:var(--text-ui)] font-medium text-[var(--color-text)] outline-none hover:border-[var(--color-border)] focus:border-[var(--color-accent)]"
+              />
+            )}
           </span>
           {project && (
             <span className="shrink-0 text-[length:var(--text-ui-sm)] text-[var(--color-text-dim)]">
@@ -322,9 +345,14 @@ function App() {
           )}
         </div>
 
+        {/* The home screen is not a step in making a project — it is where you
+            pick which project. With nothing open there is nothing to step
+            through, so the nav appears with the first project. */}
+        {!project ? (
+          <div />
+        ) : (
         <StepIndicator
           current={step}
-          hasProject={!!project}
           onJump={(s) => setStep(s)}
           editorIncomplete={editorIncomplete}
           localizeIncomplete={localizeIncomplete}
@@ -339,6 +367,7 @@ function App() {
               : undefined
           }
         />
+        )}
 
         <div className="flex items-center justify-end gap-2">
           {/* The template confirmation can't live on its menu item — the menu is
@@ -590,7 +619,7 @@ function App() {
         <Modal title={t('템플릿으로 저장')} onClose={() => setShowTemplateModal(false)}>
             <p className="mt-2 text-sm text-[var(--color-text-dim)]">
               {t(
-                "현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한 템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, '프로젝트 설정'의 '템플릿으로 시작'에 추가됩니다.",
+                "현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한 템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, 시작 화면에 카드로 추가됩니다.",
               )}
             </p>
             <input

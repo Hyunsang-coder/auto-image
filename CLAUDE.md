@@ -54,10 +54,32 @@ The UI is bilingual (ko/en) via `src/i18n/` — **the Korean source string is th
 ### 4-step flow
 
 `App.tsx` routes between steps via `useProjectStore.step`:
-1. **ProjectSetup** — device, slide count, theme color
+1. **ProjectSetup** — the home screen: what you already have, then the ways to start
 2. **EditorLayout** — Fabric.js canvas editor + properties panel
 3. **LocalizeEditor** — translation table; the MCP agent writes into it live, with template export/import as the manual fallback
 4. **ExportPanel** — renders slides to PNG and packages as ZIP
+
+Step 1 is a **launcher, not a form**. A row of start cards (continue / new / one per
+template / open) sits above a grid of the projects you already have — Recents on the
+desktop (drawn from `RecentEntry.preview`, so no zip is opened), the in-browser library
+on the web (whose previews this screen renders via `projectPreview`, lifted out of
+`documentIO`). Files can also be dropped straight onto it.
+
+It asks **nothing**. The questions the old setup form asked all have answers elsewhere:
+the size dropdowns and background panel are in the editor, the slide tray's `+` sets the
+count (a new project starts with one slide), and the device *type* the app answers
+itself — `detectTypeFromAspect` flips the slide on the first screenshot, so asking would
+only let the user contradict it. Naming follows the same rule as everything else about
+document identity: on the web the header's name field *is* `project.name`, and on the
+desktop the name is the file's, so clicking it opens Save As rather than renaming a file
+the user placed. The step nav is not drawn until a project exists — with nothing open
+there is no step to be on, which is why `StepIndicator` no longer has an unreachable
+state.
+
+Three things on this screen are load-bearing for the headless harness and must survive a
+redesign: the visible text `프로젝트 열기`, the file input's
+`accept=".zip,.json,.csv,image/*"`, and the import modal's `에디터에서 검수 →` button —
+`scripts/headless-export.mjs` enters every run through them.
 
 ### Project import (step 1)
 

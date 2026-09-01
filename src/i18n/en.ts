@@ -64,10 +64,6 @@ export const en: Record<string, string> = {
   '이미지 {n}개는 이미 사라져 파일에 담기지 못했습니다.':
     '{n} image(s) were already gone and could not be written into the files.',
   확인: 'OK',
-  '파일 가져오기': 'Import files',
-  'AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다. 저장해 둔 프로젝트는 ⌘O로 엽니다.':
-    'Pick an agent-authored file set (manifest.json + screenshots + a caption CSV/JSON) in one go to start from a project filled in right up to export. Saved projects open with ⌘O.',
-  '저장한 프로젝트 열기 (⌘O)': 'Open a saved project (⌘O)',
   '저장하지 못했습니다': 'Could not save',
   '프로젝트를 열지 못했습니다': 'Could not open the project',
   '레이어 목록': 'Layers',
@@ -121,8 +117,8 @@ export const en: Record<string, string> = {
   취소: 'Cancel',
   '새 프로젝트로 저장': 'Save as New Project',
   덮어쓰기: 'Overwrite',
-  "현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한 템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, '프로젝트 설정'의 '템플릿으로 시작'에 추가됩니다.":
-    'Saves the design of every slide (layout, background, text, device placement) as a reusable template. Screenshots are not included; it appears under "Start from a template" in Project Setup.',
+  "현재 모든 슬라이드의 디자인(레이아웃·배경·텍스트·기기 배치)을 재사용 가능한 템플릿으로 저장합니다. 스크린샷은 포함되지 않으며, 시작 화면에 카드로 추가됩니다.":
+    'Saves the design of every slide (layout, background, text, device placement) as a reusable template. Screenshots are not included; it appears as a card on the home screen.',
   '템플릿 이름': 'Template name',
   '프로젝트 초기화': 'Reset Project',
   '현재 프로젝트 데이터가 모두 삭제됩니다. 되돌릴 수 없습니다.':
@@ -490,44 +486,32 @@ export const en: Record<string, string> = {
   태국어: 'Thai',
 
   // ProjectSetup.tsx
-  '새 스크린샷 프로젝트': 'New Screenshot Project',
-  'App Store 제출용 스크린샷 세트를 만듭니다. 데이터는 이 브라우저에만 저장됩니다.':
-    'Create a screenshot set for App Store submission. Data is stored in this browser only.',
-  '템플릿으로 시작': 'Start from a Template',
-  '여러 슬라이드로 구성된 시작 세트입니다. 고르면 바로 편집 단계로 들어갑니다.':
-    'A multi-slide starter set. Picking one takes you straight to the editor.',
-  '이 템플릿으로 시작 →': 'Start with This Template →',
+  '빈 슬라이드 한 장으로 시작합니다': 'Starts with one empty slide',
+  '⌘O — 저장해 둔 프로젝트 파일': '⌘O — a project file you saved',
+  '파일 가져오기': 'Import files',
+  'AI가 만든 manifest + 스크린샷 + 캡션 파일 한 묶음':
+    'An agent-authored manifest + screenshots + caption file, picked together',
+  '저장한 .studio.zip 또는 AI가 만든 파일 세트': 'A saved .studio.zip, or an agent-authored file set',
+  '내 프로젝트': 'Your Projects',
+  '아직 프로젝트가 없습니다. 위에서 하나 고르세요.': 'No projects yet — pick one of the options above.',
+  '프로젝트 파일이나 스크린샷을 여기에 끌어다 놓아도 됩니다.':
+    'You can also drop a project file or screenshots here.',
+  '을(를) 삭제합니다. 되돌릴 수 없습니다.': ' will be deleted. This cannot be undone.',
   '내 템플릿': 'My Template',
-  '시작 →': 'Start →',
   '삭제 확인': 'Confirm Delete',
   '프로젝트 가져오기': 'Import Project',
   '프로젝트 열기': 'Open Project',
-  '저장한 프로젝트 파일(.zip)을 고르면 편집 내용 그대로 이어서 작업합니다. AI 에이전트가 준비한 파일들(manifest.json + 스크린샷 + 캡션 CSV/JSON)을 한 번에 고르면 export 전 단계까지 채워진 프로젝트로 시작합니다.':
-    'Pick a saved project file (.zip) to carry on exactly where you left off. Or pick an agent-authored set at once (manifest.json + screenshots + a caption CSV/JSON) to start from a project already filled in up to the export step.',
   '여는 중…': 'Opening…',
   '프로젝트 파일을 열었습니다. 함께 고른 파일 {n}개는 사용하지 않았습니다.':
     'Opened the project file. The {n} other file(s) you picked were not used.',
   '프로젝트 파일을 열 수 없습니다. 올바른 프로젝트 .zip 파일인지 확인하세요.':
     'Could not open the project file. Make sure it is a valid project .zip.',
-  '예: Dogo, Claude, ADHD': 'e.g. Dogo, Claude, ADHD',
-  '파일 선택': 'Select Files',
-  '앱 이름': 'App Name',
   기기: 'Device',
-  '한 종류만 선택합니다. 사이즈는 App Store에 등록 가능한 해상도입니다.':
-    'Select one type only. Sizes are resolutions accepted by the App Store.',
   '슬라이드 수': 'Slide Count',
-  '1~10장. 나중에 추가할 수도 있습니다.': '1–10 slides. You can add more later.',
   장: 'slides',
   '기본 배경': 'Default Background',
-  '모든 슬라이드의 기본 배경으로 사용됩니다.': 'Used as the default background for all slides.',
-  '계속하면 기존 프로젝트를 덮어씁니다.': 'Continuing will overwrite the existing project.',
-  '저장은 자동으로 이루어집니다.': 'Changes are saved automatically.',
-  '새로 만들기 →': 'Create New →',
-  '이전에 만들던 프로젝트가 있습니다:': 'You have a project in progress:',
   '마지막 수정': 'Last edited',
   '계속 편집하기 →': 'Continue Editing →',
-  '저장된 프로젝트': 'Saved Projects',
-  "헤더의 '저장'으로 보관한 프로젝트입니다.": "Projects saved via the 'Save' button in the header.",
   불러오기: 'Load',
   '프로젝트 불러오기': 'Load Project',
   '현재 편집 중인 작업을': 'Replace current work with',
@@ -545,16 +529,9 @@ export const en: Record<string, string> = {
   "현재 편집 중인 프로젝트를 새 프로젝트로 덮어씁니다. 저장하지 않은 변경 사항은 사라집니다. 먼저 '저장'으로 보관해 두면 나중에 다시 불러올 수 있습니다.":
     'This will overwrite the project currently being edited. Unsaved changes will be lost. Save it first to be able to reload it later.',
   '새로 만들기': 'Create New',
-  '처음이신가요? 4단계로 만듭니다:': "First time? Here's how it works in 4 steps:",
   설정: 'Setup',
-  '기기 · 슬라이드 수 · 테마': 'Device · slides · theme',
   편집: 'Edit',
-  '스크린샷 올리고 문구 · 디자인': 'Upload screenshots, write copy & design',
-  현지화: 'Localize',
-  '언어별 문구 · 스크린샷': 'Per-language copy & screenshots',
   내보내기: 'Export',
-  'PNG ZIP (App Store 규격)': 'PNG ZIP (App Store spec)',
-  '내 앱': 'My App',
   '추천 시작 세트': 'Recommended Starter Set',
   '히어로 상·하단 + 2페이지 스팬(기울인 기기)': 'Hero top & bottom + 2-page span (tilted device)',
 

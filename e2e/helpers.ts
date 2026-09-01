@@ -146,41 +146,29 @@ export async function clearAppState(page: Page) {
   })
 }
 
+/**
+ * The home screen asks nothing: one click makes a project and lands on the
+ * editor. Name and slide count are set afterwards where the app puts them —
+ * the header's name field and the slide tray's + button.
+ */
 export async function createProject(
   page: Page,
-  options: { name?: string; devices?: ('iphone' | 'ipad')[]; slideCount?: number } = {},
+  options: { name?: string; slideCount?: number } = {},
 ) {
-  const { name = 'Test App', devices = ['iphone'], slideCount } = options
+  const { name = 'Test App', slideCount = 1 } = options
 
-  await page.fill('input[placeholder="예: Dogo, Claude, ADHD"]', name)
+  await page.getByRole('button', { name: '새 프로젝트' }).click()
 
-  // Device type cards are clickable divs (not buttons). The title span uses
-  // font-medium; go up one level (xpath=..) to get the card div which carries
-  // the active border class.
-  const deviceCard = (label: string) =>
-    page.locator('span[class*="font-medium"]', { hasText: new RegExp(`^${label}$`) }).locator('xpath=..')
+  const nameField = page.getByLabel('프로젝트 이름')
+  await nameField.waitFor()
+  await nameField.fill(name)
 
-  const iPhoneCard = deviceCard('iPhone')
-  const iPadCard = deviceCard('iPad')
-
-  const iPhoneActive = await iPhoneCard.evaluate((el) =>
-    el.className.includes('border-[var(--color-accent)]'),
-  )
-  const iPadActive = await iPadCard.evaluate((el) =>
-    el.className.includes('border-[var(--color-accent)]'),
-  )
-
-  if (iPhoneActive && !devices.includes('iphone')) await iPhoneCard.click()
-  if (!iPhoneActive && devices.includes('iphone')) await iPhoneCard.click()
-  if (iPadActive && !devices.includes('ipad')) await iPadCard.click()
-  if (!iPadActive && devices.includes('ipad')) await iPadCard.click()
-
-  if (slideCount !== undefined) {
-    const input = page.locator('input[type="number"]')
-    await input.fill(String(slideCount))
+  // A new project starts with one slide.
+  for (let i = 1; i < slideCount; i++) {
+    await page.getByTitle('슬라이드 추가').click()
   }
-
-  await page.getByRole('button', { name: '다음 →' }).click()
+  // addSlide selects what it just added; specs expect to start on slide 1.
+  if (slideCount > 1) await slideThumbs(page).first().click()
 }
 
 /**

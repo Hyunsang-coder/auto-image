@@ -144,7 +144,7 @@ export async function forgetRecent(path: string): Promise<void> {
  * closed project without opening its zip. Failure is silent: a missing
  * thumbnail is cosmetic, and a save must never fail over one.
  */
-async function previewOf(project: Project): Promise<string | undefined> {
+export async function projectPreview(project: Project): Promise<string | undefined> {
   const first: Slide | undefined = project.slides[0]
   if (!first) return undefined
   try {
@@ -220,7 +220,7 @@ async function afterWrite(project: Project, path: string, missing: number): Prom
   // about would look, on the next launch, like unsaved work that is already on
   // disk. Rewrite it before anything else can happen.
   await writeSnapshot(project, path)
-  await rememberRecent(project, path, await previewOf(project))
+  await rememberRecent(project, path, await projectPreview(project))
   if (missing) doc().set({ missingImages: missing })
 }
 
@@ -329,7 +329,7 @@ export async function openDocument(path: string): Promise<boolean> {
     // Thumbnail on open too, not only on save: a project opened from a file
     // this app has never written would otherwise sit in the switcher as a blank
     // placeholder until the user happened to press ⌘S.
-    await rememberRecent(opened, path, await previewOf(opened))
+    await rememberRecent(opened, path, await projectPreview(opened))
     // The project that just closed may have been the last reference to its
     // blobs; its images live in its own file now.
     gcImages()
