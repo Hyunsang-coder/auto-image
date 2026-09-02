@@ -37,6 +37,9 @@ export const en: Record<string, string> = {
   '전체 화면 사용': 'Toggle Full Screen',
   '최근 프로젝트를 고르거나 파일에서 엽니다. 저장하지 않은 편집이 있으면 먼저 물어봅니다.':
     'Pick a recent project or open a file. If the open project has unsaved edits, you are asked first.',
+  '프로젝트 파일을 놓으면 엽니다': 'Drop a project file to open it',
+  '창에는 프로젝트 파일(.studio.zip)만 놓을 수 있습니다. AI가 만든 파일 묶음은 「파일 가져오기」로 고르세요.':
+    'Only a project file (.studio.zip) can be dropped on the window. Pick an agent-authored file set with Import files.',
   '열려 있음': 'open',
   '찾을 수 없음': 'Not found',
   '목록에서 제거': 'Remove from list',
@@ -496,6 +499,7 @@ export const en: Record<string, string> = {
   '아직 프로젝트가 없습니다. 위에서 하나 고르세요.': 'No projects yet — pick one of the options above.',
   '프로젝트 파일이나 스크린샷을 여기에 끌어다 놓아도 됩니다.':
     'You can also drop a project file or screenshots here.',
+  '프로젝트 파일은 창에 끌어다 놓아도 열립니다.': 'A project file dropped on the window opens too.',
   '을(를) 삭제합니다. 되돌릴 수 없습니다.': ' will be deleted. This cannot be undone.',
   '내 템플릿': 'My Template',
   '삭제 확인': 'Confirm Delete',

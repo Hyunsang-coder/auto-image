@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { Modal } from '../common/Modal'
 import { useProjectStore } from '../../store/useProjectStore'
 import { useLibraryStore } from '../../store/useLibraryStore'
@@ -25,6 +26,7 @@ import {
   loadBackups,
   loadRecents,
   migrateLibraryToFiles,
+  openDropped,
   openRecent,
   pickAndOpen,
   restoreBackup,
@@ -86,7 +88,8 @@ export function DocumentShell() {
   const project = useProjectStore((s) => s.project)
   const docPath = useProjectStore((s) => s.docPath)
   const savedHash = useProjectStore((s) => s.savedHash)
-  const { recents, prompt, error, missingImages, pickerOpen, backups, busy } = useDocumentStore()
+  const { recents, prompt, error, missingImages, pickerOpen, backups, busy, dragOver } =
+    useDocumentStore()
   const set = useDocumentStore((s) => s.set)
   const [migrated, setMigrated] = useState<{ migrated: number; missingImages: number } | null>(null)
 
@@ -102,6 +105,39 @@ export function DocumentShell() {
         if (result?.migrated) setMigrated(result)
       }),
     )
+  }, [])
+
+  // Dropping a file on the window opens it. This has to be Tauri's own event,
+  // not an HTML5 drop handler: the window keeps the OS drag-drop handler
+  // (`dragDropEnabled` defaults to true), so `drop` never reaches the webview —
+  // and the event's real paths are what let the bundle open in place.
+  useEffect(() => {
+    if (!isTauri()) return
+    let unlisten: (() => void) | undefined
+    let cancelled = false
+    void getCurrentWebview()
+      .onDragDropEvent((e) => {
+        if (e.payload.type === 'over') {
+          useDocumentStore.getState().set({ dragOver: true })
+          return
+        }
+        const state = useDocumentStore.getState()
+        state.set({ dragOver: false })
+        // A drop is the one way in that an open modal cannot block, and
+        // `ensureSaved` keeps a single prompt — a second one would replace the
+        // first and leave whoever is awaiting it hanging.
+        if (e.payload.type === 'drop' && !state.prompt && !state.busy) {
+          void openDropped(e.payload.paths)
+        }
+      })
+      .then((fn) => {
+        if (cancelled) fn()
+        else unlisten = fn
+      })
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
   }, [])
 
   // Keep the native menu in the user's language, with the current recents.
@@ -163,6 +199,16 @@ export function DocumentShell() {
 
   return (
     <>
+      {/* Below the modal layer on purpose: a drop while a blocking prompt is up
+          still has to show the prompt. */}
+      {dragOver && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg)]/70">
+          <p className="rounded-xl border-2 border-dashed border-[var(--color-accent)] bg-[var(--color-surface)] px-6 py-4 text-[length:var(--text-title)] font-medium text-[var(--color-text)]">
+            {t('프로젝트 파일을 놓으면 엽니다')}
+          </p>
+        </div>
+      )}
+
       {pickerOpen && (
         <Modal title={t('프로젝트 열기')} size="lg" onClose={() => set({ pickerOpen: false, backups: null })}>
           <p className="mt-2 text-sm text-[var(--color-text-dim)]">

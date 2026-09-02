@@ -90,6 +90,17 @@ export function ensureDocExt(path: string): string {
  * leading dot (which would hide it), no trailing dots or spaces (which macOS
  * strips anyway, silently changing the name the app then remembers).
  */
+/**
+ * The one openable file out of a window drop. Only a bundle: the webview has no
+ * filesystem, so an agent-authored set of loose files could not be read from
+ * paths without a Rust command for arbitrary reads — and that set has its own
+ * card. A drop of several bundles opens the first; this is a single-window app,
+ * so there is no second place to put the rest.
+ */
+export function pickDroppedBundle(paths: string[]): string | null {
+  return paths.find((p) => /\.zip$/i.test(p)) ?? null
+}
+
 export function sanitizeFileBase(name: string, fallback: string): string {
   const cleaned = name
     // Separators, the colon Finder still renders as "/", and the control

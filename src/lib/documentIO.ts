@@ -23,6 +23,7 @@ import { blobToBase64, isTauri } from './tauri'
 import { t } from '../i18n'
 import {
   DOC_EXT,
+  pickDroppedBundle,
   addRecent,
   backupStamp,
   docNameFromPath,
@@ -69,6 +70,8 @@ interface DocumentState {
   /** Images the saved bundle could not carry (already gone from IndexedDB). */
   missingImages: number
   pickerOpen: boolean
+  /** A file is being dragged over the window (Tauri's own drag-drop event). */
+  dragOver: boolean
   /** Rotated versions of the open project, when the user has asked to see them. */
   backups: BackupEntry[] | null
   /**
@@ -86,6 +89,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   error: null,
   missingImages: 0,
   pickerOpen: false,
+  dragOver: false,
   backups: null,
   pendingBackupPath: null,
   set: (patch) => set(patch),
@@ -357,6 +361,27 @@ export async function pickAndOpen(): Promise<boolean> {
   })
   if (typeof picked !== 'string') return false
   return openDocument(picked)
+}
+
+/**
+ * A file dropped on the window. Tauri's drag-drop event hands over real paths,
+ * which is the whole reason this exists: the webview's own file input yields a
+ * File with no path, so opening a bundle that way forks a copy instead of
+ * opening the file on disk.
+ */
+export async function openDropped(paths: string[]): Promise<boolean> {
+  const bundle = pickDroppedBundle(paths)
+  if (!bundle) {
+    doc().set({
+      error: {
+        title: t('프로젝트를 열지 못했습니다'),
+        detail: t('창에는 프로젝트 파일(.studio.zip)만 놓을 수 있습니다. AI가 만든 파일 묶음은 「파일 가져오기」로 고르세요.'),
+      },
+    })
+    return false
+  }
+  if (!(await ensureSaved('open'))) return false
+  return openDocument(bundle)
 }
 
 /** A Recents click: the same guard, then the same open. */

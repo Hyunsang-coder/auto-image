@@ -64,11 +64,17 @@ template / open) sits above a grid of the projects you already have — Recents 
 desktop (drawn from `RecentEntry.preview`, so no zip is opened), the in-browser library
 on the web (whose previews this screen renders via `projectPreview`, lifted out of
 `documentIO` — serialized through one queue, because `renderSlide` is spun up
-sequentially everywhere else on purpose). Files can be dropped onto it **on the web
-only**: Tauri's window takes the OS drag-drop handler (`dragDropEnabled` defaults to
-true), so HTML5 drop events never reach the webview. Giving the desktop a working drop
-means listening for Tauri's own drag-drop event, which hands over real paths — a
-different feature, not a CSS class.
+sequentially everywhere else on purpose).
+
+**Dropping a file differs by platform, and it has to.** Tauri's window keeps the OS
+drag-drop handler (`dragDropEnabled` defaults to true), so HTML5 `drop` never reaches
+the webview there — the desktop listens for Tauri's own event in `DocumentShell`
+instead. That event is window-wide (any step) and carries **real paths**, so a dropped
+`.studio.zip` opens the file *in place* (`openDropped` → `ensureSaved` → `openDocument`)
+rather than forking a copy the way a path-less `File` from an `<input>` would. It takes
+bundles only (`pickDroppedBundle`): reading a set of loose agent-authored files from
+paths would need a Rust command for arbitrary reads, and that set has its own card. The
+web keeps the DOM handlers on the home, where both kinds route by `routeOpenFiles`.
 
 It asks **nothing**. The questions the old setup form asked all have answers elsewhere:
 the size dropdowns and background panel are in the editor, the slide tray's `+` sets the

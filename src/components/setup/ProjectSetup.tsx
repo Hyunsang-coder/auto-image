@@ -250,24 +250,22 @@ export function ProjectSetup() {
   }
 
   const hasProjects = desktop ? recents.length > 0 : savedProjects.length > 0
-  // Tauri's window takes the OS drag-drop handler (`dragDropEnabled` defaults
-  // to true), so HTML5 drop events never reach the webview on the desktop.
-  // Promising a drop target there would be a lie; ⌘O and the two cards are the
-  // desktop's ways in. Giving the desktop a working drop means listening for
-  // Tauri's own drag-drop event, which hands over real paths — a different
-  // feature, not a CSS class.
-  const dropSupported = !desktop
+  // Only the web drops through the DOM: Tauri's window keeps the OS drag-drop
+  // handler, so these events never fire there. The desktop drops through
+  // Tauri's own event instead (DocumentShell), which is window-wide and carries
+  // real paths — so it takes bundles only, and opens them in place.
+  const htmlDrop = !desktop
 
   return (
     <div
-      onDragOver={dropSupported ? (e) => {
+      onDragOver={htmlDrop ? (e) => {
         e.preventDefault()
         setDragOver(true)
       } : undefined}
-      onDragLeave={dropSupported ? (e) => {
+      onDragLeave={htmlDrop ? (e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false)
       } : undefined}
-      onDrop={dropSupported ? (e) => {
+      onDrop={htmlDrop ? (e) => {
         e.preventDefault()
         setDragOver(false)
         // The cards disable themselves while an import runs; a drop has to
@@ -389,11 +387,11 @@ export function ProjectSetup() {
             <p className="text-[length:var(--text-ui)] text-[var(--color-text-dim)]">
               {t('아직 프로젝트가 없습니다. 위에서 하나 고르세요.')}
             </p>
-            {dropSupported && (
-              <p className="mt-1 text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
-                {t('프로젝트 파일이나 스크린샷을 여기에 끌어다 놓아도 됩니다.')}
-              </p>
-            )}
+            <p className="mt-1 text-[length:var(--text-ui-xs)] text-[var(--color-text-dim)]">
+              {desktop
+                ? t('프로젝트 파일은 창에 끌어다 놓아도 열립니다.')
+                : t('프로젝트 파일이나 스크린샷을 여기에 끌어다 놓아도 됩니다.')}
+            </p>
           </div>
         ) : (
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">

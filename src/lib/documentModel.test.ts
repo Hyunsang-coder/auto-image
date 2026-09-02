@@ -11,6 +11,7 @@ import {
   isDirty,
   markMissing,
   parseRecents,
+  pickDroppedBundle,
   sanitizeFileBase,
   uniqueDocBase,
   type RecentEntry,
@@ -118,6 +119,27 @@ describe('document names and paths', () => {
     expect(uniqueDocBase('Memento', ['memento.studio.zip'])).toBe('Memento 2')
     // An unrelated file with the same stem is not one.
     expect(uniqueDocBase('Memento', ['Memento.png'])).toBe('Memento')
+  })
+})
+
+describe('dropped files', () => {
+  it('picks the bundle out of a mixed drop', () => {
+    expect(pickDroppedBundle(['/a/shot.png', '/a/Memento.studio.zip', '/a/manifest.json'])).toBe(
+      '/a/Memento.studio.zip',
+    )
+  })
+
+  it('accepts a plain .zip, and any case', () => {
+    expect(pickDroppedBundle(['/a/Old.ZIP'])).toBe('/a/Old.ZIP')
+  })
+
+  it('refuses a drop with no bundle in it', () => {
+    expect(pickDroppedBundle(['/a/manifest.json', '/a/1.en.png'])).toBeNull()
+    expect(pickDroppedBundle([])).toBeNull()
+  })
+
+  it('takes the first bundle when several are dropped', () => {
+    expect(pickDroppedBundle(['/a/One.studio.zip', '/a/Two.studio.zip'])).toBe('/a/One.studio.zip')
   })
 })
 
