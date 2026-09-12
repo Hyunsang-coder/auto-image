@@ -25,11 +25,16 @@ export const DOC_EXT = '.studio.zip'
  * FNV-1a, ten lines, no dependency. Collisions would show as a save the app
  * thinks is unnecessary; at 32 bits over a project-sized string that is rare
  * enough to accept, and the mirror covers the loss either way.
+ *
+ * Keys serialize in sorted order (canonical stringify): two projects with the
+ * same content must hash the same no matter which code path built the object —
+ * a spread in a different order, or a migration that re-keys an object, must
+ * not flip a clean document dirty.
  */
 export function hashProject(project: Project): string {
   const content: Partial<Project> = { ...project }
   delete content.updatedAt
-  const json = JSON.stringify(content)
+  const json = canonicalJson(content)
   let hash = 0x811c9dc5
   for (let i = 0; i < json.length; i++) {
     hash ^= json.charCodeAt(i)
@@ -45,6 +50,19 @@ export function isDirty(project: Project | null, savedHash: string | null): bool
   if (!project) return false
   if (!savedHash) return true
   return hashProject(project) !== savedHash
+}
+
+/** JSON with object keys sorted recursively. Arrays keep their order — an
+ *  index-addressed array (texts, slides) reordered IS a different project. */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((v) => (v === undefined ? 'null' : canonicalJson(v))).join(',')}]`
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
 }
 
 /** Last path segment, separator-agnostic. */

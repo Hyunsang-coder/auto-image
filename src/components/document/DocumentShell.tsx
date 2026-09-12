@@ -102,7 +102,12 @@ export function DocumentShell() {
     if (!isTauri()) return
     void loadRecents().then(() =>
       migrateLibraryToFiles(useLibraryStore.getState().projects).then((result) => {
-        if (result?.migrated) setMigrated(result)
+        if (!result?.migrated) return
+        // The snapshots now live as real files: drop the migrated ones from
+        // the retired store so file + localStorage don't carry every project
+        // twice against the shared ~5MB cap.
+        for (const id of result.migratedIds) useLibraryStore.getState().removeProject(id)
+        setMigrated(result)
       }),
     )
   }, [])

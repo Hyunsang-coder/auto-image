@@ -4,7 +4,7 @@ import { useProjectStore } from '../store/useProjectStore'
 import { useLibraryStore } from '../store/useLibraryStore'
 import { useCustomStore } from '../store/useCustomStore'
 import { makeProject, DEFAULT_BACKGROUND } from '../constants/defaults'
-import { allReferencedImageKeys } from './imageRefs'
+import { allReferencedImageKeys, projectImageKeys } from './imageRefs'
 
 function projWithKeys(name: string, shotKey: string, bgKey: string): Project {
   const p = makeProject({ name, devices: ['iphone'], screenshotCount: 1, themeBackground: structuredClone(DEFAULT_BACKGROUND) })
@@ -117,5 +117,19 @@ describe('allReferencedImageKeys', () => {
     // default background is a gradient — carries no imageKey
     useProjectStore.setState({ project: p })
     expect(allReferencedImageKeys().size).toBe(0)
+  })
+
+  // A locale-mode background change is stored on slide.localeOverrides, not
+  // the base background — the keep-set must read it or the sweep/bundle/
+  // mirror drops a live locale image.
+  it('[H-V1] includes slide localeOverride background image keys', () => {
+    const p = projWithKeys('A', 'img:shot-a', 'img:bg-a')
+    p.slides[0].localeOverrides = {
+      fr: { background: { type: 'image', imageKey: 'img:bg-fr' } },
+      de: { template: 'hero' },
+    }
+    expect(projectImageKeys(p)).toContain('img:bg-fr')
+    useProjectStore.setState({ project: p })
+    expect(allReferencedImageKeys().has('img:bg-fr')).toBe(true)
   })
 })

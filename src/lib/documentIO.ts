@@ -224,7 +224,10 @@ async function afterWrite(project: Project, path: string, missing: number): Prom
   // about would look, on the next launch, like unsaved work that is already on
   // disk. Rewrite it before anything else can happen.
   await writeSnapshot(project, path)
-  await rememberRecent(project, path, await projectPreview(project))
+  // The recents thumbnail is cosmetic and costs a full render — it must never
+  // hold the save (or its busy state) hostage. Fire-and-forget; a failure
+  // leaves the previous thumbnail, which rememberRecent carries over.
+  void projectPreview(project).then((preview) => rememberRecent(project, path, preview))
   if (missing) doc().set({ missingImages: missing })
 }
 
@@ -576,10 +579,11 @@ function markMigrated(): void {
  */
 export async function migrateLibraryToFiles(
   projects: Project[],
-): Promise<{ migrated: number; missingImages: number } | null> {
+): Promise<{ migrated: number; missingImages: number; migratedIds: string[] } | null> {
   if (!isTauri() || alreadyMigrated() || projects.length === 0) return null
   let migrated = 0
   let missingImages = 0
+  const migratedIds: string[] = []
   try {
     const dir = await defaultDir()
     const existing = new Set(await invoke<string[]>('list_document_names', { dir }))
@@ -598,6 +602,7 @@ export async function migrateLibraryToFiles(
       written.push(`${base}${DOC_EXT}`)
       missingImages += missingImageKeys.length
       migrated++
+      migratedIds.push(project.id)
       await persistRecents(
         addRecent(doc().recents, {
           path,
@@ -610,8 +615,8 @@ export async function migrateLibraryToFiles(
   } catch {
     // Leave the flag unset so the rest is picked up next launch; the skip
     // above is what keeps that retry from duplicating what already landed.
-    return migrated ? { migrated, missingImages } : null
+    return migrated ? { migrated, missingImages, migratedIds } : null
   }
   markMigrated()
-  return { migrated, missingImages }
+  return { migrated, missingImages, migratedIds }
 }

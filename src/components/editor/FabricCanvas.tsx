@@ -14,6 +14,7 @@ import {
 import { updateExternalImageClip } from '../../canvas/objects/externalImage'
 import { awaitSlideFonts } from '../../lib/fonts'
 import { parseEmphasis } from '../../lib/emphasis'
+import { spanStructuralSignature } from '../../lib/historyStructure'
 import { createImageUrlCache, type ImageUrlCache } from '../../lib/imageStore'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
@@ -503,6 +504,22 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const followerSlide = followerSlideRef.current
 
       const objects = canvas.getObjects()
+      // A stale snapshot (pre-structure-change undo state loaded after a
+      // caption/layer add/remove) addresses text by an index that no longer
+      // means the same block. Count first: when the canvas and the store
+      // disagree on the shape, skip the text sync rather than corrupt it.
+      let leaderTextCount = 0
+      let followerTextCount = 0
+      for (const obj of objects) {
+        const o = obj as FabricObject & { layerName?: string; owner?: 'leader' | 'follower' }
+        if (o.layerName !== LAYER_NAMES.TEXT) continue
+        if (o.owner === 'follower' && followerSlide) followerTextCount++
+        else leaderTextCount++
+      }
+      const textsLengthMismatch =
+        leaderTextCount !== slide.texts.length ||
+        followerTextCount !== (followerSlide ? followerSlide.texts.length : 0)
+      const staleSnapshot = textsLengthMismatch
       const slidePatch: Partial<Slide> = {}
       const followerPatch: Partial<Slide> = {}
       // Object coords stay in base (unzoomed) layout space, but canvas.width is
@@ -520,6 +537,9 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       for (const obj of objects) {
         const ln = (obj as Textbox & { layerName?: string }).layerName
         if (ln === LAYER_NAMES.TEXT) {
+          // Stale snapshot (see the count above): syncing would write this
+          // box's text onto whatever block now sits at its old index.
+          if (staleSnapshot) continue
           const itext = obj as Textbox & { textIndex?: number; owner?: 'leader' | 'follower' }
           const i = itext.textIndex ?? 0
           // Route by the owner tag: follower texts live on the follower slide.
@@ -1523,6 +1543,10 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
     const prevSlideDataRef = useRef<string>('')
     const prevGroupedRef = useRef<boolean>(false)
     const prevLockRef = useRef<boolean>(false)
+    // Shape the last render was built from (caption count + layer ids, both
+    // halves). A store edit that changes it invalidates every raw-canvas undo
+    // snapshot; content edits leave it alone and keep history.
+    const prevStructureRef = useRef<string | null>(null)
     // Template renders await fonts/images, so two effect runs can overlap. Each
     // applyTemplate clears the canvas up front and then adds objects across
     // awaits — an older render resuming after a newer one would permanently
@@ -1564,24 +1588,32 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
       const groupedChanged = prevGroupedRef.current !== isGrouped
       const lockChanged = prevLockRef.current !== lockSharedLayout
       if (!slideChanged && !dataChanged && !groupedChanged) return
+      const structure = spanStructuralSignature(activeSlide, isGrouped ? followerSlide : null)
+      // An external structural edit (panel add/remove, caption add/remove, a
+      // preset that re-ids layers) leaves older snapshots addressing the wrong
+      // indices/ids, so the stacks go. An undo/redo's own sync never changes
+      // the shape, so walking history doesn't clear the path behind it.
+      const structureChanged =
+        prevStructureRef.current !== null && prevStructureRef.current !== structure
 
       // Crossing the base↔locale boundary must reset history: undo snapshots are
       // raw canvas states, so a base-mode undo onto a locale-resolved snapshot
       // (or vice-versa) would load the wrong layout and mis-sync.
       const freshLoad = slideChanged || groupedChanged || lockChanged
-      if (freshLoad) {
+      if (freshLoad || structureChanged) {
         undoStack.current = []
         redoStack.current = []
         baselineRef.current = null
         notifyHistory()
         // History (which embeds these blob URLs in its snapshots) is gone, so
         // the cached URLs from the previous slide/grouping are now unreachable.
-        urlCacheRef.current.revokeAll()
+        if (freshLoad) urlCacheRef.current.revokeAll()
       }
       prevSlideId.current = activeSlide.id
       prevSlideDataRef.current = serialized
       prevGroupedRef.current = isGrouped
       prevLockRef.current = lockSharedLayout
+      prevStructureRef.current = structure
 
       const seq = ++renderSeqRef.current
       renderChainRef.current = renderChainRef.current.then(async () => {

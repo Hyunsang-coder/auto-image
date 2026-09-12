@@ -13,9 +13,9 @@ vi.mock('./imageStore', () => ({
 import JSZip from 'jszip'
 import type { Project } from '../types/project'
 import { makeProject } from '../constants/defaults'
-import { PROJECT_SCHEMA_VERSION } from './projectMigrate'
+import { PROJECT_SCHEMA_VERSION, migrateProject } from './projectMigrate'
 import { projectImageKeys } from './imageRefs'
-import { exportProjectBundle, readProjectBundle } from './projectBundle'
+import { exportProjectBundle, readProjectBundle, resolveBundleSchemaVersion } from './projectBundle'
 import { hashProject } from './documentModel'
 
 function png(seed: string): Blob {
@@ -151,5 +151,24 @@ describe('the save / reopen round trip', () => {
     await expect(readProjectBundle(await zip.generateAsync({ type: 'blob' }))).rejects.toThrow(
       /not a project bundle/,
     )
+  })
+})
+
+describe('resolveBundleSchemaVersion [H-V4]', () => {
+  it('[H-V4] trusts the stamp when present', () => {
+    expect(resolveBundleSchemaVersion({ bundleVersion: 1, schemaVersion: 5 })).toBe(5)
+    expect(resolveBundleSchemaVersion({ bundleVersion: 1, schemaVersion: 4 })).toBe(4)
+  })
+
+  it('[H-V4] treats an unstamped v1 envelope as schema v4 (predates the span split)', () => {
+    expect(resolveBundleSchemaVersion({ bundleVersion: 1 })).toBe(4)
+    expect(resolveBundleSchemaVersion({})).toBe(4)
+  })
+
+  it('[H-V4] migrating an already-current project is a pure passthrough', () => {
+    const project = fullProject()
+    const out = migrateProject(project, PROJECT_SCHEMA_VERSION)
+    expect(out).not.toBeNull()
+    expect(hashProject(out!)).toBe(hashProject(project))
   })
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Modal } from '../common/Modal'
 import { buildRows, type RowItem } from './slideRows'
 import type React from 'react'
@@ -47,7 +47,10 @@ function aspectOf(slide: Slide): string {
   return `${spec.exportWidth} / ${spec.exportHeight}`
 }
 
-export function SlideList({
+// Memoized: the tray re-renders only when its data props change. The caller
+// stabilizes the derived props (selection set, callbacks) so zoom/panel-only
+// renders skip the whole list.
+export const SlideList = memo(function SlideList({
   slides,
   activeSlideId,
   selectedIds,
@@ -231,7 +234,7 @@ export function SlideList({
       )}
     </nav>
   )
-}
+})
 
 function ThumbImage({
   slide,

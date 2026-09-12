@@ -133,6 +133,43 @@ describe('routeLocalePatch', () => {
     expect(base.texts[0].translations).toEqual({ fr: 'X' })
     expect(base.localeOverrides).toBeUndefined()
   })
+
+  // Badge text is per-locale via translations (see resolveSlideForLocale), so
+  // a locale-mode text edit must land there — writing the whole array to the
+  // base would repaint every locale and destroy the source text.
+  it('[H-V2] routes a locale-mode badge text edit to translations, keeping base text', () => {
+    const badge = { id: 'b1', text: 'Hello', translations: {}, style: {} as never, top: 0.1 }
+    const base = baseSlide({ badges: [badge] })
+    const out = routeLocalePatch(base, 'fr', { badges: [{ ...badge, text: 'Bonjour' }] })
+    expect(out.badges?.[0].text).toBe('Hello')
+    expect(out.badges?.[0].translations).toEqual({ fr: 'Bonjour' })
+  })
+
+  it('[H-V2] is a no-op when the locale-mode badge patch changes nothing', () => {
+    const badge = { id: 'b1', text: 'Hello', translations: { fr: 'Bonjour' }, style: {} as never, top: 0.1 }
+    const base = baseSlide({ badges: [badge] })
+    const out = routeLocalePatch(base, 'fr', { badges: [{ ...badge, text: 'Bonjour' }] })
+    expect(out.badges).toBeUndefined()
+    expect(out.localeOverrides).toBeUndefined()
+  })
+
+  it('[H-V2] still passes structural badge changes (add/remove) to the shared base', () => {
+    const badge = { id: 'b1', text: 'Hello', translations: {}, style: {} as never, top: 0.1 }
+    const base = baseSlide({ badges: [badge] })
+    const added = { id: 'b2', text: 'New', translations: {}, style: {} as never, top: 0.2 }
+    expect(routeLocalePatch(base, 'fr', { badges: [badge, added] }).badges).toHaveLength(2)
+    expect(routeLocalePatch(base, 'fr', { badges: [] }).badges).toEqual([])
+  })
+
+  // External images have no per-locale channel (LocaleOverride carries none),
+  // so they are shared like badges — but they must reach the base instead of
+  // being silently dropped by the router.
+  it('[H-V3] routes locale-mode external-image edits to the shared base', () => {
+    const img = { id: 'e1', imageKey: 'img:x', originalWidth: 10, originalHeight: 10, x: 0.5, y: 0.5, width: 0.3, rotation: 0, opacity: 1, cornerRadiusRatio: 0.06, shadow: true }
+    const base = baseSlide({ externalImages: [] })
+    const out = routeLocalePatch(base, 'fr', { externalImages: [img] })
+    expect(out.externalImages).toEqual([img])
+  })
 })
 
 describe('clearLocaleOverride', () => {

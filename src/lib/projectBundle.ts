@@ -17,6 +17,19 @@ interface ProjectBundle {
   images: Record<string, string> // imageKey -> zip path
 }
 
+/**
+ * Which schema a bundle was written under, before migration. A present stamp
+ * wins; an unstamped v1 envelope predates both the stamp and the per-slide
+ * span split, so it is schema v4. Centralized (instead of `?? 4` at each call
+ * site) so the assumption is stated and tested once.
+ */
+export function resolveBundleSchemaVersion(manifest: {
+  bundleVersion?: number
+  schemaVersion?: number
+}): number {
+  return typeof manifest.schemaVersion === 'number' ? manifest.schemaVersion : 4
+}
+
 export function extFor(type: string): string {
   if (type === 'image/png') return 'png'
   if (type === 'image/jpeg') return 'jpg'
@@ -102,7 +115,7 @@ export async function readProjectBundle(file: Blob): Promise<BundleImport> {
   // Bring an older-schema bundle up to the current schema before it's loaded —
   // loadProject doesn't run the persist migrations. A v1 bundle predates the
   // schemaVersion stamp and the per-slide span split, so it's schema v4.
-  const project = migrateProject(manifest.project, manifest.schemaVersion ?? 4)
+  const project = migrateProject(manifest.project, resolveBundleSchemaVersion(manifest))
   if (!project) throw new Error('project bundle is too old to open')
   for (const [key, path] of Object.entries(manifest.images ?? {})) {
     const entry = zip.file(path)
@@ -110,7 +123,7 @@ export async function readProjectBundle(file: Blob): Promise<BundleImport> {
     // Retype from the stored path: JSZip hands back a typeless blob.
     await putImage(key, new Blob([await entry.async('blob')], { type: typeForExt(path) }))
   }
-  return { project, schemaVersion: manifest.schemaVersion ?? 4 }
+  return { project, schemaVersion: resolveBundleSchemaVersion(manifest) }
 }
 
 /**

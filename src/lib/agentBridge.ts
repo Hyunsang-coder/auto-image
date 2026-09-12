@@ -13,7 +13,7 @@ import { DEFAULT_MODEL, EDITOR_CANVAS_WIDTH } from '../constants/deviceSpecs'
 import { getCanvasHeight, screenBoundsOf } from '../canvas/templateLayouts'
 import { THEME_PRESETS, findThemePreset } from '../constants/defaults'
 import type { DeviceType, Project, Slide, Step } from '../types/project'
-import { projectImageKeys } from './imageRefs'
+import { projectImageKeys, gcImages } from './imageRefs'
 import { getPendingTranslations } from './readiness'
 import { applyPatch, type PatchOp } from './projectPatch'
 import { renderSlide, renderSpanGroup } from './renderSlide'
@@ -153,6 +153,13 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
           'Pass replace: true to discard it, or patch the open project instead.',
       )
     }
+    // Same dirty guard as `open`: replace:true is not a license to drop edits
+    // the user hasn't saved — that needs an explicit opt-out.
+    if (store.project && isDirty(store.project, store.savedHash) && params.discardUnsaved !== true) {
+      throw new Error(
+        `"${store.project.name}" has unsaved changes. Call save first, or pass discardUnsaved: true.`,
+      )
+    }
 
     const slideCount = typeof params.slideCount === 'number' ? params.slideCount : 5
     if (!Number.isInteger(slideCount) || slideCount < 1 || slideCount > 10) {
@@ -172,6 +179,9 @@ const handlers: Record<string, (params: Record<string, unknown>) => unknown | Pr
       screenshotCount: slideCount,
       themeBackground: structuredClone(preset.background),
     })
+    // The store no longer sweeps (import cycle): the discarded project's blobs
+    // are collected here, like every other caller-side mutation.
+    gcImages()
     // Same rule the app's own new-project form follows: it becomes a file
     // immediately, so an agent's project is never one crash from gone.
     const created = useProjectStore.getState().project

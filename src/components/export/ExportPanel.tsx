@@ -6,6 +6,7 @@ import { isTauri, writeFileToDir, sanitizePathSegment } from '../../lib/tauri'
 import { useProjectStore } from '../../store/useProjectStore'
 import { renderSlide, renderSlideWithReport, renderSpanGroup, renderSpanGroupWithReport } from '../../lib/renderSlide'
 import { useSlideThumbnails } from '../editor/useSlideThumbnails'
+import { previewRenderWidth } from '../../lib/exportPreview'
 import {
   createLayoutReport,
   createLayoutSummary,
@@ -163,12 +164,15 @@ export function ExportPanel() {
   // Auto-rendered previews, no button. The editor's thumbnail hook owns the
   // debounce, the content-hash cache and the per-slide commit, so an edit made
   // while a run is in flight can't leave the panel blank or the spinner stuck.
-  // No width: full export resolution, so a preview is byte-identical to the
-  // exported PNG (absolute-pixel constants diverge at any other scale).
+  // Width follows the preview-size setting: only the largest renders at full
+  // export resolution (byte-identical to the exported PNG — absolute-pixel
+  // constants diverge at any other scale). Smaller sizes are layout checks at
+  // a fraction of the cost, and the export itself always renders full-res.
   const previewLocaleEff = previewLocale || project?.sourceLocale
   const { thumbs: previewSrcs, rendering: previewLoading } = useSlideThumbnails(
     project?.slides ?? NO_SLIDES,
     previewLocaleEff === project?.sourceLocale ? '' : previewLocaleEff ?? '',
+    previewRenderWidth(previewSize),
   )
 
   if (!project) return null

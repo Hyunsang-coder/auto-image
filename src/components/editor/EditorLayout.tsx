@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
 import { useProjectStore, spanLeaderOf, findSpanPartner } from '../../store/useProjectStore'
 import { SlideList } from './SlideList'
 import { CanvasBoard } from './CanvasBoard'
@@ -228,37 +228,101 @@ export function EditorLayout() {
   const selectionKey = `${activeSlideId ?? ''}|${editLocale}`
   const selectedLayer = selection.key === selectionKey ? selection.id : null
 
-  if (!project) return null
-  // Derive the selection passed to the tray instead of mutating selectedIds in
-  // an effect: prune ids that no longer exist (post-delete) and always include
-  // the active slide so "active" and "selected" never visibly drift, even when
-  // the active slide changes through a store path (add/duplicate/span-link).
-  const liveIds = new Set(project.slides.map((s) => s.id))
-  const displaySelectedIds = new Set<string>()
-  for (const id of selectedIds) if (liveIds.has(id)) displaySelectedIds.add(id)
-  if (activeSlideId && liveIds.has(activeSlideId)) displaySelectedIds.add(activeSlideId)
-
-  const boardRows = buildRows(project.slides)
-
-
-  const clickedSlide = project.slides.find((s) => s.id === activeSlideId) ?? null
+  // All hooks live above the `if (!project) return null` below: anything
+  // derived here is null-safe, and the project-narrowed code follows the guard.
+  const clickedSlide = project?.slides.find((s) => s.id === activeSlideId) ?? null
   // When the clicked slide is part of a span group, the leader owns the shared
   // layers — route the canvas render and non-text update targets there. Texts
   // are per-slide: the follower owns the right page's captions, so the caption
   // tab follows `clickedSlide` (see captionSlide below).
-  const slide = spanLeaderOf(project.slides, clickedSlide)
+  const slide = project ? spanLeaderOf(project.slides, clickedSlide) : null
   const editTargetId = slide?.id ?? null
   const isGrouped = !!slide?.spanGroupId
-  const spanFollower = isGrouped && slide
+  const spanFollower = isGrouped && slide && project
     ? findSpanPartner(project.slides, slide)?.follower ?? null
     : null
 
+  // Derive the selection passed to the tray instead of mutating selectedIds in
+  // an effect: prune ids that no longer exist (post-delete) and always include
+  // the active slide so "active" and "selected" never visibly drift, even when
+  // the active slide changes through a store path (add/duplicate/span-link).
+  // Memoized so the memoized tray keeps a stable prop across unrelated renders.
+  const displaySelectedIds = useMemo(() => {
+    const liveIds = new Set((project?.slides ?? []).map((s) => s.id))
+    const next = new Set<string>()
+    for (const id of selectedIds) if (liveIds.has(id)) next.add(id)
+    if (activeSlideId && liveIds.has(activeSlideId)) next.add(activeSlideId)
+    return next
+  }, [project?.slides, selectedIds, activeSlideId])
+
   // Locale edit mode: the canvas renders the slide resolved for that locale and
   // routes edits into its overrides. '' = shared/base view (edit everything).
+  // Memoized: resolveSlideForLocale builds a fresh object, and a new identity
+  // every render would re-run the canvas seed effect (plus its stringify) on
+  // unrelated renders like zoom or selection changes.
   const isLocaleMode = !!editLocale
-  const canvasSlide = isLocaleMode && slide ? resolveSlideForLocale(slide, editLocale) : slide
-  const canvasFollower =
-    isLocaleMode && spanFollower ? resolveSlideForLocale(spanFollower, editLocale) : spanFollower
+  const canvasSlide = useMemo(
+    () => (isLocaleMode && slide ? resolveSlideForLocale(slide, editLocale) : slide),
+    [isLocaleMode, editLocale, slide],
+  )
+  const canvasFollower = useMemo(
+    () => (isLocaleMode && spanFollower ? resolveSlideForLocale(spanFollower, editLocale) : spanFollower),
+    [isLocaleMode, editLocale, spanFollower],
+  )
+
+  // Stable callbacks for the memoized tray (plain declarations would be new
+  // identities every render and defeat the memo). Above the project guard
+  // with the other hooks; handleSlideSelect no-ops without a project.
+  const switchSlide = useCallback((id: string) => {
+    canvasRef.current?.discardSelection()
+    setActiveSlide(id)
+    // A plain switch collapses the multi-selection back to the new active slide
+    // so the "active" and "selected" concepts don't drift confusingly.
+    setSelectedIds(new Set([id]))
+  }, [setActiveSlide, setSelectedIds])
+
+  // Tray thumbnail click with modifier semantics:
+  //  - plain      → switch active slide AND reset selection to {id}
+  //  - cmd/ctrl   → toggle id in the selection WITHOUT changing the active slide
+  //  - shift      → contiguous range from the active/anchor slide to id (by index)
+  const handleSlideSelect = useCallback((id: string, e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }) => {
+    if (!project) return
+    if (e.metaKey || e.ctrlKey) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+      return
+    }
+    if (e.shiftKey) {
+      const ids = project.slides.map((s) => s.id)
+      const anchorId = activeSlideId && ids.includes(activeSlideId) ? activeSlideId : id
+      const a = ids.indexOf(anchorId)
+      const b = ids.indexOf(id)
+      if (a === -1 || b === -1) {
+        setSelectedIds(new Set([id]))
+        return
+      }
+      const [lo, hi] = a <= b ? [a, b] : [b, a]
+      setSelectedIds(new Set(ids.slice(lo, hi + 1)))
+      return
+    }
+    switchSlide(id)
+  }, [project, activeSlideId, switchSlide, setSelectedIds])
+
+  const handleRemoveSlides = useCallback(async (ids: string[]) => {
+    await removeSlides(ids)
+    // The store no longer sweeps (import cycle): one sweep for the batch.
+    gcImages()
+    setSelectedIds(new Set())
+  }, [removeSlides, setSelectedIds])
+
+  if (!project) return null
+
+  const boardRows = buildRows(project.slides)
+
   // Editable locales. project.locales is the new peer list; until setup writes
   // it (a later phase), fall back to the translation targets.
   const localeOptions = project.locales ?? project.targetLocales
@@ -363,50 +427,6 @@ export function EditorLayout() {
   // state switch first would let the trailing commit land on the new slide.
   function flushCanvasEdits() {
     canvasRef.current?.discardSelection()
-  }
-
-  function switchSlide(id: string) {
-    flushCanvasEdits()
-    setActiveSlide(id)
-    // A plain switch collapses the multi-selection back to the new active slide
-    // so the "active" and "selected" concepts don't drift confusingly.
-    setSelectedIds(new Set([id]))
-  }
-
-  // Tray thumbnail click with modifier semantics:
-  //  - plain      → switch active slide AND reset selection to {id}
-  //  - cmd/ctrl   → toggle id in the selection WITHOUT changing the active slide
-  //  - shift      → contiguous range from the active/anchor slide to id (by index)
-  function handleSlideSelect(id: string, e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }) {
-    if (!project) return
-    if (e.metaKey || e.ctrlKey) {
-      setSelectedIds((prev) => {
-        const next = new Set(prev)
-        if (next.has(id)) next.delete(id)
-        else next.add(id)
-        return next
-      })
-      return
-    }
-    if (e.shiftKey) {
-      const ids = project.slides.map((s) => s.id)
-      const anchorId = activeSlideId && ids.includes(activeSlideId) ? activeSlideId : id
-      const a = ids.indexOf(anchorId)
-      const b = ids.indexOf(id)
-      if (a === -1 || b === -1) {
-        setSelectedIds(new Set([id]))
-        return
-      }
-      const [lo, hi] = a <= b ? [a, b] : [b, a]
-      setSelectedIds(new Set(ids.slice(lo, hi + 1)))
-      return
-    }
-    switchSlide(id)
-  }
-
-  async function handleRemoveSlides(ids: string[]) {
-    await removeSlides(ids)
-    setSelectedIds(new Set())
   }
 
   function switchLocale(next: string) {
@@ -633,6 +653,10 @@ export function EditorLayout() {
             <CanvasToolbar
               canUndo={canUndo}
               canRedo={canRedo}
+              // Snapshots are base-layout states that don't route: keyboard
+              // undo/redo/duplicate are already locale-guarded, and the buttons
+              // follow the same rule.
+              actionsDisabled={isLocaleMode}
               onUndo={() => canvasRef.current?.undo()}
               onRedo={() => canvasRef.current?.redo()}
             />

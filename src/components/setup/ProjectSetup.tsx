@@ -101,6 +101,9 @@ export function ProjectSetup() {
       screenshotCount: NEW_SLIDE_COUNT,
       themeBackground: structuredClone(DEFAULT_BACKGROUND),
     })
+    // The discarded project may have held the last reference to its blobs.
+    // (The store can't sweep: it would reintroduce the store→imageRefs cycle.)
+    gcImages()
     setConfirmNew(false)
     // A new project becomes a file straight away. There is no "unsaved,
     // untitled" state on the desktop: the whole point of the document model is

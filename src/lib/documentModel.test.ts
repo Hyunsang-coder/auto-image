@@ -82,6 +82,23 @@ describe('dirty tracking', () => {
     }
     expect(hashProject(withShot)).not.toBe(hashProject(swapped))
   })
+
+  it('[H-V6] ignores key insertion order — same content hashes the same', () => {
+    const a = project()
+    // Same content, reversed key order at every level (nothing added/dropped).
+    const reverseKeys = (v: unknown): unknown => {
+      if (Array.isArray(v)) return v.map(reverseKeys)
+      if (v !== null && typeof v === 'object') {
+        const out: Record<string, unknown> = {}
+        for (const k of Object.keys(v).reverse()) out[k] = reverseKeys((v as Record<string, unknown>)[k])
+        return out
+      }
+      return v
+    }
+    const reordered = reverseKeys(a) as Project
+    expect(hashProject(reordered)).toBe(hashProject(a))
+    expect(isDirty(reordered, hashProject(a))).toBe(false)
+  })
 })
 
 describe('document names and paths', () => {

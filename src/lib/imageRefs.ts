@@ -18,6 +18,9 @@ export function projectImageKeys(p: Project): string[] {
       s.screenshot?.imageKey,
       ...Object.values(s.screenshot?.localeOverrides ?? {}).map((o) => o.imageKey),
       bgImageKey(s.background),
+      // A locale-mode background edit lands on slide.localeOverrides, not the
+      // base — without these the sweep/bundle/mirror drops a live image.
+      ...Object.values(s.localeOverrides ?? {}).map((ov) => bgImageKey(ov.background)),
       ...(s.externalImages ?? []).map((img) => img.imageKey),
     ]),
   ].filter((k): k is string => !!k)

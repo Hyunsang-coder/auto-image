@@ -1,38 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Slide } from '../../types/project'
 import { renderSlide, renderSpanGroup } from '../../lib/renderSlide'
+import { planThumbnailJobs, renderKey } from '../../lib/thumbnailPlan'
+
+// renderKey lives in lib/thumbnailPlan (pure, unit-tested); re-exported so
+// existing importers don't move.
+export { renderKey }
 
 const DEBOUNCE_MS = 300
 
 /** Rendered width of the slide-tray / canvas-board thumbnails, in px. */
 export const THUMB_WIDTH = 220
-
-function spanMemberOf(slide: Slide, slides: Slide[], role: 'leader' | 'follower'): Slide | undefined {
-  if (slide.spanRole === role) return slide
-  return slides.find((s) => s.spanGroupId === slide.spanGroupId && s.spanRole === role)
-}
-
-// Cache identity for one rendered slide. A stale key means the preview shows
-// pixels that no longer match the project — which, on the export step, is what
-// the user checks before shipping. A slide re-renders only when its
-// render-relevant data changes. For span
-// members the pixels come from one shared wide render (leader's layers + both
-// slides' texts), so fold both members' content (and which half) into the key
-// instead of just the slide's own data.
-export function renderKey(slide: Slide, slides: Slide[], locale: string, width?: number): string {
-  if (slide.spanGroupId) {
-    const leader = spanMemberOf(slide, slides, 'leader')
-    const follower = spanMemberOf(slide, slides, 'follower')
-    return JSON.stringify({
-      locale,
-      width,
-      role: slide.spanRole,
-      leader: leader ?? null,
-      follower: follower ?? null,
-    })
-  }
-  return JSON.stringify({ locale, width, slide })
-}
 
 /**
  * Live-rendered previews of every slide for the given locale ('' = base), one
@@ -78,38 +56,43 @@ export function useSlideThumbnails(
       // Carry over the previous render's URLs so unchanged slides — and an
       // edited slide whose new image isn't ready yet — keep showing.
       const next: Record<string, string | undefined> = {}
-      const todo: Slide[] = []
-      for (const slide of slides) {
-        const key = renderKey(slide, slides, locale, width)
+      for (const slide of slides) next[slide.id] = thumbsRef.current[slide.id]
+      // One job per missed slide, one wide render per span group (both halves
+      // commit off it). Keys are computed once inside the planner.
+      const jobs = planThumbnailJobs(slides, locale, width, (key) => {
         usedKeys.add(key)
-        const hit = cache.get(key)
-        next[slide.id] = hit ?? thumbsRef.current[slide.id]
-        if (!hit) todo.push(slide)
-      }
+        return cache.has(key)
+      })
       if (cancelled) return
       commit({ ...next })
-      setRendering(todo.length > 0)
+      setRendering(jobs.length > 0)
 
       try {
-        for (const slide of todo) {
+        for (const job of jobs) {
           if (cancelled) return
-          const key = renderKey(slide, slides, locale, width)
           try {
-            let blob: Blob
-            if (slide.spanGroupId) {
-              const leader = spanMemberOf(slide, slides, 'leader')
-              const follower = spanMemberOf(slide, slides, 'follower')
-              if (!leader || !follower) continue
-              const halves = await renderSpanGroup(leader, follower, renderLocale, width)
-              blob = slide.spanRole === 'leader' ? halves.leader : halves.follower
-            } else {
-              blob = await renderSlide(slide, renderLocale, width)
+            if (job.single && job.singleKey) {
+              const blob = await renderSlide(job.single, renderLocale, width)
+              if (cancelled) return
+              const url = URL.createObjectURL(blob)
+              cache.set(job.singleKey, url)
+              next[job.single.id] = url
+              commit({ ...next })
+            } else if (job.follower && job.leaderKey && job.followerKey) {
+              const halves = await renderSpanGroup(job.leader, job.follower, renderLocale, width)
+              if (cancelled) return
+              if (job.slideIds.includes(job.leader.id)) {
+                const url = URL.createObjectURL(halves.leader)
+                cache.set(job.leaderKey, url)
+                next[job.leader.id] = url
+              }
+              if (job.slideIds.includes(job.follower.id)) {
+                const url = URL.createObjectURL(halves.follower)
+                cache.set(job.followerKey, url)
+                next[job.follower.id] = url
+              }
+              commit({ ...next })
             }
-            if (cancelled) return
-            const url = URL.createObjectURL(blob)
-            cache.set(key, url)
-            next[slide.id] = url
-            commit({ ...next })
           } catch {
             // Leave the carried-over (or undefined) image in place.
           }

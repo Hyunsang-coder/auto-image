@@ -18,7 +18,7 @@ import { newId } from './constants/defaults'
 import { APP_NAME, APP_SHORT_NAME } from './constants/branding'
 import { saveAs } from 'file-saver'
 import { pruneOrphanImages } from './lib/imageStore'
-import { allReferencedImageKeys } from './lib/imageRefs'
+import { allReferencedImageKeys, gcImages } from './lib/imageRefs'
 import { exportProjectBundle } from './lib/projectBundle'
 import { exportProject } from './lib/projectExport'
 import { STORAGE_ERROR_EVENT, STORAGE_PRESSURE_EVENT, storageUsage } from './lib/safeStorage'
@@ -190,6 +190,8 @@ function App() {
 
   function handleReset() {
     resetProject()
+    // The store no longer sweeps (import cycle): collect the cleared blobs here.
+    gcImages()
     setShowResetConfirm(false)
   }
 

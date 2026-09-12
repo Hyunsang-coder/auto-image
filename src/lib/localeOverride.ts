@@ -1,4 +1,4 @@
-import type { Caption, CaptionOverride, LocaleOverride, Slide, TextStyle } from '../types/project'
+import type { Badge, Caption, CaptionOverride, LocaleOverride, Slide, TextStyle } from '../types/project'
 
 // The write side of copy-on-write per-locale editing. The editor (panel +
 // canvas) edits a *resolved* slide and emits a normal Partial<Slide>; this
@@ -6,12 +6,12 @@ import type { Caption, CaptionOverride, LocaleOverride, Slide, TextStyle } from 
 // changed for this locale is stored. resolveSlideForLocale flattens it back.
 //
 // Per-locale: template, background, device transform, screenshot style,
-// ornaments, shapes, and caption text/style/placement. Shared (passed straight to the
-// base): badges, highlights, and the base screenshot image — badge text stays
-// per-locale via translations.
+// ornaments, shapes, caption text/style/placement, and badge text. Shared
+// (passed straight to the base): badge layout, highlights, external images,
+// and the base screenshot image.
 
 const DEVICE_OVERRIDE_KEYS = ['show', 'offsetX', 'offsetY', 'scale', 'rotation', 'color'] as const
-const SHARED_KEYS = ['badges', 'highlights', 'screenshot'] as const
+const SHARED_KEYS = ['externalImages', 'highlights', 'screenshot'] as const
 
 // Only the style props that actually differ from the base, so changing one
 // (e.g. font size) doesn't freeze the rest (e.g. colour) against base edits.
@@ -35,6 +35,50 @@ function captionOverride(base: Caption, patch: Caption): CaptionOverride | null 
   if (patch.pos) { ov.pos = patch.pos; changed = true }
   if (patch.boxWidth != null) { ov.boxWidth = patch.boxWidth; changed = true }
   return changed ? ov : null
+}
+
+function shallowStyleEqual(a: Badge['style'], b: Badge['style']): boolean {
+  return (
+    a.backgroundColor === b.backgroundColor &&
+    a.textColor === b.textColor &&
+    a.borderRadius === b.borderRadius &&
+    a.paddingX === b.paddingX &&
+    a.paddingY === b.paddingY &&
+    a.fontSize === b.fontSize &&
+    a.fontWeight === b.fontWeight &&
+    a.icon === b.icon &&
+    a.iconPosition === b.iconPosition
+  )
+}
+
+/**
+ * Badge text is per-locale via `translations` (resolveSlideForLocale reads it),
+ * while badge layout (position/style) is shared. A locale-mode edit of the
+ * resolved array therefore splits: text diffs become translations, layout diffs
+ * stay a base copy, and a structural change (add/remove/reorder) is a shared
+ * edit that passes through whole. Returns undefined when nothing differs, so a
+ * no-op panel emit doesn't dirty the project.
+ */
+function routeBadgePatch(baseBadges: Badge[], next: Badge[], locale: string): Badge[] | undefined {
+  const sameShape =
+    baseBadges.length === next.length && next.every((b, i) => b.id === baseBadges[i]?.id)
+  if (!sameShape) return next
+  let changed = false
+  const out = next.map((b, i) => {
+    const bb = baseBadges[i]
+    let cur = bb
+    const shown = bb.translations?.[locale] ?? bb.text
+    if (typeof b.text === 'string' && b.text !== shown) {
+      cur = { ...cur, translations: { ...cur.translations, [locale]: b.text } }
+      changed = true
+    }
+    if (b.top !== bb.top || b.left !== bb.left || !shallowStyleEqual(b.style, bb.style)) {
+      cur = { ...cur, top: b.top, left: b.left, style: b.style }
+      changed = true
+    }
+    return cur
+  })
+  return changed ? out : undefined
 }
 
 /**
@@ -96,8 +140,13 @@ export function routeLocalePatch(base: Slide, locale: string, patch: Partial<Sli
   }
 
   // Shared elements edit the base directly (apply to every locale).
+  // Badges split: text is per-locale, layout is shared (see routeBadgePatch).
   for (const key of SHARED_KEYS) {
     if (patch[key] !== undefined) (result as Record<string, unknown>)[key] = patch[key]
+  }
+  if (patch.badges) {
+    const routed = routeBadgePatch(base.badges ?? [], patch.badges, locale)
+    if (routed) result.badges = routed
   }
 
   if (ovChanged) {

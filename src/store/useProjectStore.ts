@@ -3,8 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Project, Slide, Step, Background, DeviceType, DeviceModel, LocaleOverride } from '../types/project'
 import { makeProject, makeSlide, relocalizePlaceholder, DEFAULT_BACKGROUND } from '../constants/defaults'
 import { typeOfModel, detectTypeFromAspect, DEFAULT_MODEL } from '../constants/deviceSpecs'
-import { gcImages } from '../lib/imageRefs'
 import { safeLocalStorage } from '../lib/safeStorage'
+import { throttledStorage } from '../lib/throttledStorage'
 import { PROJECT_SCHEMA_VERSION, isRevivableProject, migrateProject } from '../lib/projectMigrate'
 import { t } from '../i18n'
 
@@ -230,16 +230,14 @@ export const useProjectStore = create<ProjectState>()(
           docPath: null,
           savedHash: null,
         })
-        // Same sweep resetProject and every loadProject caller run: the project
-        // just discarded may have been the last reference to its screenshots.
-        gcImages()
+        // Image GC lives with the callers (they already sweep after every
+        // other mutation): the store importing imageRefs while imageRefs reads
+        // the stores was a module cycle held together by call timing.
       },
 
       resetProject: () => {
         set({ project: null, step: 1, activeSlideId: null, docPath: null, savedHash: null })
-        // Reference-checked: only sweep blobs no saved project/preset/template
-        // still points at (the cleared project may have shared keys with them).
-        gcImages()
+        // GC moved to the caller with the other two sweeps (see createProject).
       },
 
       loadProject: (project) => {
@@ -450,14 +448,13 @@ export const useProjectStore = create<ProjectState>()(
             ? (filtered[0]?.id ?? null)
             : get().activeSlideId,
         })
-        // Sweep the removed slide's blobs only if nothing else references them
-        // (a saved project, preset, template, or sibling slide may share keys).
-        gcImages()
+        // Image GC is the caller's job (see createProject): the one caller
+        // sweeps once after the batch instead of per removal.
       },
 
       removeSlides: async (ids) => {
         // Delegate to removeSlide one id at a time; it re-reads project state,
-        // dissolves spans, reindexes, and GCs on each call. Stop before the
+        // dissolves spans and reindexes on each call. Stop before the
         // project would be emptied — removeSlide already no-ops at length 1,
         // but checking here keeps the loop from churning needlessly and leaves
         // the last requested slide intact rather than silently kept.
@@ -568,7 +565,9 @@ export const useProjectStore = create<ProjectState>()(
     }),
     {
       name: 'auto-image:project',
-      storage: createJSONStorage(() => safeLocalStorage),
+      // Keystroke writes collapse into one trailing write per burst instead
+      // of a full-project stringify + synchronous localStorage write each.
+      storage: createJSONStorage(() => throttledStorage(safeLocalStorage)),
       version: PROJECT_SCHEMA_VERSION,
       // Project-schema transforms live in `migrateProject` (shared with the
       // bundle reopen path). A pre-v4 project is unrecoverable, so the whole
