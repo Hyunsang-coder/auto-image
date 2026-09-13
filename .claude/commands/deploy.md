@@ -60,6 +60,21 @@ built — check `plutil -extract CFBundleShortVersionString raw "/Applications/S
 Quitting and replacing it is the difference between "released" and "they are running it".
 Quit the app first, then `ditto` the freshly built bundle over it.
 
+`ditto` leaves the top-level `.app` directory's own mtime untouched, so Finder keeps
+showing the old "Date Modified" and the replacement looks like it never happened.
+Fix the display (directory mtimes are not covered by the code signature, so this is
+safe) and prove the contents, not the date:
+
+```
+touch "/Applications/Screenshot Studio.app"
+shasum -a 256 "/Applications/Screenshot Studio.app/Contents/MacOS/app" \
+  "src-tauri/target/universal-apple-darwin/release/bundle/macos/Screenshot Studio.app/Contents/MacOS/app"
+spctl -a -vv "/Applications/Screenshot Studio.app" 2>&1 | tail -1
+```
+
+Identical hashes + a `Notarized Developer ID` spctl line is the pass. If the user doubts
+it from Finder, that is the stale directory mtime above — not a failed copy.
+
 ## 6. Tell them what shipped
 
 The tag, the download link, and — if the site's copy describes anything you just changed (the
