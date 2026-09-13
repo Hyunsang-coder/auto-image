@@ -175,39 +175,13 @@ describe('setDeviceSize', () => {
     expect(p.deviceModels?.iphone).toBe('iphone-6-5')
   })
 
-  it('cross-type pick converts every slide and swaps the devices entry', () => {
+  it('cross-type pick is ignored — conversion lives behind the upload-time offer', () => {
+    const before = useProjectStore.getState().project!
     useProjectStore.getState().setDeviceSize('iphone', 'ipad-pro-13')
     const p = useProjectStore.getState().project!
-    expect(p.slides.every((s) => s.deviceFrame.model === 'ipad-pro-13')).toBe(true)
-    expect(p.devices).toEqual(['ipad'])
-    expect(p.deviceModels?.ipad).toBe('ipad-pro-13')
-  })
-
-  it('converted slide keeps a mismatched screenshot’s visual frame via frameModel', () => {
-    const { project, updateSlide } = useProjectStore.getState()
-    const [withShot, noShot] = project!.slides
-    updateSlide(withShot.id, {
-      // iPhone-aspect shot (1320×2868 ≈ 0.46)
-      screenshot: { id: 'shot', imageKey: 'img:a', originalWidth: 1320, originalHeight: 2868 },
-    })
-    useProjectStore.getState().setDeviceSize('iphone', 'ipad-pro-13')
-    const slides = useProjectStore.getState().project!.slides
-    expect(slides.find((s) => s.id === withShot.id)!.deviceFrame.frameModel).toBe('iphone-16-pro')
-    expect(slides.find((s) => s.id === noShot.id)!.deviceFrame.frameModel).toBeUndefined()
-  })
-
-  it('clears a stale frameModel when the shot matches the new type', () => {
-    const { project, updateSlide } = useProjectStore.getState()
-    const slide = project!.slides[0]
-    // iPad shot on an iPhone canvas — the cross-type-upload state.
-    updateSlide(slide.id, {
-      screenshot: { id: 'shot', imageKey: 'img:b', originalWidth: 2064, originalHeight: 2752 },
-      deviceFrame: { ...slide.deviceFrame, frameModel: 'ipad-pro-13' },
-    })
-    useProjectStore.getState().setDeviceSize('iphone', 'ipad-11')
-    const after = useProjectStore.getState().project!.slides[0]
-    expect(after.deviceFrame.model).toBe('ipad-11')
-    expect(after.deviceFrame.frameModel).toBeUndefined()
+    expect(p.slides.every((s) => s.deviceFrame.model === before.slides[0].deviceFrame.model)).toBe(true)
+    expect(p.devices).toEqual(before.devices)
+    expect(p.deviceModels).toEqual(before.deviceModels)
   })
 })
 

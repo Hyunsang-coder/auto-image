@@ -56,12 +56,31 @@ export function ScreenshotPanel({
   const [bulkIssues, setBulkIssues] = useState<string[]>([])
 
   const crop = screenshotStyle.crop ?? EMPTY_CROP
-
   const sourceLocale = useProjectStore(s => s.project?.sourceLocale ?? 'en')
   const deviceModels = useProjectStore(s => s.project?.deviceModels)
   const targetLocales = useProjectStore(s => s.project?.targetLocales ?? [])
   const updateSlides = useProjectStore(s => s.updateSlides)
   const updateProject = useProjectStore(s => s.updateProject)
+
+  // Cross-type state: the shot's type differs from the canvas type, so the
+  // canvas keeps its dimensions and only the frame visual is overridden
+  // (frameModel). The banner below offers the one explicit way to a real
+  // canvas of the shot's type — the header size dropdowns stay same-type.
+  const shotType = value ? detectTypeFromAspect(value.originalWidth, value.originalHeight) : null
+  const canvasType = typeOfModel(deviceFrame.model)
+  const crossType = shotType !== null && shotType !== canvasType
+
+  function convertToScreenshotType() {
+    if (!value || !shotType) return
+    onDeviceFrameChange({
+      ...deviceFrame,
+      model: deviceModels?.[shotType] ?? DEFAULT_MODEL[shotType],
+      frameModel: undefined,
+    })
+    // A slide of the new type exists now, so its size dropdown must exist too.
+    const devices = useProjectStore.getState().project?.devices ?? []
+    if (!devices.includes(shotType)) updateProject({ devices: [...devices, shotType] })
+  }
 
   // Same bulk screenshot import the Localize page runs — exposed here so editor
   // users can add MANY screenshots without hopping to step 3. Routes base vs
@@ -202,6 +221,26 @@ export function ScreenshotPanel({
               : 'iPad'}{' '}
             {t('스크린샷')}
           </p>
+          {crossType && shotType && (
+            <div className="rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-2 text-[11px] leading-snug">
+              <p className="text-[var(--color-warning)]">
+                {t('이 스크린샷은 {shot} 규격인데 캔버스는 {canvas} 규격입니다.', {
+                  shot: shotType === 'iphone' ? 'iPhone' : 'iPad',
+                  canvas: canvasType === 'iphone' ? 'iPhone' : 'iPad',
+                })}
+              </p>
+              <p className="mt-0.5 text-[var(--color-text-dim)]">
+                {t('규격을 맞추면 텍스트·배치가 어긋날 수 있어요.')}
+              </p>
+              <button
+                type="button"
+                onClick={convertToScreenshotType}
+                className="mt-1.5 rounded-md border border-[var(--color-warning)]/50 px-2 py-1 text-xs text-[var(--color-text)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
+              >
+                {t('{type} 규격으로 전환', { type: shotType === 'iphone' ? 'iPhone' : 'iPad' })}
+              </button>
+            </div>
+          )}
           <div className="flex gap-3">
             <button
               type="button"

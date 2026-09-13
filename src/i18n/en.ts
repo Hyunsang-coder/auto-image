@@ -215,6 +215,8 @@ export const en: Record<string, string> = {
   // EditorLayout.tsx
   'App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다. 다른 기기를 고르면 슬라이드가 그 기기로 전환됩니다.':
     'App Store screenshot size — all slides of this type export at this resolution. Changing the device switches those slides to that device.',
+  'App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다. 다른 기기로 바꾸려면 그 기기 스크린샷을 올리세요.':
+    'App Store screenshot size — all slides of this type export at this resolution. To switch device, upload a screenshot from that device.',
   '축소 (Cmd −)': 'Zoom out (Cmd −)',
   '100%로 맞춤 (Cmd 0)': 'Fit to 100% (Cmd 0)',
   '확대 (Cmd +)': 'Zoom in (Cmd +)',
@@ -709,6 +711,11 @@ export const en: Record<string, string> = {
   '남아있는 스크린샷 삭제': 'Delete remaining screenshot',
   교체: 'Replace',
   '클릭하여 이미지 업로드': 'Click to upload an image',
+  '이 스크린샷은 {shot} 규격인데 캔버스는 {canvas} 규격입니다.':
+    'This screenshot is {shot} size but the canvas is {canvas} size.',
+  '규격을 맞추면 텍스트·배치가 어긋날 수 있어요.':
+    'Matching the size may shift text and layout.',
+  '{type} 규격으로 전환': 'Switch to {type} size',
   '여러 장 일괄 업로드': 'Bulk upload',
   '파일명 {fmt} · 기준 언어({src})가 베이스 · 예: 01-home.{src}.png, 01-home.{ex}.png':
     'Filename {fmt} · source language ({src}) is base · e.g. 01-home.{src}.png, 01-home.{ex}.png',

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Project, Slide, Step, Background, DeviceType, DeviceModel, LocaleOverride } from '../types/project'
 import { makeProject, makeSlide, relocalizePlaceholder, DEFAULT_BACKGROUND } from '../constants/defaults'
-import { typeOfModel, detectTypeFromAspect, DEFAULT_MODEL } from '../constants/deviceSpecs'
+import { typeOfModel } from '../constants/deviceSpecs'
 import { safeLocalStorage } from '../lib/safeStorage'
 import { throttledStorage } from '../lib/throttledStorage'
 import { PROJECT_SCHEMA_VERSION, isRevivableProject, migrateProject } from '../lib/projectMigrate'
@@ -299,39 +299,21 @@ export const useProjectStore = create<ProjectState>()(
       setDeviceSize: (type, model) => {
         const cur = get().project
         if (!cur) return
-        const newType = typeOfModel(model)
-        // Picking a model of the other type converts every slide of this
-        // dropdown's type — canvas dims + export target follow the model. A
-        // converted slide whose screenshot doesn't match the new type keeps the
-        // shot's visual frame via frameModel (same invariant as cross-type
-        // upload in ScreenshotPanel).
-        const frameModelFor = (s: Slide): DeviceModel | undefined => {
-          if (!s.screenshot) return undefined
-          const shotType = detectTypeFromAspect(
-            s.screenshot.originalWidth,
-            s.screenshot.originalHeight,
-          )
-          if (shotType === newType) return undefined
-          return cur.deviceModels?.[shotType] ?? DEFAULT_MODEL[shotType]
-        }
+        // Same-type only. A cross-type move is a layout-breaking conversion, so
+        // it lives behind the upload-time convert offer (ScreenshotPanel) —
+        // the header dropdowns list same-type sizes and can no longer trigger
+        // this branch from the GUI.
+        if (typeOfModel(model) !== type) return
         set({
           project: touch({
             ...cur,
-            devices:
-              newType === type
-                ? cur.devices
-                : [...new Set(cur.devices.map((d) => (d === type ? newType : d)))],
-            deviceModels: { ...cur.deviceModels, [newType]: model },
-            slides: cur.slides.map((s) => {
-              const t = typeOfModel(s.deviceFrame.model)
-              if (t === type && newType !== type)
-                return { ...s, deviceFrame: { ...s.deviceFrame, model, frameModel: frameModelFor(s) } }
-              // Slides already of the target type re-size too — one type keeps
-              // one export size.
-              if (t === newType)
-                return { ...s, deviceFrame: { ...s.deviceFrame, model } }
-              return s
-            }),
+            deviceModels: { ...cur.deviceModels, [type]: model },
+            // One type keeps one export size: every slide of the type re-sizes.
+            slides: cur.slides.map((s) =>
+              typeOfModel(s.deviceFrame.model) === type
+                ? { ...s, deviceFrame: { ...s.deviceFrame, model } }
+                : s,
+            ),
           }),
         })
       },
