@@ -77,10 +77,10 @@ function buildRows(slide: Slide, follower: Slide | null | undefined, t: (k: stri
     })
   }
 
-  for (const h of slide.highlights ?? []) {
+  slide.highlights?.forEach((h, i) => {
     rows.push({
       id: { layerName: LAYER_NAMES.HIGHLIGHT_POPUP, highlightId: h.id },
-      label: t('확대 카드'),
+      label: t('확대 카드 {n}', { n: i + 1 }),
       glyph: '◎',
       group: t('하이라이트'),
     })
@@ -88,12 +88,12 @@ function buildRows(slide: Slide, follower: Slide | null | undefined, t: (k: stri
     if (markerOf(h).show) {
       rows.push({
         id: { layerName: LAYER_NAMES.HIGHLIGHT_SOURCE, highlightId: h.id },
-        label: t('원본 영역'),
+        label: t('원본 영역 {n}', { n: i + 1 }),
         glyph: '⬚',
         group: t('하이라이트'),
       })
     }
-  }
+  })
 
   for (const img of slide.externalImages ?? []) {
     rows.push({

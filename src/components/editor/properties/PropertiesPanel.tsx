@@ -13,6 +13,7 @@ import type {
   TemplateType,
   TextStyle,
 } from '../../../types/project'
+import type { ObjIdentity } from '../FabricCanvas'
 import type { ThemePreset } from '../../../constants/defaults'
 import { BackgroundPanel } from './BackgroundPanel'
 import { BadgePanel } from './BadgePanel'
@@ -60,6 +61,10 @@ interface Props {
   slideCount: number
   onApplyThemePresetToSlides: (preset: ThemePreset, scope: 'all' | 'selected') => void
   onApplyTextStyleToSlides: (style: Partial<TextStyle>, scope: 'all' | 'selected') => void
+  /** Highlight card ↔ canvas bridge: select the object for direct manipulation. */
+  onSelectHighlightLayer?: (id: ObjIdentity) => void
+  selectedHighlightId?: string | null
+  selectedHighlightKind?: 'source' | 'popup' | null
 }
 
 export function PropertiesPanel({
@@ -86,6 +91,9 @@ export function PropertiesPanel({
   slideCount,
   onApplyThemePresetToSlides,
   onApplyTextStyleToSlides,
+  onSelectHighlightLayer,
+  selectedHighlightId,
+  selectedHighlightKind,
 }: Props) {
   const t = useT()
   const screenshotStyle: ScreenshotStyle =
@@ -154,6 +162,9 @@ export function PropertiesPanel({
             slide={slide}
             hasScreenshot={!!slide.screenshot}
             onChange={onHighlightsChange}
+            onSelectLayer={onSelectHighlightLayer}
+            selectedHighlightId={selectedHighlightId}
+            selectedHighlightKind={selectedHighlightKind}
           />
         )}
         {tab === 'shapes' && (

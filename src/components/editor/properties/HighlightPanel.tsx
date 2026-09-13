@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import type { Highlight, Slide } from '../../../types/project'
+import { LAYER_NAMES } from '../../../canvas/layerNames'
+import type { ObjIdentity } from '../FabricCanvas'
 import {
   accentFromBackground,
   DEFAULT_HIGHLIGHT_RIM,
@@ -22,6 +24,11 @@ interface Props {
   slide: Slide
   hasScreenshot: boolean
   onChange: (next: Highlight[]) => void
+  /** Select the object on the canvas so it can be dragged/resized directly. */
+  onSelectLayer?: (id: ObjIdentity) => void
+  /** Canvas selection mapped to a highlight card, to show which card is active. */
+  selectedHighlightId?: string | null
+  selectedHighlightKind?: 'source' | 'popup' | null
 }
 
 const ZOOM_PRESETS = [1.5, 2, 2.5, 3]
@@ -31,7 +38,15 @@ const SHAPES: { id: NonNullable<Highlight['popup']['shape']>; label: string }[] 
 ]
 
 
-export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props) {
+export function HighlightPanel({
+  value,
+  slide,
+  hasScreenshot,
+  onChange,
+  onSelectLayer,
+  selectedHighlightId,
+  selectedHighlightKind,
+}: Props) {
   const t = useT()
   const atMax = value.length >= MAX_HIGHLIGHTS
   const themeBackground = useProjectStore((s) => s.project?.themeBackground)
@@ -67,6 +82,38 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
   }
   function remove(id: string) {
     onChange(value.filter((h) => h.id !== id))
+  }
+  // Arrow-pad moves for the source region — a tap is 1% of the screenshot, far
+  // more predictable than the X/Y sliders for lining up an edge.
+  function nudgeSource(id: string, dx: number, dy: number) {
+    const h = value.find((v) => v.id === id)
+    if (!h) return
+    const sr = h.sourceRegion
+    update(id, {
+      sourceRegion: {
+        ...sr,
+        x: Math.min(Math.max(sr.x + dx, 0), 1 - sr.w),
+        y: Math.min(Math.max(sr.y + dy, 0), 1 - sr.h),
+      },
+    })
+  }
+  // Center-preserving resize for the source region (factor > 1 grows).
+  function resizeSource(id: string, factor: number) {
+    const h = value.find((v) => v.id === id)
+    if (!h) return
+    const sr = h.sourceRegion
+    const cx = sr.x + sr.w / 2
+    const cy = sr.y + sr.h / 2
+    const w = Math.min(Math.max(sr.w * factor, 0.05), 1)
+    const hh = Math.min(Math.max(sr.h * factor, 0.05), 1)
+    update(id, {
+      sourceRegion: {
+        x: Math.min(Math.max(cx - w / 2, 0), 1 - w),
+        y: Math.min(Math.max(cy - hh / 2, 0), 1 - hh),
+        w,
+        h: hh,
+      },
+    })
   }
 
   return (
@@ -110,7 +157,14 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
           className="space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-[var(--color-text)]">{t('하이라이트 {n}', { n: i + 1 })}</p>
+            <p className="text-xs font-semibold text-[var(--color-text)]">
+              {t('하이라이트 {n}', { n: i + 1 })}
+              {selectedHighlightId === h.id && (
+                <span className="ml-1.5 rounded bg-[var(--color-accent-strong)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-accent-on)]">
+                  {t('선택됨')}
+                </span>
+              )}
+            </p>
             <button
               type="button"
               onClick={() => remove(h.id)}
@@ -119,6 +173,79 @@ export function HighlightPanel({ value, slide, hasScreenshot, onChange }: Props)
               {t('삭제')}
             </button>
           </div>
+
+          {onSelectLayer && (
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectLayer({ layerName: LAYER_NAMES.HIGHLIGHT_SOURCE, highlightId: h.id })
+                  }
+                  disabled={!markerOf(h).show}
+                  aria-pressed={selectedHighlightId === h.id && selectedHighlightKind === 'source'}
+                  title={
+                    markerOf(h).show
+                      ? t('캔버스에서 점선 박스를 직접 드래그·조절합니다')
+                      : t('원본 테두리를 켜면 캔버스에서 잡을 수 있어요')
+                  }
+                  className={`rounded border py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                    selectedHighlightId === h.id && selectedHighlightKind === 'source'
+                      ? 'border-[var(--color-accent-strong)] bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
+                      : 'border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)]'
+                  }`}
+                >
+                  {t('원본 영역 선택')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectLayer({ layerName: LAYER_NAMES.HIGHLIGHT_POPUP, highlightId: h.id })
+                  }
+                  aria-pressed={selectedHighlightId === h.id && selectedHighlightKind === 'popup'}
+                  title={t('캔버스에서 확대 카드를 직접 드래그·조절합니다')}
+                  className={`rounded border py-1 text-xs transition ${
+                    selectedHighlightId === h.id && selectedHighlightKind === 'popup'
+                      ? 'border-[var(--color-accent-strong)] bg-[var(--color-accent-strong)] text-[var(--color-accent-on)]'
+                      : 'border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)]'
+                  }`}
+                >
+                  {t('확대 카드 선택')}
+                </button>
+              </div>
+              <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
+                {t('캔버스에서 직접 드래그·모서리 조절하는 게 가장 빨라요. 선택 후 방향키로 1px씩 미세 이동할 수 있어요.')}
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="grid shrink-0 grid-cols-3 gap-1" role="group" aria-label={t('원본 영역 위치 미세 조정')}>
+                  <span />
+                  <PadButton label="↑" title={t('위로 이동')} onClick={() => nudgeSource(h.id, 0, -0.01)} />
+                  <span />
+                  <PadButton label="←" title={t('왼쪽으로 이동')} onClick={() => nudgeSource(h.id, -0.01, 0)} />
+                  <PadButton label="↓" title={t('아래로 이동')} onClick={() => nudgeSource(h.id, 0, 0.01)} />
+                  <PadButton label="→" title={t('오른쪽으로 이동')} onClick={() => nudgeSource(h.id, 0.01, 0)} />
+                </div>
+                <div className="grid flex-1 grid-cols-2 gap-1" role="group" aria-label={t('원본 영역 크기 미세 조정')}>
+                  <button
+                    type="button"
+                    onClick={() => resizeSource(h.id, 1 / 1.1)}
+                    title={t('원본 영역을 줄입니다')}
+                    className="h-7 rounded border border-[var(--color-border)] text-xs text-[var(--color-text)] transition hover:border-[var(--color-accent)]"
+                  >
+                    {t('작게 −')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => resizeSource(h.id, 1.1)}
+                    title={t('원본 영역을 키웁니다')}
+                    className="h-7 rounded border border-[var(--color-border)] text-xs text-[var(--color-text)] transition hover:border-[var(--color-accent)]"
+                  >
+                    {t('크게 +')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Group label={t('배율')}>
             <div className="grid grid-cols-4 gap-1.5">
@@ -355,6 +482,20 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
       </p>
       <div className="space-y-1.5">{children}</div>
     </div>
+  )
+}
+
+function PadButton({ label, title, onClick }: { label: string; title: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="flex h-7 w-7 items-center justify-center rounded border border-[var(--color-border)] text-xs text-[var(--color-text)] transition hover:border-[var(--color-accent)] active:bg-[var(--color-surface-3)]"
+    >
+      {label}
+    </button>
   )
 }
 

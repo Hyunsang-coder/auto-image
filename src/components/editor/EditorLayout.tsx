@@ -227,6 +227,15 @@ export function EditorLayout() {
 
   const selectionKey = `${activeSlideId ?? ''}|${editLocale}`
   const selectedLayer = selection.key === selectionKey ? selection.id : null
+  // Highlight card ↔ canvas bridge: which card (and which half) the canvas has
+  // selected, so the panel can mark it and offer the matching grab button.
+  const selectedHighlightId = selectedLayer?.highlightId ?? null
+  const selectedHighlightKind =
+    selectedLayer?.layerName === LAYER_NAMES.HIGHLIGHT_SOURCE
+      ? ('source' as const)
+      : selectedLayer?.layerName === LAYER_NAMES.HIGHLIGHT_POPUP
+        ? ('popup' as const)
+        : null
 
   // All hooks live above the `if (!project) return null` below: anything
   // derived here is null-safe, and the project-narrowed code follows the guard.
@@ -842,6 +851,9 @@ export function EditorLayout() {
             slideCount={project.slides.length}
             onApplyThemePresetToSlides={applyThemePresetToSlides}
             onApplyTextStyleToSlides={applyTextStyleToSlides}
+            onSelectHighlightLayer={handleLayerSelect}
+            selectedHighlightId={selectedHighlightId}
+            selectedHighlightKind={selectedHighlightKind}
           />
         ) : (
           <aside className="flex-1 overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4">

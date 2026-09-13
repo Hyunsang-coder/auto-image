@@ -83,9 +83,10 @@ export function slideTray(page: Page): Locator {
 
 /** Slide thumbnail buttons in the tray, in visual order. */
 export function slideThumbs(page: Page): Locator {
-  // Thumb buttons carry an aria-label (the title); the add/dup/delete/link
-  // buttons don't, so filtering by [aria-label] isolates the slides.
-  return slideTray(page).locator('button[aria-label]')
+  // Thumb buttons are the draggable ones (they carry the slide title as
+  // aria-label); the add/dup/delete/link/move buttons aren't draggable, so
+  // filtering by [draggable] isolates the slides.
+  return slideTray(page).locator('button[draggable]')
 }
 
 /**

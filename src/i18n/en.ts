@@ -84,6 +84,8 @@ export const en: Record<string, string> = {
   '세트 전체가 보이도록 맞춤': 'Fit the whole set on screen',
   '기기 프레임': 'Device frame',
   '원본 영역': 'Source region',
+  '원본 영역 {n}': 'Source region {n}',
+  '확대 카드 {n}': 'Zoom card {n}',
   '도형 (앞)': 'Shapes (front)',
   '도형 (뒤)': 'Shapes (back)',
   '텍스트 — 왼쪽 페이지': 'Text — left page',
@@ -245,6 +247,9 @@ export const en: Record<string, string> = {
   '오른쪽 (Follower)': 'Right (Follower)',
   '그룹 해제 — 두 장으로 분리': 'Unlink — split into two slides',
   해제: 'Unlink',
+  '앞으로 이동': 'Move earlier',
+  '뒤로 이동': 'Move later',
+  '슬라이드 순서': 'Slide order',
   '를 삭제합니다.': ' will be deleted.',
   ' 슬라이드를 삭제합니다.': ' slide will be deleted.',
   '이 작업은 되돌릴 수 없습니다.': 'This action cannot be undone.',
@@ -770,6 +775,27 @@ export const en: Record<string, string> = {
   '"+ 추가"로 하이라이트를 만드세요. 캔버스에서 확대할 영역을 잡고 배율만 정하면 됩니다.':
     'Use "+ Add" to create a highlight, then frame the region on the canvas and pick a zoom.',
   '하이라이트 {n}': 'Highlight {n}',
+  선택됨: 'Selected',
+  '원본 영역 선택': 'Select source region',
+  '확대 카드 선택': 'Select zoom card',
+  '캔버스에서 점선 박스를 직접 드래그·조절합니다':
+    'Drag and resize the dashed box directly on the canvas',
+  '원본 테두리를 켜면 캔버스에서 잡을 수 있어요':
+    'Turn on the region marker to grab it on the canvas',
+  '캔버스에서 확대 카드를 직접 드래그·조절합니다':
+    'Drag and resize the zoom card directly on the canvas',
+  '캔버스에서 직접 드래그·모서리 조절하는 게 가장 빨라요. 선택 후 방향키로 1px씩 미세 이동할 수 있어요.':
+    'Fastest is dragging and resizing on the canvas. After selecting, use arrow keys for 1px nudges.',
+  '원본 영역 위치 미세 조정': 'Fine-tune source position',
+  '원본 영역 크기 미세 조정': 'Fine-tune source size',
+  '위로 이동': 'Move up',
+  '아래로 이동': 'Move down',
+  '왼쪽으로 이동': 'Move left',
+  '오른쪽으로 이동': 'Move right',
+  '원본 영역을 줄입니다': 'Shrink the source region',
+  '원본 영역을 키웁니다': 'Grow the source region',
+  '작게 −': 'Smaller −',
+  '크게 +': 'Bigger +',
   배율: 'Zoom',
   '카드 크기는 배율에서 나옵니다. 영역을 다시 잡아도 배율은 그대로예요.':
     'The zoom sizes the card, so reframing the region keeps the magnification.',

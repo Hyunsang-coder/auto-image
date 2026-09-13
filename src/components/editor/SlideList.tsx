@@ -72,10 +72,54 @@ export const SlideList = memo(function SlideList({
   const [pendingDelete, setPendingDelete] = useState<{ ids: string[]; title: string } | null>(null)
   // Native HTML5 drag-reorder state. dragId = the slide being dragged; dropTarget
   // = {id, side} of the thumb we'd insert next to. Both null when idle.
+  // NOTE: dragId is set deferred (see handleDragStart) — setting state
+  // synchronously inside dragstart re-renders the drag source before the
+  // browser captures the drag image, which cancels the drag entirely.
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; side: 'before' | 'after' } | null>(null)
   const canAdd = slides.length < MAX_SLIDES
   const rows = buildRows(slides)
+
+  // Drag image is captured after dragstart returns; the deferred setState keeps
+  // the source node alive until then. setData is required for Firefox, where a
+  // drag without data never starts.
+  function handleDragStart(id: string, e: React.DragEvent) {
+    e.dataTransfer.setData('text/plain', id)
+    e.dataTransfer.effectAllowed = 'move'
+    window.setTimeout(() => setDragId(id), 0)
+  }
+
+  // One-step move for the arrow buttons (keyboard/focus accessible fallback so
+  // reorder never depends on a pointer drag succeeding).
+  function moveSlide(id: string, dir: -1 | 1) {
+    const ids = slides.map((s) => s.id)
+    const from = ids.indexOf(id)
+    const to = from + dir
+    if (from === -1 || to < 0 || to >= ids.length) return
+    ids.splice(from, 1)
+    ids.splice(to, 0, id)
+    reorderSlides(ids)
+  }
+
+  // A span pair moves as one block so the leader/follower stay adjacent (moving
+  // a single half would strip the group in reorderSlides).
+  function moveGroup(groupId: string, dir: -1 | 1) {
+    const ids = slides.map((s) => s.id)
+    const idx = slides.flatMap((s, i) => (s.spanGroupId === groupId ? [i] : []))
+    if (idx.length !== 2 || idx[1] !== idx[0] + 1) return
+    const [a] = idx
+    if (dir === -1 && a === 0) return
+    if (dir === 1 && a + 2 >= ids.length) return
+    const block = ids.splice(a, 2)
+    ids.splice(dir === -1 ? a - 1 : a + 1, 0, ...block)
+    reorderSlides(ids)
+  }
+
+  function moveToEnd(id: string) {
+    const ids = slides.map((s) => s.id).filter((s) => s !== id)
+    ids.push(id)
+    reorderSlides(ids)
+  }
 
   // Drop the dragged slide adjacent to `targetId`, then commit the new linear
   // order to the store (which strips span markers if a leader/follower split).
@@ -136,7 +180,26 @@ export const SlideList = memo(function SlideList({
   }
 
   return (
-    <nav className="relative flex flex-row items-center gap-2 overflow-x-auto border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <nav
+      className="relative flex flex-row items-center gap-2 overflow-x-auto border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+      aria-label={t('슬라이드 순서')}
+      onDragOver={(e) => {
+        if (!dragId) return
+        // Empty tray padding (not a thumb): allow dropping at the end.
+        if (e.target === e.currentTarget) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+        }
+      }}
+      onDrop={(e) => {
+        if (!dragId) return
+        if (e.target === e.currentTarget) {
+          e.preventDefault()
+          moveToEnd(dragId)
+          endDrag()
+        }
+      }}
+    >
       {linkError && (
         <p className="absolute left-3 top-1 z-10 rounded border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/12 px-2 py-0.5 text-xs text-[var(--color-warning)]">
           {linkError}
@@ -155,10 +218,15 @@ export const SlideList = memo(function SlideList({
               onUnlink={() => tryUnlink(row.groupId!)}
               dragId={dragId}
               dropTarget={dropTarget}
-              onDragStartSlide={setDragId}
+              onDragStartSlide={handleDragStart}
               onDragOverSlide={setDropTarget}
               onDropSlide={performReorder}
               onDragEndSlide={endDrag}
+              onMoveGroup={(dir) => moveGroup(row.groupId!, dir)}
+              canMovePrev={slides.findIndex((s) => s.spanGroupId === row.groupId) > 0}
+              canMoveNext={
+                slides.findIndex((s) => s.spanGroupId === row.groupId) + 2 < slides.length
+              }
             />
           ) : (
             <SingleRow
@@ -175,10 +243,15 @@ export const SlideList = memo(function SlideList({
               canDelete={slides.length > 1}
               dragId={dragId}
               dropTarget={dropTarget}
-              onDragStartSlide={setDragId}
+              onDragStartSlide={handleDragStart}
               onDragOverSlide={setDropTarget}
               onDropSlide={performReorder}
               onDragEndSlide={endDrag}
+              onMove={(dir) => moveSlide(row.slides[0].id, dir)}
+              canMovePrev={slides.findIndex((s) => s.id === row.slides[0].id) > 0}
+              canMoveNext={
+                slides.findIndex((s) => s.id === row.slides[0].id) < slides.length - 1
+              }
             />
           )}
           {canLinkAfter(i) && (
@@ -279,7 +352,7 @@ function ThumbImage({
 interface DragWiring {
   dragId: string | null
   dropTarget: { id: string; side: 'before' | 'after' } | null
-  onDragStartSlide: (id: string) => void
+  onDragStartSlide: (id: string, e: React.DragEvent) => void
   onDragOverSlide: (t: { id: string; side: 'before' | 'after' } | null) => void
   onDropSlide: (targetId: string, side: 'before' | 'after') => void
   onDragEndSlide: () => void
@@ -309,6 +382,9 @@ function SingleRow({
   onDragOverSlide,
   onDropSlide,
   onDragEndSlide,
+  onMove,
+  canMovePrev,
+  canMoveNext,
 }: {
   slide: Slide
   thumb?: string
@@ -321,6 +397,9 @@ function SingleRow({
   canDuplicate: boolean
   onDelete: () => void
   canDelete: boolean
+  onMove: (dir: -1 | 1) => void
+  canMovePrev: boolean
+  canMoveNext: boolean
 } & DragWiring) {
   const t = useT()
   const dropSide = dropTarget?.id === slide.id ? dropTarget.side : null
@@ -330,6 +409,7 @@ function SingleRow({
       onDragOver={(e) => {
         if (!dragId) return
         e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
         onDragOverSlide({ id: slide.id, side: sideFromEvent(e) })
       }}
       onDrop={(e) => {
@@ -343,7 +423,7 @@ function SingleRow({
       <button
         type="button"
         draggable
-        onDragStart={() => onDragStartSlide(slide.id)}
+        onDragStart={(e) => onDragStartSlide(slide.id, e)}
         onDragEnd={onDragEndSlide}
         onClick={(e) =>
           onSelect({ metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey })
@@ -362,7 +442,27 @@ function SingleRow({
       >
         <ThumbImage slide={slide} thumb={thumb} title={title} height={thumbHeight} selected={selected && !active} />
       </button>
-      <div className="absolute right-1 top-1 hidden gap-1 group-hover:flex">
+      <div className="absolute right-1 top-1 hidden gap-1 group-hover:flex group-focus-within:flex">
+        <button
+          type="button"
+          onClick={() => onMove(-1)}
+          disabled={!canMovePrev}
+          title={t('앞으로 이동')}
+          aria-label={t('앞으로 이동')}
+          className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          onClick={() => onMove(1)}
+          disabled={!canMoveNext}
+          title={t('뒤로 이동')}
+          aria-label={t('뒤로 이동')}
+          className="rounded bg-black/55 p-1 text-xs leading-none text-white transition hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          →
+        </button>
         <button
           type="button"
           onClick={onDuplicate}
@@ -413,6 +513,9 @@ function SpanRow({
   onDragOverSlide,
   onDropSlide,
   onDragEndSlide,
+  onMoveGroup,
+  canMovePrev,
+  canMoveNext,
 }: {
   row: RowItem
   thumbs: Record<string, string | undefined>
@@ -421,6 +524,9 @@ function SpanRow({
   selectedIds: Set<string>
   onSelect: (id: string, mods: ClickMods) => void
   onUnlink: () => void
+  onMoveGroup: (dir: -1 | 1) => void
+  canMovePrev: boolean
+  canMoveNext: boolean
 } & DragWiring) {
   const t = useT()
   const [leader, follower] = row.slides
@@ -447,6 +553,7 @@ function SpanRow({
             onDragOver={(e) => {
               if (!dragId) return
               e.preventDefault()
+              e.dataTransfer.dropEffect = 'move'
               onDragOverSlide({ id: s.id, side: sideFromEvent(e) })
             }}
             onDrop={(e) => {
@@ -460,7 +567,7 @@ function SpanRow({
             <button
               type="button"
               draggable
-              onDragStart={() => onDragStartSlide(s.id)}
+              onDragStart={(e) => onDragStartSlide(s.id, e)}
               onDragEnd={onDragEndSlide}
               onClick={(e) =>
                 onSelect(s.id, { metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey })
@@ -484,11 +591,33 @@ function SpanRow({
       <button
         type="button"
         onClick={onUnlink}
-        className="absolute right-1 top-1 hidden rounded bg-black/55 px-1.5 py-0.5 text-[10px] leading-none text-white transition hover:bg-black/75 group-hover:block"
+        className="absolute right-1 top-1 hidden rounded bg-black/55 px-1.5 py-0.5 text-[10px] leading-none text-white transition hover:bg-black/75 group-hover:block group-focus-within:block"
         title={t('그룹 해제 — 두 장으로 분리')}
       >
         {t('해제')}
       </button>
+      <div className="absolute bottom-1 right-1 hidden gap-1 group-hover:flex group-focus-within:flex">
+        <button
+          type="button"
+          onClick={() => onMoveGroup(-1)}
+          disabled={!canMovePrev}
+          title={t('앞으로 이동')}
+          aria-label={t('앞으로 이동')}
+          className="rounded bg-black/55 px-1 py-0.5 text-[10px] leading-none text-white transition hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          onClick={() => onMoveGroup(1)}
+          disabled={!canMoveNext}
+          title={t('뒤로 이동')}
+          aria-label={t('뒤로 이동')}
+          className="rounded bg-black/55 px-1 py-0.5 text-[10px] leading-none text-white transition hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          →
+        </button>
+      </div>
     </div>
   )
 }
