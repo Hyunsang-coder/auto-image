@@ -17,66 +17,6 @@ import { pngForViewing, tmp } from './png.mjs'
 export const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] })
 export const fail = (data) => ({ ...ok(data), isError: true })
 
-const PATCH_SPEC = `# Surgical patch ops (patch_bundle)
-
-Ops apply to a lossless .studio.zip bundle; every untouched field is preserved
-bit-for-bit (ids, localeOverrides, highlights). Address slides by 1-based
-"slide" or by "slideId". Text fields: "headline" (=text:0), "subheadline"
-(=text:1), "text:N", "badge:N". Locale routing: locale === project sourceLocale
-writes the base text/screenshot, any other locale writes the translation /
-locale override (new locales are auto-added to targetLocales).
-
-\`\`\`jsonc
-[
-  { "op": "setText", "slide": 3, "field": "headline", "locale": "ja", "value": "新しい見出し" },
-  { "op": "setScreenshot", "slide": 3, "locale": "en", "file": "/abs/or/relative/new-shot.png" },
-  { "op": "addExternalImage", "slide": 1, "file": "logo.png", "x": 0.42, "y": 0.55, "width": 0.28,
-    "cornerRadiusRatio": 0.06, "shadow": true },
-  { "op": "setExternalImage", "slide": 1, "index": 0, "rotation": -8, "opacity": 0.85,
-    "crop": { "top": 0, "right": 0, "bottom": 0.08, "left": 0 } },
-  { "op": "removeExternalImage", "slide": 1, "index": 0 },
-  { "op": "set", "slide": 3, "path": "deviceFrame.scale", "value": 0.9 },
-  { "op": "set", "slide": 1, "path": "background", "value": { "type": "solid", "color": "#101015" } },
-  { "op": "set", "slide": 2, "path": "texts[0].pos", "value": { "x": 0.5, "y": 0.18 } },
-  { "op": "set", "path": "name", "value": "New Name" }
-]
-\`\`\`
-
-"set" path whitelist: deviceFrame.* (show/offsetX/offsetY/scale/rotation/color),
-screenshotStyle.* (cornerRadiusRatio/shadow/crop), background (solid/gradient;
-optional blobs: [{color,x,y,radius,opacity?,blendMode?}] soft radial mesh
-spots — max 6, x/y/radius are canvas fractions, blendMode one of
-multiply/screen/overlay/soft-light — plus noise: 0–1 film grain),
-template, texts[i] / texts[i].pos / texts[i].boxWidth / texts[i].style.*
-(incl. fontFamily from get_design_reference.fontFamilies,
-gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→bottom,
-and emphasis {color?,fontWeight?} — painted onto ==word== marker ranges written
-inside caption text/translation strings via setText),
-badges[i].style.*, ornaments,
-highlights (whole-array; items {sourceRegion {x,y,w,h} — fractions of the
-SCREENSHOT box, not the canvas (live_inspect reports it as
-screenshot.canvasRect) — marker {show,color}, popup {zoom, auto, connector,
-shape: rect|circle, rim {color,width}, rotation, x, y}}. Size the card with
-popup.zoom and leave placement to popup.auto; see get_design_reference.highlight),
-shapes (whole-array; items {kind: rect|ellipse|line|arrow, x, y, width, height,
-rotation, fill (hex or "none"), opacity, cornerRadiusRatio (rect),
-stroke {color,width}, layer: back|front} — x/y = center fractions, width of
-canvas width, height of canvas height; line/arrow: width=length,
-height=thickness/head size; "back" renders behind the device, "front" above
-device + text),
-externalImages[i].x/y/width/rotation/opacity/cornerRadiusRatio/shadow/crop
-(+ externalImages[i].crop.top/right/bottom/left), and project-level
-name/sourceLocale/targetLocales/deviceModels.
-Forbidden: id/imageKey/spanGroupId/index. Span followers own only their texts —
-patches to leader-owned shared layers on a follower are rejected.
-Out-of-range values are clamped; every rejection/clamp is reported in issues[].
-
-setScreenshot with a very different aspect keeps the current frame and warns;
-pass "redetect": true to re-run device-type detection. Max 3 external images
-per slide. Image "file" paths may be absolute or relative to filesDir
-(default: the bundle's directory).`
-
-
 /**
  * @param server        McpServer to register on.
  * @param readImportSpec  Returns docs/project-import.md — the repo server reads

@@ -36,7 +36,7 @@ disk. What is left to a human is listed at the end of `docs/document-model.md`.
 Pure functions are tested in `src/**/*.test.ts` (jsdom env, configured in
 `vite.config.ts`). This glob never overlaps Playwright's `e2e/*.spec.ts`. Seed
 coverage: `deviceSpecs.test.ts` (aspect→device buckets) and
-`templateLayouts.test.ts` (`getDeviceBaseAnchor` seam math, see §3). Add a logic
+`templateLayouts.test.ts` (`getDeviceLayout` seam math, see §3). Add a logic
 test for anything provable without a live Fabric canvas or DOM; everything else
 belongs in the layers below.
 
@@ -56,9 +56,11 @@ or starts one. Specs live in `e2e/` — one per step plus `navigation`,
   follower-click routes to leader, localize "N·N+1" label, export count
   (`slides × locales`), and **device centered on the seam** (see §3).
 - **feature specs** — one each: `project-import` (manifest happy/warning/fatal
-  paths), `locale-template-io` / `locale-image-bulk` / `locale-override(-ui)`,
-  `upload-screenshot`, `slide-delete` / `slide-duplicate`, `device-rotation` /
-  `canvas-rotate-crop`, `highlight-loupe`, `background-image`.
+  paths), `locale-template-io` / `locale-image-bulk` / `locale-override(-ui)` /
+  `locale-ornament`, `upload-screenshot`, `slide-delete` / `slide-duplicate` /
+  `slide-reorder`, `device-rotation` / `device-convert` / `canvas-rotate-crop`,
+  `highlight-loupe`, `background-image` / `background-texture`, `caption-block` /
+  `text-wrap-scale`, `shape-band`, `ui-locale`, `landing`, `step1-setup`.
 
 The editor exposes a small read-only inspection surface for tests at
 `window.__editor` (set in `FabricCanvas.tsx`): `{ canvas, getState(), findByLayer() }`.

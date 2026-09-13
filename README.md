@@ -36,7 +36,7 @@ npm run headless:export -- ./my-screenshots ./out --report   # folder → final 
 npm run layout:loop      -- ./my-screenshots ./out --write    # auto-fix layout issues and re-render
 ```
 
-The folder holds a `manifest.json`, screenshots named `{number}-{description}.{locale}.png` (e.g. `01-home.en.png`), and a captions CSV/JSON. Full reference: [docs/agent-cli.md](./docs/agent-cli.md); the MCP wrapper around these: [docs/mcp-server.md](./docs/mcp-server.md).
+The folder holds a `manifest.json`, screenshots named `{number}-{description}.{locale}.png` (e.g. `01-home.en.png`), and a captions CSV/JSON. Full reference: [docs/project-import.md](./docs/project-import.md); the MCP wrapper around these: [docs/mcp-server.md](./docs/mcp-server.md).
 
 </details>
 
@@ -76,7 +76,7 @@ Ask the agent to package for **fastlane** and the export comes out the way fastl
 
 ## The four steps (visual editor)
 
-1. **Setup** — pick device, slide count, theme color — *or* import an AI-built folder / reopen a saved `.studio.zip` and skip ahead.
+1. **Setup** — a launcher: continue a recent project, start a new one, import an AI-built folder, or reopen a saved `.studio.zip` and skip ahead.
 2. **Edit** — compose each slide on the canvas.
 3. **Localize** — manage languages, export/import the translation template, bulk-import per-language screenshots.
 4. **Export** — render to PNG and download.

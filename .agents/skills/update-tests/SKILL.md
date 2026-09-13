@@ -55,7 +55,7 @@ don't hollow it out.
 ## Project-specific gotchas
 
 - **Geometry tests live where the math lives.** Seam/layout numbers come from
-  `getDeviceBaseAnchor` / `getDeviceLayout` in `src/canvas/templateLayouts.ts`. If a
+  `getDeviceLayout` in `src/canvas/templateLayouts.ts`. If a
   template's horizontal bias changes (e.g. `hero-bleed` `cw*0.7`), both
   `templateLayouts.test.ts` (pure) and the `span-group.spec.ts` seam assertion may
   move. Update both, and re-read `TESTING.md §3` — the seam-centering invariant is
@@ -71,7 +71,7 @@ don't hollow it out.
   o.layerName === ...)` lookup in the specs breaks. Fix the specs to the new names;
   don't weaken the lookups.
 - **Persistence specs are storage-key sensitive.** They key off
-  `auto-image:project` / `auto-image:api-keys` and clear `localStorage` up front
+  `auto-image:project` and clear `localStorage` up front
   (not via `clearAppState`, whose `addInitScript` re-wipes on every reload). If you
   rename a persist key or change the persist split, update `persistence.spec.ts` and
   `helpers.ts` together.

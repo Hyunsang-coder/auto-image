@@ -4,8 +4,7 @@ The desktop app (`src-tauri/`) must be **code-signed** to run without Gatekeeper
 warnings, and **notarized** to run on Macs other than the build machine.
 
 > Signing also fixes a local-dev annoyance: an *unsigned* build gets a fresh
-> identity on every rebuild, so macOS re-prompts for Keychain access (where the
-> API keys live). Signing with **any stable identity** stops that.
+> identity on every rebuild. Signing with **any stable identity** stops that.
 
 All secrets live in the environment, never in the repo. The build script reads a
 gitignored `.env.signing` at the repo root (matched by `.env.*` in `.gitignore`).
@@ -83,11 +82,10 @@ spctl -a -t open --context context:primary-signature -vvv "src-tauri/target/univ
 ## Notes
 
 - **Local dev only** (no distribution): sign with any installed identity (even an
-  *Apple Development* cert) to stop the Keychain re-prompts — set
-  `APPLE_SIGNING_IDENTITY` and skip the notarization vars.
-- **DMG bundling** (`bundle_dmg.sh` drives Finder via osascript) has run fine
-  from a non-interactive shell in recent builds; `--bundles app` skips it if a
-  particular environment does hang.
+  *Apple Development* cert) — set `APPLE_SIGNING_IDENTITY` and skip the
+  notarization vars.
+- **DMG bundling** is Tauri's own `dmg` bundle target (see `scripts/release.sh`);
+  `--bundles app` skips it if a particular environment does hang.
 - **App Store** distribution is a different path (a `.pkg`, App Sandbox
   entitlements, an *Apple Distribution* cert) and is not covered here.
 - If notarization rejects the app for a missing entitlement, add an

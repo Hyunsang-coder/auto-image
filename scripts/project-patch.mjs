@@ -9,7 +9,8 @@
 //   npm run project:patch -- <in.studio.zip> <patch.json> <out.studio.zip>
 //   npm run project:patch -- <in.studio.zip> <patch.json> --in-place
 //
-// patch.json is an array of ops (see docs/agent-cli.md). Image-bearing ops
+// patch.json is an array of ops (vocabulary: `get_patch_spec` in
+// packages/mcp/lib/tools.mjs). Image-bearing ops
 // name a `file` (relative to patch.json); the CLI decodes its dims, adds the
 // blob to the bundle, and prunes any image no longer referenced.
 import JSZip from 'jszip'

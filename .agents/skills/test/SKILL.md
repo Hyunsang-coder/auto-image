@@ -28,9 +28,9 @@ The two file globs never overlap by design: unit tests are `*.test.ts` under
 Ask: *what is the smallest thing that can prove this change is correct?*
 
 - **Pure input→output, no DOM, no Fabric instance** → logic test. Examples:
-  `detectDeviceFromAspect`, `deviceSpecOf`, `getDeviceBaseAnchor` (seam math),
+  `detectTypeFromAspect`, `deviceSpecOf`, `getDeviceLayout` (seam math),
   `safeStorage` quota handling, store actions (span link/unlink, slide add/remove),
-  `buildPrompt`/`parseJsonArray` in `translate.ts`. **Fast — prefer this.**
+  `localePatch`/`localeIO` builders. **Fast — prefer this.**
 - **A user can click through it and the DOM reflects the result** → e2e. Examples:
   step navigation/gating, project create/reset, headline edit appearing in the
   slide list, localize gating, export summary + ZIP-button-disabled-while-running.
@@ -46,7 +46,7 @@ A single change can need two layers (e.g. seam centering has a pure-math test in
 
 - Test only genuinely pure exports. If a function builds Fabric objects or needs a
   live `Canvas`, it belongs in the real-behavior layer, not here.
-- Construct minimal inputs. `getDeviceBaseAnchor` only reads `slide.template` and
+- Construct minimal inputs. `getDeviceLayout` only reads `slide.template` and
   `slide.deviceFrame.model` — stub a `Slide` with `as unknown as Slide` rather than
   filling every field (see `src/canvas/templateLayouts.test.ts`).
 - Run with `npm run test:unit` (or `npm run test:unit:watch` while iterating).

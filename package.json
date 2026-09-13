@@ -17,7 +17,6 @@
     "mcp": "tsx scripts/mcp-server.mjs",
     "test:mcp": "npm run mcp:package && node scripts/mcp-smoke.mjs",
     "test:doc": "node scripts/document-e2e.mjs",
-    "harness": "node scripts/verify-improvements.mjs",
     "mcp:package": "tsx scripts/build-mcp-package.mjs",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
