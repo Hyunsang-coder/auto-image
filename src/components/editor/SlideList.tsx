@@ -1,9 +1,10 @@
-import { memo, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import { Modal } from '../common/Modal'
 import { buildRows, type RowItem } from './slideRows'
 import type React from 'react'
 import type { Slide } from '../../types/project'
 import { useProjectStore } from '../../store/useProjectStore'
+import { useDocumentStore } from '../../lib/documentIO'
 import { titleText } from '../../constants/defaults'
 import { DEVICE_SPECS } from '../../constants/deviceSpecs'
 import { useT } from '../../i18n'
@@ -70,23 +71,81 @@ export const SlideList = memo(function SlideList({
   // Pending delete holds the resolved list of slide ids + a human label so the
   // modal can say "delete N slides" without re-deriving anything.
   const [pendingDelete, setPendingDelete] = useState<{ ids: string[]; title: string } | null>(null)
-  // Native HTML5 drag-reorder state. dragId = the slide being dragged; dropTarget
+  // Pointer-based reorder drag. dragId = the slide being dragged; dropTarget
   // = {id, side} of the thumb we'd insert next to. Both null when idle.
-  // NOTE: dragId is set deferred (see handleDragStart) — setting state
-  // synchronously inside dragstart re-renders the drag source before the
-  // browser captures the drag image, which cancels the drag entirely.
+  // Deliberately NOT HTML5 DnD: a dataTransfer drag is claimed by the desktop
+  // shell's OS drop handler, so it never completes there. Pointer events carry
+  // no OS payload and behave identically on web and desktop.
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; side: 'before' | 'after' } | null>(null)
+  // Pressed-but-maybe-just-clicking. Flips to a real drag past the threshold;
+  // a drag always ends with a click event, which the flag swallows.
+  const gestureRef = useRef<{ id: string; startX: number; startY: number; active: boolean } | null>(null)
+  const suppressClickRef = useRef(false)
   const canAdd = slides.length < MAX_SLIDES
   const rows = buildRows(slides)
 
-  // Drag image is captured after dragstart returns; the deferred setState keeps
-  // the source node alive until then. setData is required for Firefox, where a
-  // drag without data never starts.
-  function handleDragStart(id: string, e: React.DragEvent) {
-    e.dataTransfer.setData('text/plain', id)
-    e.dataTransfer.effectAllowed = 'move'
-    window.setTimeout(() => setDragId(id), 0)
+  // Which thumb (if any) is under the pointer, and on which half — drives the
+  // insertion indicator during a drag and the commit on release.
+  function targetFromPoint(clientX: number, clientY: number): { id: string; side: 'before' | 'after' } | null {
+    const el = document.elementFromPoint(clientX, clientY)
+    const thumb = el?.closest?.('[data-slide-id]')
+    if (!thumb) return null
+    const id = thumb.getAttribute('data-slide-id')
+    if (!id) return null
+    const rect = thumb.getBoundingClientRect()
+    return { id, side: clientX - rect.left < rect.width / 2 ? 'before' : 'after' }
+  }
+
+  function onThumbPointerDown(id: string, e: React.PointerEvent<HTMLButtonElement>) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    gestureRef.current = { id, startX: e.clientX, startY: e.clientY, active: false }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  function onThumbPointerMove(id: string, e: React.PointerEvent<HTMLButtonElement>) {
+    const g = gestureRef.current
+    if (!g || g.id !== id) return
+    if (!g.active) {
+      const dx = e.clientX - g.startX
+      const dy = e.clientY - g.startY
+      if (dx * dx + dy * dy < 36) return
+      g.active = true
+      setDragId(id)
+      // Desktop: tell the document shell this is an in-page drag so the OS
+      // file-drop handler ignores it (no error modal) and the file-drop
+      // overlay stays down.
+      useDocumentStore.getState().set({ internalDrag: true })
+    }
+    const t = targetFromPoint(e.clientX, e.clientY)
+    setDropTarget((prev) =>
+      prev?.id === t?.id && prev?.side === t?.side ? prev : t,
+    )
+  }
+
+  function onThumbPointerUp(id: string, e: React.PointerEvent<HTMLButtonElement>) {
+    const g = gestureRef.current
+    gestureRef.current = null
+    if (!g || g.id !== id || !g.active) return
+    suppressClickRef.current = true
+    const t = targetFromPoint(e.clientX, e.clientY)
+    if (t && t.id !== id) performReorder(id, t.id, t.side)
+    else endDrag()
+  }
+
+  function onThumbPointerCancel(id: string) {
+    if (gestureRef.current?.id === id) {
+      gestureRef.current = null
+      endDrag()
+    }
+  }
+
+  function onThumbClick(id: string, mods: ClickMods) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false
+      return
+    }
+    onSelect(id, mods)
   }
 
   // One-step move for the arrow buttons (keyboard/focus accessible fallback so
@@ -115,30 +174,35 @@ export const SlideList = memo(function SlideList({
     reorderSlides(ids)
   }
 
-  function moveToEnd(id: string) {
-    const ids = slides.map((s) => s.id).filter((s) => s !== id)
-    ids.push(id)
-    reorderSlides(ids)
-  }
-
   // Drop the dragged slide adjacent to `targetId`, then commit the new linear
   // order to the store (which strips span markers if a leader/follower split).
-  function performReorder(targetId: string, side: 'before' | 'after') {
-    if (!dragId || dragId === targetId) return
+  function performReorder(fromId: string, targetId: string, side: 'before' | 'after') {
+    if (fromId === targetId) {
+      endDrag()
+      return
+    }
     const ids = slides.map((s) => s.id)
-    const from = ids.indexOf(dragId)
-    if (from === -1) return
+    const from = ids.indexOf(fromId)
+    if (from === -1) {
+      endDrag()
+      return
+    }
     ids.splice(from, 1)
     let insertAt = ids.indexOf(targetId)
-    if (insertAt === -1) return
+    if (insertAt === -1) {
+      endDrag()
+      return
+    }
     if (side === 'after') insertAt += 1
-    ids.splice(insertAt, 0, dragId)
+    ids.splice(insertAt, 0, fromId)
     reorderSlides(ids)
+    endDrag()
   }
 
   function endDrag() {
     setDragId(null)
     setDropTarget(null)
+    useDocumentStore.getState().set({ internalDrag: false })
   }
 
   // Build the delete request: if the clicked thumb is part of a 2+ multi-select,
@@ -183,22 +247,6 @@ export const SlideList = memo(function SlideList({
     <nav
       className="relative flex flex-row items-center gap-2 overflow-x-auto border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3"
       aria-label={t('슬라이드 순서')}
-      onDragOver={(e) => {
-        if (!dragId) return
-        // Empty tray padding (not a thumb): allow dropping at the end.
-        if (e.target === e.currentTarget) {
-          e.preventDefault()
-          e.dataTransfer.dropEffect = 'move'
-        }
-      }}
-      onDrop={(e) => {
-        if (!dragId) return
-        if (e.target === e.currentTarget) {
-          e.preventDefault()
-          moveToEnd(dragId)
-          endDrag()
-        }
-      }}
     >
       {linkError && (
         <p className="absolute left-3 top-1 z-10 rounded border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/12 px-2 py-0.5 text-xs text-[var(--color-warning)]">
@@ -214,14 +262,14 @@ export const SlideList = memo(function SlideList({
               thumbHeight={thumbHeight}
               activeSlideId={activeSlideId}
               selectedIds={selectedIds}
-              onSelect={onSelect}
               onUnlink={() => tryUnlink(row.groupId!)}
               dragId={dragId}
               dropTarget={dropTarget}
-              onDragStartSlide={handleDragStart}
-              onDragOverSlide={setDropTarget}
-              onDropSlide={performReorder}
-              onDragEndSlide={endDrag}
+              onThumbPointerDown={onThumbPointerDown}
+              onThumbPointerMove={onThumbPointerMove}
+              onThumbPointerUp={onThumbPointerUp}
+              onThumbPointerCancel={onThumbPointerCancel}
+              onThumbClick={onThumbClick}
               onMoveGroup={(dir) => moveGroup(row.groupId!, dir)}
               canMovePrev={slides.findIndex((s) => s.spanGroupId === row.groupId) > 0}
               canMoveNext={
@@ -236,17 +284,17 @@ export const SlideList = memo(function SlideList({
               title={titleText(row.slides[0], previewLocale)}
               active={row.slides[0].id === activeSlideId}
               selected={selectedIds.has(row.slides[0].id)}
-              onSelect={(mods) => onSelect(row.slides[0].id, mods)}
               onDuplicate={() => duplicateSlide(row.slides[0].id)}
               canDuplicate={canAdd}
               onDelete={() => requestDelete(row.slides[0].id, titleText(row.slides[0], previewLocale))}
               canDelete={slides.length > 1}
               dragId={dragId}
               dropTarget={dropTarget}
-              onDragStartSlide={handleDragStart}
-              onDragOverSlide={setDropTarget}
-              onDropSlide={performReorder}
-              onDragEndSlide={endDrag}
+              onThumbPointerDown={onThumbPointerDown}
+              onThumbPointerMove={onThumbPointerMove}
+              onThumbPointerUp={onThumbPointerUp}
+              onThumbPointerCancel={onThumbPointerCancel}
+              onThumbClick={onThumbClick}
               onMove={(dir) => moveSlide(row.slides[0].id, dir)}
               canMovePrev={slides.findIndex((s) => s.id === row.slides[0].id) > 0}
               canMoveNext={
@@ -330,7 +378,7 @@ function ThumbImage({
       style={{ height, aspectRatio: aspectOf(slide) }}
     >
       {thumb ? (
-        <img src={thumb} alt={title} className="h-full w-full object-cover" />
+        <img src={thumb} alt={title} draggable={false} className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-[10px] text-[var(--color-text-dim)]">
           …
@@ -348,20 +396,15 @@ function ThumbImage({
   )
 }
 
-/** Shared drag wiring for a draggable thumb (single slide or a span member). */
-interface DragWiring {
+/** Shared pointer-drag wiring for a thumb (single slide or a span member). */
+interface ThumbDragWiring {
   dragId: string | null
   dropTarget: { id: string; side: 'before' | 'after' } | null
-  onDragStartSlide: (id: string, e: React.DragEvent) => void
-  onDragOverSlide: (t: { id: string; side: 'before' | 'after' } | null) => void
-  onDropSlide: (targetId: string, side: 'before' | 'after') => void
-  onDragEndSlide: () => void
-}
-
-/** Compute which side of a thumb the pointer is on for the insertion indicator. */
-function sideFromEvent(e: React.DragEvent<HTMLElement>): 'before' | 'after' {
-  const rect = e.currentTarget.getBoundingClientRect()
-  return e.clientX - rect.left < rect.width / 2 ? 'before' : 'after'
+  onThumbPointerDown: (id: string, e: React.PointerEvent<HTMLButtonElement>) => void
+  onThumbPointerMove: (id: string, e: React.PointerEvent<HTMLButtonElement>) => void
+  onThumbPointerUp: (id: string, e: React.PointerEvent<HTMLButtonElement>) => void
+  onThumbPointerCancel: (id: string) => void
+  onThumbClick: (id: string, mods: ClickMods) => void
 }
 
 function SingleRow({
@@ -371,17 +414,17 @@ function SingleRow({
   title,
   active,
   selected,
-  onSelect,
   onDuplicate,
   canDuplicate,
   onDelete,
   canDelete,
   dragId,
   dropTarget,
-  onDragStartSlide,
-  onDragOverSlide,
-  onDropSlide,
-  onDragEndSlide,
+  onThumbPointerDown,
+  onThumbPointerMove,
+  onThumbPointerUp,
+  onThumbPointerCancel,
+  onThumbClick,
   onMove,
   canMovePrev,
   canMoveNext,
@@ -392,7 +435,6 @@ function SingleRow({
   title: string
   active: boolean
   selected: boolean
-  onSelect: (mods: ClickMods) => void
   onDuplicate: () => void
   canDuplicate: boolean
   onDelete: () => void
@@ -400,33 +442,22 @@ function SingleRow({
   onMove: (dir: -1 | 1) => void
   canMovePrev: boolean
   canMoveNext: boolean
-} & DragWiring) {
+} & ThumbDragWiring) {
   const t = useT()
   const dropSide = dropTarget?.id === slide.id ? dropTarget.side : null
   return (
-    <div
-      className="group relative shrink-0"
-      onDragOver={(e) => {
-        if (!dragId) return
-        e.preventDefault()
-        e.dataTransfer.dropEffect = 'move'
-        onDragOverSlide({ id: slide.id, side: sideFromEvent(e) })
-      }}
-      onDrop={(e) => {
-        if (!dragId) return
-        e.preventDefault()
-        onDropSlide(slide.id, sideFromEvent(e))
-        onDragEndSlide()
-      }}
-    >
+    <div className="group relative shrink-0">
       <DropIndicator side={dropSide} />
       <button
         type="button"
-        draggable
-        onDragStart={(e) => onDragStartSlide(slide.id, e)}
-        onDragEnd={onDragEndSlide}
+        data-slide-thumb
+        data-slide-id={slide.id}
+        onPointerDown={(e) => onThumbPointerDown(slide.id, e)}
+        onPointerMove={(e) => onThumbPointerMove(slide.id, e)}
+        onPointerUp={(e) => onThumbPointerUp(slide.id, e)}
+        onPointerCancel={() => onThumbPointerCancel(slide.id)}
         onClick={(e) =>
-          onSelect({ metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey })
+          onThumbClick(slide.id, { metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey })
         }
         title={title}
         aria-label={title}
@@ -505,14 +536,14 @@ function SpanRow({
   thumbHeight,
   activeSlideId,
   selectedIds,
-  onSelect,
   onUnlink,
   dragId,
   dropTarget,
-  onDragStartSlide,
-  onDragOverSlide,
-  onDropSlide,
-  onDragEndSlide,
+  onThumbPointerDown,
+  onThumbPointerMove,
+  onThumbPointerUp,
+  onThumbPointerCancel,
+  onThumbClick,
   onMoveGroup,
   canMovePrev,
   canMoveNext,
@@ -522,12 +553,11 @@ function SpanRow({
   thumbHeight: number
   activeSlideId: string | null
   selectedIds: Set<string>
-  onSelect: (id: string, mods: ClickMods) => void
   onUnlink: () => void
   onMoveGroup: (dir: -1 | 1) => void
   canMovePrev: boolean
   canMoveNext: boolean
-} & DragWiring) {
+} & ThumbDragWiring) {
   const t = useT()
   const [leader, follower] = row.slides
   const groupActive =
@@ -550,27 +580,18 @@ function SpanRow({
           <div
             key={s.id}
             className="relative"
-            onDragOver={(e) => {
-              if (!dragId) return
-              e.preventDefault()
-              e.dataTransfer.dropEffect = 'move'
-              onDragOverSlide({ id: s.id, side: sideFromEvent(e) })
-            }}
-            onDrop={(e) => {
-              if (!dragId) return
-              e.preventDefault()
-              onDropSlide(s.id, sideFromEvent(e))
-              onDragEndSlide()
-            }}
           >
             <DropIndicator side={dropSide} />
             <button
               type="button"
-              draggable
-              onDragStart={(e) => onDragStartSlide(s.id, e)}
-              onDragEnd={onDragEndSlide}
+              data-slide-thumb
+              data-slide-id={s.id}
+              onPointerDown={(e) => onThumbPointerDown(s.id, e)}
+              onPointerMove={(e) => onThumbPointerMove(s.id, e)}
+              onPointerUp={(e) => onThumbPointerUp(s.id, e)}
+              onPointerCancel={() => onThumbPointerCancel(s.id)}
               onClick={(e) =>
-                onSelect(s.id, { metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey })
+                onThumbClick(s.id, { metaKey: e.metaKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey })
               }
               title={i === 0 ? t('왼쪽 (Leader)') : t('오른쪽 (Follower)')}
               className={[

@@ -88,7 +88,7 @@ export function DocumentShell() {
   const project = useProjectStore((s) => s.project)
   const docPath = useProjectStore((s) => s.docPath)
   const savedHash = useProjectStore((s) => s.savedHash)
-  const { recents, prompt, error, missingImages, pickerOpen, backups, busy, dragOver } =
+  const { recents, prompt, error, missingImages, pickerOpen, backups, busy, dragOver, internalDrag } =
     useDocumentStore()
   const set = useDocumentStore((s) => s.set)
   const [migrated, setMigrated] = useState<{ migrated: number; missingImages: number } | null>(null)
@@ -123,7 +123,9 @@ export function DocumentShell() {
     void getCurrentWebview()
       .onDragDropEvent((e) => {
         if (e.payload.type === 'over') {
-          useDocumentStore.getState().set({ dragOver: true })
+          if (!useDocumentStore.getState().internalDrag) {
+            useDocumentStore.getState().set({ dragOver: true })
+          }
           return
         }
         const state = useDocumentStore.getState()
@@ -132,6 +134,10 @@ export function DocumentShell() {
         // `ensureSaved` keeps a single prompt — a second one would replace the
         // first and leave whoever is awaiting it hanging.
         if (e.payload.type === 'drop' && !state.prompt && !state.busy) {
+          // An in-page HTML5 drag (slide-tray reorder) also trips the OS
+          // handler, but carries no file paths — not a file drop, so ignore
+          // it instead of raising the not-a-bundle error at the user.
+          if (!e.payload.paths.length) return
           void openDropped(e.payload.paths)
         }
       })
@@ -206,7 +212,7 @@ export function DocumentShell() {
     <>
       {/* Below the modal layer on purpose: a drop while a blocking prompt is up
           still has to show the prompt. */}
-      {dragOver && (
+      {dragOver && !internalDrag && (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg)]/70">
           <p className="rounded-xl border-2 border-dashed border-[var(--color-accent)] bg-[var(--color-surface)] px-6 py-4 text-[length:var(--text-title)] font-medium text-[var(--color-text)]">
             {t('프로젝트 파일을 놓으면 엽니다')}

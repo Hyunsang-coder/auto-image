@@ -72,6 +72,10 @@ interface DocumentState {
   pickerOpen: boolean
   /** A file is being dragged over the window (Tauri's own drag-drop event). */
   dragOver: boolean
+  /** An in-page HTML5 drag (slide-tray reorder) is in flight — the OS handler
+   *  fires for it too, but there is no file coming, so the file-drop overlay
+   *  stays down while this is set. */
+  internalDrag: boolean
   /** Rotated versions of the open project, when the user has asked to see them. */
   backups: BackupEntry[] | null
   /**
@@ -90,6 +94,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   missingImages: 0,
   pickerOpen: false,
   dragOver: false,
+  internalDrag: false,
   backups: null,
   pendingBackupPath: null,
   set: (patch) => set(patch),

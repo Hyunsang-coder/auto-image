@@ -19,7 +19,37 @@ async function thumbNames(page: Parameters<typeof slideThumbs>[0]): Promise<(str
   return slideThumbs(page).evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))
 }
 
-// Arrow buttons move a slide without any pointer drag (the DnD fallback).
+// Pointer drag (the same code path on web and desktop — no HTML5 dataTransfer).
+test('슬라이드 순서: 드래그로 이동', async ({ page }) => {
+  await clearAppState(page)
+  await page.goto('/app/')
+  await createProject(page, { name: 'Drag', slideCount: 3 })
+  await headline(page, 0, 'Slide A')
+  await headline(page, 1, 'Slide B')
+  await headline(page, 2, 'Slide C')
+  await expect.poll(() => thumbNames(page)).toEqual(['Slide A', 'Slide B', 'Slide C'])
+
+  const from = await slideThumbs(page).nth(0).boundingBox()
+  const to = await slideThumbs(page).nth(2).boundingBox()
+  const fx = from!.x + from!.width / 2
+  const fy = from!.y + from!.height / 2
+  // Right half of the last thumb → 'after' it.
+  const tx = to!.x + (to!.width * 3) / 4
+  const ty = to!.y + to!.height / 2
+  await page.mouse.move(fx, fy)
+  await page.mouse.down()
+  for (let i = 1; i <= 10; i++) {
+    await page.mouse.move(fx + ((tx - fx) * i) / 10, fy + ((ty - fy) * i) / 10)
+  }
+  await page.mouse.up()
+  await expect.poll(() => thumbNames(page)).toEqual(['Slide B', 'Slide C', 'Slide A'])
+
+  // A press without moving stays a click (selection), not a reorder.
+  await slideThumbs(page).nth(0).click()
+  await expect.poll(() => thumbNames(page)).toEqual(['Slide B', 'Slide C', 'Slide A'])
+})
+
+// Arrow buttons move a slide without any pointer drag (the fallback).
 test('슬라이드 순서: 화살표 버튼으로 앞·뒤 이동', async ({ page }) => {
   await clearAppState(page)
   await page.goto('/app/')
