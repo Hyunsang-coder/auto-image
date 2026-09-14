@@ -1,7 +1,7 @@
 {
   "name": "screenshot-studio-mcp",
   "version": "0.4.0",
-  "description": "MCP server that lets an AI agent drive the App Store Screenshot Studio project you have open on your Mac — inspect it, patch it, translate it, and see the rendered slide.",
+  "description": "MCP server that lets an AI agent drive the Screenshot Studio project you have open on your Mac — inspect it, patch it, translate it, and see the rendered slide.",
   "keywords": [
     "mcp",
     "modelcontextprotocol",

@@ -1,6 +1,6 @@
 # screenshot-studio-mcp
 
-MCP server for [App Store Screenshot Studio](https://screenshotstudio.dev) — it lets an AI agent
+MCP server for [Screenshot Studio](https://screenshotstudio.dev) — it lets an AI agent
 drive the project you have **open in the desktop app**: read it, patch it, translate it, and look at
 the rendered slide.
 

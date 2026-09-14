@@ -13,7 +13,7 @@
     "windows": [
       {
         "url": "app/index.html",
-        "title": "App Store Screenshot Studio",
+        "title": "Screenshot Studio",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,

@@ -1,4 +1,4 @@
-# App Store Screenshot Studio
+# Screenshot Studio
 
 Generate a full set of localized App Store / iPad screenshots — device frames, headlines, highlight call-outs, badges, gradients — at exact Apple resolutions, ready to drop into App Store Connect.
 

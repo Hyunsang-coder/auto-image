@@ -45,7 +45,7 @@ wrapper over `scripts/release.sh` (the script is the source of truth).
 
 ## Architecture
 
-**App Store Screenshot Studio** — fully client-side React/TypeScript app. No backend, no API keys (translation is done by the connected MCP agent or by file round-trip — see Translation). Vite MPA: static landing at `/` (Korean, root `index.html`) and `/en/` (English, `en/index.html`), the React app at `/app/`, plus static guide/blog pages under `public/` (see Static pages).
+**Screenshot Studio** — fully client-side React/TypeScript app. No backend, no API keys (translation is done by the connected MCP agent or by file round-trip — see Translation). Vite MPA: static landing at `/` (Korean, root `index.html`) and `/en/` (English, `en/index.html`), the React app at `/app/`, plus static guide/blog pages under `public/` (see Static pages).
 
 ### UI i18n
 

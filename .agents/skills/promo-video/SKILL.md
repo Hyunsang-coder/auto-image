@@ -1,6 +1,6 @@
 ---
 name: promo-video
-description: Record a short promo/demo video of App Store Screenshot Studio for X / Threads / landing pages. Drives the real app headless through the core story — English-only import → empty Localize columns → CSV import fills every language → Export re-renders per locale → ZIP — with a painted-on cursor, then transcodes to an H.264 mp4. Use when the user asks for a promo video, demo clip, marketing video, or "홍보 영상 / 데모 영상".
+description: Record a short promo/demo video of Screenshot Studio for X / Threads / landing pages. Drives the real app headless through the core story — English-only import → empty Localize columns → CSV import fills every language → Export re-renders per locale → ZIP — with a painted-on cursor, then transcodes to an H.264 mp4. Use when the user asks for a promo video, demo clip, marketing video, or "홍보 영상 / 데모 영상".
 ---
 
 # Promo video recorder

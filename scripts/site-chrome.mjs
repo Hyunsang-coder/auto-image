@@ -71,7 +71,7 @@ function chrome(lang, self, paths) {
   const header = `<a class="skip-link" href="#main">${t.skip}</a>
 <header class="site-header">
   <div class="wrap site-header__inner">
-    <a class="brand" href="${t.home}"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+    <a class="brand" href="${t.home}"><span class="brand-mark">AS3</span><span class="brand-name">Screenshot Studio</span></a>
     <nav class="site-nav" aria-label="${t.navLabel}">
 ${navLinks('      ')}
     </nav>
@@ -102,7 +102,7 @@ ${links.map(([href, label]) => `        <li><a href="${href}">${label}</a></li>`
   const footer = `<footer class="site-footer">
   <div class="wrap site-footer__grid">
     <div class="site-footer__about">
-      <a class="brand" href="${t.home}"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+      <a class="brand" href="${t.home}"><span class="brand-mark">AS3</span><span class="brand-name">Screenshot Studio</span></a>
       <p>${t.tagline}</p>
 ${langMenu(t, lang, paths, true, '      ')}
     </div>
