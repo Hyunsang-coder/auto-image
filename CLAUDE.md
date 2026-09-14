@@ -213,7 +213,7 @@ Three appearances ship: light (`@theme`), dark (`prefers-color-scheme: dark`), a
 
 Type/target scale (macOS: 13pt default text, 10pt minimum; 28×28pt default control, 20×20pt minimum): `--text-ui` 13px · `--text-ui-sm` 12px · `--text-ui-xs` 11px · `--text-title` 15px; `--control-h` 28px · `--control-h-sm` 24px · `--control-h-lg` 32px. Checkboxes/radios/ranges get their floor from a global rule (browser defaults draw at 13×13 / 16px tall).
 
-The header is a three-zone toolbar (`grid-cols-[1fr_auto_1fr]`) so the step nav is centred on the *window*, not on whatever the flanks happen to weigh; secondary actions live in the `MenuButton` overflow rather than as more text buttons in a row. Product name comes from `src/constants/branding.ts` (`APP_NAME` / `APP_SHORT_NAME` — the repo is called auto-image, the app is not).
+The header is a three-zone toolbar (`grid-cols-[1fr_auto_1fr]`) so the step nav is centred on the *window*, not on whatever the flanks happen to weigh; secondary actions live in the `MenuButton` overflow rather than as more text buttons in a row. Product name comes from `src/constants/branding.ts` (`APP_NAME` — the repo is called auto-image, the app is not; "App Store" stays out of it per Apple's trademark guidelines). The icon's source is `src-tauri/icons/app-icon.svg`: render it to a 1024px transparent PNG and run `npx tauri icon` on that to regenerate the bundle icons; `public/favicon.svg` is the same drawing cropped to the tile, and it doubles as the brand mark in the app header and the site chrome.
 
 ### Static pages (SEO)
 

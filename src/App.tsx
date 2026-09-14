@@ -15,7 +15,7 @@ import { useLibraryStore } from './store/useLibraryStore'
 import { useCustomStore } from './store/useCustomStore'
 import { projectTemplateFromProject } from './constants/projectTemplates'
 import { newId } from './constants/defaults'
-import { APP_NAME, APP_SHORT_NAME } from './constants/branding'
+import { APP_NAME } from './constants/branding'
 import { saveAs } from 'file-saver'
 import { pruneOrphanImages } from './lib/imageStore'
 import { allReferencedImageKeys, gcImages } from './lib/imageRefs'
@@ -296,12 +296,7 @@ function App() {
       */}
       <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span
-            title={APP_NAME}
-            className="shrink-0 rounded-md bg-[var(--color-text)] px-1.5 py-0.5 text-[length:var(--text-ui-sm)] font-bold tracking-tight text-[var(--color-surface)]"
-          >
-            {APP_SHORT_NAME}
-          </span>
+          <img src="/favicon.svg" alt="" title={APP_NAME} className="h-6 w-6 shrink-0" />
           {/* The window title is the document, not the app name (HIG). On the
               desktop that name is the file's, and the leading dot is the
               standard "edited" marker. */}

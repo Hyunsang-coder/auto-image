@@ -89,10 +89,7 @@ img { max-width: 100%; height: auto; }
   color: var(--text); text-decoration: none; white-space: nowrap;
   font-size: 16px; font-weight: 650; letter-spacing: -0.01em;
 }
-.brand-mark {
-  display: inline-grid; place-items: center; height: 26px; padding: 0 7px; border-radius: 7px;
-  background: var(--text); color: var(--bg); font-size: 12px; font-weight: 750; letter-spacing: 0.02em;
-}
+.brand-mark { width: 28px; height: 28px; flex: none; }
 .site-nav { display: flex; gap: 2px; }
 .site-nav a {
   display: inline-flex; align-items: center; height: 36px; padding: 0 11px; border-radius: 8px;

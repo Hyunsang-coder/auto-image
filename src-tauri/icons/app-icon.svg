@@ -1,15 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 100 824 824">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#3aa6ff"/>
       <stop offset="1" stop-color="#0a5fd1"/>
     </linearGradient>
     <clipPath id="front"><rect x="362" y="222" width="300" height="600" rx="44"/></clipPath>
+    <filter id="drop" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.22"/>
+    </filter>
     <filter id="lift" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#002a66" flood-opacity="0.35"/>
     </filter>
   </defs>
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)" filter="url(#drop)"/>
   <rect x="362" y="222" width="300" height="600" rx="44" fill="#cfe4ff" transform="rotate(-13 512 780)" filter="url(#lift)"/>
   <rect x="362" y="222" width="300" height="600" rx="44" fill="#e6f1ff" transform="rotate(13 512 780)" filter="url(#lift)"/>
   <g filter="url(#lift)">
