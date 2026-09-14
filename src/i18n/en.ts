@@ -656,6 +656,7 @@ export const en: Record<string, string> = {
   'ZIP 내보내기 · {n}개 PNG': 'Export ZIP · {n} PNGs',
   'fastlane으로 App Store Connect에 업로드하는 법': 'How to upload to App Store Connect with fastlane',
   '「fastlane용 ZIP」을 받아 압축을 풉니다.': 'Download the "ZIP for fastlane" and unzip it.',
+  '「fastlane 폴더」를 누르고 저장할 폴더를 고릅니다.': 'Click "fastlane folder" and choose where to save it.',
   '{file}에 앱 번들 ID를 입력합니다.': "Enter your app's bundle ID in {file}.",
   'App Store Connect → 사용자 및 액세스 → 통합 → App Store Connect API에서 키(.p8)를 만들어 {file}에 채웁니다.':
     'Generate an API key (.p8) under App Store Connect → Users and Access → Integrations → App Store Connect API, then fill in {file}.',

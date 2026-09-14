@@ -607,7 +607,11 @@ export function ExportPanel() {
             {t('fastlane으로 App Store Connect에 업로드하는 법')}
           </summary>
           <ol className="mt-2 list-decimal space-y-1 pl-4">
-            <li>{t('「fastlane용 ZIP」을 받아 압축을 풉니다.')}</li>
+            <li>
+              {isDesktop
+                ? t('「fastlane 폴더」를 누르고 저장할 폴더를 고릅니다.')
+                : t('「fastlane용 ZIP」을 받아 압축을 풉니다.')}
+            </li>
             <li>{t('{file}에 앱 번들 ID를 입력합니다.', { file: 'fastlane/Appfile' })}</li>
             <li>
               {t('App Store Connect → 사용자 및 액세스 → 통합 → App Store Connect API에서 키(.p8)를 만들어 {file}에 채웁니다.', { file: 'asc_api_key.json' })}
