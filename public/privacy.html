@@ -9,49 +9,70 @@
     content="App Store Screenshot Studio privacy policy: a client-side Mac app — no accounts, no image uploads, your projects stay on your Mac. The app makes one request (a version check you can switch off); the site collects cookieless aggregate analytics."
   />
   <link rel="canonical" href="https://screenshotstudio.dev/privacy.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/privacy.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/ko/privacy.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/privacy.html" />
+  <script src="/lang.js"></script>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-  <style>
-    :root {
-      --border: #e3e1dc;
-      --text: #1f1d1a;
-      --dim: #6f6a62;
-      --accent: #4f46e5;
-      --surface: #faf9f7;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--text);
-      background: #fff;
-      line-height: 1.65;
-    }
-    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
-    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
-    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
-    p.lead { color: var(--dim); font-size: 1.05rem; }
-    p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
-    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
-    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
-    a { color: var(--accent); }
-    ul { padding-left: 1.2em; }
-  </style>
+  <link rel="stylesheet" href="/site.css" />
 </head>
 <body>
-<main>
-  <p class="lang"><a href="./">← App Store Screenshot Studio</a></p>
+<!-- site:header -->
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="/en/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/en/#features">Features</a>
+      <a href="/guides/how-to-use.html">How to use</a>
+      <a href="/guides/mcp-agent.html">AI agents</a>
+      <a href="/en/#guides">Guides</a>
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+    </nav>
+    <div class="site-actions">
+      <details class="lang-menu">
+        <summary aria-label="Language, currently English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>English</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/ko/privacy.html" lang="ko" hreflang="ko">한국어</a></li>
+          <li><a href="/privacy.html" lang="en" hreflang="en" aria-current="true">English<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+        </ul>
+      </details>
+      <a class="btn btn-primary btn-sm" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download</a>
+      <details class="menu-toggle">
+        <summary aria-label="Menu"><svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></summary>
+        <div class="menu-panel">
+          <nav aria-label="Mobile">
+            <a href="/en/#features">Features</a>
+            <a href="/guides/how-to-use.html">How to use</a>
+            <a href="/guides/mcp-agent.html">AI agents</a>
+            <a href="/en/#guides">Guides</a>
+            <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+          </nav>
+          <div class="menu-lang">
+            <a href="/ko/privacy.html" lang="ko" hreflang="ko">한국어</a>
+            <a href="/privacy.html" lang="en" hreflang="en" aria-current="true">English</a>
+          </div>
+          <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download for Mac</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<!-- /site:header -->
+
+<main id="main" class="article">
   <h1>Privacy policy</h1>
   <p class="lead">
     App Store Screenshot Studio is a fully client-side tool. There are no accounts, no
     databases, and no server of ours that your data could be sent to. This page spells out
-    the little that does happen. Last updated: August 30, 2026.
+    the little that does happen. Last updated: September 14, 2026.
   </p>
 
   <h2>Your screenshots and projects never leave your Mac</h2>
   <ul>
-    <li>Images you add are stored in the app's local <strong>IndexedDB</strong>; project data (slides, captions, settings) in <strong>localStorage</strong> — both on your Mac. Nothing is uploaded anywhere.</li>
-    <li>Export (PNG/ZIP rendering) happens entirely on your machine.</li>
-    <li>Deleting the app's local data deletes everything; we keep no copy, because we never had one.</li>
+    <li>A project is a <strong>.studio.zip</strong> file with its screenshots inside — in <code>~/Documents/Screenshot Studio/</code> unless you save it somewhere else. Work you have not saved yet is mirrored into the app's own folder so it can be recovered after a crash. All of it is files on your Mac; nothing is uploaded anywhere.</li>
+    <li>Export (PNG rendering) happens entirely on your machine.</li>
+    <li>Deleting your project files and the app's data deletes everything; we keep no copy, because we never had one.</li>
   </ul>
 
   <h2>What is collected: aggregate page analytics</h2>
@@ -101,13 +122,57 @@
     <a href="https://github.com/Hyunsang-coder/auto-image/issues">GitHub</a>.
   </p>
 
-  <footer>
-    <p>
-      <a href="./">App Store Screenshot Studio</a> — open source under MIT,
-      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>.
-    </p>
-  </footer>
 </main>
+
+<!-- site:footer -->
+<footer class="site-footer">
+  <div class="wrap site-footer__grid">
+    <div class="site-footer__about">
+      <a class="brand" href="/en/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+      <p>A free, open-source Mac app for App Store screenshots.</p>
+      <details class="lang-menu lang-menu--up">
+        <summary aria-label="Language, currently English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>English</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/ko/privacy.html" lang="ko" hreflang="ko">한국어</a></li>
+          <li><a href="/privacy.html" lang="en" hreflang="en" aria-current="true">English<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+        </ul>
+      </details>
+    </div>
+    <nav aria-label="Product">
+      <h2>Product</h2>
+      <ul>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download for Mac</a></li>
+        <li><a href="/en/#features">Features</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases">Release notes</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image">Source code</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="Guides">
+      <h2>Guides</h2>
+      <ul>
+        <li><a href="/guides/how-to-use.html">How to use</a></li>
+        <li><a href="/guides/mcp-agent.html">Connect an AI agent</a></li>
+        <li><a href="/guides/app-store-screenshot-sizes.html">Screenshot sizes</a></li>
+        <li><a href="/guides/app-store-screenshot-localization.html">Localization</a></li>
+        <li><a href="/guides/upload-app-store-screenshots-fastlane.html">fastlane upload</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="About">
+      <h2>About</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/blog/why-i-built-screenshot-studio.html">Blog</a></li>
+        <li><a href="/privacy.html">Privacy policy</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/issues">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="wrap site-footer__bottom">
+    <p>© 2026 Hyunsang Joo. Open source under the MIT License.</p>
+  </div>
+</footer>
+<script src="/site.js" defer></script>
+<!-- /site:footer -->
 <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
 </body>
 </html>

@@ -1,23 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>App Store Screenshot Studio — Free iPhone &amp; iPad Screenshot Generator for Mac</title>
+  <title>App Store Screenshot Studio — 무료 App Store 스크린샷 제작 Mac 앱</title>
   <meta
     name="description"
-    content="Free, open-source App Store screenshot generator for macOS. Download the Mac app and let an AI agent draft, localize, and render your screenshots — or design them by hand on a canvas. Exact App Store Connect sizes, all on your Mac, no account, no upload."
+    content="AI 에이전트가 슬라이드 구성과 캡션, 번역, 규격별 렌더링을 맡고 내가 캔버스에서 다듬는 무료 오픈소스 Mac 앱. iPhone·iPad App Store Connect 규격 그대로, 계정도 업로드도 없이."
   />
   <link rel="canonical" href="https://screenshotstudio.dev/" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/en/" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/en/" />
+  <script src="/lang.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/site.css" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="App Store Screenshot Studio — Free Screenshot Generator for Mac" />
+  <meta property="og:site_name" content="App Store Screenshot Studio" />
+  <meta property="og:locale" content="ko_KR" />
+  <meta property="og:locale:alternate" content="en_US" />
+  <meta property="og:title" content="에이전트가 만들고, 내가 다듬는 App Store 스크린샷" />
   <meta
     property="og:description"
-    content="Your AI agent drafts, localizes, and renders App Store screenshots for iPhone and iPad — pixel-exact, on your Mac. A free, open-source Mac app: no account, no upload."
+    content="Claude Code 같은 AI 에이전트가 iPhone·iPad App Store 스크린샷을 만들고 번역하고 렌더합니다. 무료 오픈소스 Mac 앱, 계정도 업로드도 없이."
   />
   <meta property="og:url" content="https://screenshotstudio.dev/" />
-  <meta property="og:image" content="https://screenshotstudio.dev/landing/editor.png" />
+  <meta property="og:image" content="https://screenshotstudio.dev/landing/og-ko.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="naver-site-verification" content="1dc3a63d8c31a61a39bcd972dbe3ec832eb77d2d" />
   <script type="application/ld+json">
@@ -26,241 +36,300 @@
     "@type": "SoftwareApplication",
     "name": "App Store Screenshot Studio",
     "applicationCategory": "DesignApplication",
-    "operatingSystem": "macOS",
+    "operatingSystem": "macOS 10.15+",
+    "inLanguage": "ko",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "url": "https://screenshotstudio.dev/",
     "downloadUrl": "https://github.com/Hyunsang-coder/auto-image/releases/latest",
-    "description": "Free, open-source App Store screenshot generator for macOS: design, localize and export App Store Connect-ready screenshots for iPhone and iPad on your own Mac."
+    "description": "iPhone·iPad App Store 스크린샷을 디자인하고 현지화하고 App Store Connect 규격으로 내보내는 무료 오픈소스 macOS 앱."
   }
   </script>
-  <style>
-    :root {
-      --border: #e3e1dc;
-      --text: #1f1d1a;
-      --dim: #6f6a62;
-      --accent: #4f46e5;
-      --surface: #faf9f7;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--text);
-      background: #fff;
-      line-height: 1.65;
-    }
-    main { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
-    header.top {
-      max-width: 980px; margin: 0 auto; padding: 18px 20px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .brand { font-weight: 700; letter-spacing: -0.01em; text-decoration: none; color: var(--text); }
-    .top nav { display: flex; gap: 18px; font-size: 0.92rem; }
-    .top nav a { color: var(--dim); text-decoration: none; }
-    .top nav a:hover { color: var(--text); }
-    .hero { text-align: center; padding: 56px 0 12px; }
-    h1 { font-size: 2.5rem; line-height: 1.18; letter-spacing: -0.025em; margin: 0 auto 0.5em; max-width: 21ch; }
-    .hero p.lead { color: var(--dim); font-size: 1.12rem; max-width: 56ch; margin: 0 auto 1.6em; }
-    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .btn {
-      display: inline-block; padding: 13px 26px; border-radius: 10px;
-      font-size: 1rem; font-weight: 600; text-decoration: none;
-    }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-primary:hover { opacity: 0.92; }
-    .btn-ghost { border: 1px solid var(--border); color: var(--text); }
-    .btn-ghost:hover { border-color: var(--accent); }
-    .dl-note { color: var(--dim); font-size: 0.85rem; margin: 14px 0 0; }
-    .trust { display: flex; gap: 8px 22px; justify-content: center; flex-wrap: wrap; margin: 1.6em 0 0; padding: 0; list-style: none; color: var(--dim); font-size: 0.9rem; }
-    .trust li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
-    .shot { margin: 44px 0 0; position: relative; }
-    .shot .track {
-      display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
-      border-radius: 14px; border: 1px solid var(--border);
-      box-shadow: 0 18px 50px -22px rgba(31, 29, 26, 0.35);
-      scrollbar-width: none;
-    }
-    .shot .track::-webkit-scrollbar { display: none; }
-    .shot .track img {
-      width: 100%; height: auto; display: block;
-      flex: 0 0 100%; scroll-snap-align: start;
-    }
-    .shot-arrow {
-      position: absolute; top: 50%; transform: translateY(-50%);
-      width: 38px; height: 38px; border-radius: 50%;
-      border: 1px solid var(--border); background: rgba(255, 255, 255, 0.92);
-      color: var(--text); font-size: 1.15rem; line-height: 1; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 14px -6px rgba(31, 29, 26, 0.4);
-    }
-    .shot-arrow:hover { border-color: var(--accent); color: var(--accent); }
-    .shot-arrow:disabled { opacity: 0; pointer-events: none; }
-    .shot-arrow.prev { left: 14px; }
-    .shot-arrow.next { right: 14px; }
-    .shot-tabs { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
-    .shot-tabs button {
-      border: 1px solid var(--border); background: #fff; border-radius: 999px;
-      padding: 6px 16px; font-size: 0.85rem; font-weight: 600;
-      color: var(--dim); cursor: pointer;
-    }
-    .shot-tabs button:hover { border-color: var(--accent); color: var(--accent); }
-    .shot-tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-    h2 { font-size: 1.5rem; letter-spacing: -0.015em; margin: 2.6em 0 0.9em; text-align: center; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-    .card { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 18px 20px; }
-    .card h3 { margin: 0 0 0.4em; font-size: 1.02rem; letter-spacing: -0.01em; }
-    .card p { margin: 0; color: var(--dim); font-size: 0.93rem; }
-    ol.steps { counter-reset: s; list-style: none; padding: 0; max-width: 640px; margin: 0 auto; }
-    ol.steps li { counter-increment: s; padding: 10px 0 10px 46px; position: relative; color: var(--dim); }
-    ol.steps li strong { color: var(--text); }
-    ol.steps li::before {
-      content: counter(s); position: absolute; left: 0; top: 10px;
-      width: 30px; height: 30px; border-radius: 50%;
-      background: var(--surface); border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 0.85rem; color: var(--accent);
-    }
-    .guides a { display: block; padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; text-decoration: none; color: var(--text); background: var(--surface); }
-    .guides a:hover { border-color: var(--accent); }
-    .guides span { display: block; color: var(--dim); font-size: 0.88rem; }
-    .guides { display: grid; gap: 12px; }
-    footer { margin-top: 4.5em; padding-top: 1.6em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; text-align: center; }
-    footer a { color: var(--accent); }
-    @media (max-width: 640px) { h1 { font-size: 1.9rem; } }
-  </style>
 </head>
 <body>
-<header class="top">
-  <a class="brand" href="./">App Store Screenshot Studio</a>
-  <nav>
-    <a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download</a>
-    <a href="guides/how-to-use.html">How to use</a>
-    <a href="guides/app-store-screenshot-sizes.html">Guides</a>
-    <a href="about.html">About</a>
-    <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
-  </nav>
+<!-- site:header -->
+<a class="skip-link" href="#main">본문으로 건너뛰기</a>
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+    <nav class="site-nav" aria-label="주요 메뉴">
+      <a href="/#features">기능</a>
+      <a href="/guides/ko/how-to-use.html">사용법</a>
+      <a href="/guides/ko/mcp-agent.html">AI 에이전트</a>
+      <a href="/#guides">가이드</a>
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+    </nav>
+    <div class="site-actions">
+      <details class="lang-menu">
+        <summary aria-label="언어 선택, 현재 한국어"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>한국어</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/" lang="ko" hreflang="ko" aria-current="true">한국어<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+          <li><a href="/en/" lang="en" hreflang="en">English</a></li>
+        </ul>
+      </details>
+      <a class="btn btn-primary btn-sm" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">다운로드</a>
+      <details class="menu-toggle">
+        <summary aria-label="메뉴"><svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></summary>
+        <div class="menu-panel">
+          <nav aria-label="모바일 메뉴">
+            <a href="/#features">기능</a>
+            <a href="/guides/ko/how-to-use.html">사용법</a>
+            <a href="/guides/ko/mcp-agent.html">AI 에이전트</a>
+            <a href="/#guides">가이드</a>
+            <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+          </nav>
+          <div class="menu-lang">
+            <a href="/" lang="ko" hreflang="ko" aria-current="true">한국어</a>
+            <a href="/en/" lang="en" hreflang="en">English</a>
+          </div>
+          <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 무료 다운로드</a>
+        </div>
+      </details>
+    </div>
+  </div>
 </header>
-<main>
+<!-- /site:header -->
+
+<main id="main">
   <section class="hero">
-    <h1>App Store screenshots, handled by your AI agent.</h1>
-    <p class="lead">
-      An open-source studio your AI agent drives end to end — it drafts every slide and
-      caption, renders App Store-ready PNGs, then checks and fixes its own layout.
-      All on your Mac. Open the editor only when you want to tweak by hand.
-    </p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download for macOS →</a>
-      <a class="btn btn-ghost" href="guides/how-to-use.html">See how it works</a>
-    </div>
-    <p class="dl-note">Free · Universal (Apple Silicon &amp; Intel) · macOS 10.15 or later · MIT-licensed source on <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a></p>
-    <ul class="trust">
-      <li>Free &amp; open source</li>
-      <li>No account, no upload</li>
-      <li>Exact App Store Connect sizes</li>
-    </ul>
-    <div class="shot">
-      <div class="track" id="shot-track">
-        <img src="landing/editor.png" alt="The editor: a canvas with an iPhone frame and caption, an eight-slide thumbnail strip, and a properties panel" width="1600" height="1000" />
-        <img src="landing/localize.png" alt="The Localize step: a slide-by-language caption table with per-locale screenshots across nine languages" width="1600" height="1000" loading="lazy" />
-        <img src="landing/export.png" alt="The Export step: live previews of all eight slides and a one-click ZIP export of 72 App Store-ready PNGs" width="1600" height="1000" loading="lazy" />
+    <div class="wrap">
+      <h1>에이전트가 만들고,<br />내가 다듬는 App&nbsp;Store 스크린샷</h1>
+      <p class="lead">
+        Claude Code 같은 AI 에이전트가 슬라이드 구성과 캡션, 번역, 규격별 렌더링까지 처리합니다.
+        고칠 곳은 Mac 앱의 캔버스에서 직접 손보세요. 무료 오픈소스이고, 계정도 업로드도 없습니다.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 무료 다운로드</a>
+        <a class="btn btn-secondary" href="/guides/ko/how-to-use.html">사용법 보기</a>
       </div>
-      <button class="shot-arrow prev" id="shot-prev" aria-label="Previous screenshot" disabled>‹</button>
-      <button class="shot-arrow next" id="shot-next" aria-label="Next screenshot">›</button>
-    </div>
-    <div class="shot-tabs" id="shot-tabs">
-      <button class="active">Editor</button>
-      <button>Localize</button>
-      <button>Export</button>
+      <ul class="hero-facts">
+        <li>macOS 10.15 이상</li>
+        <li>Apple Silicon과 Intel 지원</li>
+        <li>Apple 공증 완료</li>
+        <li>MIT 라이선스</li>
+      </ul>
     </div>
   </section>
 
-  <h2>What your AI agent handles</h2>
-  <div class="grid">
-    <div class="card">
-      <h3>Drafts the whole project</h3>
-      <p>Your agent writes the slides and captions as plain files. One import turns them into a complete, editable project — frames, text, screenshots, every language.</p>
+  <section class="deck" data-show="ko" aria-labelledby="deck-note">
+    <div class="wrap">
+      <div class="deck__bar">
+        <p class="deck__note" id="deck-note">Memento Notes 2.6의 App Store 스크린샷. 이 앱으로 만들었습니다.</p>
+        <div class="segmented" role="group" aria-label="스크린샷 언어">
+          <button type="button" data-deck-locale="ko" aria-pressed="true">한국어</button>
+          <button type="button" data-deck-locale="en" aria-pressed="false">English</button>
+        </div>
+      </div>
+      <ol class="deck__track">
+        <li class="deck__slide" style="--i:0"><img src="/landing/deck/ko-1.webp" data-locale="ko" width="560" height="1217" alt="1번 슬라이드: 찰칵으로 카드 만들기. 한 페이지에서 10장 넘게 추출" /><img src="/landing/deck/en-1.webp" data-locale="en" width="560" height="1217" loading="lazy" aria-hidden="true" alt="Slide 1: Snap a page, get cards. 10+ cards from a single page" /></li>
+        <li class="deck__slide" style="--i:1"><img src="/landing/deck/ko-2.webp" data-locale="ko" width="560" height="1217" alt="2번 슬라이드: 잊기 직전에 다시. 과학적인 복습 주기로 효과적인 암기" /><img src="/landing/deck/en-2.webp" data-locale="en" width="560" height="1217" loading="lazy" aria-hidden="true" alt="Slide 2: Before you forget. Reviews land as words start to fade" /></li>
+        <li class="deck__slide" style="--i:2"><img src="/landing/deck/ko-3.webp" data-locale="ko" width="560" height="1217" alt="3번 슬라이드: 질문이 곧 카드. 궁금했던 내용을 암기 카드로 저장" /><img src="/landing/deck/en-3.webp" data-locale="en" width="560" height="1217" loading="lazy" aria-hidden="true" alt="Slide 3: Ask, get a card. Save what you looked up as cards" /></li>
+        <li class="deck__slide" style="--i:3"><img src="/landing/deck/ko-4.webp" data-locale="ko" width="560" height="1217" alt="4번 슬라이드: 잠금화면에 고정. 앱을 열지 않고도 복습" /><img src="/landing/deck/en-4.webp" data-locale="en" width="560" height="1217" loading="lazy" aria-hidden="true" alt="Slide 4: On your Lock Screen. Review without opening the app" /></li>
+        <li class="deck__slide" style="--i:4"><img src="/landing/deck/ko-5.webp" data-locale="ko" width="560" height="1217" alt="5번 슬라이드: 내가 만든 암기 노트. 남이 정리한 건 기억에 남지 않으니까" /><img src="/landing/deck/en-5.webp" data-locale="en" width="560" height="1217" loading="lazy" aria-hidden="true" alt="Slide 5: Your own flashcards. Other people's notes don't stick" /></li>
+        <li class="deck__slide" style="--i:5"><img src="/landing/deck/ko-6.webp" data-locale="ko" width="560" height="1217" alt="6번 슬라이드: 귀찮은 건 AI에게. 단어만 입력하면 나머지 필드는 자동으로" /><img src="/landing/deck/en-6.webp" data-locale="en" width="560" height="1217" loading="lazy" aria-hidden="true" alt="Slide 6: Leave the tedium to AI. Type the word, and the rest fills in" /></li>
+      </ol>
     </div>
-    <div class="card">
-      <h3>Renders and fixes itself</h3>
-      <p>A headless pipeline exports each slide at the exact App Store size, inspects the layout, and re-runs until it's clean — without a single click.</p>
+  </section>
+
+  <section class="section" id="app">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>모든 슬라이드를 한 캔버스에서</h2>
+        <p>
+          슬라이드가 한 보드에 나란히 놓여 전체 흐름을 보면서 편집합니다. 속성 패널은 선택한 대상에 맞춰
+          바뀌고, 레이어 목록에서 원하는 요소를 바로 고를 수 있습니다.
+        </p>
+      </div>
+      <div class="window">
+        <div class="window__bar" aria-hidden="true"><i></i><i></i><i></i></div>
+        <img src="/landing/editor-ko.webp" width="1920" height="1200" loading="lazy" alt="에디터 화면: Memento Notes 슬라이드가 놓인 캔버스, 왼쪽 레이어 목록, 오른쪽 배경 속성 패널, 아래 슬라이드 목록" />
+      </div>
     </div>
-    <div class="card">
-      <h3>Every language by default</h3>
-      <p>Captions live in one slide × language table. The agent fills each language; per-locale screenshots swap in by filename.</p>
-    </div>
-    <div class="card">
-      <h3>Yours to fine-tune</h3>
-      <p>Open the canvas editor for frames, highlight loupes, badges, ornaments, and App-Store-style 2-page panoramas whenever you want hands-on control.</p>
-    </div>
+  </section>
+
+  <div class="wrap" id="features">
+    <section class="feature">
+      <div class="feature__text">
+        <h2>열어 둔 프로젝트를 에이전트가 직접 고칩니다</h2>
+        <p>
+          MCP로 연결하면 Claude Code 같은 에이전트가 지금 열린 프로젝트를 읽고, 캡션을 쓰고 번역하고,
+          슬라이드를 렌더해 결과를 확인한 뒤 저장합니다. 바뀐 내용은 편집 중인 화면에 곧바로 나타납니다.
+        </p>
+        <p>
+          파일로 일하는 편이 좋다면 저장소의 헤들리스 파이프라인이 매니페스트와 스크린샷 폴더를 창 없이
+          PNG로 렌더하고, 레이아웃 문제를 찾아 스스로 고칩니다.
+        </p>
+        <a class="more-link" href="/guides/ko/mcp-agent.html">에이전트 연결 방법 보기</a>
+      </div>
+      <pre class="terminal" aria-label="에이전트 작업 예시"><span class="t-dim">$ claude mcp add screenshot-studio \</span><span class="t-dim">    -- npx -y screenshot-studio-mcp</span><span class="t-you">&gt; 영어 캡션을 채우고 1번 슬라이드를 보여 줘</span><span>  <span class="t-tool">live_list_untranslated</span>  <span class="t-dim">번역할 문자열 12개</span></span><span>  <span class="t-tool">live_patch            </span>  <span class="t-dim">setText 12건 적용</span></span><span>  <span class="t-tool">live_view             </span>  <span class="t-dim">1번 슬라이드 (en)</span></span><span>  <span class="t-tool">live_save             </span>  <span class="t-dim">Memento.studio.zip 저장</span></span></pre>
+    </section>
+
+    <section class="feature feature--flip">
+      <div class="feature__text">
+        <h2>캡션은 표 하나로, 스크린샷은 파일 이름으로</h2>
+        <p>
+          모든 캡션이 슬라이드와 언어로 짜인 표 하나에 모입니다. 빈칸은 에이전트에게 맡기거나, CSV·JSON
+          양식으로 내보내 번역한 뒤 다시 가져오세요. 언어별 스크린샷은 <code>01-home.ja.png</code>처럼 이름에
+          언어 코드만 붙이면 제자리를 찾아갑니다.
+        </p>
+        <p>레이아웃은 모든 언어가 함께 쓰고, 필요한 언어만 따로 위치나 크기를 조정할 수 있습니다.</p>
+        <a class="more-link" href="/guides/ko/app-store-screenshot-localization.html">현지화 가이드 읽기</a>
+      </div>
+      <table class="l10n" aria-label="현지화 표 예시">
+        <thead><tr><th scope="col">슬라이드</th><th scope="col">한국어</th><th scope="col">English</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>찰칵으로 카드 만들기</td><td>Snap a page, get cards</td></tr>
+          <tr><td>2</td><td>잊기 직전에 다시</td><td>Before you forget</td></tr>
+          <tr><td>3</td><td>질문이 곧 카드</td><td>Ask, get a card</td></tr>
+          <tr><td>4</td><td>잠금화면에 고정</td><td>On your Lock Screen</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="feature">
+      <div class="feature__text">
+        <h2>App Store Connect 규격 그대로 내보내기</h2>
+        <p>
+          슬라이드와 언어의 모든 조합을 업로드 슬롯의 정확한 해상도로 렌더합니다. 알파 채널을 제거해 업로드가
+          거절되지 않고, 결과는 <code>ko/iphone/01.png</code> 구조의 폴더로 저장됩니다. fastlane 폴더로
+          내보내면 <code>upload.sh</code> 하나로 올릴 수 있습니다.
+        </p>
+        <a class="more-link" href="/guides/ko/app-store-screenshot-sizes.html">스크린샷 사이즈 가이드 읽기</a>
+      </div>
+      <ul class="sizes" aria-label="지원하는 업로드 슬롯">
+        <li><div class="shape" style="width:92px;height:201px" aria-hidden="true"></div><div><b>iPhone 6.9″</b><span>1320 × 2868</span></div></li>
+        <li><div class="shape" style="width:87px;height:188px" aria-hidden="true"></div><div><b>iPhone 6.5″</b><span>1242 × 2688</span></div></li>
+        <li><div class="shape" style="width:144px;height:193px" aria-hidden="true"></div><div><b>iPad 13″</b><span>2064 × 2752</span></div></li>
+        <li><div class="shape" style="width:117px;height:167px" aria-hidden="true"></div><div><b>iPad 11″</b><span>1668 × 2388</span></div></li>
+      </ul>
+    </section>
   </div>
 
-  <h2>From prompt to store, mostly hands-off</h2>
-  <ol class="steps">
-    <li><strong>Ask your agent</strong> — it drafts the slides and captions as files.</li>
-    <li><strong>Import</strong> — one file selection assembles the whole project.</li>
-    <li><strong>Render</strong> — the headless pipeline exports and self-corrects every language at exact store sizes.</li>
-    <li><strong>Tweak, optionally</strong> — open the editor for any polish, then export the ZIP.</li>
-  </ol>
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>그 밖에 할 수 있는 것</h2>
+      </div>
+      <ul class="more">
+        <li><h3>돋보기 하이라이트</h3><p>화면 일부를 확대한 카드를 기기 위에 띄웁니다. 카드 위치와 연결선은 자동으로 잡힙니다.</p></li>
+        <li><h3>월계관 배지와 장식</h3><p>평점 배지, 반짝임, 손으로 그린 동그라미와 화살표 같은 단색 벡터 장식을 올립니다.</p></li>
+        <li><h3>2페이지 파노라마</h3><p>이웃한 두 슬라이드를 하나로 이어, 넘겨 볼 때 이어지는 장면을 만듭니다.</p></li>
+        <li><h3>강조 표시</h3><p><code>==이렇게==</code> 감싼 단어는 강조 스타일로 그려지고, 번역한 뒤에도 표시가 유지됩니다.</p></li>
+        <li><h3>기기 회전과 자르기</h3><p>기기를 기울이고, 가장자리를 끌어 스크린샷을 자르고, 캔버스 밖으로 넘치게 배치합니다.</p></li>
+        <li><h3>서체와 배경</h3><p>엄선한 서체 16종, 그라데이션 글자, 그라데이션·이미지 배경과 질감을 씁니다.</p></li>
+        <li><h3>프로젝트는 파일 하나</h3><p><code>.studio.zip</code> 하나에 스크린샷까지 담깁니다. ⌘S로 저장하고, 앱이 갑자기 종료돼도 작업을 되살립니다.</p></li>
+        <li><h3>템플릿으로 시작</h3><p>디자인된 시작 세트에서 출발하고, 내 디자인을 템플릿으로 저장해 다음 앱에 씁니다.</p></li>
+        <li><h3>iPhone과 iPad</h3><p>스크린샷 비율로 기기 종류를 알아서 정하고, 크기 슬롯은 에디터에서 고릅니다.</p></li>
+      </ul>
+    </div>
+  </section>
 
-  <h2>Installing</h2>
-  <ol class="steps">
-    <li><strong>Open the .dmg</strong> and drag Screenshot Studio into your Applications folder.</li>
-    <li><strong>Launch it</strong> — the app is signed and notarized by Apple, so it opens straight away, with no Gatekeeper detour.</li>
-    <li><strong>That's all</strong> — no account, no sign-in. Projects and screenshots stay on your Mac.</li>
-  </ol>
+  <section class="section" id="download">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>내 Mac 안에서만 동작합니다</h2>
+        <p>
+          계정도 로그인도 없습니다. 스크린샷과 프로젝트는 Mac을 떠나지 않고, 앱이 보내는 네트워크 요청은 끌 수
+          있는 업데이트 확인 하나뿐입니다.
+        </p>
+      </div>
+      <ol class="install">
+        <li><h3>다운로드</h3><p>GitHub 릴리스에서 .dmg를 받습니다. Apple Silicon과 Intel Mac 모두 같은 파일을 씁니다.</p></li>
+        <li><h3>Applications로 옮기기</h3><p>디스크 이미지를 열고 앱을 Applications 폴더로 끌어다 놓습니다.</p></li>
+        <li><h3>실행</h3><p>Apple 공증을 거친 앱이라 경고 없이 바로 열립니다.</p></li>
+      </ol>
+    </div>
+  </section>
 
-  <h2>Guides</h2>
-  <div class="guides">
-    <a href="guides/how-to-use.html">How to use the studio
-      <span>The full workflow — from first screenshot to uploaded set, including the AI-agent pipeline.</span></a>
-    <a href="guides/mcp-agent.html">Let an AI agent edit your screenshots
-      <span>Connect Claude Code over MCP and let it translate, patch and check the project you have open.</span></a>
-    <a href="guides/app-store-screenshot-sizes.html">App Store screenshot sizes (2026)
-      <span>Every required iPhone &amp; iPad resolution, format rules, and what Apple actually requires.</span></a>
-    <a href="guides/app-store-screenshot-localization.html">Localizing App Store screenshots
-      <span>A workflow that scales past 3 languages without multiplying design work.</span></a>
-    <a href="guides/upload-app-store-screenshots-fastlane.html">Uploading with fastlane deliver
-      <span>Folder layout, API keys, and a screenshots-only Deliverfile.</span></a>
-    <a href="guides/take-ios-simulator-screenshots.html">Taking iOS Simulator screenshots
-      <span>The simctl one-liner, the 9:41 status bar, and a loop that captures every locale.</span></a>
-    <a href="guides/app-store-screenshot-captions.html">Screenshot captions that convert
-      <span>Benefit-first copywriting patterns that survive thumbnail size.</span></a>
-  </div>
+  <section class="section" id="guides">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>가이드와 블로그</h2>
+      </div>
+      <div class="resources">
+        <div>
+          <h3>가이드</h3>
+          <ul class="link-list link-list--cols">
+            <li><a href="/guides/ko/how-to-use.html"><strong>사용법</strong><span>첫 스크린샷부터 업로드까지 전체 흐름</span></a></li>
+            <li><a href="/guides/ko/mcp-agent.html"><strong>AI 에이전트에게 편집 맡기기</strong><span>Claude Code를 MCP로 연결해 번역·수정·확인을 맡기는 법</span></a></li>
+            <li><a href="/guides/ko/app-store-screenshot-sizes.html"><strong>앱스토어 스크린샷 사이즈 2026</strong><span>필수 iPhone·iPad 해상도와 포맷 규칙</span></a></li>
+            <li><a href="/guides/ko/app-store-screenshot-localization.html"><strong>앱스토어 스크린샷 현지화</strong><span>언어가 늘어도 디자인 작업은 늘지 않는 워크플로</span></a></li>
+            <li><a href="/guides/ko/upload-app-store-screenshots-fastlane.html"><strong>fastlane deliver로 업로드</strong><span>폴더 구조, API 키, 스크린샷 전용 Deliverfile</span></a></li>
+            <li><a href="/guides/ko/take-ios-simulator-screenshots.html"><strong>iOS 시뮬레이터 스크린샷 찍기</strong><span>simctl 한 줄, 9:41 상태 바, 언어별 캡처</span></a></li>
+            <li><a href="/guides/ko/app-store-screenshot-captions.html"><strong>전환율을 높이는 스크린샷 카피</strong><span>썸네일 크기에서도 읽히는 베네핏 우선 헤드라인</span></a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>블로그</h3>
+          <ul class="link-list">
+            <li><a href="/blog/ko/why-i-built-screenshot-studio.html"><strong>완전 클라이언트사이드 스크린샷 스튜디오를 만든 이유</strong><span>2026년 6월 6일</span></a></li>
+            <li><a href="/blog/ko/2026-06-19-layout-autofix-agent-workflow.html"><strong>안전한 레이아웃 검사와 더 자율적인 에이전트 워크플로</strong><span>2026년 6월 19일</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <footer>
-    <p>
-      Open source under MIT — <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>.
-      Built by <a href="https://github.com/Hyunsang-coder">Hyunsang Joo</a>.
-      Runs entirely client-side: no analytics on your images, no upload, no account.
-    </p>
-    <p>
-      <a href="about.html">About</a> · <a href="privacy.html">Privacy policy</a>
-    </p>
-  </footer>
+  <section class="closing">
+    <div class="wrap">
+      <h2>다음 릴리스 스크린샷은 여기서 만드세요</h2>
+      <p>슬라이드는 한 번 디자인하고, 언어마다 App Store Connect 규격의 PNG를 받으세요.</p>
+      <div class="hero-actions" style="justify-content:center">
+        <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 무료 다운로드</a>
+        <a class="btn btn-secondary" href="https://github.com/Hyunsang-coder/auto-image">GitHub에서 소스 보기</a>
+      </div>
+    </div>
+  </section>
 </main>
-<script>
-  (function () {
-    var track = document.getElementById('shot-track');
-    var tabs = Array.prototype.slice.call(document.getElementById('shot-tabs').children);
-    var prev = document.getElementById('shot-prev');
-    var next = document.getElementById('shot-next');
-    var count = tabs.length;
-    function index() { return Math.round(track.scrollLeft / track.clientWidth); }
-    function go(i) {
-      i = Math.max(0, Math.min(count - 1, i));
-      track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
-    }
-    tabs.forEach(function (tab, i) { tab.addEventListener('click', function () { go(i); }); });
-    prev.addEventListener('click', function () { go(index() - 1); });
-    next.addEventListener('click', function () { go(index() + 1); });
-    track.addEventListener('scroll', function () {
-      var i = index();
-      tabs.forEach(function (tab, j) { tab.classList.toggle('active', j === i); });
-      prev.disabled = i === 0;
-      next.disabled = i === count - 1;
-    }, { passive: true });
-  })();
-</script>
+
+<!-- site:footer -->
+<footer class="site-footer">
+  <div class="wrap site-footer__grid">
+    <div class="site-footer__about">
+      <a class="brand" href="/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+      <p>App Store 스크린샷을 만드는 무료 오픈소스 Mac 앱.</p>
+      <details class="lang-menu lang-menu--up">
+        <summary aria-label="언어 선택, 현재 한국어"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>한국어</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/" lang="ko" hreflang="ko" aria-current="true">한국어<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+          <li><a href="/en/" lang="en" hreflang="en">English</a></li>
+        </ul>
+      </details>
+    </div>
+    <nav aria-label="제품">
+      <h2>제품</h2>
+      <ul>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 다운로드</a></li>
+        <li><a href="/#features">기능</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases">릴리스 노트</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image">소스 코드</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="가이드">
+      <h2>가이드</h2>
+      <ul>
+        <li><a href="/guides/ko/how-to-use.html">사용법</a></li>
+        <li><a href="/guides/ko/mcp-agent.html">AI 에이전트 연결</a></li>
+        <li><a href="/guides/ko/app-store-screenshot-sizes.html">스크린샷 사이즈</a></li>
+        <li><a href="/guides/ko/app-store-screenshot-localization.html">현지화</a></li>
+        <li><a href="/guides/ko/upload-app-store-screenshots-fastlane.html">fastlane 업로드</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="정보">
+      <h2>정보</h2>
+      <ul>
+        <li><a href="/ko/about.html">소개</a></li>
+        <li><a href="/blog/ko/why-i-built-screenshot-studio.html">블로그</a></li>
+        <li><a href="/ko/privacy.html">개인정보처리방침</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/issues">문의하기</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="wrap site-footer__bottom">
+    <p>© 2026 Hyunsang Joo. MIT 라이선스로 공개된 오픈소스입니다.</p>
+  </div>
+</footer>
+<script src="/site.js" defer></script>
+<!-- /site:footer -->
 <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
 </body>
 </html>

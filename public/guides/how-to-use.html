@@ -12,6 +12,7 @@
   <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/how-to-use.html" />
   <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/how-to-use.html" />
   <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/how-to-use.html" />
+  <script src="/lang.js"></script>
   <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
   <meta property="og:type" content="article" />
   <meta property="og:title" content="How to Use App Store Screenshot Studio — From Raw Screenshot to Uploaded Set" />
@@ -25,53 +26,58 @@
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "How to Use App Store Screenshot Studio — From Raw Screenshot to Uploaded Set",
-    "dateModified": "2026-06-06",
+    "dateModified": "2026-09-14",
     "author": { "@type": "Person", "name": "Hyunsang Joo" }
   }
   </script>
-  <style>
-    :root {
-      --border: #e3e1dc;
-      --text: #1f1d1a;
-      --dim: #6f6a62;
-      --accent: #4f46e5;
-      --surface: #faf9f7;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--text);
-      background: #fff;
-      line-height: 1.65;
-    }
-    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
-    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
-    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
-    h3 { font-size: 1.05rem; margin-top: 1.8em; letter-spacing: -0.01em; }
-    p.lead { color: var(--dim); font-size: 1.05rem; }
-    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
-    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
-    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-    th { background: var(--surface); font-weight: 600; }
-    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
-    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
-    pre code { background: none; border: none; padding: 0; }
-    .cta {
-      display: block; margin: 2.5em 0; padding: 18px 22px;
-      border: 1px solid var(--border); border-radius: 12px;
-      background: var(--surface); text-decoration: none; color: var(--text);
-    }
-    .cta strong { color: var(--accent); }
-    .cta:hover { border-color: var(--accent); }
-    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
-    a { color: var(--accent); }
-    ul, ol { padding-left: 1.2em; }
-  </style>
+  <link rel="stylesheet" href="/site.css" />
 </head>
 <body>
-<main>
-  <p class="lang"><a href="../">← App Store Screenshot Studio</a><a href="./ko/how-to-use.html">한국어로 읽기 →</a></p>
+<!-- site:header -->
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="/en/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/en/#features">Features</a>
+      <a href="/guides/how-to-use.html" aria-current="page">How to use</a>
+      <a href="/guides/mcp-agent.html">AI agents</a>
+      <a href="/en/#guides">Guides</a>
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+    </nav>
+    <div class="site-actions">
+      <details class="lang-menu">
+        <summary aria-label="Language, currently English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>English</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/guides/ko/how-to-use.html" lang="ko" hreflang="ko">한국어</a></li>
+          <li><a href="/guides/how-to-use.html" lang="en" hreflang="en" aria-current="true">English<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+        </ul>
+      </details>
+      <a class="btn btn-primary btn-sm" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download</a>
+      <details class="menu-toggle">
+        <summary aria-label="Menu"><svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></summary>
+        <div class="menu-panel">
+          <nav aria-label="Mobile">
+            <a href="/en/#features">Features</a>
+            <a href="/guides/how-to-use.html" aria-current="page">How to use</a>
+            <a href="/guides/mcp-agent.html">AI agents</a>
+            <a href="/en/#guides">Guides</a>
+            <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+          </nav>
+          <div class="menu-lang">
+            <a href="/guides/ko/how-to-use.html" lang="ko" hreflang="ko">한국어</a>
+            <a href="/guides/how-to-use.html" lang="en" hreflang="en" aria-current="true">English</a>
+          </div>
+          <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download for Mac</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<!-- /site:header -->
+
+<main id="main" class="article">
+  <p class="crumbs"><a href="/en/#guides">Guides</a></p>
   <h1>How to use App Store Screenshot Studio</h1>
   <p class="lead">
     The studio takes you from raw simulator screenshots to a complete, multi-language,
@@ -88,29 +94,32 @@
   </p>
   <ul>
     <li><strong>Start from a template</strong> — a designed multi-slide starter set that drops you straight into the editor.</li>
-    <li><strong>Import a project</strong> — select an AI-drafted file set (manifest + captions + screenshots, see below) and get a ready-to-review project in one pick.</li>
-    <li><strong>Open a project you already have</strong> — pick a <code>.studio.zip</code>, or one of the recent projects (<kbd>⌘O</kbd>).</li>
+    <li><strong>Import files</strong> — the card next to <strong>Open Project</strong>: select an AI-drafted file set (manifest + captions + screenshots, see below) and get a ready-to-review project in one pick.</li>
+    <li><strong>Open a project you already have</strong> — pick a <code>.studio.zip</code>, or one of the recent projects (<kbd>⌘O</kbd>). Your projects also sit as thumbnails under the start cards, and a <code>.studio.zip</code> dragged onto the window opens in place.</li>
   </ul>
   <p>
     However you start, the project becomes a <strong>file</strong> right away —
     <code>~/Documents/Screenshot Studio/</code> unless you save it elsewhere — so
     <kbd>⌘S</kbd>, <kbd>⇧⌘S</kbd> and the File menu work the way they do in any Mac app. The window
-    title is the file name, with a dot in front while there is something unsaved. Everything stays on
-    your Mac; nothing is sent anywhere.
+    title is the file name, with a dot in front while there is something unsaved. Your screenshots and
+    projects stay on your Mac; the only network request is a check for a newer version at launch, which
+    you can switch off with <strong>Check at Launch</strong> in the header's ⋯ menu.
   </p>
 
   <h2>Step 2 — Design in the editor</h2>
   <ul>
     <li><strong>Screenshots</strong> — upload one per slide; it's framed in the device automatically. Rotate, crop by edge-drag, or let the device bleed off the canvas for hero layouts.</li>
-    <li><strong>Text</strong> — headline and subheadline per slide with full typography control; drag to place, double-click to edit.</li>
+    <li><strong>Text</strong> — headline and subheadline per slide with full typography control; drag to place, double-click to edit. Wrap words in <code>==double equals==</code> to draw just those in the emphasis style — the markers live in the text, so they survive translation.</li>
     <li><strong>Highlights</strong> — draw a dashed source region on the screenshot and a magnified loupe card floats above the bezel.</li>
     <li><strong>Extras</strong> — badges (including laurel rating badges), vector ornaments like sparkles and hand-drawn circles and arrows, gradient/image backgrounds, and App-Store-style 2-page panoramas that span two slides.</li>
-    <li>Your slide set can be saved as a reusable template from the header.</li>
+    <li><strong>Save Design as Template</strong> in the header's ⋯ menu keeps the design without the screenshots as a new start card on the home screen.</li>
   </ul>
 
   <h2>Step 3 — Localize</h2>
   <p>
-    Captions live in a slide × language table. Three ways to fill it:
+    Captions live in a slide × language table. The fastest way to fill it: with the
+    <a href="./mcp-agent.html">MCP agent connected</a>, ask it to translate every missing
+    caption — it writes into the table live and adds new languages itself. By hand, three ways:
   </p>
   <ol>
     <li><strong>Type</strong> translations directly into the grid.</li>
@@ -121,8 +130,9 @@
     If your app's UI is localized, bulk-add per-language screenshots named
     <code>01-home.en.png</code>, <code>01-home.ko.png</code>, … — leading digits pick the
     slide, the suffix picks the locale. Languages without an override fall back to the base
-    screenshot. A preview dropdown in the editor shows any locale on the canvas before you
-    export. Full strategy in
+    screenshot. Pick a language from the editor's edit-language menu to see it on the canvas
+    before you export, and adjust position, size, background or device for that language
+    only — anything you don't touch follows the shared layout. Full strategy in
     <a href="./app-store-screenshot-localization.html">the localization guide</a>.
   </p>
 
@@ -130,10 +140,10 @@
   <p>
     One click renders every slide × language at the
     <a href="./app-store-screenshot-sizes.html">exact App Store Connect resolution</a>,
-    alpha-stripped so uploads never bounce, zipped as <code>locale/device/NN.png</code>.
-    The <strong>“ZIP for fastlane”</strong> button instead produces a ready-to-run
-    <a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver</a> folder —
-    unzip, set your bundle id and API key, run <code>./upload.sh</code>.
+    alpha-stripped so uploads never bounce, and writes them into a folder you choose as
+    <code>locale/device/NN.png</code>. The <strong>“fastlane folder”</strong> button instead
+    writes a ready-to-run <a href="./upload-app-store-screenshots-fastlane.html">fastlane deliver</a>
+    folder — set your bundle id and API key, run <code>./upload.sh</code>.
   </p>
 
   <h2>The AI-agent pipeline (zero clicks)</h2>
@@ -149,8 +159,9 @@
 ├── 01-home.ko.png
 └── 02-add.en.png</code></pre>
   <p>
-    A human can drop that folder into step 1's “Import project”. Or skip the browser
-    entirely with the headless pipeline from the
+    In the app, select those files together with step 1's <strong>Import files</strong> — it
+    takes the files, not the folder, and the window itself only accepts a dropped
+    <code>.studio.zip</code>. Or render them with no window at all, using the headless pipeline from the
     <a href="https://github.com/Hyunsang-coder/auto-image">repository</a>:
   </p>
   <pre><code>npm run headless:export -- launch-screenshots/ out/ --report
@@ -164,8 +175,13 @@ npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3
     and PNGs → apply safe manifest fixes → repeat until it converges. The manifest schema,
     naming rules, and layout autofix commands are documented in
     <a href="https://github.com/Hyunsang-coder/auto-image/blob/main/docs/project-import.md">docs/project-import.md</a>.
-    Requirements on the machine running it: Node, <code>@playwright/test</code> + Chromium, and
-    either a local checkout or <code>BASE_URL</code> pointed at the hosted studio.
+    Requirements on the machine running it: a checkout of the repository with
+    <code>npm install</code> done (Node, plus Playwright's Chromium). The script starts the dev
+    server itself; <code>BASE_URL</code> only points it at another build.
+  </p>
+  <p>
+    An AI agent can also drive the project you have open in the app instead of files — see
+    <a href="./mcp-agent.html">the MCP guide</a>.
   </p>
 
   <a class="cta" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">
@@ -196,13 +212,57 @@ npm run layout:loop -- launch-screenshots/ out/ --write --max-runs 3
     <li><a href="./app-store-screenshot-captions.html">App Store screenshot captions that convert</a></li>
   </ul>
 
-  <footer>
-    <p>
-      Written for <a href="../">App Store Screenshot Studio</a> (open source,
-      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>), June 2026.
-    </p>
-  </footer>
 </main>
+
+<!-- site:footer -->
+<footer class="site-footer">
+  <div class="wrap site-footer__grid">
+    <div class="site-footer__about">
+      <a class="brand" href="/en/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+      <p>A free, open-source Mac app for App Store screenshots.</p>
+      <details class="lang-menu lang-menu--up">
+        <summary aria-label="Language, currently English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>English</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/guides/ko/how-to-use.html" lang="ko" hreflang="ko">한국어</a></li>
+          <li><a href="/guides/how-to-use.html" lang="en" hreflang="en" aria-current="true">English<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+        </ul>
+      </details>
+    </div>
+    <nav aria-label="Product">
+      <h2>Product</h2>
+      <ul>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Download for Mac</a></li>
+        <li><a href="/en/#features">Features</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases">Release notes</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image">Source code</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="Guides">
+      <h2>Guides</h2>
+      <ul>
+        <li><a href="/guides/how-to-use.html">How to use</a></li>
+        <li><a href="/guides/mcp-agent.html">Connect an AI agent</a></li>
+        <li><a href="/guides/app-store-screenshot-sizes.html">Screenshot sizes</a></li>
+        <li><a href="/guides/app-store-screenshot-localization.html">Localization</a></li>
+        <li><a href="/guides/upload-app-store-screenshots-fastlane.html">fastlane upload</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="About">
+      <h2>About</h2>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/blog/why-i-built-screenshot-studio.html">Blog</a></li>
+        <li><a href="/privacy.html">Privacy policy</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/issues">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="wrap site-footer__bottom">
+    <p>© 2026 Hyunsang Joo. Open source under the MIT License.</p>
+  </div>
+</footer>
+<script src="/site.js" defer></script>
+<!-- /site:footer -->
 <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
 </body>
 </html>

@@ -12,6 +12,7 @@
   <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/guides/app-store-screenshot-sizes.html" />
   <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/guides/ko/app-store-screenshot-sizes.html" />
   <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/guides/app-store-screenshot-sizes.html" />
+  <script src="/lang.js"></script>
   <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
   <meta property="og:type" content="article" />
   <meta property="og:title" content="앱스토어 스크린샷 사이즈 2026 — 필수 iPhone·iPad 해상도 총정리" />
@@ -25,52 +26,59 @@
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "앱스토어 스크린샷 사이즈 2026 — 필수 iPhone·iPad 해상도 총정리",
-    "dateModified": "2026-06-06",
+    "dateModified": "2026-09-14",
     "inLanguage": "ko",
     "author": { "@type": "Person", "name": "Hyunsang Joo" }
   }
   </script>
-  <style>
-    :root {
-      --border: #e3e1dc;
-      --text: #1f1d1a;
-      --dim: #6f6a62;
-      --accent: #4f46e5;
-      --surface: #faf9f7;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--text);
-      background: #fff;
-      line-height: 1.65;
-    }
-    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
-    h1 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; }
-    h2 { font-size: 1.3rem; margin-top: 2.4em; letter-spacing: -0.01em; }
-    p.lead { color: var(--dim); font-size: 1.05rem; }
-    p.lang { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--dim); margin-bottom: 0; }
-    table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.95rem; }
-    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-    th { background: var(--surface); font-weight: 600; }
-    td code, p code, li code { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.88em; }
-    .req { color: var(--accent); font-weight: 600; }
-    .cta {
-      display: block; margin: 2.5em 0; padding: 18px 22px;
-      border: 1px solid var(--border); border-radius: 12px;
-      background: var(--surface); text-decoration: none; color: var(--text);
-    }
-    .cta strong { color: var(--accent); }
-    .cta:hover { border-color: var(--accent); }
-    footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--border); color: var(--dim); font-size: 0.88rem; }
-    a { color: var(--accent); }
-    ul { padding-left: 1.2em; }
-  </style>
+  <link rel="stylesheet" href="/site.css" />
 </head>
 <body>
-<main>
-  <p class="lang"><a href="../../">← App Store Screenshot Studio</a><a href="../app-store-screenshot-sizes.html">Read in English →</a></p>
+<!-- site:header -->
+<a class="skip-link" href="#main">본문으로 건너뛰기</a>
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+    <nav class="site-nav" aria-label="주요 메뉴">
+      <a href="/#features">기능</a>
+      <a href="/guides/ko/how-to-use.html">사용법</a>
+      <a href="/guides/ko/mcp-agent.html">AI 에이전트</a>
+      <a href="/#guides">가이드</a>
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+    </nav>
+    <div class="site-actions">
+      <details class="lang-menu">
+        <summary aria-label="언어 선택, 현재 한국어"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>한국어</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/guides/ko/app-store-screenshot-sizes.html" lang="ko" hreflang="ko" aria-current="true">한국어<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+          <li><a href="/guides/app-store-screenshot-sizes.html" lang="en" hreflang="en">English</a></li>
+        </ul>
+      </details>
+      <a class="btn btn-primary btn-sm" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">다운로드</a>
+      <details class="menu-toggle">
+        <summary aria-label="메뉴"><svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></summary>
+        <div class="menu-panel">
+          <nav aria-label="모바일 메뉴">
+            <a href="/#features">기능</a>
+            <a href="/guides/ko/how-to-use.html">사용법</a>
+            <a href="/guides/ko/mcp-agent.html">AI 에이전트</a>
+            <a href="/#guides">가이드</a>
+            <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+          </nav>
+          <div class="menu-lang">
+            <a href="/guides/ko/app-store-screenshot-sizes.html" lang="ko" hreflang="ko" aria-current="true">한국어</a>
+            <a href="/guides/app-store-screenshot-sizes.html" lang="en" hreflang="en">English</a>
+          </div>
+          <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 무료 다운로드</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<!-- /site:header -->
+
+<main id="main" class="article">
+  <p class="crumbs"><a href="/#guides">가이드</a></p>
   <h1>앱스토어 스크린샷 사이즈 2026 — 필수 iPhone·iPad 해상도 총정리</h1>
   <p class="lead">
     2026년 App Store Connect가 받아주는 정확한 픽셀 규격, 그중 실제로 업로드해야 하는
@@ -136,15 +144,15 @@
   <a class="cta" href="../../">
     <strong>App Store Screenshot Studio</strong> — 이 세트 전체를 내 Mac에서 디자인·현지화·
     내보내기하는 무료 오픈소스 macOS 앱. 디바이스 프레임, 헤드라인, 언어별 캡션과 스크린샷,
-    알파 채널이 제거된 정확한 규격의 PNG를 <code>locale/device/index.png</code> 구조의
-    ZIP으로. 계정도 업로드도 없습니다 — 이미지는 내 컴퓨터를 떠나지 않습니다. →
+    알파 채널이 제거된 정확한 규격의 PNG를 <code>locale/device/NN.png</code> 구조의
+    폴더로(웹에서는 ZIP으로). 계정도 업로드도 없습니다 — 이미지는 내 컴퓨터를 떠나지 않습니다. →
   </a>
 
   <h2>fastlane으로 업로드</h2>
   <p>
     배포가 잦다면 PNG를 브라우저에 일일이 끌어다 놓지 마세요. <a href="https://docs.fastlane.tools/actions/deliver/">fastlane deliver</a>는
     <code>screenshots/&lt;locale&gt;/&lt;name&gt;.png</code> 구조의 폴더를 API 키(.p8)로
-    App Store Connect에 바로 업로드합니다. 위 스튜디오의 “fastlane용 ZIP” 내보내기가
+    App Store Connect에 바로 업로드합니다. 위 스튜디오의 “fastlane 폴더” 내보내기가
     바로 그 구조에 <code>Deliverfile</code>까지 갖춰서 만들어 줍니다 — 전체 과정은
     <a href="./upload-app-store-screenshots-fastlane.html">fastlane 업로드 가이드</a>에서.
   </p>
@@ -167,16 +175,57 @@
     <li><a href="./app-store-screenshot-captions.html">전환율을 높이는 앱스토어 스크린샷 카피</a></li>
   </ul>
 
-  <footer>
-    <p>
-      <a href="../../">App Store Screenshot Studio</a>(오픈소스,
-      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>)를 위해 작성.
-      규격은 Apple의
-      <a href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/">스크린샷 사양</a>
-      기준으로 확인, 2026년 6월.
-    </p>
-  </footer>
 </main>
+
+<!-- site:footer -->
+<footer class="site-footer">
+  <div class="wrap site-footer__grid">
+    <div class="site-footer__about">
+      <a class="brand" href="/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+      <p>App Store 스크린샷을 만드는 무료 오픈소스 Mac 앱.</p>
+      <details class="lang-menu lang-menu--up">
+        <summary aria-label="언어 선택, 현재 한국어"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>한국어</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/guides/ko/app-store-screenshot-sizes.html" lang="ko" hreflang="ko" aria-current="true">한국어<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+          <li><a href="/guides/app-store-screenshot-sizes.html" lang="en" hreflang="en">English</a></li>
+        </ul>
+      </details>
+    </div>
+    <nav aria-label="제품">
+      <h2>제품</h2>
+      <ul>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 다운로드</a></li>
+        <li><a href="/#features">기능</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases">릴리스 노트</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image">소스 코드</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="가이드">
+      <h2>가이드</h2>
+      <ul>
+        <li><a href="/guides/ko/how-to-use.html">사용법</a></li>
+        <li><a href="/guides/ko/mcp-agent.html">AI 에이전트 연결</a></li>
+        <li><a href="/guides/ko/app-store-screenshot-sizes.html">스크린샷 사이즈</a></li>
+        <li><a href="/guides/ko/app-store-screenshot-localization.html">현지화</a></li>
+        <li><a href="/guides/ko/upload-app-store-screenshots-fastlane.html">fastlane 업로드</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="정보">
+      <h2>정보</h2>
+      <ul>
+        <li><a href="/ko/about.html">소개</a></li>
+        <li><a href="/blog/ko/why-i-built-screenshot-studio.html">블로그</a></li>
+        <li><a href="/ko/privacy.html">개인정보처리방침</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/issues">문의하기</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="wrap site-footer__bottom">
+    <p>© 2026 Hyunsang Joo. MIT 라이선스로 공개된 오픈소스입니다.</p>
+  </div>
+</footer>
+<script src="/site.js" defer></script>
+<!-- /site:footer -->
 <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
 </body>
 </html>

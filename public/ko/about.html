@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>소개 — App Store Screenshot Studio</title>
+  <meta
+    name="description"
+    content="App Store Screenshot Studio가 왜 있는지, 누가 만드는지, 어떤 원칙으로 만드는지: 내 Mac에서만 동작하고, MIT 오픈소스이며, 다국어 App Store 스크린샷 세트를 빠르게 내놓기 위해 만들었습니다."
+  />
+  <link rel="canonical" href="https://screenshotstudio.dev/ko/about.html" />
+  <link rel="alternate" hreflang="en" href="https://screenshotstudio.dev/about.html" />
+  <link rel="alternate" hreflang="ko" href="https://screenshotstudio.dev/ko/about.html" />
+  <link rel="alternate" hreflang="x-default" href="https://screenshotstudio.dev/about.html" />
+  <script src="/lang.js"></script>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="소개 — App Store Screenshot Studio" />
+  <meta
+    property="og:description"
+    content="이 스튜디오가 왜 있는지, 누가 만드는지, 그리고 그 원칙: 로컬 전용, 오픈소스, 다국어 스크린샷 세트를 위해."
+  />
+  <meta property="og:url" content="https://screenshotstudio.dev/ko/about.html" />
+  <link rel="stylesheet" href="/site.css" />
+</head>
+<body>
+<!-- site:header -->
+<a class="skip-link" href="#main">본문으로 건너뛰기</a>
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+    <nav class="site-nav" aria-label="주요 메뉴">
+      <a href="/#features">기능</a>
+      <a href="/guides/ko/how-to-use.html">사용법</a>
+      <a href="/guides/ko/mcp-agent.html">AI 에이전트</a>
+      <a href="/#guides">가이드</a>
+      <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+    </nav>
+    <div class="site-actions">
+      <details class="lang-menu">
+        <summary aria-label="언어 선택, 현재 한국어"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>한국어</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/ko/about.html" lang="ko" hreflang="ko" aria-current="true">한국어<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+          <li><a href="/about.html" lang="en" hreflang="en">English</a></li>
+        </ul>
+      </details>
+      <a class="btn btn-primary btn-sm" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">다운로드</a>
+      <details class="menu-toggle">
+        <summary aria-label="메뉴"><svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></summary>
+        <div class="menu-panel">
+          <nav aria-label="모바일 메뉴">
+            <a href="/#features">기능</a>
+            <a href="/guides/ko/how-to-use.html">사용법</a>
+            <a href="/guides/ko/mcp-agent.html">AI 에이전트</a>
+            <a href="/#guides">가이드</a>
+            <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>
+          </nav>
+          <div class="menu-lang">
+            <a href="/ko/about.html" lang="ko" hreflang="ko" aria-current="true">한국어</a>
+            <a href="/about.html" lang="en" hreflang="en">English</a>
+          </div>
+          <a class="btn btn-primary" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 무료 다운로드</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+<!-- /site:header -->
+
+<main id="main" class="article">
+  <h1>App Store Screenshot Studio 소개</h1>
+  <p class="lead">
+    스크린샷 원본을 다듬어진 다국어 App Store 세트로 바꿔 주는 무료 오픈소스 스튜디오입니다.
+    손으로 하나하나 만드는 데 지친 인디 개발자가 만들었습니다.
+  </p>
+
+  <h2>왜 만들었나</h2>
+  <p>
+    App Store 스크린샷은 무섭게 불어납니다. 슬라이드 6장 × iPhone과 iPad × 9개 언어면 픽셀까지 정확해야 하는
+    <strong>PNG가 108장</strong>이고, 레이아웃을 조금만 바꿔도 전부 다시 만들어야 합니다. 디자인 툴은 이미지를
+    한 장씩 따로 다루고, 스크린샷 SaaS는 이미지를 자기 서버에 올리고 구독하라고 합니다. 이 스튜디오는 세 번째
+    길을 택했습니다. 레이아웃은 하나, 캡션은 번역할 수 있는 데이터, 언어별 스크린샷은 파일 이름으로 연결하고,
+    App Store Connect 규격 그대로 한 번에 내보냅니다 — 전부 내 Mac 안에서.
+  </p>
+
+  <h2>원칙</h2>
+  <ul>
+    <li><strong>언제나 내 Mac에서.</strong> 계정도 업로드도 없습니다 — 스크린샷과 프로젝트는 내 Mac에 남습니다. 백엔드 자체가 없습니다(<a href="./privacy.html">개인정보처리방침</a> 참고).</li>
+    <li><strong>MIT 오픈소스.</strong> 전체 소스가 <a href="https://github.com/Hyunsang-coder/auto-image">GitHub</a>에 있습니다. 직접 실행하고, 포크하고, 이슈를 남겨 주세요.</li>
+    <li><strong>파일이 곧 인터페이스.</strong> 캡션은 CSV/JSON으로 주고받고, 프로젝트는 문서화된 매니페스트로 가져오고, 헤들리스 파이프라인은 창 없이 세트를 렌더합니다. 그래서 AI 어시스턴트와 스크립트도 일등 사용자입니다.</li>
+  </ul>
+
+  <h2>누가 만드나</h2>
+  <p>
+    현지화된 앱을 내는 인디 iOS 개발자 <a href="https://github.com/Hyunsang-coder">Hyunsang Joo</a>가 만듭니다.
+    직접 릴리스에 쓰는 도구라서 규격, 포맷, fastlane 업로드까지 App Store Connect가 실제로 받는 방식을 따라갑니다.
+    더 긴 제작기는 <a href="../blog/ko/why-i-built-screenshot-studio.html">블로그</a>에 있고, 연락은
+    <a href="https://github.com/Hyunsang-coder/auto-image/issues">GitHub 이슈</a>가 가장 빠릅니다.
+  </p>
+
+  <a class="cta" href="https://github.com/Hyunsang-coder/auto-image/releases/latest">
+    <strong>App Store Screenshot Studio Mac용 다운로드</strong> — 무료, 계정 없음,
+    이미지는 내 Mac을 떠나지 않습니다. →
+  </a>
+
+</main>
+
+<!-- site:footer -->
+<footer class="site-footer">
+  <div class="wrap site-footer__grid">
+    <div class="site-footer__about">
+      <a class="brand" href="/"><span class="brand-mark">AS3</span><span class="brand-name">App Store Screenshot Studio</span></a>
+      <p>App Store 스크린샷을 만드는 무료 오픈소스 Mac 앱.</p>
+      <details class="lang-menu lang-menu--up">
+        <summary aria-label="언어 선택, 현재 한국어"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span>한국어</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+        <ul class="lang-menu__list">
+          <li><a href="/ko/about.html" lang="ko" hreflang="ko" aria-current="true">한국어<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg></a></li>
+          <li><a href="/about.html" lang="en" hreflang="en">English</a></li>
+        </ul>
+      </details>
+    </div>
+    <nav aria-label="제품">
+      <h2>제품</h2>
+      <ul>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases/latest">Mac용 다운로드</a></li>
+        <li><a href="/#features">기능</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/releases">릴리스 노트</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image">소스 코드</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="가이드">
+      <h2>가이드</h2>
+      <ul>
+        <li><a href="/guides/ko/how-to-use.html">사용법</a></li>
+        <li><a href="/guides/ko/mcp-agent.html">AI 에이전트 연결</a></li>
+        <li><a href="/guides/ko/app-store-screenshot-sizes.html">스크린샷 사이즈</a></li>
+        <li><a href="/guides/ko/app-store-screenshot-localization.html">현지화</a></li>
+        <li><a href="/guides/ko/upload-app-store-screenshots-fastlane.html">fastlane 업로드</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="정보">
+      <h2>정보</h2>
+      <ul>
+        <li><a href="/ko/about.html">소개</a></li>
+        <li><a href="/blog/ko/why-i-built-screenshot-studio.html">블로그</a></li>
+        <li><a href="/ko/privacy.html">개인정보처리방침</a></li>
+        <li><a href="https://github.com/Hyunsang-coder/auto-image/issues">문의하기</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="wrap site-footer__bottom">
+    <p>© 2026 Hyunsang Joo. MIT 라이선스로 공개된 오픈소스입니다.</p>
+  </div>
+</footer>
+<script src="/site.js" defer></script>
+<!-- /site:footer -->
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2b2a4b6feb34287affc9b3f31c91b00"}'></script>
+</body>
+</html>

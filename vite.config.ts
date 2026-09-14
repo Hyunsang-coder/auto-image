@@ -10,9 +10,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     rollupOptions: {
-      // MPA: static landing at /, the React app at /app/.
+      // MPA: static landing at / (Korean) and /en/ (English), the React app at /app/.
       input: {
         landing: 'index.html',
+        landingEn: 'en/index.html',
         app: 'app/index.html',
       },
     },
