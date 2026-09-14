@@ -405,7 +405,7 @@ server.registerTool(
 
 // ---------------------------------------------------------------------------
 // Icons — Lucide (ISC, ~2000 icons) rasterized to PNG for use as external
-// images. Prettier and more on-brand than the emoji ornament set.
+// images, for marks the built-in ornament set doesn't cover.
 // ---------------------------------------------------------------------------
 
 const LUCIDE_DIR = join(ROOT, 'node_modules', 'lucide-static', 'icons')

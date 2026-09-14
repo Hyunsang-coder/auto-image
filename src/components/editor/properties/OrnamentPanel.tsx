@@ -1,38 +1,20 @@
-import type { Ornament, OrnamentShape } from '../../../types/project'
-import { makeOrnament } from '../../../constants/defaults'
-import { ORNAMENT_EMOJI } from '../../../canvas/objects/ornament'
+import type { EmojiOrnamentShape, Ornament, OrnamentShape, VectorOrnamentShape } from '../../../types/project'
+import { makeOrnament, ORNAMENT_SHAPES } from '../../../constants/defaults'
+import { ORNAMENT_EMOJI, ORNAMENT_LABELS, ORNAMENT_VECTORS } from '../../../canvas/objects/ornament'
+import { ColorPickerPopover } from '../../common/ColorPickerPopover'
 import { useT } from '../../../i18n'
 
 interface Props {
   value: Ornament[]
   onChange: (next: Ornament[]) => void
+  /** A new ornament's ink. Not the theme accent: on the default light look that is a pale background tint. */
+  inkColor?: string
 }
 
-const SHAPES: { id: OrnamentShape; label: string }[] = [
-  { id: 'star',     label: '별' },
-  { id: 'sparkles', label: '스파클' },
-  { id: 'heart',    label: '하트' },
-  { id: 'flower',   label: '꽃' },
-  { id: 'leaf',     label: '잎' },
-  { id: 'paw',      label: '발자국' },
-  { id: 'fire',     label: '불' },
-  { id: 'party',    label: '파티' },
-  { id: 'rocket',   label: '로켓' },
-  { id: 'bulb',     label: '전구' },
-  { id: 'bolt',     label: '번개' },
-  { id: 'check',    label: '체크' },
-  { id: 'thumbsup', label: '따봉' },
-  { id: 'trophy',   label: '트로피' },
-  { id: 'gem',      label: '보석' },
-  { id: 'target',   label: '과녁' },
-  { id: 'bell',     label: '벨' },
-  { id: 'hundred',  label: '백점' },
-]
-
-export function OrnamentPanel({ value, onChange }: Props) {
+export function OrnamentPanel({ value, onChange, inkColor }: Props) {
   const t = useT()
   function addShape(shape: OrnamentShape) {
-    onChange([...(value ?? []), makeOrnament(shape)])
+    onChange([...(value ?? []), makeOrnament(shape, inkColor ? { color: inkColor } : undefined)])
   }
 
   function update(id: string, patch: Partial<Ornament>) {
@@ -50,16 +32,16 @@ export function OrnamentPanel({ value, onChange }: Props) {
           {t('추가')}
         </label>
         <div className="grid grid-cols-3 gap-1.5">
-          {SHAPES.map((s) => (
+          {ORNAMENT_SHAPES.map((shape) => (
             <button
-              key={s.id}
+              key={shape}
               type="button"
-              onClick={() => addShape(s.id)}
+              onClick={() => addShape(shape)}
               className="flex flex-col items-center gap-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2 text-[10px] text-[var(--color-text-dim)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-text)]"
-              title={t(s.label)}
+              title={t(ORNAMENT_LABELS[shape])}
             >
-              <span className="text-base">{ORNAMENT_EMOJI[s.id]}</span>
-              {t(s.label)}
+              <OrnamentGlyph shape={shape} />
+              {t(ORNAMENT_LABELS[shape])}
             </button>
           ))}
         </div>
@@ -76,7 +58,10 @@ export function OrnamentPanel({ value, onChange }: Props) {
               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 space-y-2"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-[var(--color-text)]">{t(shapeLabel(orn.shape))}</span>
+                <span className="flex items-center gap-2 text-xs font-medium text-[var(--color-text)]">
+                  <OrnamentGlyph shape={orn.shape} />
+                  {t(ORNAMENT_LABELS[orn.shape] ?? orn.shape)}
+                </span>
                 <button
                   type="button"
                   onClick={() => remove(orn.id)}
@@ -85,6 +70,17 @@ export function OrnamentPanel({ value, onChange }: Props) {
                   {t('삭제')}
                 </button>
               </div>
+
+              {orn.shape in ORNAMENT_VECTORS && (
+                <div>
+                  <label className="mb-2 block text-xs text-[var(--color-text-dim)]">{t('색상')}</label>
+                  <ColorPickerPopover
+                    color={orn.color}
+                    onChange={(c) => update(orn.id, { color: c })}
+                    label={t('색상')}
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <NumberSlider
@@ -143,8 +139,26 @@ export function OrnamentPanel({ value, onChange }: Props) {
   )
 }
 
-function shapeLabel(shape: OrnamentShape): string {
-  return SHAPES.find((s) => s.id === shape)?.label ?? shape
+function OrnamentGlyph({ shape }: { shape: OrnamentShape }) {
+  const vector = ORNAMENT_VECTORS[shape as VectorOrnamentShape]
+  if (!vector) {
+    return <span className="text-base leading-none">{ORNAMENT_EMOJI[shape as EmojiOrnamentShape]}</span>
+  }
+  const [w, h] = vector.box
+  // Non-scaling strokes: at icon size the artboard strokes would shrink to hairlines.
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-5 w-7 overflow-visible" aria-hidden="true">
+      <path
+        d={vector.d}
+        fill={vector.fill ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth={vector.fill ? 1 : 1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
 }
 
 interface NumberSliderProps {

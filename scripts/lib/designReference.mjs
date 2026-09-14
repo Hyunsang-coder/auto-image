@@ -13,6 +13,7 @@ import {
   MAX_SHAPES,
   MAX_TEXTS,
   ORNAMENT_DEFAULTS,
+  ORNAMENT_SHAPES,
   SHAPE_DEFAULTS,
   SUPPORTED_LOCALES,
   THEME_PRESETS,
@@ -33,7 +34,7 @@ export function buildDesignReference() {
     // (patch). Non-Pretendard families are Latin display faces; Korean glyphs
     // fall back to Pretendard automatically.
     fontFamilies: FONT_OPTIONS.map((f) => f.family),
-    ornamentShapes: ORNAMENT_DEFAULTS,
+    ornamentShapes: Object.fromEntries(ORNAMENT_SHAPES.map((shape) => [shape, ORNAMENT_DEFAULTS[shape]])),
     // slides[].shapes kinds with their add-defaults; geometry fields are
     // canvas fractions (x/y center, width of canvas W, height of canvas H).
     shapeKinds: SHAPE_DEFAULTS,
@@ -73,6 +74,9 @@ export function buildDesignReference() {
       'All px values in manifests/patches (fontSize, paddings, outline width, shadow offsets) are relative to the ' +
         `${EDITOR_CANVAS_WIDTH}px editor canvas and scale to export resolution automatically.`,
       'One device type per project; type is auto-detected from screenshot aspect ratio.',
+      'Ornaments are single-colour vector marks inked in `color`; `size` is their width and each shape keeps its own ' +
+        'aspect ratio. hand-circle, hand-arrow and hand-check paint above the device and text (annotations); the rest sit ' +
+        'behind the device. Emoji ornament ids from older projects (star, sparkles, fire, …) still import and render but are not offered.',
       'Total exported PNGs = slides × locales, grouped {locale}/{device}/NN.png.',
     ],
   }

@@ -2,6 +2,7 @@ import type { ShapeKind, Slide } from '../../types/project'
 import type { ObjIdentity } from './FabricCanvas'
 import { LAYER_NAMES } from '../../canvas/layerNames'
 import { markerOf } from '../../canvas/objects/highlight'
+import { isFrontOrnament, ORNAMENT_LABELS } from '../../canvas/objects/ornament'
 import { SHAPE_KINDS } from '../../constants/defaults'
 import { MenuButton } from '../common/MenuButton'
 import { PANEL_SECTIONS, type PanelTab } from './properties/sections'
@@ -104,6 +105,16 @@ function buildRows(slide: Slide, follower: Slide | null | undefined, t: (k: stri
     })
   }
 
+  const ornaments = slide.ornaments ?? []
+  for (const o of ornaments.filter((o) => isFrontOrnament(o.shape))) {
+    rows.push({
+      id: { layerName: LAYER_NAMES.ORNAMENT, ornamentId: o.id },
+      label: t(ORNAMENT_LABELS[o.shape] ?? o.shape),
+      glyph: '✦',
+      group: t('장식 (앞)'),
+    })
+  }
+
   const front = shapes.filter((s) => s.layer === 'front')
   for (const s of front) {
     rows.push({
@@ -152,10 +163,10 @@ function buildRows(slide: Slide, follower: Slide | null | undefined, t: (k: stri
     })
   }
 
-  for (const o of slide.ornaments ?? []) {
+  for (const o of ornaments.filter((o) => !isFrontOrnament(o.shape))) {
     rows.push({
       id: { layerName: LAYER_NAMES.ORNAMENT, ornamentId: o.id },
-      label: o.shape,
+      label: t(ORNAMENT_LABELS[o.shape] ?? o.shape),
       glyph: '✦',
       group: t('장식'),
     })

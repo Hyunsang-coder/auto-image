@@ -525,10 +525,32 @@ export function presetFromSlide(slide: Slide, label: string): ThemePreset {
  *  Everything captured is deep-cloned so the stored template never shares a
  *  mutable object (background, caption translations, badge styles) with the
  *  live slide. */
+/** Ornaments offered for new additions, in picker order. */
+export const ORNAMENT_SHAPES = [
+  'sparkle',
+  'sparkle-trio',
+  'star-filled',
+  'quote',
+  'hand-underline',
+  'hand-circle',
+  'hand-arrow',
+  'hand-check',
+  'heart-filled',
+] as const satisfies readonly OrnamentShape[]
+
 // 모양별로 기본 위치/크기를 다르게 잡아서 추가하자마자 바로 보이게 한다.
-// color는 이모지엔 적용되지 않지만 데이터 모델 호환을 위해 유지한다.
-// Module-scope so manifest import can validate shape names against the keys.
+// Module-scope so manifest import can validate shape names against the keys —
+// the emoji entries stay so saved and exported projects still import.
 export const ORNAMENT_DEFAULTS: Record<OrnamentShape, Partial<Ornament>> = {
+  'sparkle':        { x: 0.86, y: 0.07, size: 0.06, rotation: 0,  opacity: 1 },
+  'sparkle-trio':   { x: 0.85, y: 0.08, size: 0.10, rotation: 0,  opacity: 1 },
+  'star-filled':    { x: 0.86, y: 0.07, size: 0.07, rotation: 0,  opacity: 1 },
+  'quote':          { x: 0.50, y: 0.06, size: 0.12, rotation: 0,  opacity: 1 },
+  'hand-underline': { x: 0.50, y: 0.20, size: 0.45, rotation: 0,  opacity: 1 },
+  'hand-circle':    { x: 0.50, y: 0.45, size: 0.70, rotation: 0,  opacity: 1 },
+  'hand-arrow':     { x: 0.80, y: 0.28, size: 0.16, rotation: 0,  opacity: 1 },
+  'hand-check':     { x: 0.18, y: 0.30, size: 0.10, rotation: 0,  opacity: 1 },
+  'heart-filled':   { x: 0.86, y: 0.07, size: 0.07, rotation: 0,  opacity: 1 },
   'star':      { x: 0.50, y: 0.30, size: 0.12, rotation: 0,  opacity: 1 },
   'sparkles':  { x: 0.85, y: 0.16, size: 0.14, rotation: 0,  opacity: 1 },
   'heart':     { x: 0.85, y: 0.16, size: 0.12, rotation: 0,  opacity: 1 },
@@ -562,7 +584,7 @@ export function makeOrnament(shape: OrnamentShape, overrides?: Partial<Ornament>
     y: base.y ?? 0.5,
     size: base.size ?? 0.1,
     rotation: base.rotation ?? 0,
-    color: base.color ?? '#FFFFFF',
+    color: base.color ?? '#1A1A2E',
     opacity: base.opacity ?? 1,
     ...overrides,
   }

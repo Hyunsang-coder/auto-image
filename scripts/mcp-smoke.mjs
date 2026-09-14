@@ -65,7 +65,7 @@ try {
   const refs = await client.callTool({ name: 'get_design_reference', arguments: {} })
   const data = JSON.parse(refs.content[0].text)
   check(data.themePresets.some((p) => p.id === 'porcelain'), 'design reference lists theme preset ids')
-  check(Object.keys(data.ornamentShapes).includes('sparkles'), 'design reference lists ornament shapes')
+  check(Object.keys(data.ornamentShapes).includes('sparkle'), 'design reference lists ornament shapes')
   check(data.deviceModels.some((m) => m.model === 'iphone-16-pro' && m.exportWidth === 1320), 'design reference lists device models')
   check(data.locales.some((l) => l.code === 'pt-BR'), 'design reference lists locales')
   check(data.fontFamilies.includes('Fraunces'), 'design reference lists font families')

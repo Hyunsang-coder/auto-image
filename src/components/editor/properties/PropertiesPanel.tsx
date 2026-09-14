@@ -177,6 +177,7 @@ export function PropertiesPanel({
           <OrnamentPanel
             value={slide.ornaments ?? []}
             onChange={onOrnamentsChange}
+            inkColor={slide.texts[0]?.style.color}
           />
         )}
         {tab === 'badge' && (

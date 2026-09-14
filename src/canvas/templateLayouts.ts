@@ -20,7 +20,7 @@ import {
   markerOf,
 } from './objects/highlight'
 import { placeHighlightCards, type Box } from '../lib/highlightPlacement'
-import { renderOrnament } from './objects/ornament'
+import { isFrontOrnament, renderOrnament } from './objects/ornament'
 import { renderShape } from './objects/shape'
 import { LAYER_NAMES } from './layerNames'
 import { loadImageObjectUrl, type ImageUrlResolver } from '../lib/imageStore'
@@ -536,8 +536,10 @@ export async function applyTemplate(
   }
 
   // 2. Ornaments (above bg, below content). 우리가 화면 어디서든 dragging 할 수 있도록 selectable로 둔다.
+  // Annotation ornaments wait for 4.6.
   if (slide.ornaments) {
     for (const orn of slide.ornaments) {
+      if (isFrontOrnament(orn.shape)) continue
       const obj = renderOrnament(orn, { canvasWidth: cw, canvasHeight: ch })
       if (obj) canvas.add(obj)
     }
@@ -588,6 +590,14 @@ export async function applyTemplate(
     if (shape.layer === 'front') {
       canvas.add(renderShape(shape, { canvasWidth: cw, canvasHeight: ch }))
     }
+  }
+
+  // 4.6 Annotation ornaments (hand-drawn circle/arrow/check) — above the device
+  // and text they point at, below highlights/badges.
+  for (const orn of slide.ornaments ?? []) {
+    if (!isFrontOrnament(orn.shape)) continue
+    const obj = renderOrnament(orn, { canvasWidth: cw, canvasHeight: ch })
+    if (obj) canvas.add(obj)
   }
 
   // 5. External bitmap images — independent foreground assets.

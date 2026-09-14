@@ -14,7 +14,18 @@ export type DeviceColor = 'black' | 'silver'
 export type BackgroundType = 'solid' | 'gradient' | 'image'
 export type TranslationAPI = 'claude' | 'openai' | 'gemini'
 export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'arrow'
-export type OrnamentShape =
+export type VectorOrnamentShape =
+  | 'sparkle'
+  | 'sparkle-trio'
+  | 'star-filled'
+  | 'quote'
+  | 'hand-underline'
+  | 'hand-circle'
+  | 'hand-arrow'
+  | 'hand-check'
+  | 'heart-filled'
+/** No longer offered for new ornaments; kept so saved projects still render them. */
+export type EmojiOrnamentShape =
   | 'star'
   | 'sparkles'
   | 'heart'
@@ -33,6 +44,7 @@ export type OrnamentShape =
   | 'target'
   | 'bell'
   | 'hundred'
+export type OrnamentShape = VectorOrnamentShape | EmojiOrnamentShape
 
 export interface Project {
   id: string

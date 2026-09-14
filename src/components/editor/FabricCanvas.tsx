@@ -879,7 +879,7 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           const newX = left / w
           const newY = top / h
           const newRot = Math.round(fab.angle ?? 0)
-          // Emoji glyphs are Text — recover size from the scaled glyph width.
+          // Size is the rendered width, whether a vector path or a legacy emoji glyph.
           const newSize = fab.getScaledWidth() / w
           if (
             Math.abs(newX - orn.x) > 0.001 ||

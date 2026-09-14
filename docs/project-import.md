@@ -52,7 +52,7 @@
 | `slides[].background` | string \| object | 테마 배경 | 슬라이드별 오버라이드 |
 | `slides[].deviceFrame` | boolean \| object | `false` | 기본은 베젤 숨김(스크린샷만 플로팅). `true` = 기기 베젤 표시. 객체형은 `show: true`를 명시해야 베젤이 나오며 아래 [기기 transform](#기기-transform--플로팅-카드--장식-디자인-노브) 적용 |
 | `slides[].screenshotStyle` | object | — | 플로팅 카드 룩(베젤 숨김일 때 적용) — 아래 참조 |
-| `slides[].ornaments` | array | — | 이모지 장식, 슬라이드당 최대 5개 — 아래 참조 |
+| `slides[].ornaments` | array | — | 단색 벡터 장식, 슬라이드당 최대 5개 — 아래 참조 |
 | `slides[].shapes` | array | — | 벡터 도형(rect/ellipse/line/arrow), 슬라이드당 최대 8개 — 아래 참조 |
 | `slides[].externalImages` | array | — | 기기 스크린샷과 독립된 bitmap 이미지, 슬라이드당 최대 3개. 각 항목의 `file`은 같이 선택한 이미지 파일명. 렌더 스타일은 `screenshotStyle`과 같은 `cornerRadiusRatio`/`shadow`/`crop`을 사용 |
 | `slides[].texts` | array | — | **블록별 텍스트 스타일/위치 오버라이드**(폰트·색·정렬·박스 등) — 아래 참조 |
@@ -91,8 +91,8 @@
     "shadow": true,
     "crop": { "top": 0, "right": 0, "bottom": 0.05, "left": 0 } // 각 변 0–0.5 잘라내기
   },
-  "ornaments": [             // 이모지 장식, 최대 5개. 미지원 shape는 경고 후 제외
-    { "shape": "sparkles", "x": 0.88, "y": 0.12, "size": 0.10, "rotation": 0, "opacity": 0.85 }
+  "ornaments": [             // 단색 벡터 장식, 최대 5개. 미지원 shape는 경고 후 제외
+    { "shape": "sparkle", "x": 0.88, "y": 0.12, "size": 0.06, "rotation": 0, "color": "#D97706", "opacity": 0.85 }
   ],
   "shapes": [                // 벡터 도형, 최대 8개. 미지원 kind는 경고 후 제외
     { "kind": "rect", "x": 0.5, "y": 0.3, "width": 0.5, "height": 0.2,
@@ -121,9 +121,14 @@
 
 - `screenshotStyle`은 항상 파싱·저장되지만 **렌더는 베젤 숨김일 때만 반영**된다
   (베젤이 보이면 기기 형태가 모양을 정의). 미리 넣어둬도 무해.
-- ornament `shape` 18종: `star sparkles heart flower leaf paw fire party rocket
-  bulb bolt check thumbsup trophy gem target bell hundred`. 이모지로 렌더되므로
-  `color`는 받아두지만 적용되지 않는다. `x`/`y`/`size`는 캔버스 비율(0–1).
+- ornament `shape` 9종: `sparkle sparkle-trio star-filled quote hand-underline
+  hand-circle hand-arrow hand-check heart-filled`. `color` 한 색으로 칠한다.
+  손그림 동그라미·화살표·체크는 가리키는 UI가 보이도록 기기·텍스트 **위**에, 나머지는
+  기기 아래에 그린다.
+  `x`/`y`는 중심, `size`는 가로 폭 — 모두 캔버스 비율(0–1). 가로세로 비율은 모양마다
+  고정이라 늘려서 맞출 수 없다 — 박스를 정확히 감싸야 하면 `shapes`의 `ellipse`.
+  예전 이모지 18종(`star sparkles heart … hundred`)도 옛 프로젝트를 위해 받아서
+  그대로 렌더하지만 새로 쓰지 말 것.
 - shape `kind` 4종: `rect`(둥근 모서리 `cornerRadiusRatio` 0–0.5, 짧은 변 기준
   비율) · `ellipse` · `line`(끝이 둥근 선) · `arrow`(오른쪽 화살촉 — `rotation`
   으로 방향을 잡는다). `x`/`y`는 도형 중심(-0.5~1.5, 캔버스 밖 블리드 허용),
