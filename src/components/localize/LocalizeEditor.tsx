@@ -451,7 +451,7 @@ export function LocalizeEditor() {
           </div>
         </div>
 
-        {/* Manual fallback: the agent path above is the primary one. */}
+        {/* Manual fallback: a connected MCP agent fills this table directly. */}
         <div>
           <div className="mb-1.5 text-xs text-[var(--color-text-dim)]">{t('번역 양식 (수동)')}</div>
           <div className="grid grid-cols-2 gap-2">
