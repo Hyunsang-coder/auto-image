@@ -225,6 +225,8 @@ export const DEFAULT_BADGE_STYLE: BadgeStyle = {
   fontWeight: 600,
 }
 
+export const LAUREL_MAX_STARS = 5
+
 export const CAPTION_FONT_SIZE_MIN = 10
 export const CAPTION_FONT_SIZE_MAX = 300
 
@@ -496,7 +498,12 @@ export function themePresetPatch(slide: Slide, preset: ThemePreset): Partial<Sli
     })),
     badges: (slide.badges ?? []).map((b) => ({
       ...b,
-      style: { ...b.style, backgroundColor: preset.accentColor, textColor: readableTextOn(preset.accentColor) },
+      style: {
+        ...b.style,
+        backgroundColor: preset.accentColor,
+        // A laurel has no background to sit on, so it takes the headline's ink.
+        textColor: b.style.variant === 'laurel' ? preset.headlineColor : readableTextOn(preset.accentColor),
+      },
     })),
   }
 }

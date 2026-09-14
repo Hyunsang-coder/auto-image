@@ -394,6 +394,10 @@ export interface BadgeStyle {
   fontWeight: number
   icon?: string
   iconPosition?: 'left' | 'right'
+  /** `laurel` draws no background: laurel branches flank the text, all inked in textColor. */
+  variant?: 'pill' | 'laurel'
+  /** Laurel only: a row of 0–5 stars under the first line. */
+  stars?: number
 }
 
 /**

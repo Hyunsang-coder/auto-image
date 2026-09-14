@@ -245,6 +245,17 @@ describe('set (whitelisted paths)', () => {
     expect(p.slides[0].badges[0].style.backgroundColor).toBe('#ff0000')
   })
 
+  it('switches a badge to laurel, clamping stars and ignoring an unknown variant', () => {
+    const { project: p, issues } = applyPatch(project(), [
+      { op: 'set', slide: 1, path: 'badges[0].style', value: { variant: 'laurel', stars: 9 } },
+      { op: 'set', slide: 1, path: 'badges[0].style.variant', value: 'ribbon' },
+    ])
+    expect(p.slides[0].badges[0].style.variant).toBe('laurel')
+    expect(p.slides[0].badges[0].style.stars).toBe(5)
+    expect(issues.some((i) => i.includes('badge.style.stars'))).toBe(true)
+    expect(issues.some((i) => i.includes('badge.style.variant'))).toBe(true)
+  })
+
   it('replaces shapes whole-array with clamps; rejects a follower write', () => {
     const { project: p, issues } = applyPatch(project(), [
       {

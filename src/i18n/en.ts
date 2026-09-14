@@ -211,6 +211,10 @@ export const en: Record<string, string> = {
   텍스트색: 'Text color',
   '세로 위치': 'Vertical position',
   모서리: 'Corner radius',
+  알약: 'Pill',
+  월계관: 'Laurel',
+  '별 개수': 'Stars',
+  '둘째 줄은 별 아래 작은 글씨로 들어가요': 'A second line goes under the stars in smaller type',
 
   // EditorLayout.tsx
   'App Store 스크린샷 사이즈 — 이 타입의 모든 슬라이드가 이 해상도로 export됩니다. 다른 기기를 고르면 슬라이드가 그 기기로 전환됩니다.':
@@ -361,6 +365,8 @@ export const en: Record<string, string> = {
     '{where}: badge.style.backgroundColor must be a string — ignored',
   '{where}: badge.style.textColor는 문자열 — 무시':
     '{where}: badge.style.textColor must be a string — ignored',
+  '{where}: badge.style.variant는 pill 또는 laurel — 무시':
+    '{where}: badge.style.variant must be pill or laurel — ignored',
   '{where}: span은 {group, role} 객체여야 함 — 무시':
     '{where}: span must be a {group, role} object — ignored',
   '{where}: span.group이 필요 — span 무시':

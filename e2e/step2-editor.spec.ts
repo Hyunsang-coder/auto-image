@@ -411,6 +411,20 @@ test('Undo가 텍스트 드래그를 되돌리고, 되돌림이 슬라이드 전
   expect(Math.abs(afterSwitch.left - orig.left)).toBeLessThan(10)
 })
 
+test('배지를 월계관으로 바꾸면 별 개수가 생기고 배경색·모서리는 사라짐', async ({ page }) => {
+  await openSection(page, '배지')
+  await page.getByRole('button', { name: '추가', exact: true }).click()
+  const panel = page.locator('aside').last()
+  await expect(panel.getByText('모서리')).toBeVisible()
+
+  await panel.getByRole('button', { name: '월계관' }).click()
+
+  await expect(panel.getByRole('button', { name: '월계관' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(panel.getByText('별 개수')).toBeVisible()
+  await expect(panel.getByText('모서리')).toHaveCount(0)
+  await expect(panel.getByText('배경색')).toHaveCount(0)
+})
+
 test('Step 3(로컬라이즈)로 이동 가능', async ({ page }) => {
   await page.getByRole('button', { name: /로컬라이즈/ }).click()
   // 로컬라이즈 에디터 헤더 확인

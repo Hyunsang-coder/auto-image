@@ -47,7 +47,9 @@ function shallowStyleEqual(a: Badge['style'], b: Badge['style']): boolean {
     a.fontSize === b.fontSize &&
     a.fontWeight === b.fontWeight &&
     a.icon === b.icon &&
-    a.iconPosition === b.iconPosition
+    a.iconPosition === b.iconPosition &&
+    a.variant === b.variant &&
+    a.stars === b.stars
   )
 }
 

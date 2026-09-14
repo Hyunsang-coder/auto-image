@@ -134,6 +134,14 @@ describe('routeLocalePatch', () => {
     expect(base.localeOverrides).toBeUndefined()
   })
 
+  it('routes a locale-mode badge variant switch to the shared base style', () => {
+    const style = { backgroundColor: '#fff', textColor: '#000', borderRadius: 99, paddingX: 8, paddingY: 4, fontSize: 20, fontWeight: 600 }
+    const badge = { id: 'b1', text: 'Hello', translations: {}, style, top: 0.1 }
+    const base = baseSlide({ badges: [badge] })
+    const out = routeLocalePatch(base, 'fr', { badges: [{ ...badge, style: { ...style, variant: 'laurel' as const } }] })
+    expect(out.badges?.[0].style.variant).toBe('laurel')
+  })
+
   // Badge text is per-locale via translations (see resolveSlideForLocale), so
   // a locale-mode text edit must land there — writing the whole array to the
   // base would repaint every locale and destroy the source text.

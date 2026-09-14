@@ -36,6 +36,7 @@ import {
   DEFAULT_HIGHLIGHT_RIM,
   DEFAULT_HIGHLIGHT_ZOOM,
   DEFAULT_MARKER,
+  LAUREL_MAX_STARS,
   HIGHLIGHT_ZOOM_MAX,
   HIGHLIGHT_ZOOM_MIN,
   MAX_BACKGROUND_BLOBS,
@@ -189,7 +190,7 @@ export interface ParsedBadge {
   text?: string
   left?: number
   top?: number
-  style?: Partial<Pick<BadgeStyle, 'backgroundColor' | 'textColor' | 'borderRadius' | 'paddingX' | 'paddingY' | 'fontSize' | 'fontWeight'>>
+  style?: Partial<Pick<BadgeStyle, 'backgroundColor' | 'textColor' | 'borderRadius' | 'paddingX' | 'paddingY' | 'fontSize' | 'fontWeight' | 'variant' | 'stars'>>
 }
 
 export interface ParsedSpan {
@@ -675,6 +676,12 @@ export function coerceBadgeStyle(
   if (fontSize !== undefined) style.fontSize = fontSize
   const fontWeight = coerceNumber(raw.fontWeight, FONT_WEIGHT_MIN, FONT_WEIGHT_MAX, where, 'badge.style.fontWeight', issues)
   if (fontWeight !== undefined) style.fontWeight = fontWeight
+  if (raw.variant !== undefined) {
+    if (raw.variant === 'pill' || raw.variant === 'laurel') style.variant = raw.variant
+    else issues.push(t('{where}: badge.style.variant는 pill 또는 laurel — 무시', { where }))
+  }
+  const stars = coerceNumber(raw.stars, 0, LAUREL_MAX_STARS, where, 'badge.style.stars', issues)
+  if (stars !== undefined) style.stars = Math.round(stars)
   return Object.keys(style).length ? style : undefined
 }
 

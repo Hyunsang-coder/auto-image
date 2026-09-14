@@ -159,6 +159,8 @@ function reverseBadge(b: Badge, where: string, issues: string[]): Record<string,
       paddingY: b.style.paddingY,
       fontSize: b.style.fontSize,
       fontWeight: b.style.fontWeight,
+      ...(b.style.variant ? { variant: b.style.variant } : {}),
+      ...(b.style.stars !== undefined ? { stars: b.style.stars } : {}),
     },
   }
 }

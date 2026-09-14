@@ -180,7 +180,7 @@ export function PropertiesPanel({
           />
         )}
         {tab === 'badge' && (
-          <BadgePanel value={slide.badges} onChange={onBadgesChange} />
+          <BadgePanel value={slide.badges} onChange={onBadgesChange} inkColor={slide.texts[0]?.style.color} />
         )}
       </div>
     </aside>

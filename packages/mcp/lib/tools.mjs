@@ -74,7 +74,11 @@ export function registerKnowledgeTools(server, { readImportSpec, designReference
   gradient {from,to,angle} — a linear text fill, angle 0=left→right 90=top→bottom,
   and emphasis {color?,fontWeight?} — painted onto ==word== marker ranges written
   inside caption text/translation strings via setText),
-  badges[i].style.*, ornaments,
+  badges[i].style.* (variant: pill|laurel — laurel drops the background and flanks
+  the text with laurel branches, all inked in textColor; stars: 0–5 adds a star row
+  under the first line; a "\\n" in the badge text puts a smaller second line under
+  the stars. Never put Apple recognitions — Editors' Choice, App of the Day — on a
+  badge: the App Store asset guidelines forbid them), ornaments,
 highlights (whole-array; items {sourceRegion {x,y,w,h} — fractions of the
 SCREENSHOT box, not the canvas (live_inspect reports it as
 screenshot.canvasRect) — marker {show,color}, popup {zoom, auto, connector,

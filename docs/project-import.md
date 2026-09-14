@@ -209,12 +209,20 @@
         "fontWeight": 800,
         "paddingX": 14,
         "paddingY": 7,
-        "borderRadius": 99
+        "borderRadius": 99,
+        "variant": "pill",      // "pill"(기본) | "laurel"
+        "stars": 5              // laurel 전용, 0–5
       }
     }
   ]
 }
 ```
+
+`variant: "laurel"`은 배경 없이 월계관 가지가 텍스트 양옆을 감싸고, `textColor` 하나로
+가지·별·글자를 모두 칠한다(`backgroundColor`/`borderRadius`/`padding`은 쓰이지 않음).
+`stars`는 첫 줄 아래 별 줄이고, 배지 텍스트에 줄바꿈(`\n`)을 넣으면 둘째 줄이 별 아래
+작은 글씨로 들어간다 — 예: `"4.9\n리뷰 5만 개"`. Editor's Choice·App of the Day 같은
+Apple이 준 상은 넣지 말 것(App Store 에셋 가이드라인 위반).
 
 ### 2-page span (`slides[].span`)
 
