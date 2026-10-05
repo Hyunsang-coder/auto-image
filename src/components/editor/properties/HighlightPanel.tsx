@@ -348,7 +348,7 @@ export function HighlightPanel({
 
           {!lens && (<>
           <Group label={t('원본 표시')}>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
                 <input
                   type="checkbox"
@@ -401,7 +401,7 @@ export function HighlightPanel({
           </>)}
 
           <Group label={t('테두리')}>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
                 <input
                   type="checkbox"
