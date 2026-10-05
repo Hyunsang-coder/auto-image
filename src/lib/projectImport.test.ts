@@ -461,6 +461,16 @@ describe('parseManifest normalization', () => {
     expect(r.issues.some((i) => i.includes('box.fill'))).toBe(true)
   })
 
+  it('a lens highlight keeps no auto placement or leader flags', () => {
+    const { manifest } = parseManifest(
+      minimal({}, [{ highlights: [{ popup: { lens: true, zoom: 2 } }] }]),
+    )
+    const popup = manifest?.slides[0].highlights?.[0].popup
+    expect(popup?.lens).toBe(true)
+    expect(popup).not.toHaveProperty('auto')
+    expect(popup).not.toHaveProperty('connector')
+  })
+
   it('parses highlights, fills defaults, clamps, and caps the count', () => {
     const { manifest, issues } = parseManifest(
       minimal({}, [

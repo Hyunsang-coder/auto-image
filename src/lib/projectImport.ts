@@ -1059,8 +1059,12 @@ export function coerceHighlights(
         ...coerceRim(p.rim, legacySizing, hw, issues),
         // A manifest that placed the card (popup.x/y) means it; auto placement
         // only fills in for one that didn't say where the card goes.
-        ...coerceFlag(p.auto, !legacySizing && popupX === undefined && popupY === undefined, 'auto'),
-        ...coerceFlag(p.connector, !legacySizing, 'connector'),
+        ...(p.lens === true
+          ? {}
+          : {
+              ...coerceFlag(p.auto, !legacySizing && popupX === undefined && popupY === undefined, 'auto'),
+              ...coerceFlag(p.connector, !legacySizing, 'connector'),
+            }),
         ...(p.shape === 'circle' || p.shape === 'rect' ? { shape: p.shape } : {}),
         ...(p.lens === true ? { lens: true } : {}),
       },

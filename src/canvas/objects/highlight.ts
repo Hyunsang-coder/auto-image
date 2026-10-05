@@ -35,8 +35,11 @@ const SOURCE_MARKER_DASH = [8, 6].map((d) => d / EDITOR_CANVAS_WIDTH)
 /** The marker's translucent wash, at the same alpha the fixed indigo used. */
 const SOURCE_MARKER_FILL_ALPHA = 0.1
 
-export const markerOf = (highlight: Highlight): HighlightMarker =>
-  highlight.marker ?? DEFAULT_MARKER
+/** A lens is its own marker — the magnified card covers the region it samples. */
+export const markerOf = (highlight: Highlight): HighlightMarker => {
+  const marker = highlight.marker ?? DEFAULT_MARKER
+  return highlight.popup.lens ? { ...marker, show: false } : marker
+}
 
 /** Corner radius for a card: half the shorter side rounds a square into a circle. */
 function cornerRadius(width: number, height: number, shape: HighlightShape | undefined): number {
