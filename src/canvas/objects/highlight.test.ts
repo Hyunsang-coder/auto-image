@@ -9,6 +9,10 @@ describe('lens highlight', () => {
     expect(markerOf(h).show).toBe(false)
   })
 
+  it('a highlight with its own popup keeps the default visible marker', () => {
+    expect(markerOf(makeHighlight({ popup: { width: 0.5 } })).show).toBe(true)
+  })
+
   it('markerOf hides the marker of a lens even when one is requested', () => {
     const h = makeHighlight({ marker: { show: true, color: '#fff' } })
     expect(markerOf(h).show).toBe(false)

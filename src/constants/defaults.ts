@@ -254,7 +254,7 @@ export function makeHighlight(
   return {
     id,
     sourceRegion: overrides?.sourceRegion ?? { x: 0.3, y: 0.42, w: 0.4, h: 0.16 },
-    marker: overrides?.marker ?? { show: false, color: accentColor ?? DEFAULT_MARKER_COLOR },
+    marker: overrides?.marker ?? { show: true, color: accentColor ?? DEFAULT_MARKER_COLOR },
     popup: overrides?.popup ?? {
       width: 0.7,
       zoom: DEFAULT_HIGHLIGHT_ZOOM,

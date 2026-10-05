@@ -4,6 +4,7 @@ import type {
   LayoutSummaryIssue,
   LayoutSuggestedEdit,
 } from './layoutReport'
+import { HIGHLIGHT_ZOOM_MIN } from '../constants/defaults'
 
 type JsonObject = Record<string, unknown>
 
@@ -425,6 +426,10 @@ function applyPopupSourceOverlap(
     return
   }
 
+  // A lens sits on its region by definition and draws no source box, so the
+  // overlap is intended and moving x/y would change nothing.
+  if (target.node.lens === true) return
+
   const source = isRecord(target.highlight?.sourceRegion) ? target.highlight.sourceRegion : null
   const sourceX = source
     ? (numberField(source, 'x') ?? 0.5) + (numberField(source, 'w') ?? 0) / 2
@@ -484,6 +489,8 @@ function movePopupForSides(
   sides: string[],
   reason: string,
 ): void {
+  // A lens follows its region, not popup.x/y; shrinkPopup is its only lever.
+  if (target.node.lens === true) return
   let x = numberField(target.node, 'x') ?? 0.5
   let y = numberField(target.node, 'y') ?? 0.32
   if (sides.includes('left')) x += POSITION_STEP
@@ -501,6 +508,13 @@ function shrinkPopup(
   target: AutofixTarget,
   reason: string,
 ): void {
+  if (target.node.lens === true) {
+    // A lens is sized by zoom (width is ignored), and zoom 1 is as small as it
+    // gets: the card then exactly covers the region it samples.
+    const zoom = numberField(target.node, 'zoom') ?? 2
+    setField(ctx, issue, issueIndex, target, 'zoom', round3(Math.max(zoom * SIZE_REDUCTION, HIGHLIGHT_ZOOM_MIN)), reason)
+    return
+  }
   const width = numberField(target.node, 'width') ?? 0.78
   setField(
     ctx,

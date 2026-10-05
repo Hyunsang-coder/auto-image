@@ -587,6 +587,16 @@ describe('buildProjectFromManifest', () => {
     ),
   ).manifest!
 
+  it('keeps a visible marker and connector for highlights that are not lenses', () => {
+    const m = parseManifest(
+      minimal({}, [{ highlights: [{ sourceRegion: { x: 0.2, y: 0.3, w: 0.4, h: 0.2 }, popup: { zoom: 2 } }] }]),
+    ).manifest!
+    const h = buildProjectFromManifest(m).slides[0].highlights[0]
+    expect(h.marker?.show).toBe(true)
+    expect(h.popup.connector).toBe(true)
+    expect(h.popup.lens).toBeUndefined()
+  })
+
   it('carries project-level settings over makeProject defaults', () => {
     const p = buildProjectFromManifest(base())
     expect(p.name).toBe('Dogo')

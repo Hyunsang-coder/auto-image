@@ -222,6 +222,29 @@ describe('layout autofix', () => {
     expect(popup).toMatchObject({ x: 0.39, y: 0.44, width: 0.72 })
   })
 
+  it('shrinks a lens by zoom and never moves its ignored x/y', () => {
+    const manifest = {
+      version: 1,
+      name: 'Demo',
+      slides: [
+        {
+          layout: 'text-top',
+          textBlocks: 1,
+          highlights: [{ sourceRegion: { x: 0.8, y: 0.4, w: 0.2, h: 0.2 }, popup: { lens: true, zoom: 3, x: 0.5, y: 0.3 } }],
+        },
+      ],
+    }
+    const result = applyLayoutSummaryFixes(manifest, {
+      issues: [
+        issue('highlight-popup-overflow', 'manifest.json#/slides/0/highlights/0/popup', { sides: ['right'] }),
+        issue('highlight-popup-source-overlap', 'manifest.json#/slides/0/highlights/0/popup'),
+      ],
+    })
+    const slide = (fixedManifest(result).slides as Array<Record<string, unknown>>)[0]
+    const popup = (slide.highlights as Array<Record<string, unknown>>)[0].popup as Record<string, unknown>
+    expect(popup).toEqual({ lens: true, zoom: 2.7, x: 0.5, y: 0.3 })
+  })
+
   it('applies duplicate issue/path pairs only once per pass', () => {
     const manifest = {
       version: 1,
