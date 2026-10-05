@@ -76,6 +76,26 @@ export function popupPixelSize(
   return { width, height: width * (cropH / cropW) }
 }
 
+const LENS_REGION_MIN = 0.05
+
+/**
+ * Region size for a lens drawn `size` wide (a fraction of the screen width) at
+ * `zoom`: the lens covers zoom x the region, so the region is size / zoom. The
+ * region's aspect is kept, and the scale is limited so neither side leaves
+ * [LENS_REGION_MIN, 1] — the lens then simply stops getting bigger/smaller.
+ */
+export function lensRegionSize(
+  region: { w: number; h: number },
+  size: number,
+  zoom: number,
+): { w: number; h: number } {
+  const wanted = size / zoom / region.w
+  const lo = Math.max(LENS_REGION_MIN / region.w, LENS_REGION_MIN / region.h)
+  const hi = Math.min(1 / region.w, 1 / region.h)
+  const r = Math.min(Math.max(wanted, lo), hi)
+  return { w: region.w * r, h: region.h * r }
+}
+
 /** Inverse of popupPixelWidth — what a hand-resized card means as a zoom. */
 export function zoomFromPixelWidth(
   pixelWidth: number,

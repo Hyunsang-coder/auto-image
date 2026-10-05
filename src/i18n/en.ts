@@ -799,7 +799,7 @@ export const en: Record<string, string> = {
   선택됨: 'Selected',
   '원본 영역 선택': 'Select source region',
   '확대 카드 선택': 'Select zoom card',
-  '캔버스의 돋보기를 끌어 확대할 곳에 놓고, 모서리로 배율을 조절하세요.': 'Drag the magnifier on the canvas to where you want it, and use its corners to set the zoom.',
+  '캔버스에서 돋보기를 끌어 위치를, 모서리를 당겨 크기를 정하세요. 배율은 아래 슬라이더로 조절해요.': 'Drag the magnifier on the canvas to place it and pull a corner to size it. Set the zoom with the slider below.',
   '캔버스에서 점선 박스를 직접 드래그·조절합니다':
     'Drag and resize the dashed box directly on the canvas',
   '원본 테두리를 켜면 캔버스에서 잡을 수 있어요':

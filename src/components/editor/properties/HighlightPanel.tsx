@@ -9,13 +9,14 @@ import {
   DEFAULT_HIGHLIGHT_ZOOM,
   HIGHLIGHT_ZOOM_MAX,
   HIGHLIGHT_ZOOM_MIN,
+  LENS_ZOOM_MAX,
   MAX_HIGHLIGHTS,
   makeHighlight,
 } from '../../../constants/defaults'
 import { useProjectStore } from '../../../store/useProjectStore'
 import { normalizeAngle } from '../../../canvas/geometry'
 import { screenBoundsOf } from '../../../canvas/templateLayouts'
-import { markerOf, zoomFromPixelWidth } from '../../../canvas/objects/highlight'
+import { lensRegionSize, markerOf, zoomFromPixelWidth } from '../../../canvas/objects/highlight'
 import { EDITOR_CANVAS_WIDTH } from '../../../constants/deviceSpecs'
 import { useT } from '../../../i18n'
 
@@ -79,6 +80,22 @@ export function HighlightPanel({
     onChange(
       value.map((h) => (h.id === id ? { ...h, popup: { ...h.popup, ...patch } } : h)),
     )
+  }
+  // Changing a lens's zoom keeps its size on the slide, so the region it samples
+  // grows or shrinks around its center — the way a real magnifier behaves.
+  function setLensZoom(h: Highlight, zoom: number) {
+    const sr = h.sourceRegion
+    const size = lensRegionSize(sr, zoomOf(h) * sr.w, zoom)
+    const cx = sr.x + sr.w / 2
+    const cy = sr.y + sr.h / 2
+    update(h.id, {
+      sourceRegion: {
+        x: Math.min(Math.max(cx - size.w / 2, 0), 1 - size.w),
+        y: Math.min(Math.max(cy - size.h / 2, 0), 1 - size.h),
+        ...size,
+      },
+      popup: { ...h.popup, zoom },
+    })
   }
   function remove(id: string) {
     onChange(value.filter((h) => h.id !== id))
@@ -178,13 +195,12 @@ export function HighlightPanel({
 
           {lens && (
             <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
-              {t('캔버스의 돋보기를 끌어 확대할 곳에 놓고, 모서리로 배율을 조절하세요.')}
+              {t('캔버스에서 돋보기를 끌어 위치를, 모서리를 당겨 크기를 정하세요. 배율은 아래 슬라이더로 조절해요.')}
             </p>
           )}
 
-          {onSelectLayer && (
+          {onSelectLayer && !lens && (
             <div className="space-y-1.5">
-              {!lens && (
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
@@ -222,12 +238,9 @@ export function HighlightPanel({
                   {t('확대 카드 선택')}
                 </button>
               </div>
-              )}
-              {!lens && (
               <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
                 {t('캔버스에서 직접 드래그·모서리 조절하는 게 가장 빨라요. 선택 후 방향키로 1px씩 미세 이동할 수 있어요.')}
               </p>
-              )}
               <div className="flex items-center gap-2">
                 <div className="grid shrink-0 grid-cols-3 gap-1" role="group" aria-label={t('원본 영역 위치 미세 조정')}>
                   <span />
@@ -260,6 +273,22 @@ export function HighlightPanel({
           )}
 
           <Group label={t('배율')}>
+            {lens ? (
+              <label className="flex items-center justify-between text-xs text-[var(--color-text)]">
+                <input
+                  type="range"
+                  min={HIGHLIGHT_ZOOM_MIN}
+                  max={LENS_ZOOM_MAX}
+                  step={0.1}
+                  value={Math.min(zoomOf(h), LENS_ZOOM_MAX)}
+                  onChange={(e) => setLensZoom(h, Number(e.target.value))}
+                  className="flex-1 accent-[var(--color-accent)]"
+                />
+                <span className="w-10 text-right text-[var(--color-text-dim)]">
+                  {Math.min(zoomOf(h), LENS_ZOOM_MAX).toFixed(1)}×
+                </span>
+              </label>
+            ) : (<>
             <div className="grid grid-cols-4 gap-1.5">
               {ZOOM_PRESETS.map((z) => (
                 <button
@@ -294,6 +323,7 @@ export function HighlightPanel({
             <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
               {t('카드 크기는 배율에서 나옵니다. 영역을 다시 잡아도 배율은 그대로예요.')}
             </p>
+            </>)}
           </Group>
 
           <Group label={t('모양')}>
@@ -397,6 +427,7 @@ export function HighlightPanel({
             </div>
           </Group>
 
+          {!lens && (
           <details>
             <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
               {t('세부 조정')}
@@ -445,7 +476,6 @@ export function HighlightPanel({
                 />
               </Group>
 
-              {!lens && (
               <Group label={t('확대 카드')}>
                 <Slider
                   label="X"
@@ -481,9 +511,9 @@ export function HighlightPanel({
                   </span>
                 </label>
               </Group>
-              )}
             </div>
           </details>
+          )}
         </div>
         )
       })}

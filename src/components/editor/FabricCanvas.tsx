@@ -7,6 +7,7 @@ import { fitCaption, placeCaptionBoxUnderlay } from '../../canvas/objects/captio
 import { normalizeAngle, rotateAround } from '../../canvas/geometry'
 import {
   canvasPointToRegionOrigin,
+  lensRegionSize,
   popupPixelWidth,
   trackHighlightPopup,
   zoomFromPixelWidth,
@@ -21,6 +22,7 @@ import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
 import {
   CAPTION_FONT_SIZE_MAX,
   CAPTION_FONT_SIZE_MIN,
+  DEFAULT_HIGHLIGHT_ZOOM,
   HIGHLIGHT_ZOOM_MAX,
   HIGHLIGHT_ZOOM_MIN,
   MAX_HIGHLIGHTS,
@@ -804,25 +806,27 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           ) as FabricObject | undefined
           if (pop && h.popup.lens) {
             // A lens has no placement of its own: dragging it moves the region
-            // it magnifies, resizing it changes the zoom.
+            // it magnifies, and pulling a corner resizes that region while the
+            // zoom stays put.
             const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
+            const sr = n.sourceRegion
+            const resized = Math.abs(pW - popupPixelWidth(h, sb.width, cw)) > 0.5
+            const size = resized
+              ? lensRegionSize(sr, pW / sb.width, h.popup.zoom ?? DEFAULT_HIGHLIGHT_ZOOM)
+              : sr
             const origin = canvasPointToRegionOrigin(
               sb,
-              { w: n.sourceRegion.w, h: n.sourceRegion.h },
+              size,
               pop.getCenterPoint(),
               (pop as FabricObject & { _renderRot?: number })._renderRot ?? 0,
             )
-            const scaled = Math.abs(pW - popupPixelWidth(h, sb.width, cw)) > 0.5
-            const nZoom = scaled
-              ? clampZoom(zoomFromPixelWidth(pW, n.sourceRegion.w, sb.width))
-              : h.popup.zoom
-            const sr = n.sourceRegion
-            if (Math.abs(origin.x - sr.x) > 0.001 || Math.abs(origin.y - sr.y) > 0.001) {
-              n = { ...n, sourceRegion: { ...sr, x: origin.x, y: origin.y } }
-              dirty = true
-            }
-            if (nZoom !== h.popup.zoom) {
-              n = { ...n, popup: { ...n.popup, zoom: nZoom } }
+            if (
+              Math.abs(origin.x - sr.x) > 0.001 ||
+              Math.abs(origin.y - sr.y) > 0.001 ||
+              Math.abs(size.w - sr.w) > 0.001 ||
+              Math.abs(size.h - sr.h) > 0.001
+            ) {
+              n = { ...n, sourceRegion: { ...origin, w: size.w, h: size.h } }
               dirty = true
             }
           } else if (pop) {

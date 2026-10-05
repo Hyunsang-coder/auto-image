@@ -1041,7 +1041,7 @@ export function coerceHighlights(
     // A manifest that sized its card by hand keeps doing exactly that: seeding a
     // default zoom would override the width it asked for. Zoom (and the rim that
     // comes with the modern shape) only fill in when the popup didn't.
-    const legacySizing = zoom === undefined && width !== undefined
+    const legacySizing = p.lens !== true && zoom === undefined && width !== undefined
     out.push({
       ...coerceMarker(h.marker, hw, issues),
       sourceRegion: {

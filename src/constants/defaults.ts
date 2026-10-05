@@ -610,6 +610,8 @@ export const DEFAULT_MARKER: HighlightMarker = { show: true, color: DEFAULT_MARK
 /** Magnification range offered in the panel and accepted from a manifest. */
 export const HIGHLIGHT_ZOOM_MIN = 1
 export const HIGHLIGHT_ZOOM_MAX = 6
+/** A lens magnifies gently — past this the card is a different feature. */
+export const LENS_ZOOM_MAX = 2
 
 // Per-kind defaults chosen so a freshly added shape reads immediately: rect/
 // ellipse are translucent color blocks behind the device (layer 'back'),

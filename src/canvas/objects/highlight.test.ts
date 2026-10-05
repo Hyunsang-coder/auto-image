@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { makeHighlight } from '../../constants/defaults'
-import { canvasPointToRegionOrigin, markerOf, regionCenterOnCanvas } from './highlight'
+import { canvasPointToRegionOrigin, lensRegionSize, markerOf, regionCenterOnCanvas } from './highlight'
 
 describe('lens highlight', () => {
   it('new highlights are lenses with no visible marker', () => {
@@ -39,5 +39,20 @@ describe('lens highlight', () => {
     const sb = { left: 0, top: 0, width: 100, height: 200 }
     const origin = canvasPointToRegionOrigin(sb, { w: 0.4, h: 0.2 }, { x: 500, y: -50 })
     expect(origin).toEqual({ x: 0.6, y: 0 })
+  })
+})
+
+describe('lensRegionSize', () => {
+  it('keeps the lens size when zoom changes and the region aspect always', () => {
+    const region = { w: 0.4, h: 0.2 }
+    const size = 0.4 * 2 // lens drawn 0.8 of the screen wide at 2x
+    const at1 = lensRegionSize(region, size, 1)
+    expect(at1.w).toBeCloseTo(0.8)
+    expect(at1.h / at1.w).toBeCloseTo(0.5)
+  })
+
+  it('stops at the screenshot edge and at the minimum', () => {
+    expect(lensRegionSize({ w: 0.4, h: 0.2 }, 5, 1).w).toBeCloseTo(1)
+    expect(lensRegionSize({ w: 0.4, h: 0.2 }, 0.001, 2).h).toBeCloseTo(0.05)
   })
 })
