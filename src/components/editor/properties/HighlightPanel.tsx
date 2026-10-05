@@ -151,7 +151,9 @@ export function HighlightPanel({
         </p>
       )}
 
-      {value.map((h, i) => (
+      {value.map((h, i) => {
+        const lens = !!h.popup.lens
+        return (
         <div
           key={h.id}
           className="space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
@@ -174,8 +176,15 @@ export function HighlightPanel({
             </button>
           </div>
 
+          {lens && (
+            <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
+              {t('캔버스의 돋보기를 끌어 확대할 곳에 놓고, 모서리로 배율을 조절하세요.')}
+            </p>
+          )}
+
           {onSelectLayer && (
             <div className="space-y-1.5">
+              {!lens && (
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
@@ -213,9 +222,12 @@ export function HighlightPanel({
                   {t('확대 카드 선택')}
                 </button>
               </div>
+              )}
+              {!lens && (
               <p className="text-[10px] leading-tight text-[var(--color-text-dim)]">
                 {t('캔버스에서 직접 드래그·모서리 조절하는 게 가장 빨라요. 선택 후 방향키로 1px씩 미세 이동할 수 있어요.')}
               </p>
+              )}
               <div className="flex items-center gap-2">
                 <div className="grid shrink-0 grid-cols-3 gap-1" role="group" aria-label={t('원본 영역 위치 미세 조정')}>
                   <span />
@@ -304,6 +316,7 @@ export function HighlightPanel({
             </div>
           </Group>
 
+          {!lens && (<>
           <Group label={t('원본 표시')}>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-1.5 text-xs text-[var(--color-text)]">
@@ -355,6 +368,7 @@ export function HighlightPanel({
                 : t('카드 위치를 직접 잡은 상태입니다.')}
             </p>
           </Group>
+          </>)}
 
           <Group label={t('테두리')}>
             <div className="flex items-center gap-2">
@@ -431,6 +445,7 @@ export function HighlightPanel({
                 />
               </Group>
 
+              {!lens && (
               <Group label={t('확대 카드')}>
                 <Slider
                   label="X"
@@ -466,10 +481,12 @@ export function HighlightPanel({
                   </span>
                 </label>
               </Group>
+              )}
             </div>
           </details>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

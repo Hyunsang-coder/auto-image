@@ -45,6 +45,7 @@ export function buildDesignReference() {
       'popup.width': 'pre-zoom sizing, a fraction of canvas width. Only read when zoom is unset; otherwise a record of the rendered card',
       'popup.auto': 'let the layout place the card clear of the region and the captions. On unless popup.x/y say otherwise; dragging the card in the app turns it off',
       'popup.x/y': 'card center in canvas fractions. Input only while auto is off — with auto on it records where the last render placed it',
+      'popup.lens': 'magnifier mode: the card is centered on the region and magnifies it in place — popup.x/y/auto/connector/rotation and the marker are ignored. The in-app default for new highlights',
       'popup.connector': 'leader line from the marker to the card, in the marker ink. Skipped when the card overlaps its region',
       'popup.rim': `{ color, width } outline around the card; width is a fraction of canvas width. Default ${JSON.stringify(DEFAULT_HIGHLIGHT_RIM)}. Without a rim a card sampling the UI it floats over has no visible edge`,
       'popup.shape': "'rect' (default) or 'circle' — circle rounds to half the shorter side, so a square card is a circle and a wide one a lozenge",

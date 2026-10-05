@@ -157,6 +157,7 @@ export interface ParsedHighlight {
     auto?: boolean
     connector?: boolean
     shape?: HighlightShape
+    lens?: boolean
   }
 }
 
@@ -1061,6 +1062,7 @@ export function coerceHighlights(
         ...coerceFlag(p.auto, !legacySizing && popupX === undefined && popupY === undefined, 'auto'),
         ...coerceFlag(p.connector, !legacySizing, 'connector'),
         ...(p.shape === 'circle' || p.shape === 'rect' ? { shape: p.shape } : {}),
+        ...(p.lens === true ? { lens: true } : {}),
       },
     })
   })

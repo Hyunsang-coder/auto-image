@@ -455,6 +455,12 @@ export interface Highlight {
     /** Draw the leader line from the source marker to the card. */
     connector?: boolean
     /**
+     * Magnifier mode: the card sits centered on the sampled region and
+     * magnifies it in place. Dragging the card moves the region; there is no
+     * separate placement, marker or leader line.
+     */
+    lens?: boolean
+    /**
      * Card silhouette. 'circle' rounds the corners to half the shorter side —
      * a circle on a square card, a lozenge on a wide one. Absent = 'rect'.
      */

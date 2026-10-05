@@ -214,14 +214,15 @@ export async function renderHighlight(
   const sourceCenter = regionCenterOnCanvas(ctx.screenBounds, sourceRegion, ctx.rotation ?? 0)
   // A computed placement wins: the card is auto-placed until the user drags it,
   // and popup.x/y are then only the last position it was rendered at.
-  const center =
-    ctx.center ??
+  const center = popup.lens
+    ? sourceCenter
+    : ctx.center ??
     (typeof popup.x === 'number' && typeof popup.y === 'number'
       ? { x: ctx.canvasWidth * popup.x, y: ctx.canvasHeight * popup.y }
       : sourceCenter)
   // The card tilts about its center: spin the top-left anchor around it and
   // let Fabric's `angle` do the rest (origin is top-left).
-  const rotation = popup.rotation ?? 0
+  const rotation = popup.lens ? 0 : popup.rotation ?? 0
   const anchor = rotation
     ? rotateAround(center.x - popupW / 2, center.y - popupH / 2, center.x, center.y, rotation)
     : { x: center.x - popupW / 2, y: center.y - popupH / 2 }
@@ -256,7 +257,7 @@ export async function renderHighlight(
     cornerColor: '#6366F1',
     hoverCursor: 'move',
   })
-  img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: true })
+  img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: !popup.lens })
 
   // Round the popup card. clipPath uses absolute coords so it tracks the image
   // position; sync code re-creates the clip after a drag.

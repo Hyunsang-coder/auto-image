@@ -802,7 +802,30 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           const pop = hlPopupObjs.find(
             (o) => (o as FabricObject & { highlightId?: string }).highlightId === h.id,
           ) as FabricObject | undefined
-          if (pop) {
+          if (pop && h.popup.lens) {
+            // A lens has no placement of its own: dragging it moves the region
+            // it magnifies, resizing it changes the zoom.
+            const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
+            const origin = canvasPointToRegionOrigin(
+              sb,
+              { w: n.sourceRegion.w, h: n.sourceRegion.h },
+              pop.getCenterPoint(),
+              (pop as FabricObject & { _renderRot?: number })._renderRot ?? 0,
+            )
+            const scaled = Math.abs(pW - popupPixelWidth(h, sb.width, cw)) > 0.5
+            const nZoom = scaled
+              ? clampZoom(zoomFromPixelWidth(pW, n.sourceRegion.w, sb.width))
+              : h.popup.zoom
+            const sr = n.sourceRegion
+            if (Math.abs(origin.x - sr.x) > 0.001 || Math.abs(origin.y - sr.y) > 0.001) {
+              n = { ...n, sourceRegion: { ...sr, x: origin.x, y: origin.y } }
+              dirty = true
+            }
+            if (nZoom !== h.popup.zoom) {
+              n = { ...n, popup: { ...n.popup, zoom: nZoom } }
+              dirty = true
+            }
+          } else if (pop) {
             const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
             const c = pop.getCenterPoint()
             // An auto-placed card sits wherever the layout put it, and every

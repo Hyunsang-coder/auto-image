@@ -661,7 +661,7 @@ export async function applyTemplate(
     slide.highlights.forEach((h, i) => {
       // The marker and its leader are one annotation: a line reaching out of a
       // boundary that isn't drawn reads as a stray mark, not a cue.
-      if (!h.popup.connector || !markerOf(h).show) return
+      if (h.popup.lens || !h.popup.connector || !markerOf(h).show) return
       const card = placed[i] ?? {
         x: cw * (h.popup.x ?? 0.5),
         y: ch * (h.popup.y ?? 0.32),

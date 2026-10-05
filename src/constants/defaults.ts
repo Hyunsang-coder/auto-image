@@ -248,21 +248,18 @@ export function makeHighlight(
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `hl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-  // Default: sample a narrow strip mid-screen and float the card above it. The
-  // region is deliberately small — the card's size comes from `zoom`, so a
-  // full-width region at 2x would draw a card wider than the canvas.
+  // Default: a magnifier over a small mid-screen region. The region is
+  // deliberately small — the card's size comes from `zoom`, so a full-width
+  // region at 2x would draw a card wider than the canvas.
   return {
     id,
-    sourceRegion: overrides?.sourceRegion ?? { x: 0.25, y: 0.44, w: 0.5, h: 0.12 },
-    marker: overrides?.marker ?? { show: true, color: accentColor ?? DEFAULT_MARKER_COLOR },
+    sourceRegion: overrides?.sourceRegion ?? { x: 0.3, y: 0.42, w: 0.4, h: 0.16 },
+    marker: overrides?.marker ?? { show: false, color: accentColor ?? DEFAULT_MARKER_COLOR },
     popup: overrides?.popup ?? {
-      x: 0.5,
-      y: 0.3,
       width: 0.7,
       zoom: DEFAULT_HIGHLIGHT_ZOOM,
       rim: { ...DEFAULT_HIGHLIGHT_RIM },
-      auto: true,
-      connector: true,
+      lens: true,
     },
   }
 }
