@@ -7,7 +7,6 @@ import { fitCaption, placeCaptionBoxUnderlay } from '../../canvas/objects/captio
 import { normalizeAngle, rotateAround } from '../../canvas/geometry'
 import {
   canvasPointToRegionOrigin,
-  lensRegionSize,
   popupPixelWidth,
   trackHighlightPopup,
   zoomFromPixelWidth,
@@ -22,7 +21,6 @@ import { computeSnap, type SnapBox } from '../../canvas/snapGuides'
 import {
   CAPTION_FONT_SIZE_MAX,
   CAPTION_FONT_SIZE_MIN,
-  DEFAULT_HIGHLIGHT_ZOOM,
   HIGHLIGHT_ZOOM_MAX,
   HIGHLIGHT_ZOOM_MIN,
   MAX_HIGHLIGHTS,
@@ -806,14 +804,21 @@ export const FabricCanvas = forwardRef<FabricCanvasHandle, Props>(
           ) as FabricObject | undefined
           if (pop && h.popup.lens) {
             // A lens has no placement of its own: dragging it moves the region
-            // it magnifies, and pulling a corner resizes that region while the
-            // zoom stays put.
-            const pW = (pop.width ?? 0) * (pop.scaleX ?? 1)
+            // it magnifies, and pulling a handle resizes that region (width and
+            // height independently) while the zoom stays put. The card's
+            // rendered box is the baseline the pull is measured against.
             const sr = n.sourceRegion
-            const resized = Math.abs(pW - popupPixelWidth(h, sb.width, cw)) > 0.5
-            const size = resized
-              ? lensRegionSize(sr, pW / sb.width, h.popup.zoom ?? DEFAULT_HIGHLIGHT_ZOOM)
-              : sr
+            const baseW = popupPixelWidth(h, sb.width, cw)
+            const baseH = (pop.height ?? 0) * (baseW / Math.max(1, pop.width ?? 1))
+            const rX = ((pop.width ?? 0) * (pop.scaleX ?? 1)) / baseW
+            const rY = ((pop.height ?? 0) * (pop.scaleY ?? 1)) / Math.max(1, baseH)
+            const size =
+              Math.abs(rX - 1) > 0.002 || Math.abs(rY - 1) > 0.002
+                ? {
+                    w: Math.min(1, Math.max(SOURCE_REGION_MIN, sr.w * rX)),
+                    h: Math.min(1, Math.max(SOURCE_REGION_MIN, sr.h * rY)),
+                  }
+                : sr
             const origin = canvasPointToRegionOrigin(
               sb,
               size,

@@ -1,4 +1,4 @@
-import { FabricImage, Line, Rect, Shadow } from 'fabric'
+import { Control, FabricImage, Line, Rect, Shadow, controlsUtils } from 'fabric'
 import type { Canvas, FabricObject } from 'fabric'
 import type { Highlight, HighlightMarker, HighlightShape, ScreenshotImage } from '../../types/project'
 import { DEFAULT_MARKER, hexToRgb } from '../../constants/defaults'
@@ -41,9 +41,27 @@ export const markerOf = (highlight: Highlight): HighlightMarker => {
   return highlight.popup.lens ? { ...marker, show: false } : marker
 }
 
-/** Corner radius for a card: half the shorter side rounds a square into a circle. */
-function cornerRadius(width: number, height: number, shape: HighlightShape | undefined): number {
-  return Math.min(width, height) * (shape === 'circle' ? 0.5 : POPUP_CORNER_RATIO)
+/**
+ * Corner radii for a card. Half the shorter side rounds a square into a circle
+ * (and a wide legacy card into a lozenge); a lens is free-form, so its 'circle'
+ * is a true ellipse that follows whatever box the user pulled out.
+ */
+function cornerRadii(
+  width: number,
+  height: number,
+  shape: HighlightShape | undefined,
+  lens: boolean | undefined,
+): { rx: number; ry: number } {
+  if (shape === 'circle' && lens) return { rx: width / 2, ry: height / 2 }
+  const r = Math.min(width, height) * (shape === 'circle' ? 0.5 : POPUP_CORNER_RATIO)
+  return { rx: r, ry: r }
+}
+
+/** Every handle pulls width and height independently: corners included. */
+const freeScale: typeof controlsUtils.scalingX = (e, t, x, y) => {
+  const a = controlsUtils.scalingX(e, t, x, y)
+  const b = controlsUtils.scalingY(e, t, x, y)
+  return a || b
 }
 
 /**
@@ -271,7 +289,7 @@ export async function renderHighlight(
     lockRotation: false,
     lockSkewingX: true,
     lockSkewingY: true,
-    lockUniScaling: true,
+    lockUniScaling: !popup.lens,
     centeredScaling: true,
     // Same gentle magnetism as the device body so the loupe squares up easily.
     snapAngle: 45,
@@ -280,18 +298,34 @@ export async function renderHighlight(
     cornerColor: '#6366F1',
     hoverCursor: 'move',
   })
-  img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: !popup.lens })
+  if (popup.lens) {
+    // Free-form: side handles stay, and the corners are swapped for ones that
+    // scale both axes on their own instead of keeping the aspect.
+    for (const key of ['tl', 'tr', 'bl', 'br'] as const) {
+      const c = img.controls[key]
+      img.controls[key] = new Control({
+        x: c.x,
+        y: c.y,
+        cursorStyleHandler: c.cursorStyleHandler,
+        actionName: 'scaling',
+        actionHandler: freeScale,
+      })
+    }
+    img.setControlsVisibility({ mtr: false })
+  } else {
+    img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false, mtr: true })
+  }
 
   // Round the popup card. clipPath uses absolute coords so it tracks the image
   // position; sync code re-creates the clip after a drag.
-  const radius = cornerRadius(popupW, popupH, popup.shape)
+  const { rx, ry } = cornerRadii(popupW, popupH, popup.shape, popup.lens)
   img.clipPath = new Rect({
     left,
     top,
     width: popupW,
     height: popupH,
-    rx: radius,
-    ry: radius,
+    rx,
+    ry,
     angle: rotation,
     originX: 'left',
     originY: 'top',
@@ -316,6 +350,7 @@ export async function renderHighlight(
   // (which pins the card) from the re-render that follows any other edit.
   ;(img as FabricImage & { _autoCenter?: { x: number; y: number } })._autoCenter = ctx.center
   ;(img as FabricImage & { _shape?: HighlightShape })._shape = popup.shape
+  ;(img as FabricImage & { _lens?: boolean })._lens = popup.lens
   return img
 }
 
@@ -331,14 +366,19 @@ function popupBox(popup: FabricObject): {
 } {
   const width = (popup.width ?? 0) * (popup.scaleX ?? 1)
   const height = (popup.height ?? 0) * (popup.scaleY ?? 1)
-  const r = cornerRadius(width, height, (popup as FabricObject & { _shape?: HighlightShape })._shape)
+  const { rx, ry } = cornerRadii(
+    width,
+    height,
+    (popup as FabricObject & { _shape?: HighlightShape })._shape,
+    (popup as FabricObject & { _lens?: boolean })._lens,
+  )
   return {
     left: popup.left ?? 0,
     top: popup.top ?? 0,
     width,
     height,
-    rx: r,
-    ry: r,
+    rx,
+    ry,
     angle: popup.angle ?? 0,
   }
 }
